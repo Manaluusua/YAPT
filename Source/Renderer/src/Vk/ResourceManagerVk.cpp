@@ -208,7 +208,7 @@ namespace YAPT
 	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{
 		ShaderModuleHandle mod = new ShaderModuleVk(filepath, moduleType, entryPoint, defines, defineCount);
-		assert("TODO");
+		assert(!"TODO");
 		/*for (size_t i = 0; i < defineCount; ++i)
 		{
 			stringToWString(defines[i].name, defineWstr[i * 2]);

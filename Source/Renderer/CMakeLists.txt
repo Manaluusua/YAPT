@@ -262,8 +262,12 @@ if(${BUILD_DX12_BACKEND})
 endif()
 
 if(${BUILD_VK_BACKEND})
+	
 	find_package(Vulkan REQUIRED)
-	target_link_libraries(Renderer PRIVATE Vulkan::Vulkan)
+	find_package(DxCompiler REQUIRED)
+	target_link_libraries(Renderer PRIVATE Vulkan::Vulkan Dxc::Dxc)
+	
+	copy_if_different(Renderer $<TARGET_FILE:Dxc::Dxc> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
 
 	list(APPEND HEADERS 
 		inc/Renderer/Vk/RendererVk.h
