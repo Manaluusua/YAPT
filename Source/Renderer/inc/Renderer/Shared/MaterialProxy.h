@@ -1,0 +1,107 @@
+#pragma once
+
+#include <Renderer/Material.h>
+#include <Renderer/Shared/MaterialManager.h>
+#include <Renderer/Shared/MaterialInternal.h>
+#include <Renderer/RendererCommonTypes.h>
+
+namespace YAPT
+{
+	class MaterialProxy : public Material
+	{
+		friend class MaterialManager;
+	public:
+
+		enum MaterialState
+		{
+			MATERIALSTATE_NOCHANGES = 0,
+			MATERIALSTATE_CREATED = YAPTBIT(1),
+			MATERIALSTATE_MODIFIED = YAPTBIT(2),
+			MATERIALSTATE_DESTROYED = YAPTBIT(3)
+		};
+
+		MaterialProxy(MaterialManager* mngr);
+		virtual ~MaterialProxy();
+
+		MaterialInternal* getMaterialInternal() { return m_mngr->getMaterialInternal(_id); }
+
+		virtual void setFromMaterialPreset(MaterialPreset preset) final;
+
+		virtual void setTransparency(float transparency) final;
+		virtual float getTranspacenry() const final;
+
+		virtual void setMetalness(float metalness) final;;
+		virtual float getMetalness() const final;
+
+		virtual void setAlbedo(const glm::vec3& v) final;
+		virtual const glm::vec3& getAlbedo() const final;
+
+		virtual void setSpecularTint(const glm::vec3& v) final;
+		virtual const glm::vec3& getSpecularTint() const final;
+
+		virtual void setAbsorption(const glm::vec3& v) final;
+		virtual const glm::vec3& getAbsorption() const final;
+
+		virtual void setEmission(const glm::vec3& v) final;
+		virtual const glm::vec3& getEmission() const final;
+
+		virtual void setDielectricIOR(float ior) final;
+		virtual float getDielectricIOR() const final;
+
+		virtual void setRoughness(float roughness) final;
+		virtual float getRoughness() const final;
+
+		virtual void setAnisotropy(float anisotropy) final;
+		virtual float getAnisotropy() const final;
+
+		virtual void setAnisotropyRotation(float rot) final;
+		virtual float getAnisotropyRotation() const final;
+
+		virtual void setTwoSided(bool val) final;
+		virtual bool isTwoSided() const final;
+
+		virtual void setSpecularAmount(float val) final;
+		virtual float getSpecularAmount() const final;
+
+		virtual void setClearCoatAmount(float val) final;
+		virtual float getClearCoatAmount() const final;
+
+		virtual void setClearCoatRoughness(float val) final;
+		virtual float getClearCoatRoughness() const final;
+
+		virtual void setClearCoatIOR(float val) final;
+		virtual float getClearCoatIOR() const final;
+
+		virtual void setSheenRoughness(float val) final;
+		virtual float getSheenRoughness() const final;
+
+		virtual void setSheenTint(const glm::vec3& v) final;
+		virtual const glm::vec3& getSheenTint() const final;
+
+		virtual void setSheenAmount(float val) final;
+		virtual float getSheenAmount() const final;
+
+		virtual void setThinFilmThickness(float val) final;
+		virtual float getThinFilmThickness() const final;
+
+		virtual void setAlbedoTexture(RCObjectPtr<Texture>& tex) final;
+		virtual void setNormalTexture(RCObjectPtr<Texture>& tex) final;
+		virtual void setORMTexture(RCObjectPtr<Texture>& tex) final;
+		virtual void setEmissiveTexture(RCObjectPtr<Texture>& tex) final;
+
+	protected:
+		virtual void allReferencesReleased() final;
+
+	private:
+		uint32_t getTextureViewIndex(Texture* tex);
+
+		void setDirty();
+
+		MaterialParameters m_materialParams;
+		MaterialManager* m_mngr;
+
+		//Handled by MaterialManager
+		size_t _materialState;
+		MaterialIndex _id;
+	};
+}

@@ -1,0 +1,43 @@
+#include "../globalDefinitions.hlsl"
+#include "../utils/common.hlsl"
+
+struct MergeNewSamplesParams
+{
+	uint4 targetTextureOffsetScaleBias;
+	uint2 sourceTextureDimensions;
+};
+
+
+ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
+Texture2D g_sourceTex : register(t1, space0);
+RWTexture2D<float4> g_targetTex : register(u2, space0);
+
+[numthreads(8, 8, 1)]
+void main( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if(dispatchThreadId.x < g_mergeParams.sourceTextureDimensions.x && dispatchThreadId.y < g_mergeParams.sourceTextureDimensions.y)
+	{
+		float4 srcColor = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
+		uint2 targetPosition = g_mergeParams.targetTextureOffsetScaleBias.xy * dispatchThreadId.xy + g_mergeParams.targetTextureOffsetScaleBias.zw;
+		float4 dstColor = g_targetTex[targetPosition];
+		
+		float w = dstColor.a + srcColor.a;
+		if(w > 0)
+		{
+			float destBlend = dstColor.a / w;
+			float srcBlend = srcColor.a / w;
+			
+			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, w);
+			g_targetTex[targetPosition] = output;
+			
+			
+			
+		}
+		
+		
+	}
+}
+

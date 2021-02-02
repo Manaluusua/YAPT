@@ -1,0 +1,31 @@
+function(copy_if_different _target _source _destination)
+
+	add_custom_command (
+		TARGET ${_target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E 
+			copy_if_different 
+				${_source}
+				${_destination}
+	)
+
+endfunction()
+
+function(generateVSFilters _sourceFiles _filterRoot)
+
+foreach(srcFile IN ITEMS ${_sourceFiles})
+    get_filename_component(srcPath "${srcFile}" PATH)
+    string(REPLACE "${_filterRoot}" "" groupPath "${srcPath}")
+    string(REPLACE "/" "\\" groupPath "${groupPath}")
+    source_group("${groupPath}" FILES "${srcFile}")
+
+endforeach()
+endfunction()
+
+
+function(copy_folder _target _source _destination)
+
+	add_custom_command(TARGET ${_target} POST_BUILD COMMAND ${CMAKE_COMMAND} -E 
+			copy_directory 
+				${_source}
+				${_destination})
+
+endfunction()

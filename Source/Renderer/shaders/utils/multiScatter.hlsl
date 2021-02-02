@@ -1,0 +1,227 @@
+#ifndef MULTISCATTER_HLSL_INCL
+#define MULTISCATTER_HLSL_INCL
+#include "commonMath.hlsl"
+#include "fresnel.hlsl"
+
+//-------------------------------------- LUT lookups -----------------------------------------------------//
+float getAverageSSDirectionalAlbedoNoFresnel(float linearRoughness)
+{
+	return sampleLUT(g_lutSampler, g_avgDirAlbedoGGXNoFresnelLUT, linearRoughness).x;
+}
+
+float getSSDirectionalAlbedoNoFresnel(float cosTheta, float roughness)
+{
+	return sampleLUT(g_lutSampler, g_dirAlbedoGGXNoFresnelLUT, float2(cosTheta, roughness)).x;
+}
+
+float getSSMSDirectionalAlbedo(float eta, float cosTheta, float roughness)
+{
+	//eta in LUT [1,4]
+	float etaLUT = saturate( (eta - 1.f) * 0.333333);
+	return sampleLUT(g_lutSampler, g_dirAlbedoGGXSingleAndMultiScatterLUT, float3(cosTheta, roughness, etaLUT)).x;
+}
+
+float getSSMSAverageDirectionalAlbedo(float eta, float roughness)
+{
+	//eta in LUT [1,4]
+	float etaLUT = saturate( (eta - 1.f) * 0.333333);
+	return sampleLUT(g_lutSampler, g_avgDirAlbedoGGXSingleAndMultiScatterLUT, float2(roughness, etaLUT)).x;
+}
+
+float getSSDirectionalAlbedoTranslucentLighter(float eta, float cosTheta, float roughness)
+{
+	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.7f));
+	return sampleLUT(g_lutSampler, g_dirAlbedoGGXTranslucentLighterLUT, float3(cosTheta, roughness, etaLUT)).x;
+}
+
+float getSSDirectionalAlbedoTranslucentDenser(float eta, float cosTheta, float roughness)
+{
+	float etaLUT = saturate( (eta - 1.f) * 0.333333);
+	return sampleLUT(g_lutSampler, g_dirAlbedoGGXTranslucentDenserLUT, float3(cosTheta, roughness, etaLUT)).x;
+}
+
+
+float getSSAverageAlbedoTranslucentLighter(float eta, float roughness)
+{
+	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.7f));
+	return sampleLUT(g_lutSampler, g_avgAlbedoGGXTranslucentLighterLUT, float2(roughness, etaLUT)).x;
+}
+
+float getSSAverageAlbedoTranslucentDenser(float eta, float roughness)
+{
+	float etaLUT = saturate( (eta - 1.f) * 0.333333);
+	return sampleLUT(g_lutSampler, g_avgAlbedoGGXTranslucentDenserLUT, float2(roughness, etaLUT)).x;
+}
+
+float getSheenDirectionalAlbedo(float cosTheta, float roughness)
+{
+	roughness = saturate( roughness - 0.07f ); //minimum sheen roughness is 0.07
+	return sampleLUT(g_lutSampler, g_dirAlbedoSheenNoFresnelLUT, float2(cosTheta, roughness)).x;
+}
+
+
+//-------------------------------------- Fms -----------------------------------------------------//
+
+float3 getFmsTurquin(float3 etaR, float3 etaK, float cosTheta)
+{
+	return fresnelDielectricConductor(etaR, etaK, cosTheta);
+}
+float getFmsTurquin(float etaR, float cosTheta)
+{
+	return fresnelDielectricDielectric2(etaR, cosTheta);
+}
+
+float3 getFmsConductor(float3 etaR, float3 etaK, float cosTheta)
+{
+	return getFmsTurquin(etaR, etaK, cosTheta);
+}
+
+float getFmsDielectric(float etaR, float cosTheta)
+{
+	return getFmsTurquin(etaR, cosTheta);
+}
+
+
+//--------------------------------------Energy compensation -----------------------------------------------------//
+float3 getEnergyCompensationKulla(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScattering)
+{ 
+	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(dotWo, linearRoughness);
+	float dirAlbedoWi = getSSDirectionalAlbedoNoFresnel(dotWi, linearRoughness);
+	float eAvg = getAverageSSDirectionalAlbedoNoFresnel(linearRoughness);
+	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+	return  fms * ems;
+	
+}
+
+
+float3 getEnergyCompensationTurquin(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
+{
+	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(dotWo, linearRoughness);
+	float3 energyCompensation = fms * ( 1.f - dirAlbedoWo) / dirAlbedoWo;
+	return  energyCompensation * singleScatter;
+}
+
+float3 getEnergyCompensation(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
+{
+	//return getEnergyCompensationKulla(fms, dotWo, dotWi, linearRoughness, singleScatter);
+	return getEnergyCompensationTurquin(fms, dotWo, dotWi, linearRoughness, singleScatter);
+}
+
+float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float specularAmount)
+{
+	float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, dotWo, linearRoughness) * specularAmount;
+	float dirAlbedoWi = getSSMSDirectionalAlbedo(etaR, dotWi, linearRoughness) * specularAmount;
+	float eAvg = getSSMSAverageDirectionalAlbedo(etaR, linearRoughness) * specularAmount;
+	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+	
+	return ems * PI;
+}
+
+float getEnergyRemainingAfterSheen(in float dotWo, in float dotWi, in float linearRoughness, in float sheenAmount)
+{
+	float dirAlbedoWo = getSheenDirectionalAlbedo(dotWo, linearRoughness) * sheenAmount;
+	float dirAlbedoWi = getSheenDirectionalAlbedo(dotWi, linearRoughness) * sheenAmount;
+	float energyLeft = min(1.f - dirAlbedoWo, 1.f - dirAlbedoWi);
+	
+	return energyLeft;
+}
+
+float3 getEnergyCompensationTranslucent(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
+{
+	float dirAlbedoWo;
+	if(etaR < 1.f)
+	{
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, dotWo, linearRoughness);
+	} else
+	{
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, dotWo, linearRoughness);
+	}
+
+	float3 ems =  (singleScatter / dirAlbedoWo) - singleScatter;
+
+	return ems;
+}
+
+
+/*
+float getAvgFresnel(in float etaR)
+{
+	float fAvg;
+	if (etaR < 1)
+	{
+		fAvg = 0.997118f + 0.1014f * etaR - 0.965241f * etaR * etaR - 0.130607f * etaR * etaR * etaR;
+	}
+	else
+	{
+		fAvg = (etaR - 1.f) / (4.08567f + 1.00071f * etaR);
+	}
+
+	return fAvg;
+}
+
+float getReflectionRatio(in float etaR)
+{
+	return getAvgFresnel(etaR);
+}
+
+float getReciprocityRatio(float etaR, float linearRoughness)
+{
+
+	float a = getAvgFresnel(etaR);
+	float b = etaR < 1.f ? getSSAverageAlbedoTranslucentDenser(1.f/etaR, linearRoughness) : getSSAverageAlbedoTranslucentLighter(1.f/etaR, linearRoughness);  
+	float c = getAvgFresnel(1.f / etaR);
+	float d = etaR < 1.f ? getSSAverageAlbedoTranslucentLighter(etaR, linearRoughness) : getSSAverageAlbedoTranslucentDenser(etaR, linearRoughness);  
+	float e = etaR * etaR;
+
+	float x = (b - 1.f) * (c - 1.f) * e / SAFE_DIVISOR(a * d - a + b * c * e - b * e - c * e - d + e + 1.f);
+	return x;
+}
+
+
+float3 getEnergyCompensationTranslucent(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
+{
+	float dirAlbedoWo;
+	float dirAlbedoWi;
+	float avgDirAlbedo;
+
+	if(etaR < 1.f)
+	{
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, dotWo, linearRoughness);
+	} else
+	{
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, dotWo, linearRoughness);
+	}
+
+	float eta2 = dotWi < 0.f ? 1.f/etaR : etaR;
+	
+	if(eta2 < 1.f) 
+	{
+		dirAlbedoWi = getSSDirectionalAlbedoTranslucentLighter(eta2, abs(dotWi), linearRoughness);
+		avgDirAlbedo = getSSAverageAlbedoTranslucentLighter(eta2, linearRoughness);
+	} 
+	else
+	{
+		dirAlbedoWi = getSSDirectionalAlbedoTranslucentDenser(eta2, abs(dotWi), linearRoughness);
+		avgDirAlbedo = getSSAverageAlbedoTranslucentDenser(eta2, linearRoughness);
+
+	}
+	
+	float ems =  ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - avgDirAlbedo);
+	 
+	float ratio = getReflectionRatio(etaR);
+
+	if(dotWi < 0.f)
+	{
+		ratio = 1.f - ratio;
+	}
+	
+	ems *= ratio;
+
+	return ems;
+}*/
+
+
+
+
+
+#endif

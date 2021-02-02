@@ -1,0 +1,66 @@
+{
+	"shaderPipelines": {
+	
+	
+		"tonemapAces": {
+			"stages": [{
+					"type": "vertex",
+					"sourceFile": "postprocess/vertexCommon.vertex",
+					"defines": ["USE_UV_COORDINATES"]
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "postprocess/tonemap.frag",
+					"entryPoint": "tonemap",
+					"defines": ["TONEMAP_ACES"]
+				}
+			]
+		},
+		"tonemapUncharted": {
+			"stages": [{
+					"type": "vertex",
+					"sourceFile": "postprocess/vertexCommon.vertex",
+					"defines": ["USE_UV_COORDINATES"]
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "postprocess/tonemap.frag",
+					"entryPoint": "tonemap",
+					"defines": [["TONEMAP_UNCHARTED", "1"]]
+				}
+			]
+		},
+		"clearLuminanceHistogram": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postprocess/gatherLuminanceHistogram.comp",
+					"entryPoint": "clearHistogram"
+				}
+			]
+		},
+		"gatherLuminanceHistogram": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postprocess/gatherLuminanceHistogram.comp",
+					"entryPoint": "main"
+				}
+			]
+		},
+		"analyzeLuminanceHistogram": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postprocess/analyzeLuminanceHistogram.comp",
+					"entryPoint": "main"
+				}
+			]
+		},
+		"PrepareTonemapData": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postprocess/prepareTonemapData.comp",
+					"entryPoint": "main"
+				}
+			]
+		}
+	}
+}

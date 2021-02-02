@@ -1,0 +1,132 @@
+#pragma once
+#include <Common/RCObjectPtr.h>
+#include <Common/ThreadPool.h>
+#include <Renderer/Renderer.h>
+#include <Renderer/Shared/MeshManager.h>
+#include <Renderer/Shared/MaterialManager.h>
+#include <Renderer/Shared/RenderObjectManager.h>
+#include <Renderer/Shared/GfxApi.h>
+#include <Renderer/Shared/Utility/ShaderLoader.h>
+#include <Renderer/Shared/CRendererConfiguration.h>
+#include <Renderer/Shared/RenderView.h>
+#include <thread>
+#include <condition_variable>
+#include <mutex>
+
+#define RVARNAME_RENDER_RESOLUTION "Generic.RenderResolution"
+#define RVARNAME_SKYBOX "World.Skycube"
+
+#define RVARNAME_TONEMAP_TOE "Tonemap.Toe"
+#define RVARNAME_TONEMAP_MID "Tonemap.Mid"
+#define RVARNAME_TONEMAP_SHOULDER "Tonemap.Shoulder"
+#define RVARNAME_TONEMAP_USE_AUTOEXPOSURE "Tonemap.UseAutoExposure"
+#define RVARNAME_TONEMAP_MANUALEXPOSURE "Tonemap.ManualExposure"
+#define RVARNAME_TONEMAP_EXPOSURE_COMPENSATION "Tonemap.ExposureCompensation"
+#define RVARNAME_TONEMAP_EYE_ADAPT_SPEED "Tonemap.EyeAdaptationSpeed"
+
+
+namespace YAPT
+{
+	class CoreRenderResourcesUtility;
+	class RenderPipelineManager;
+	class TextureImpl;
+	class BufferImpl;
+	class BindlessTextureManager;
+	class BindlessBufferManager;
+
+	class CRenderer : public Renderer
+	{
+	public:
+		CRenderer();
+		virtual ~CRenderer() override;
+
+		//ICRenderer
+		virtual void prepare() final;
+		virtual void render(const RenderParameters& renderParams) final;
+		virtual bool initialize(const RendererInitializeConfig& config) final;
+		virtual bool setRenderOutputToSurface(const WindowSurfaceDefinition& windowSurface) final;
+		virtual void resetRenderOutput() final;
+		virtual ResourceAllocationPool* createResourceAllocationPool() final;
+
+		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount) final;
+		virtual Material* createMaterial() final;
+		virtual RenderObject* createRenderObject() final;
+
+		virtual RendererConfiguration* getRendererConfiguration() final;
+
+		GfxApiHandle getGfxHandle() { return m_gfxHandle; };
+		CoreRenderResourcesUtility* getCoreResources() { return m_coreResourcesUtility; };
+		ShaderLoader* getShaderLoader() { return m_shaderLoader; };
+
+		size_t getPipelineLength() const { return m_pipelineLength; };
+
+		const RenderView& getCurrentRenderView() const { return *m_currentRenderView; }
+		MeshManager& getMeshManager() { return *m_meshMngr; }
+		MaterialManager& getMaterialManager() { return *m_materialMngr; };
+		RenderObjectManager& getRenderObjectManager() { return *m_renderObjectManager; }
+
+		void textureCreated(TextureImpl* t);
+		void textureReleased(TextureImpl* t);
+
+		void bufferCreated(BufferImpl* t);
+		void bufferReleased(BufferImpl* t);
+
+		BindlessTextureManager* getTextureManager() { return m_textureManager; }
+		BindlessBufferManager* getBufferManager() { return m_bufferManager; }
+		CRendererConfiguration& getConcreteRendererConfiguration() { return m_rendererConfig; }
+
+		uint64_t getFrameIndex() const { return m_frameIndex; }
+
+		bool hasViewMoved() const { return m_hasViewMoved; }
+
+		ThreadPool& getThreadPool() { return m_threadPool; }
+
+		RendererCacheProvider* getCacheProvider() const { return m_cacheProvider; }
+
+		float getFrameDeltaInSeconds() const { return m_frameDeltaInSeconds; }
+
+	private:
+
+		void initVariables();
+
+		void deinit();
+
+		static void renderLoopEntry(CRenderer* CRenderer);
+		void renderLoop();
+		void waitForRenderThreadIdle();
+		void executeFrame();
+
+		const size_t m_pipelineLength = 3;
+		uint64_t m_frameIndex;
+
+		GfxApiHandle m_gfxHandle;
+		SwapChainHandle m_swapChain;
+
+		RenderView* m_currentRenderView;
+		
+		MeshManager* m_meshMngr;
+		MaterialManager* m_materialMngr;
+		RenderObjectManager* m_renderObjectManager;
+		BindlessTextureManager* m_textureManager;
+		BindlessBufferManager* m_bufferManager;
+
+		RenderPipelineManager* m_renderPipelineMngr;
+		CoreRenderResourcesUtility* m_coreResourcesUtility;
+		ShaderLoader* m_shaderLoader;
+
+		RendererCacheProvider* m_cacheProvider;
+
+		CRendererConfiguration m_rendererConfig;
+
+		ThreadPool m_threadPool;
+		std::thread m_renderWorkerThread;
+		std::condition_variable m_renderWorkerCondition;
+		std::mutex m_renderWorkerMutex;
+
+		float m_frameDeltaInSeconds;
+
+		bool m_renderWorkPending;
+		bool m_shutDownRequested;
+		bool m_hasViewMoved;
+	};
+}

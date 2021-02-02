@@ -1,0 +1,46 @@
+{
+	"shaderPipelines": {
+		"rayGenPrimaryRays": {
+			"stages": [{
+					"type": "library",
+					"sourceFile": "raytracing/rayGenPrimaryRays.hlsl",
+					"entryPoint": "rayGenPrimaryRays"
+				}
+			]
+		},
+		"rayHitDefault": {
+			"stages": [{
+					"type": "library",
+					"sourceFile": "raytracing/rayHitDefault.hlsl",
+					"entryPoint": "rayHitDefault"
+				}
+			]
+		},
+		"rayMissEnvironment": {
+			"stages": [{
+					"type": "library",
+					"sourceFile": "raytracing/rayMissEnvironment.hlsl",
+					"entryPoint": "rayMissEnvironment"
+				}
+			]
+		},
+		"clearRaytraceMergeTarget": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postProcess/clearAccumulatedSamples.comp",
+					"entryPoint": "main"
+				}
+			]
+		},
+		"mergeRaytraceResults": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "postProcess/mergeNewSamples.comp",
+					"entryPoint": "main"
+				}
+			]
+		}
+		
+		
+	}
+}

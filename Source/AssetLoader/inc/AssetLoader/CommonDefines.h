@@ -1,0 +1,9 @@
+#pragma once
+
+#include <Common/Common.h>
+
+#ifdef ASSETLOADER_MODULE
+#define ASSETLOADER_MODULE_INTERFACE DLL_EXPORT
+#else
+#define ASSETLOADER_MODULE_INTERFACE DLL_IMPORT
+#endif

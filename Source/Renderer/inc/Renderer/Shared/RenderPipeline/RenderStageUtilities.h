@@ -1,0 +1,37 @@
+#pragma once
+
+#include <Renderer/Shared/GfxApi.h>
+#include <Renderer/Shared/RenderGraph/RenderGraphCommon.h>
+
+namespace YAPT
+{
+	class DeferredRenderGraphBindingUtility
+	{
+	public:
+		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, TextureHandle handle, const ResourceStateDescription& previousState);
+		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, BufferHandle handle, const ResourceStateDescription& previousState);
+
+		void flushDeferredRenderGraphResourceBindings(RenderGraph* graph);
+	private:
+		struct DeferredRenderGraphResourceBinding
+		{
+			RenderGraphResourceId id;
+			ResourceStateDescription stateDesc;
+			enum
+			{
+				BUFFER,
+				TEXTURE
+			} type;
+			union
+			{
+				TextureHandle texture;
+				BufferHandle buffer;
+			};
+
+		};
+
+		std::vector<DeferredRenderGraphResourceBinding> m_deferredRenderGraphResourceBindings;
+	};
+	
+
+}

@@ -1,0 +1,42 @@
+#include "tonemappingShared.hlsl"
+
+StructuredBuffer<LuminanceHistogramAnalysisResults> g_histogramResult : register(t0, space0);
+ConstantBuffer<TonemapConstants> g_tonemapConstants : register(b1, space0);
+RWStructuredBuffer<ExposureInfo> g_output : register(u2, space0);
+
+[numthreads(1, 1, 1)]
+void main( uint3 dispatchThreadID : SV_DispatchThreadID )
+{
+	//read in previous data
+	ExposureInfo exposureInfo = g_output[0];
+	
+	bool isInit = g_tonemapConstants.toeMidShoulderInit.w != 0;
+	bool enableAutoExposure = g_tonemapConstants.exposureEyeAdaptTime.x != 0;
+	
+	float previousExposure = isInit ? g_tonemapConstants.exposureEyeAdaptTime.y : exposureInfo.cameraExposure;
+
+	//enable autoexposure?
+	if(isInit || !enableAutoExposure)
+	{
+		exposureInfo.cameraExposure = g_tonemapConstants.exposureEyeAdaptTime.y;
+	} 
+	else
+	{
+		LuminanceHistogramAnalysisResults histogramData = g_histogramResult[0];
+		float eyeAdaptSpeed = g_tonemapConstants.exposureEyeAdaptTime.z;
+		float deltaTime = g_tonemapConstants.exposureEyeAdaptTime.w;
+		float exposureCompensation = g_tonemapConstants.exposureEyeAdaptTime.y;
+		float key = 0.18;
+		
+		float ev = fromLuminanceToEV(histogramData.averageLuminance);
+		ev += exposureCompensation;
+		float exposure = key / fromEVToLuminance(ev);
+		
+		exposure = previousExposure + (exposure - previousExposure) * (1.0f - exp(-deltaTime*eyeAdaptSpeed));
+		
+		exposureInfo.cameraExposure = exposure;
+	}
+	g_output[0] = exposureInfo;
+
+}
+

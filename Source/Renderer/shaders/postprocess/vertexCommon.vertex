@@ -1,0 +1,27 @@
+
+struct VertexInput
+{
+    float3 position : POSITION;
+#ifdef USE_UV_COORDINATES
+	float2 uv : TEXCOORD0;
+#endif
+	
+};
+ 
+struct VertexOutput
+{
+    float4 position : SV_Position;
+#ifdef USE_UV_COORDINATES
+	float2 uv : TEXCOORD0;
+#endif
+};
+ 
+VertexOutput main(VertexInput input)
+{
+    VertexOutput output;
+    output.position = float4(input.position, 1.0f);
+#ifdef USE_UV_COORDINATES
+	output.uv = input.uv;
+#endif
+    return output;
+}

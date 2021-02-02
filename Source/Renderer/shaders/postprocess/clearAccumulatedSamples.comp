@@ -1,0 +1,24 @@
+#include "../globalDefinitions.hlsl"
+
+struct ClearAccumulatedSamplesParams
+{
+	uint4 targetTextureDimensions;
+	float4 clearValue;
+};
+
+
+ConstantBuffer<ClearAccumulatedSamplesParams> g_mergeParams : register(b0, space0);
+RWTexture2D<float4> g_targetTex : register(u1, space0);
+
+[numthreads(8, 8, 1)]
+void main( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if(dispatchThreadId.x < g_mergeParams.targetTextureDimensions.x && dispatchThreadId.y < g_mergeParams.targetTextureDimensions.y)
+	{
+		g_targetTex[dispatchThreadId.xy] = g_mergeParams.clearValue;
+	}
+}
+

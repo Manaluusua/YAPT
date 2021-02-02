@@ -1,0 +1,65 @@
+#include "tonemappingShared.hlsl"
+#include "tonemapUtils.hlsl"
+
+Texture2D colorTex : register(t0, space0);
+ConstantBuffer<TonemapConstants> g_tonemapConstants : register(b1, space0);
+RWStructuredBuffer<uint> g_histogram : register(u2, space0);
+
+groupshared uint s_localHistogram[HISTOGRAM_BUCKETS_COUNT];
+
+[numthreads(GATHER_LUMINANCE_TG_SIZE, GATHER_LUMINANCE_TG_SIZE, 1)]
+void main(uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+
+    if (groupIndex < HISTOGRAM_BUCKETS_COUNT)
+    {
+        s_localHistogram[groupIndex] = 0;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+	
+	uint imageWidth = g_tonemapConstants.histogramConstants.resolution.x;
+	uint imageHeight = g_tonemapConstants.histogramConstants.resolution.y;
+	
+	if(dispatchThreadId.x < imageWidth && dispatchThreadId.y < imageHeight)
+	{
+		float4 colorSample = colorTex.Load(uint3(dispatchThreadId.xy,0));
+		
+		float luminance = getPerceivedLuminance(colorSample.rgb);
+		float ev = fromLuminanceToEV(luminance);
+		float minEV =  g_tonemapConstants.histogramConstants.minEV;
+		
+		float bucketIndexF = ev - minEV;
+		bucketIndexF = clamp(bucketIndexF, 0, float(HISTOGRAM_BUCKETS_COUNT - 1));
+
+		uint bucketIndex = uint(floor(bucketIndexF + 0.5f));
+		uint weight = 1; 
+		InterlockedAdd(s_localHistogram[bucketIndex], weight);
+	}
+	
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupIndex < HISTOGRAM_BUCKETS_COUNT)
+    {
+        InterlockedAdd(g_histogram[groupIndex], s_localHistogram[groupIndex]);  //for now this just accumulates endlessly, need to clear!
+    }
+
+}
+
+[numthreads(HISTOGRAM_BUCKETS_COUNT, 1, 1)]
+void clearHistogram( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if (groupIndex < HISTOGRAM_BUCKETS_COUNT)
+    {
+		
+		
+        g_histogram[groupIndex] = 0;
+    }
+}
+

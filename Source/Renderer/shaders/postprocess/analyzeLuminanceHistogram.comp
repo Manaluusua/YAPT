@@ -1,0 +1,60 @@
+
+#include "tonemappingShared.hlsl"
+
+StructuredBuffer<uint> g_histogram : register(t0, space0);
+ConstantBuffer<TonemapConstants> g_tonemapConstants : register(b1, space0);
+RWStructuredBuffer<LuminanceHistogramAnalysisResults> g_histogramResults : register(u2, space0);
+
+groupshared float4 s_localHistogram[HISTOGRAM_BUCKETS_COUNT];
+
+[numthreads(HISTOGRAM_BUCKETS_COUNT, 1, 1)]
+void main( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if (groupIndex < HISTOGRAM_BUCKETS_COUNT)
+    {
+		float minEV =  g_tonemapConstants.histogramConstants.minEV;
+		float ev = minEV + groupIndex;
+		uint w = g_histogram[groupIndex];
+		
+        s_localHistogram[groupIndex] = float4(w, w * ev, w > 0 ? ev : 4e10, w > 0 ? ev : -4e10 );
+    }
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (unsigned int i = HISTOGRAM_BUCKETS_COUNT / 2; i > 0; i >>= 1) 
+	{
+		if (groupIndex < i) 
+		{
+			float4 src = s_localHistogram[groupIndex + i];
+			float4 dst = s_localHistogram[groupIndex];
+			
+			s_localHistogram[groupIndex] = float4(src.x + dst.x, src.y + dst.y, min(src.z, dst.z), max(src.w, dst.w));
+		}
+		
+		GroupMemoryBarrierWithGroupSync();
+	}
+	
+	
+	
+	
+	if(groupIndex == 0)
+	{
+		float averageLuminance = fromEVToLuminance(s_localHistogram[0].y / s_localHistogram[0].x);
+		float minLuminance = fromEVToLuminance(s_localHistogram[0].z);
+		float maxLuminance = fromEVToLuminance(s_localHistogram[0].w);
+		
+		
+		LuminanceHistogramAnalysisResults results;
+		results.averageLuminance = averageLuminance;
+		results.minLuminance = minLuminance;
+		results.maxLuminance = maxLuminance;
+		
+		g_histogramResults[0] = results;
+	}
+	
+	
+}
+

@@ -1,0 +1,76 @@
+if (CMAKE_SIZEOF_VOID_P EQUAL 8)
+    set (VC_PLATFORM_PATH_SUFFIX x64)
+else ()
+    set (VC_PLATFORM_PATH_SUFFIX x86)
+endif()
+
+
+
+find_path(DX_INCLUDE_PATH um PATHS ${WINDOWS10KIT_PATH}/Include/${WINDOWS10KIT_VERSION})
+
+find_library (DX_LIB_D3D12 d3d12 PATHS ${WINDOWS10KIT_PATH}/LIB/${WINDOWS10KIT_VERSION}/um/${VC_PLATFORM_PATH_SUFFIX})
+find_library (DX_LIB_DXGI dxgi PATHS ${WINDOWS10KIT_PATH}/LIB/${WINDOWS10KIT_VERSION}/um/${VC_PLATFORM_PATH_SUFFIX})
+find_library (DX_LIB_DXCOMPILER dxcompiler PATHS ${WINDOWS10KIT_PATH}/LIB/${WINDOWS10KIT_VERSION}/um/${VC_PLATFORM_PATH_SUFFIX})
+
+find_file (DX_RUNTIME_DXCOMPILER dxcompiler.dll PATHS ${WINDOWS10KIT_PATH}/Redist/D3D/${VC_PLATFORM_PATH_SUFFIX})
+find_file (DX_RUNTIME_DXIL dxil.dll PATHS ${WINDOWS10KIT_PATH}/Redist/D3D/${VC_PLATFORM_PATH_SUFFIX})
+
+
+
+
+mark_as_advanced (
+	DX_INCLUDE_PATH
+	
+    DX_LIB_D3D12 
+    DX_LIB_DXGI
+	DX_LIB_DXCOMPILER
+    
+	DX_RUNTIME_DXCOMPILER
+    DX_RUNTIME_DXIL
+)
+
+include (FindPackageHandleStandardArgs)
+find_package_handle_standard_args (
+    Dx12Deps 
+        REQUIRED_VARS 
+			DX_INCLUDE_PATH
+		
+            DX_LIB_D3D12 
+            DX_LIB_DXGI 
+			DX_LIB_DXCOMPILER
+            
+			DX_RUNTIME_DXCOMPILER
+			DX_RUNTIME_DXIL
+)
+
+if (Dx12Deps_FOUND)
+
+    add_library (d3d12::d3d12 SHARED IMPORTED)
+    set_target_properties (d3d12::d3d12
+        PROPERTIES
+            IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+            INTERFACE_INCLUDE_DIRECTORIES "${DX_INCLUDE_PATH}"
+            IMPORTED_IMPLIB "${DX_LIB_D3D12}"  
+    )
+	
+	add_library (d3d12::dxgi SHARED IMPORTED)
+    set_target_properties (d3d12::dxgi
+        PROPERTIES
+            IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+            INTERFACE_INCLUDE_DIRECTORIES "${DX_INCLUDE_PATH}"
+            IMPORTED_IMPLIB "${DX_LIB_DXGI}"  
+    )
+	
+	add_library (d3d12::dxc SHARED IMPORTED)
+    set_target_properties (d3d12::dxc
+        PROPERTIES
+            IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+            INTERFACE_INCLUDE_DIRECTORIES "${DX_INCLUDE_PATH}"
+            IMPORTED_IMPLIB "${DX_LIB_DXCOMPILER}"  
+			IMPORTED_LOCATION "${DX_RUNTIME_DXCOMPILER}"
+			DXIL_RUNTIME "${DX_RUNTIME_DXIL}"
+    )
+	
+	
+	
+endif()

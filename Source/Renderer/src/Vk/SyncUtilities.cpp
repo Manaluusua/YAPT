@@ -1,0 +1,112 @@
+#include <Renderer/Vk/SyncUtilities.h>
+
+namespace YAPT
+{
+	SubmitSyncUtility::SubmitSyncUtility()
+		:m_device(VK_NULL_HANDLE),
+		m_entryDataIndex(0),
+		m_tickCount(0)
+	{
+
+	}
+	SubmitSyncUtility::~SubmitSyncUtility()
+	{
+
+	}
+
+	void SubmitSyncUtility::initialize(VkDevice device, size_t numberOfFramesInFlight, bool createFences, bool createSemaphores)
+	{
+		m_tickCount = 0;
+		m_entryDataIndex = 0;
+		m_syncData.resize(numberOfFramesInFlight);
+		for (size_t i = 0; i < m_syncData.size(); ++i)
+		{
+			if (createFences)
+			{
+				VkFenceCreateInfo info{};
+				info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+				checkVkResult(vkCreateFence(device, &info, VK_ALLOC_CB, &m_syncData[i].fence));
+			}
+			else
+			{
+				m_syncData[i].fence = VK_NULL_HANDLE;
+			}
+
+			if (createSemaphores)
+			{
+				VkSemaphoreCreateInfo info{};
+				info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+				checkVkResult(vkCreateSemaphore(device, &info, VK_ALLOC_CB, &m_syncData[i].semaphore));
+			}
+			else
+			{
+				m_syncData[i].semaphore = VK_NULL_HANDLE;
+			}
+
+			m_syncData[i].issued = false;
+		}
+
+	}
+	void SubmitSyncUtility::deinitialize()
+	{
+		for (size_t i = 0; i < m_syncData.size(); ++i)
+		{
+			if (m_syncData[i].fence != YAPT_NULL_HANDLE)
+			{
+				vkDestroyFence(m_device, m_syncData[i].fence, VK_ALLOC_CB);
+			}
+
+			if (m_syncData[i].semaphore != YAPT_NULL_HANDLE)
+			{
+				vkDestroySemaphore(m_device, m_syncData[i].semaphore, VK_ALLOC_CB);
+			}
+		}
+
+		m_syncData.clear();
+	}
+
+	void SubmitSyncUtility::nextFrame()
+	{
+		if (m_syncData[m_entryDataIndex].fence != YAPT_NULL_HANDLE && m_syncData[m_entryDataIndex].issued)
+		{
+			checkVkResult(vkWaitForFences(m_device, 1, &m_syncData[m_entryDataIndex].fence, VK_TRUE, uint64_t(-1)));
+		}
+		m_syncData[m_entryDataIndex].issued = false;
+
+		m_tickCount++;
+		m_entryDataIndex = m_tickCount % m_syncData.size();
+	}
+
+	void SubmitSyncUtility::markThisFrameSyncDataIssued()
+	{
+		m_syncData[m_entryDataIndex].issued = true;
+	}
+
+	VkFence SubmitSyncUtility::getFenceForThisFrame() const
+	{
+		return getFenceForFrameIndex(m_entryDataIndex);
+	}
+	VkSemaphore SubmitSyncUtility::getSemaphoreForThisFrame() const
+	{
+		return getSemaphoreForFrameIndex(m_entryDataIndex);
+	}
+
+	VkFence SubmitSyncUtility::getFenceForFrameNumber(size_t frameNumber) const
+	{
+		return getFenceForFrameIndex(frameNumber % getFramesInFlight());
+	}
+	VkSemaphore SubmitSyncUtility::getSemaphoreForFrameNumber(size_t frameNumber) const
+	{
+		return getSemaphoreForFrameIndex(frameNumber % getFramesInFlight());
+	}
+
+	VkFence SubmitSyncUtility::getFenceForFrameIndex(size_t index) const
+	{
+		return m_syncData[index].fence;
+
+	}
+	VkSemaphore SubmitSyncUtility::getSemaphoreForFrameIndex(size_t index) const
+	{
+		return m_syncData[m_entryDataIndex].semaphore;
+	}
+}

@@ -1,0 +1,18 @@
+{
+	"shaderPipelines": {
+		"meshDebug": {
+			"stages": 
+			[
+				{
+					"type": "vertex",
+					"sourceFile": "tools/meshDebug.vertex"
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "tools/meshDebug.frag"
+				}
+			]
+
+		}
+	}
+}

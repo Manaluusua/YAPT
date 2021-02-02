@@ -1,0 +1,188 @@
+#include <Renderer/Shared/Utility/PostProcessUtility.h>
+#include <Renderer/Shared/CRenderer.h>
+#include <Renderer/Shared/RenderGraph/RenderNode.h>
+#include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
+namespace YAPT
+{
+	////////////////////////////////////////////////////////////////////////////// PostProcessGraphicsPassUtility Impl //////////////////////////////////////////////////////////////////////////////
+	PostProcessGraphicsPassUtility::PostProcessGraphicsPassUtility()
+		:m_renderer(nullptr),
+		m_pso(YAPT_NULL_HANDLE)
+
+	{
+
+	}
+	PostProcessGraphicsPassUtility::~PostProcessGraphicsPassUtility()
+	{
+		deinit();
+	}
+	void PostProcessGraphicsPassUtility::init(CRenderer* r, RenderPassHandle renderPass, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers)
+	{
+		m_renderer = r;
+		m_layout.initFromShaderReflection(m_renderer->getGfxHandle(), pipelineInfo->reflection);
+
+		for (size_t i = 0; i < numberOfStaticSamplers; ++i)
+		{
+			const StaticSamplerEntry& s = staticSamplers[i];
+			ShaderPipelineReflection::NameMapping nameMapping;
+			bool found = pipelineInfo->reflection->getNameMapping(ShaderModuleType::FRAGMENT_MODULE, s.name, nameMapping);
+			if (!found)
+			{
+				YAPT_LOG_ERROR("Unable to bind static sampler, not sampler named %s found from fragment module", s.name);
+				continue;
+			}
+			SamplerHandle sampler = s.sampler;
+			m_layout.setStaticSamplers(nameMapping, &sampler);
+		}
+
+		m_layout.compile();
+
+		m_psoDesc.setupShaderStages(pipelineInfo)
+			.setVertexBufferDefinitions(m_renderer->getCoreResources()->getDefaultVertexBufferDefinition(DefaultBufferType::FULLSCREEN_PRIMITIVE_POS_UV), 1);
+		m_psoDesc.pipelineDesc.renderPass = renderPass;
+		m_psoDesc.pipelineDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
+
+		m_descSetHandles.resize(m_layout.getDescriptorSetCount());
+		for (size_t i = 0; i < m_layout.getDescriptorSetCount(); ++i)
+		{
+			m_descSetHandles[i].descSetIndex = i;
+			m_descSetHandles[i].descSet = YAPT_NULL_HANDLE;
+		}
+	}
+
+	void PostProcessGraphicsPassUtility::createPso()
+	{
+
+		if (m_pso != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyGraphicsPipelineState(m_renderer->getGfxHandle(), m_pso);
+		}
+		m_pso = Gfx::createGraphicsPipelineState(m_renderer->getGfxHandle(), m_psoDesc.pipelineDesc);
+	}
+
+	void PostProcessGraphicsPassUtility::deinit()
+	{
+		if (m_pso != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyGraphicsPipelineState(m_renderer->getGfxHandle(), m_pso);
+			m_pso = YAPT_NULL_HANDLE;
+		}
+	}
+
+	void PostProcessGraphicsPassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	{
+		if (m_descSetHandles[index].descSet != YAPT_NULL_HANDLE)
+		{
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index].descSet);
+		}
+		
+		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
+
+		m_descSetHandles[index].descSet = newDescSet;
+
+		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
+	}
+
+	void PostProcessGraphicsPassUtility::drawFullscreenPass(CommandBufferHandle commandBuffer)
+	{
+		GfxApiHandle gfx = m_renderer->getGfxHandle();
+		Gfx::setGraphicsPipelineState(gfx, commandBuffer, m_pso);
+
+		
+		Gfx::bindDescriptorSets(gfx, commandBuffer, m_descSetHandles.data(), m_descSetHandles.size(), nullptr, 0);
+
+		BufferViewHandle vertexBuffers[] = { m_renderer->getCoreResources()->getDefaultBufferView(DefaultBufferType::FULLSCREEN_PRIMITIVE_POS_UV) };
+
+		Gfx::setVertexBuffers(gfx, commandBuffer, vertexBuffers, 1, 0);
+		Gfx::setIndexBuffer(gfx, commandBuffer, m_renderer->getCoreResources()->getDefaultBufferView(DefaultBufferType::FULLSCREEN_PRIMITIVE_INDICES));
+
+		Gfx::draw(gfx, commandBuffer, 3, 1, 0, 0, 0);
+	}
+
+
+	////////////////////////////////////////////////////////////////////////////// PostProcessComputePassUtility Impl //////////////////////////////////////////////////////////////////////////////
+
+	PostProcessComputePassUtility::PostProcessComputePassUtility()
+		:m_renderer(nullptr),
+		m_pso(YAPT_NULL_HANDLE)
+	{
+
+	}
+	PostProcessComputePassUtility::~PostProcessComputePassUtility()
+	{
+		deinit();
+	}
+	void PostProcessComputePassUtility::init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers)
+	{
+		m_renderer = r;
+		m_layout.initFromShaderReflection(m_renderer->getGfxHandle(), pipelineInfo->reflection);
+
+		for (size_t i = 0; i < numberOfStaticSamplers; ++i)
+		{
+			const StaticSamplerEntry& s = staticSamplers[i];
+			ShaderPipelineReflection::NameMapping nameMapping;
+			bool found = pipelineInfo->reflection->getNameMapping(ShaderModuleType::FRAGMENT_MODULE, s.name, nameMapping);
+			if (!found)
+			{
+				YAPT_LOG_ERROR("Unable to bind static sampler, not sampler named %s found from fragment module", s.name);
+				continue;
+			}
+			SamplerHandle sampler = s.sampler;
+			m_layout.setStaticSamplers(nameMapping, &sampler);
+		}
+
+		m_layout.compile();
+
+		m_descSetHandles.resize(m_layout.getDescriptorSetCount());
+		for (size_t i = 0; i < m_layout.getDescriptorSetCount(); ++i)
+		{
+			m_descSetHandles[i].descSetIndex = i;
+			m_descSetHandles[i].descSet = YAPT_NULL_HANDLE;
+		}
+		m_stateDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
+		fillShaderModuleCreateInfo(pipelineInfo->shaderModules[0], m_stateDesc.shaderStage);
+	}
+
+
+	void PostProcessComputePassUtility::createPipelineState()
+	{
+		if (m_pso != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyComputePipelineState(m_renderer->getGfxHandle(), m_pso);
+		}
+
+		m_pso = Gfx::createComputePipelineState(m_renderer->getGfxHandle(), m_stateDesc);
+	}
+	void PostProcessComputePassUtility::deinit()
+	{
+		if (m_pso != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyComputePipelineState(m_renderer->getGfxHandle(), m_pso);
+			m_pso = YAPT_NULL_HANDLE;
+		}
+	}
+
+	void PostProcessComputePassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	{
+		if (m_descSetHandles[index].descSet != YAPT_NULL_HANDLE)
+		{
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index].descSet);
+		}
+
+		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
+
+		m_descSetHandles[index].descSet = newDescSet;
+
+		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
+	}
+
+	void PostProcessComputePassUtility::dispatch(CommandBufferHandle commandBuffer, uint32_t x, uint32_t y, uint32_t z)
+	{
+		GfxApiHandle gfx = m_renderer->getGfxHandle();
+		Gfx::setComputePipelineState(gfx, commandBuffer, m_pso);
+
+		Gfx::bindDescriptorSets(gfx, commandBuffer, m_descSetHandles.data(), m_descSetHandles.size(), nullptr, 0);
+
+		Gfx::dispatch(gfx, commandBuffer, x,y,z);
+	}
+}
