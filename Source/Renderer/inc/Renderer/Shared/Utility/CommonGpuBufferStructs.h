@@ -13,13 +13,13 @@ namespace YAPT
 
 	struct ClearAccumulatedSamplesParams
 	{
-		glm::uvec4 targetTextureDimensions;
-		glm::vec4 clearValue;
+		uvec4p targetTextureDimensions;
+		vec4p clearValue;
 	};
 
 	struct MergeNewSamplesParams
 	{
-		glm::uvec4 targetTextureOffsetScaleBias;
-		glm::uvec2 sourceTextureDimensions;
+		uvec4p targetTextureOffsetScaleBias;
+		uvec2p sourceTextureDimensions;
 	};
 } 

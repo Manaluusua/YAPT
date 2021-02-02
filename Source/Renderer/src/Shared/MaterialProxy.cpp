@@ -20,32 +20,32 @@ namespace YAPT
 			m_materialParams = MaterialParameters();
 			break;
 		case YAPT::MaterialPreset::METAL_GOLD:
-			m_materialParams = MaterialParameters(glm::pow(glm::vec3(0.9451, 0.7294, 0.37255), glm::vec3(2.2f)), 0.0f, glm::pow(glm::vec3(1.0, 0.97255, 0.73333), glm::vec3(2.2f)), 1.0f,
-				glm::vec3(0.f, 0.f, 0.f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(glm::pow(vec3p(0.9451, 0.7294, 0.37255), vec3p(2.2f)), 0.0f, glm::pow(vec3p(1.0, 0.97255, 0.73333), vec3p(2.2f)), 1.0f,
+				vec3p(0.f, 0.f, 0.f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::METAL_SILVER:
-			m_materialParams = MaterialParameters(glm::pow(glm::vec3(0.9607, 0.9490, 0.9176), glm::vec3(2.2f)), 0.0f, glm::pow(glm::vec3(1.0, 1.0, 1.0), glm::vec3(2.2f)), 1.0f,
-				glm::vec3(0.f, 0.f, 0.f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(glm::pow(vec3p(0.9607, 0.9490, 0.9176), vec3p(2.2f)), 0.0f, glm::pow(vec3p(1.0, 1.0, 1.0), vec3p(2.2f)), 1.0f,
+				vec3p(0.f, 0.f, 0.f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::METAL_ALUMINIUM:
-			m_materialParams = MaterialParameters(glm::pow(glm::vec3(0.9137, 0.9137, 0.9137), glm::vec3(2.2f)), 0.0f, glm::pow(glm::vec3(0.9686, 0.98039, 0.9882), glm::vec3(2.2f)), 1.0f,
-				glm::vec3(0.f, 0.f, 0.f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(glm::pow(vec3p(0.9137, 0.9137, 0.9137), vec3p(2.2f)), 0.0f, glm::pow(vec3p(0.9686, 0.98039, 0.9882), vec3p(2.2f)), 1.0f,
+				vec3p(0.f, 0.f, 0.f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::METAL_BRASS:
-			m_materialParams = MaterialParameters(glm::pow(glm::vec3(0.903, 0.744, 0.473), glm::vec3(2.2f)), 0.0f, glm::pow(glm::vec3(0.975, 0.958, 0.918), glm::vec3(2.2f)), 1.0f,
-				glm::vec3(0.f, 0.f, 0.f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(glm::pow(vec3p(0.903, 0.744, 0.473), vec3p(2.2f)), 0.0f, glm::pow(vec3p(0.975, 0.958, 0.918), vec3p(2.2f)), 1.0f,
+				vec3p(0.f, 0.f, 0.f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::METAL_COPPER:
-			m_materialParams = MaterialParameters(glm::pow(glm::vec3(0.92549, 0.68627, 0.50196), glm::vec3(2.2)), 0.0f, glm::pow(glm::vec3(0.9960, 0.945098, 0.8196), glm::vec3(2.2)), 1.0f,
-				glm::vec3(0.f, 0.f, 0.f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(glm::pow(vec3p(0.92549, 0.68627, 0.50196), vec3p(2.2)), 0.0f, glm::pow(vec3p(0.9960, 0.945098, 0.8196), vec3p(2.2)), 1.0f,
+				vec3p(0.f, 0.f, 0.f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::GLASS:
-			m_materialParams = MaterialParameters(glm::vec3(1.f, 1.f, 1.f), 1.0f, glm::vec3(1.f, 1.f, 1.f), 0.0f,
-				glm::vec3(0.0f, 0.0f, 0.0f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(vec3p(1.f, 1.f, 1.f), 1.0f, vec3p(1.f, 1.f, 1.f), 0.0f,
+				vec3p(0.0f, 0.0f, 0.0f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		case YAPT::MaterialPreset::PLASTIC:
-			m_materialParams = MaterialParameters(glm::vec3(1.f, 1.f, 1.f), 0.0f, glm::vec3(1.f, 1.f, 1.f), 0.0f,
-				glm::vec3(0.0f, 0.0f, 0.0f), 1.5f, glm::vec3(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
+			m_materialParams = MaterialParameters(vec3p(1.f, 1.f, 1.f), 0.0f, vec3p(1.f, 1.f, 1.f), 0.0f,
+				vec3p(0.0f, 0.0f, 0.0f), 1.5f, vec3p(0.0f, 0.0f, 0.0f), 0.0f, 0.0f, 0.0f);
 			break;
 		default:
 			break;
@@ -79,42 +79,42 @@ namespace YAPT
 		return m_materialParams.metalness;
 	}
 
-	void MaterialProxy::setAlbedo(const glm::vec3& v)
+	void MaterialProxy::setAlbedo(const vec3p& v)
 	{
 		m_materialParams.albedo = v;
 		setDirty();
 	}
-	const glm::vec3& MaterialProxy::getAlbedo() const
+	const vec3p& MaterialProxy::getAlbedo() const
 	{
 		return m_materialParams.albedo;
 	}
 
-	void MaterialProxy::setSpecularTint(const glm::vec3& v)
+	void MaterialProxy::setSpecularTint(const vec3p& v)
 	{
 		m_materialParams.specular = v;
 		setDirty();
 	}
-	const glm::vec3& MaterialProxy::getSpecularTint() const
+	const vec3p& MaterialProxy::getSpecularTint() const
 	{
 		return m_materialParams.specular;
 	}
 
-	void MaterialProxy::setAbsorption(const glm::vec3& v)
+	void MaterialProxy::setAbsorption(const vec3p& v)
 	{
 		m_materialParams.absorption = v;
 		setDirty();
 	}
-	const glm::vec3& MaterialProxy::getAbsorption() const
+	const vec3p& MaterialProxy::getAbsorption() const
 	{
 		return m_materialParams.absorption;
 	}
 
-	void MaterialProxy::setEmission(const glm::vec3& v)
+	void MaterialProxy::setEmission(const vec3p& v)
 	{
 		m_materialParams.emissive = v;
 		setDirty();
 	}
-	const glm::vec3& MaterialProxy::getEmission() const
+	const vec3p& MaterialProxy::getEmission() const
 	{
 		return m_materialParams.emissive;
 	}
@@ -228,12 +228,12 @@ namespace YAPT
 		return m_materialParams.sheenRoughness;
 	}
 
-	void MaterialProxy::setSheenTint(const glm::vec3& v)
+	void MaterialProxy::setSheenTint(const vec3p& v)
 	{
 		m_materialParams.sheenTint = v;
 		setDirty();
 	}
-	const glm::vec3& MaterialProxy::getSheenTint() const
+	const vec3p& MaterialProxy::getSheenTint() const
 	{
 		return m_materialParams.sheenTint;
 	}

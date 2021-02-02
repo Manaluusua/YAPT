@@ -25,6 +25,8 @@
 #define BOWL_PATH ASSETPATH "Bowl/bowl.glb"
 #define PLANE_PATH ASSETPATH "Plane/plane.glb"
 
+using namespace YAPT;
+
 TestScene::TestScene(YAPT::Renderer* renderer, YAPT::Gui* gui, YAPT::Scene* scene)
 	:m_renderer(renderer),
 	m_gui(gui),
@@ -54,7 +56,7 @@ void TestScene::createWhiteFurnaceTestScene()
 	 
 	const float gap = 10.f;
 
-	glm::vec2 offset = glm::vec2(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
+	vec2p offset = vec2p(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
 
 	 
 
@@ -104,17 +106,17 @@ void TestScene::createWhiteFurnaceTestScene()
 			 
 			mat->setRoughness(val1);
 
-			mat->setSpecularTint(glm::vec3(1.f));
-			mat->setAlbedo(glm::vec3(1.f));
+			mat->setSpecularTint(vec3p(1.f));
+			mat->setAlbedo(vec3p(1.f));
 
 			model->setMesh(m_sphereMesh);
 
 			model->setMaterial(mat);
 			model->Release();
 
-			model->getTransform().setScale(glm::vec3(scale));
+			model->getTransform().setScale(vec3p(scale));
 
-			glm::vec3 pos(offset.x + gap * i, offset.y + gap * j, 0.f);
+			vec3p pos(offset.x + gap * i, offset.y + gap * j, 0.f);
 
 			model->getTransform().setTranslation(pos);
 		}
@@ -123,7 +125,7 @@ void TestScene::createWhiteFurnaceTestScene()
 	}
 
 
-	m_scene->getMainCamera()->getTransform().setTranslation(glm::vec3(0.f, -5.f, 55.f));
+	m_scene->getMainCamera()->getTransform().setTranslation(vec3p(0.f, -5.f, 55.f));
 
 }
 
@@ -154,9 +156,9 @@ void TestScene::createHeroShotScene()
 	mat->setClearCoatIOR(1.7);
 	mat->setClearCoatRoughness(0.09f);
 	*/
-	model->getTransform().setScale(glm::vec3(scale));
-	glm::vec3 pos(0.f, 0.f, -10.f);
-	model->getTransform().setOrientation(glm::angleAxis(glm::pi<float>() * 0.5f, glm::vec3(1.f, 0.f, 0.f)));
+	model->getTransform().setScale(vec3p(scale));
+	vec3p pos(0.f, 0.f, -10.f);
+	model->getTransform().setOrientation(glm::angleAxis(glm::pi<float>() * 0.5f, vec3p(1.f, 0.f, 0.f)));
 	model->getTransform().setTranslation(pos);
 }
 
@@ -168,7 +170,7 @@ void TestScene::createCarPaintComparison()
 	size_t i = 0;
 	size_t j = 0;
 
-	std::pair<glm::vec3, glm::vec3> colors[] =
+	std::pair<vec3p, vec3p> colors[] =
 	{
 		{{0.2f, 0.6f, 0.1f},{0.5f, 0.9f, 0.3f}},
 		{{0.6f, 0.6f, 0.1f},{0.8f, 0.8f, 0.5f}},
@@ -182,7 +184,7 @@ void TestScene::createCarPaintComparison()
 
 	const float gap = 10.f;
 
-	glm::vec2 offset = glm::vec2(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
+	vec2p offset = vec2p(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
 	for (size_t i = 0; i < numberOfColumns; ++i)
 	{
 		for (size_t j = 0; j < numberOfRows; ++j)
@@ -199,9 +201,9 @@ void TestScene::createCarPaintComparison()
 			mat->setAlbedo(colors[i].first);
 
 			mat->setSpecularTint(colors[i].second);
-			//mat->setSpecularTint(glm::vec3(1.f));
+			//mat->setSpecularTint(vec3p(1.f));
 			//mat->setTwoSided(true);
-			//mat->setAbsorption(glm::vec3(0.04f, 0.02f, 0.3f));
+			//mat->setAbsorption(vec3p(0.04f, 0.02f, 0.3f));
 			//mat->setTransparency(transparency);
 			//mat->setMetalFlakeDensity(0.0);
 			mat->setAnisotropy(0.95f);
@@ -215,9 +217,9 @@ void TestScene::createCarPaintComparison()
 			mat->setAlbedo(colors[i].first);
 
 			mat->setSpecularTint(colors[i].second);
-			//mat->setSpecularTint(glm::vec3(1.f));
+			//mat->setSpecularTint(vec3p(1.f));
 			//mat->setTwoSided(true);
-			//mat->setAbsorption(glm::vec3(0.04f, 0.02f, 0.3f));
+			//mat->setAbsorption(vec3p(0.04f, 0.02f, 0.3f));
 			//mat->setTransparency(transparency);
 			//mat->setMetalFlakeDensity(0.0);
 			mat->setAnisotropy(0.95f);
@@ -230,9 +232,9 @@ void TestScene::createCarPaintComparison()
 			model->setMaterial(mat);
 			model->Release();
 
-			model->getTransform().setScale(glm::vec3(scale));
+			model->getTransform().setScale(vec3p(scale));
 
-			glm::vec3 pos(offset.x + gap * i, offset.y + gap * j, 0.f);
+			vec3p pos(offset.x + gap * i, offset.y + gap * j, 0.f);
 
 			model->getTransform().setTranslation(pos);
 		}
@@ -248,17 +250,17 @@ void TestScene::createCarPaintComparison()
 		YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 		mat->Release();
 		mat->setFromMaterialPreset(YAPT::MaterialPreset::PLASTIC);
-		mat->setAlbedo(glm::vec3(0.1f));
+		mat->setAlbedo(vec3p(0.1f));
 		mat->setRoughness(0.2f);
 		m_models.push_back(model);
 		model->setMesh(m_sphereMesh);
 		model->setMaterial(mat);
 		model->Release();
 
-		YAPT::vec3 pos(-12.f, -20.f, 0.f);
+		YAPT::vec3p pos(-12.f, -20.f, 0.f);
 
 		model->getTransform().setTranslation(pos);
-		model->getTransform().setScale(glm::vec3(15.f));
+		model->getTransform().setScale(vec3p(15.f));
 
 	}
 
@@ -268,20 +270,20 @@ void TestScene::createCarPaintComparison()
 		YAPT::Model* model = m_scene->createModel();
 		YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 		mat->Release();
-		mat->setEmission(glm::vec3(emission, emission, emission));
+		mat->setEmission(vec3p(emission, emission, emission));
 		m_models.push_back(model);
 		model->setMesh(m_torusMesh);
 		model->setMaterial(mat);
 		model->Release();
 
-		YAPT::vec3 pos(0.f, 0.f, -15.f);
+		YAPT::vec3p pos(0.f, 0.f, -15.f);
 
 		model->getTransform().setTranslation(pos);
-		model->getTransform().setScale(glm::vec3(6.f));
+		model->getTransform().setScale(vec3p(6.f));
 	}
 	*/
-	m_scene->getMainCamera()->getTransform().setTranslation(glm::vec3(0.f, -5.f, 55.f));
-	//m_scene->getMainCamera()->getTransform().setOrientation(glm::angleAxis(glm::pi<float>(), glm::vec3(0.f, 1.f, 0.f)));
+	m_scene->getMainCamera()->getTransform().setTranslation(vec3p(0.f, -5.f, 55.f));
+	//m_scene->getMainCamera()->getTransform().setOrientation(glm::angleAxis(glm::pi<float>(), vec3p(0.f, 1.f, 0.f)));
 }
 
 void TestScene::createRoughnessComparison()
@@ -292,7 +294,7 @@ void TestScene::createRoughnessComparison()
 
 	const float gap = 10.f;
 
-	glm::vec2 offset = glm::vec2(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
+	vec2p offset = vec2p(-gap * numberOfColumns * 0.5f, -gap * numberOfRows * 0.5f);
 
 	 
 
@@ -337,12 +339,12 @@ void TestScene::createRoughnessComparison()
 			//mat->setFromMaterialPreset(YAPT::MaterialPreset::METAL_COPPER);
 			mat->setRoughness(0.1f + 0.8f*val1 );
 
-			//mat->setAlbedo(glm::vec3(1.f));
-			//mat->setAlbedo(glm::vec3(0.5f, 0.1f, 0.01f));
+			//mat->setAlbedo(vec3p(1.f));
+			//mat->setAlbedo(vec3p(0.5f, 0.1f, 0.01f));
 
-			//mat->setSpecularTint(glm::vec3(1.f));
+			//mat->setSpecularTint(vec3p(1.f));
 			//mat->setTwoSided(true);
-			//mat->setAbsorption(glm::vec3(0.04f, 0.02f, 0.3f));
+			//mat->setAbsorption(vec3p(0.04f, 0.02f, 0.3f));
 			//mat->setTransparency(transparency);
 			//mat->setMetalFlakeDensity(val2);
 			mat->setAnisotropy(0.95f);
@@ -358,9 +360,9 @@ void TestScene::createRoughnessComparison()
 			model->setMaterial(mat);
 			model->Release();
 
-			model->getTransform().setScale(glm::vec3(scale));
+			model->getTransform().setScale(vec3p(scale));
 
-			glm::vec3 pos(offset.x + gap * i, offset.y + gap * j, 0.f);
+			vec3p pos(offset.x + gap * i, offset.y + gap * j, 0.f);
 
 			model->getTransform().setTranslation(pos);
 		}
@@ -373,17 +375,17 @@ void TestScene::createRoughnessComparison()
 		YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 		mat->Release();
 		mat->setFromMaterialPreset(YAPT::MaterialPreset::PLASTIC);
-		mat->setAlbedo(glm::vec3(0.1f));
+		mat->setAlbedo(vec3p(0.1f));
 		mat->setRoughness(0.2f);
 		m_models.push_back(model);
 		model->setMesh(m_sphereMesh);
 		model->setMaterial(mat);
 		model->Release();
 
-		YAPT::vec3 pos(-12.f, -20.f, 0.f);
+		YAPT::vec3p pos(-12.f, -20.f, 0.f);
 
 		model->getTransform().setTranslation(pos);
-		model->getTransform().setScale(glm::vec3(15.f));
+		model->getTransform().setScale(vec3p(15.f));
 
 	}
 
@@ -393,20 +395,20 @@ void TestScene::createRoughnessComparison()
 		YAPT::Model* model = m_scene->createModel();
 		YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 		mat->Release();
-		mat->setEmission(glm::vec3(emission, emission, emission));
+		mat->setEmission(vec3p(emission, emission, emission));
 		m_models.push_back(model);
 		model->setMesh(m_torusMesh);
 		model->setMaterial(mat);
 		model->Release();
 		 
-		YAPT::vec3 pos(0.f, 0.f, -15.f);
+		YAPT::vec3p pos(0.f, 0.f, -15.f);
 
 		model->getTransform().setTranslation(pos);
-		model->getTransform().setScale(glm::vec3(6.f));
+		model->getTransform().setScale(vec3p(6.f));
 	}
 	*/
-	m_scene->getMainCamera()->getTransform().setTranslation(glm::vec3(0.f, -5.f, 55.f));
-	//m_scene->getMainCamera()->getTransform().setOrientation(glm::angleAxis(glm::pi<float>(), glm::vec3(0.f, 1.f, 0.f)));
+	m_scene->getMainCamera()->getTransform().setTranslation(vec3p(0.f, -5.f, 55.f));
+	//m_scene->getMainCamera()->getTransform().setOrientation(glm::angleAxis(glm::pi<float>(), vec3p(0.f, 1.f, 0.f)));
 }
 
 void TestScene::createMaterialComparisonScene()
@@ -418,9 +420,9 @@ void TestScene::createMaterialComparisonScene()
 	defaultPlaneMat->Release();
 	defaultPlaneMat->setFromMaterialPreset(YAPT::MaterialPreset::PLASTIC);
 	defaultPlaneMat->setSpecularAmount(0.6);
-	//defaultPlaneMat->setEmission(glm::vec3(0.01f));
+	//defaultPlaneMat->setEmission(vec3p(0.01f));
 	defaultPlaneMat->setRoughness(0.3);
-	defaultPlaneMat->setAlbedo(glm::vec3(0.001, 0.001, 0.001));
+	defaultPlaneMat->setAlbedo(vec3p(0.001, 0.001, 0.001));
 	defaultPlaneMat->setDielectricIOR(1.3);
 	defaultPlaneMat->setTwoSided(true);
 	//bottom
@@ -432,15 +434,15 @@ void TestScene::createMaterialComparisonScene()
 		mat->Release();
 		mat->setFromMaterialPreset(YAPT::MaterialPreset::PLASTIC);
 		mat->setSpecularAmount(0.0f);
-		mat->setAlbedo(glm::vec3(0.1f, 0.1f, 0.1f));
+		mat->setAlbedo(vec3p(0.1f, 0.1f, 0.1f));
 		mat->setClearCoatAmount(0.f);
 		mat->setRoughness(0.7f);
 		mat->setTwoSided(true);
 		
 		model->setMesh(m_planeMesh);
 		model->setMaterial(mat);
-		model->getTransform().setScale(glm::vec3(planeScale));
-		model->getTransform().addTranslation(glm::vec3(0.f, -planeScale, 0.f));
+		model->getTransform().setScale(vec3p(planeScale));
+		model->getTransform().addTranslation(vec3p(0.f, -planeScale, 0.f));
 		model->Release();
 	}
 	
@@ -450,10 +452,10 @@ void TestScene::createMaterialComparisonScene()
 		m_models.push_back(model);
 		model->setMesh(m_planeMesh);
 		model->setMaterial(defaultPlaneMat);
-		model->getTransform().setScale(glm::vec3(planeScale));
-		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), glm::vec3(1.f, 0.0f, 0.0f));
+		model->getTransform().setScale(vec3p(planeScale));
+		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), vec3p(1.f, 0.0f, 0.0f));
 		model->getTransform().setOrientation(q);
-		model->getTransform().addTranslation(glm::vec3(0.f, 0.f, -planeScale));
+		model->getTransform().addTranslation(vec3p(0.f, 0.f, -planeScale));
 		model->Release();
 	}
 	
@@ -463,10 +465,10 @@ void TestScene::createMaterialComparisonScene()
 		m_models.push_back(model);
 		model->setMesh(m_planeMesh);
 		model->setMaterial(defaultPlaneMat);
-		model->getTransform().setScale(glm::vec3(planeScale));
-		glm::quat q = glm::angleAxis(-0.5f * glm::pi<float>(), glm::vec3(1.f, 0.0f, 0.0f));
+		model->getTransform().setScale(vec3p(planeScale));
+		glm::quat q = glm::angleAxis(-0.5f * glm::pi<float>(), vec3p(1.f, 0.0f, 0.0f));
 		model->getTransform().setOrientation(q);
-		model->getTransform().addTranslation(glm::vec3(0.f, 0.f, planeScale));
+		model->getTransform().addTranslation(vec3p(0.f, 0.f, planeScale));
 		model->Release();
 	}
 	//left
@@ -475,10 +477,10 @@ void TestScene::createMaterialComparisonScene()
 		m_models.push_back(model);
 		model->setMesh(m_planeMesh);
 		model->setMaterial(defaultPlaneMat);
-		model->getTransform().setScale(glm::vec3(planeScale));
-		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), glm::vec3(0.f, 0.0f, 1.0f));
+		model->getTransform().setScale(vec3p(planeScale));
+		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), vec3p(0.f, 0.0f, 1.0f));
 		model->getTransform().setOrientation(q);
-		model->getTransform().addTranslation(glm::vec3(-planeScale, 0.f, 0.f));
+		model->getTransform().addTranslation(vec3p(-planeScale, 0.f, 0.f));
 		model->Release();
 	}*/
 	/*
@@ -489,10 +491,10 @@ void TestScene::createMaterialComparisonScene()
 		m_models.push_back(model);
 		model->setMesh(m_planeMesh);
 		model->setMaterial(defaultPlaneMat);
-		model->getTransform().setScale(glm::vec3(planeScale));
-		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), glm::vec3(0.f, 0.0f, 1.0f));
+		model->getTransform().setScale(vec3p(planeScale));
+		glm::quat q = glm::angleAxis(0.5f * glm::pi<float>(), vec3p(0.f, 0.0f, 1.0f));
 		model->getTransform().setOrientation(q);
-		model->getTransform().addTranslation(glm::vec3(planeScale, 0.f, 0.f));
+		model->getTransform().addTranslation(vec3p(planeScale, 0.f, 0.f));
 		model->Release();
 	}
 
@@ -509,17 +511,17 @@ void TestScene::createMaterialComparisonScene()
 
 		mat->setDielectricIOR(1.5f);
 		mat->setRoughness(0.02f + v * 0.6f);
-		mat->setAbsorption(glm::vec3(0.03f, 0.01f, 0.002f) * 0.4f);
+		mat->setAbsorption(vec3p(0.03f, 0.01f, 0.002f) * 0.4f);
 		 
 		m_models.push_back(model);
 		model->setMesh(m_bowlMesh);
 		model->setMaterial(mat);
 		model->Release();
 
-		YAPT::vec3 pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 15.f, 0.f);
+		YAPT::vec3p pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 15.f, 0.f);
 
 		model->getTransform().setTranslation(pos);
-		model->getTransform().setScale(glm::vec3(0.3f));
+		model->getTransform().setScale(vec3p(0.3f));
 
 	}
 	//light
@@ -531,15 +533,15 @@ void TestScene::createMaterialComparisonScene()
 			YAPT::Model* model = m_scene->createModel();
 			YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 			mat->Release();
-			mat->setEmission(glm::vec3(emission));
+			mat->setEmission(vec3p(emission));
 			m_models.push_back(model);
 			model->setMesh(m_sphereMesh);
 			model->setMaterial(mat);
 			model->Release();
 
-			YAPT::vec3 pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 30.f, 0.f);
+			YAPT::vec3p pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 30.f, 0.f);
 			model->getTransform().setTranslation(pos);
-			model->getTransform().setScale(glm::vec3(1.f));
+			model->getTransform().setScale(vec3p(1.f));
 		}
 		else if(i >= 3)
 		{
@@ -547,16 +549,16 @@ void TestScene::createMaterialComparisonScene()
 			YAPT::Model* model = m_scene->createModel();
 			YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 			mat->Release();
-			mat->setEmission(glm::vec3(emission));
+			mat->setEmission(vec3p(emission));
 			m_models.push_back(model);
 			model->setMesh(m_torusMesh);
 			model->setMaterial(mat);
 			model->Release();
 
-			YAPT::vec3 pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 15.f, 0.f);
+			YAPT::vec3p pos(-sphereGap * sphereCount * 0.5f + i * sphereGap, -planeScale + 15.f, 0.f);
 
 			model->getTransform().setTranslation(pos);
-			model->getTransform().setScale(glm::vec3(1.f));
+			model->getTransform().setScale(vec3p(1.f));
 		}
 		
 	}
@@ -566,7 +568,7 @@ void TestScene::createMaterialComparisonScene()
 
 	}
 	
-	m_scene->getMainCamera()->getTransform().setTranslation(glm::vec3(0.f, -planeScale + 20.f, 50.f));
+	m_scene->getMainCamera()->getTransform().setTranslation(vec3p(0.f, -planeScale + 20.f, 50.f));
 
 }
 
@@ -688,7 +690,7 @@ void TestScene::beforeUpdate(const YAPT::SceneUpdateParameters& update)
 {
 	/*double time = update.overallElapsedTimeInSeconds;
 
-	YAPT::quat q = glm::angleAxis(float(time) * glm::pi<float>() * 0.5f, glm::vec3(1.0, 0.0, 0.0));
+	YAPT::quat q = glm::angleAxis(float(time) * glm::pi<float>() * 0.5f, vec3p(1.0, 0.0, 0.0));
 	
 	for (size_t i = 0; i < m_models.size(); ++i)
 	{

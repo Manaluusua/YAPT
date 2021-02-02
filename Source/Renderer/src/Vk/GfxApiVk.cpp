@@ -312,12 +312,11 @@ namespace YAPT
 
 		ShaderModuleHandle createShaderModuleFromFile(GfxApiHandle h, const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return h->getResourceManager()->createShaderModule(filepath, moduleType, entryPoint, defines, defineCount);
 		}
 		void destroyShaderModule(GfxApiHandle h, ShaderModuleHandle m)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->destroyShaderModule(m);
 		}
 
 

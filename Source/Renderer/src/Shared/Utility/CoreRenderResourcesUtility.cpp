@@ -75,14 +75,14 @@ namespace YAPT
 		case YAPT::DefaultBufferType::FULLSCREEN_PRIMITIVE_POS:
 		{
 			static VertexInputAttribute attributes[] = { {AttributeSemanticName::POSITION, ResourceFormat::RGB32_SFLOAT, 0} };
-			static VertexBufferDefinition vertexBufferDef{ attributes, 1, sizeof(glm::vec3), 0 };
+			static VertexBufferDefinition vertexBufferDef{ attributes, 1, sizeof(vec3p), 0 };
 			return &vertexBufferDef;
 		}
 			
 		case YAPT::DefaultBufferType::FULLSCREEN_PRIMITIVE_POS_UV:
 		{
-			static VertexInputAttribute attributes[] = { {AttributeSemanticName::POSITION, ResourceFormat::RGB32_SFLOAT, 0}, {AttributeSemanticName::TEXCOORD, ResourceFormat::RG32_SFLOAT, sizeof(glm::vec3)} };
-			static VertexBufferDefinition vertexBufferDef{ attributes, 2, sizeof(glm::vec3) + sizeof(glm::vec2), 0 };
+			static VertexInputAttribute attributes[] = { {AttributeSemanticName::POSITION, ResourceFormat::RGB32_SFLOAT, 0}, {AttributeSemanticName::TEXCOORD, ResourceFormat::RG32_SFLOAT, sizeof(vec3p)} };
+			static VertexBufferDefinition vertexBufferDef{ attributes, 2, sizeof(vec3p) + sizeof(vec2p), 0 };
 			return &vertexBufferDef;
 		}
 			
@@ -95,8 +95,8 @@ namespace YAPT
 	void CoreRenderResourcesUtility::createBuffers()
 	{
 		const FullScreenPrimitive& fullscreenPrim = getFullscreenPrimitive();
-		size_t fullscreenPrimitivePosSize = sizeof(glm::vec3) * fullscreenPrim.vertexCount;
-		size_t fullscreenPrimitiveUvSize = sizeof(glm::vec2) * fullscreenPrim.vertexCount;
+		size_t fullscreenPrimitivePosSize = sizeof(vec3p) * fullscreenPrim.vertexCount;
+		size_t fullscreenPrimitiveUvSize = sizeof(vec2p) * fullscreenPrim.vertexCount;
 		size_t fullscreenPrimitiveIndexSize = sizeof(uint32_t) * fullscreenPrim.indexCount;
 		{
 			BufferDesc vertexBufferDesc( RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_VERTEX_BUFFER, fullscreenPrimitivePosSize );
@@ -154,8 +154,8 @@ namespace YAPT
 	{
 		//upload
 		const FullScreenPrimitive& fullscreenPrim = getFullscreenPrimitive();
-		size_t fullscreenPrimitivePosSize = sizeof(glm::vec3) * fullscreenPrim.vertexCount;
-		size_t fullscreenPrimitiveUvSize = sizeof(glm::vec2) * fullscreenPrim.vertexCount;
+		size_t fullscreenPrimitivePosSize = sizeof(vec3p) * fullscreenPrim.vertexCount;
+		size_t fullscreenPrimitiveUvSize = sizeof(vec2p) * fullscreenPrim.vertexCount;
 		size_t fullscreenPrimitiveIndexSize = sizeof(uint32_t) * fullscreenPrim.indexCount;
 
 

@@ -99,22 +99,22 @@ namespace YAPT
 				retVal = new CRendererVariable<int32_t, RendererVariableType::INT>(this);
 				break;
 			case YAPT::RendererVariableType::VEC2:
-				retVal = new CRendererVariable<glm::vec2, RendererVariableType::VEC2>(this);
+				retVal = new CRendererVariable<vec2p, RendererVariableType::VEC2>(this);
 				break;
 			case YAPT::RendererVariableType::VEC3:
-				retVal = new CRendererVariable<glm::vec3, RendererVariableType::VEC3>(this);
+				retVal = new CRendererVariable<vec3p, RendererVariableType::VEC3>(this);
 				break;
 			case YAPT::RendererVariableType::VEC4:
-				retVal = new CRendererVariable<glm::vec4, RendererVariableType::VEC4>(this);
+				retVal = new CRendererVariable<vec4p, RendererVariableType::VEC4>(this);
 				break;
 			case YAPT::RendererVariableType::IVEC2:
-				retVal = new CRendererVariable<glm::ivec2, RendererVariableType::IVEC2>(this);
+				retVal = new CRendererVariable<ivec2p, RendererVariableType::IVEC2>(this);
 				break;
 			case YAPT::RendererVariableType::IVEC3:
-				retVal = new CRendererVariable<glm::ivec3, RendererVariableType::IVEC3>(this);
+				retVal = new CRendererVariable<ivec3p, RendererVariableType::IVEC3>(this);
 				break;
 			case YAPT::RendererVariableType::IVEC4:
-				retVal = new CRendererVariable<glm::ivec4, RendererVariableType::IVEC4>(this);
+				retVal = new CRendererVariable<ivec4p, RendererVariableType::IVEC4>(this);
 				break;
 			case YAPT::RendererVariableType::TEXTURE:
 				retVal = new CRendererVariable<RCPtr<Texture>, RendererVariableType::TEXTURE>(this);

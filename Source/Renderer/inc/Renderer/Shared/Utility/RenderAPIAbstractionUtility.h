@@ -6,8 +6,8 @@ namespace YAPT
 {
     struct FullScreenPrimitive
     {
-        const glm::vec3* positions;
-        const glm::vec2* uvCoordinates;
+        const vec3p* positions;
+        const vec2p* uvCoordinates;
         const size_t vertexCount;
         const uint32_t* indices;
         const size_t indexCount;
@@ -59,12 +59,12 @@ namespace YAPT
     inline const FullScreenPrimitive& getFullscreenPrimitive()
     {
 #ifdef RENDERER_DX12
-        static const glm::vec3 p[] = { glm::vec3(-1.f, -1.f, 1.f), glm::vec3(3.f, -1.f, 1.f), glm::vec3(-1.f, 3.f, 1.f) };
-        static const glm::vec2 uv[] = { glm::vec2(0.f, 2.f), glm::vec2(2.f, 2.f), glm::vec2(0.f, 0.f) };
+        static const vec3p p[] = { vec3p(-1.f, -1.f, 1.f), vec3p(3.f, -1.f, 1.f), vec3p(-1.f, 3.f, 1.f) };
+        static const vec2p uv[] = { vec2p(0.f, 2.f), vec2p(2.f, 2.f), vec2p(0.f, 0.f) };
         static const uint32_t indices[] = { 0, 1, 2 };
 #elif RENDERER_VK
-        static const glm::vec3 p[] = { glm::vec3(-1.f, -1.f, 1.f), glm::vec3(3.f, -1.f, 1.f), glm::vec3(-1.f, 3.f, 1.f) };
-        static const glm::vec2 uv[] = { glm::vec2(0.f, 0.f), glm::vec2(2.f, 0.f), glm::vec2(0.f, 2.f) };
+        static const vec3p p[] = { vec3p(-1.f, -1.f, 1.f), vec3p(3.f, -1.f, 1.f), vec3p(-1.f, 3.f, 1.f) };
+        static const vec2p uv[] = { vec2p(0.f, 0.f), vec2p(2.f, 0.f), vec2p(0.f, 2.f) };
         static const uint32_t indices[] = { 0, 1, 2 };
 #else
 #error "NOT IMPLEMENTED"
@@ -72,7 +72,7 @@ namespace YAPT
         static const FullScreenPrimitive fsp{
            p,
            uv,
-           sizeof(p) / sizeof(glm::vec3),
+           sizeof(p) / sizeof(vec3p),
            indices,
            sizeof(indices) / sizeof(uint32_t) };
         return fsp;

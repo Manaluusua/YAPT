@@ -26,25 +26,25 @@ namespace YAPT
 		}
 
 		 
-		inline glm::vec3 sphericalToCartesian(float phi, float theta)
+		inline vec3p sphericalToCartesian(float phi, float theta)
 		{
 			float cosTheta = glm::cos(theta);
 			float sinTheta = sqrt(1.f - sqr(cosTheta));
-			return glm::vec3(cos(phi) * sinTheta, cosTheta, sin(phi) * sinTheta);
+			return vec3p(cos(phi) * sinTheta, cosTheta, sin(phi) * sinTheta);
 		}
 
-		void calculateArbitraryOrthogonalVector(const glm::vec3& vec, glm::vec3& orthogonalOut);
+		void calculateArbitraryOrthogonalVector(const vec3p& vec, vec3p& orthogonalOut);
 
-		void calculateTangentAndBitangentFromPositionAndUv(const glm::vec3& p1, const glm::vec3& p2, const glm::vec3& p3,
-			const glm::vec2& t1, const glm::vec2& t2, const glm::vec2& t3, glm::vec3& outTangent, glm::vec3& outBitangent);
+		void calculateTangentAndBitangentFromPositionAndUv(const vec3p& p1, const vec3p& p2, const vec3p& p3,
+			const vec2p& t1, const vec2p& t2, const vec2p& t3, vec3p& outTangent, vec3p& outBitangent);
 
-		void orthogonalizeAndNormalizeTangent(const glm::vec3& tangent, const glm::vec3& normal, glm::vec3& tangentOut);
+		void orthogonalizeAndNormalizeTangent(const vec3p& tangent, const vec3p& normal, vec3p& tangentOut);
 
-		float calculateHandedness(const glm::vec3& tangent, const glm::vec3& bitangent, const glm::vec3& normal);
+		float calculateHandedness(const vec3p& tangent, const vec3p& bitangent, const vec3p& normal);
 
-		void normalizePlane(glm::vec4& plane);
+		void normalizePlane(vec4p& plane);
 
-		void extractFrustumPlanes(const mat4& m, glm::vec4& l, glm::vec4& r, glm::vec4& t, glm::vec4& b, glm::vec4& n, glm::vec4& f);
+		void extractFrustumPlanes(const mat4& m, vec4p& l, vec4p& r, vec4p& t, vec4p& b, vec4p& n, vec4p& f);
 	}
 		
 }

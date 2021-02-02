@@ -36,7 +36,7 @@ namespace YAPT
 
 		struct histogramConstants
 		{
-			glm::uvec2 resolution;
+			uvec2p resolution;
 			float minEV;
 			float pad0;
 		};
@@ -44,7 +44,7 @@ namespace YAPT
 
 		struct PrepareExposureInfoData
 		{
-			glm::vec4 unused;
+			vec4p unused;
 		};
 
 
@@ -52,8 +52,8 @@ namespace YAPT
 		{
 			histogramConstants histogramConstants;
 			PrepareExposureInfoData prepareTonemapDataConstants;
-			glm::vec4 toeMidShoulderInit;
-			glm::vec4 exposureEyeAdaptTime;
+			vec4p toeMidShoulderInit;
+			vec4p exposureEyeAdaptTime;
 		};
 		
 		struct ExposureInfo

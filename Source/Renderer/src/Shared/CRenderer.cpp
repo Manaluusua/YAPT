@@ -302,7 +302,7 @@ namespace YAPT
 
 		if (m_renderPipelineMngr)
 		{
-			glm::ivec2 res = m_rendererConfig.getRendererVarValueInternal<glm::ivec2>(RVARNAME_RENDER_RESOLUTION);
+			glm::ivec2 res = m_rendererConfig.getRendererVarValueInternal<ivec2p>(RVARNAME_RENDER_RESOLUTION);
 
 			//calculate mvp for main view
 			m_currentRenderView->issueViewDependantRenderObjectJobs(getThreadPool(), *m_renderObjectManager);

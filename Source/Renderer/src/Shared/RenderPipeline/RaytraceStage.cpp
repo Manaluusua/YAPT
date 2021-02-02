@@ -299,7 +299,7 @@ namespace YAPT
 		return false;
 	}
 	//stride and offset are assumed in dwords (uint32/float32) in the shader
-	glm::uvec2 RaytraceStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
+	uvec2p RaytraceStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
 	{
 		glm::uvec2 v;
 		v.x = bufferOffset;
@@ -359,13 +359,13 @@ namespace YAPT
 			float metalness = matParams.metalness;
 
 
-			rayHitConstants.specAmountClearCoatAmountIORRoughness = glm::vec4(saturate(matParams.specularAmount), 
+			rayHitConstants.specAmountClearCoatAmountIORRoughness = vec4p(saturate(matParams.specularAmount), 
 				saturate(matParams.clearCoatAmount), matParams.clearCoatIOR, saturate(matParams.clearCoatRoughness));
 			 
-			rayHitConstants.albedoTransparency = glm::vec4(matParams.albedo, matParams.transparency);
-			rayHitConstants.specularMetalness = glm::vec4(matParams.specular, matParams.metalness);
-			rayHitConstants.absorptionDielectricIOR = glm::vec4(matParams.absorption, glm::clamp(matParams.dielectricIOR, 0.3f, 3.0f));
-			rayHitConstants.emissiveRoughness = glm::vec4(matParams.emissive, saturate(matParams.roughness));
+			rayHitConstants.albedoTransparency = vec4p(matParams.albedo, matParams.transparency);
+			rayHitConstants.specularMetalness = vec4p(matParams.specular, matParams.metalness);
+			rayHitConstants.absorptionDielectricIOR = vec4p(matParams.absorption, glm::clamp(matParams.dielectricIOR, 0.3f, 3.0f));
+			rayHitConstants.emissiveRoughness = vec4p(matParams.emissive, saturate(matParams.roughness));
 			rayHitConstants.anisotropy = saturate(matParams.anisotropy);
 			rayHitConstants.anisotropyRotation = matParams.anisotropyRotation;
 			
@@ -373,7 +373,7 @@ namespace YAPT
 			rayHitConstants.thinFilmThickness = matParams.thinFilmThickness;
 			
 			rayHitConstants.sheenAmount = matParams.sheenAmount;
-			rayHitConstants.sheenColorRoughness = glm::vec4(matParams.sheenTint, matParams.sheenRoughness);
+			rayHitConstants.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
  
 			rayHitConstants.albedoTexIndex = matParams.albedoTexIndex;
 			rayHitConstants.normalTexIndex = matParams.normalTexIndex;
@@ -506,7 +506,7 @@ namespace YAPT
 			{
 				ClearAccumulatedSamplesParams* params = m_clearMergeBufferConstants.getData();
 				params->targetTextureDimensions = glm::uvec4(m_resolveTargetWidth, m_resolveTargetHeight, 0, 0);
-				params->clearValue = glm::vec4(0.0, 0.f, 0.f, 0.f);
+				params->clearValue = vec4p(0.0, 0.f, 0.f, 0.f);
 				m_clearMergeBufferConstants.flush();
 			}
 
@@ -517,19 +517,19 @@ namespace YAPT
 			RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
 
 			//ray offset
-			glm::vec2 rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
+			vec2p rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
 			rayUVOffset += getCurrentRayGenerationOffset(); //move to (target) pixel being updated (will be 0 if doing fullres rt)
 
 			//apply subpixel jitter
 			if (m_applySubpixelJitter)
 			{
 				uint32_t subpixelJitterSampleIndex = getCurrentNumberOfSamplesPerPixel() % NUMBER_OF_SUBPIXEL_JITTER_SAMPLES;
-				glm::vec2 jitterSample = m_subpixelJitterSamples[subpixelJitterSampleIndex];
+				vec2p jitterSample = m_subpixelJitterSamples[subpixelJitterSampleIndex];
 				rayUVOffset.x += jitterSample.x * targetPixelWidth;
 				rayUVOffset.y += jitterSample.y * targetPixelHeight;
 			}
 			
-			glm::vec4 camPos(0.f, 0.f, 0.f, 1.f);
+			vec4 camPos(0.f, 0.f, 0.f, 1.f);
 			mat4 viewToWorld = glm::inverse(getRenderer()->getCurrentRenderView().getView());
 			camPos = viewToWorld * camPos;
 
@@ -705,20 +705,20 @@ namespace YAPT
 		updateEffectiveRaytraceResolution();
 	}
 
-	glm::uvec4 RaytraceStage::getCurrentResolveTargetTexelOffsetParams()
+	uvec4p RaytraceStage::getCurrentResolveTargetTexelOffsetParams()
 	{    
 		//scale & bias
 		uint32_t frameIndex = m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor);
 		return glm::uvec4(m_raysPerFrameDivisor, m_raysPerFrameDivisor, frameIndex % m_raysPerFrameDivisor, frameIndex / m_raysPerFrameDivisor);
 	}
-	glm::vec2 RaytraceStage::getCurrentRayGenerationOffset()
+	vec2p RaytraceStage::getCurrentRayGenerationOffset()
 	{
 		glm::uvec4 p = getCurrentResolveTargetTexelOffsetParams();
 		glm::uvec2 pixelOffset(p.z, p.w);
 		float targetPixelWidth = 1.f / m_resolveTargetWidth;
 		float targetPixelHeight = 1.f / m_resolveTargetHeight;
 
-		return glm::vec2(pixelOffset.x * targetPixelWidth, pixelOffset.y * targetPixelHeight);
+		return vec2p(pixelOffset.x * targetPixelWidth, pixelOffset.y * targetPixelHeight);
 	}
 
 	uint32_t RaytraceStage::getCurrentNumberOfSamplesPerPixel()
@@ -736,11 +736,11 @@ namespace YAPT
 	
 	void RaytraceStage::initSubpixelJitterSamples()
 	{
-		MathUtils::generateHaltonSequence<float, glm::precision::highp, 11, 13>(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
+		MathUtils::generateHaltonSequence(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
 		//[0,1] -> [-0.5, 0.5], ie offsets from pixel center
 		for (size_t i = 0; i < NUMBER_OF_SUBPIXEL_JITTER_SAMPLES; ++i)
 		{
-			m_subpixelJitterSamples[i] = (m_subpixelJitterSamples[i] - glm::vec2(0.5f, 0.5f));
+			m_subpixelJitterSamples[i] = (m_subpixelJitterSamples[i] - vec2p(0.5f, 0.5f));
 		}
 
 		

@@ -14,21 +14,21 @@ namespace YAPT
 
 	}
 
-	glm::vec3 sampleHemisphere(const glm::vec2& sample)
+	vec3p sampleHemisphere(const vec2p& sample)
 	{
 		float phi = 2.0f * PI * sample.y;
 		float cosTheta = sqrt(1.f - sample.x);
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
-		glm::vec3 wi = glm::vec3(cos(phi) * sinTheta, cosTheta, sin(phi) * sinTheta);
+		vec3p wi = vec3p(cos(phi) * sinTheta, cosTheta, sin(phi) * sinTheta);
 		return wi;
 	}
 
-	glm::vec3 evaluateLambertian(const glm::vec3& albedo, const glm::vec3& wi)
+	vec3p evaluateLambertian(const vec3p& albedo, const vec3p& wi)
 	{
-		return albedo / glm::vec3(PI);
+		return albedo / vec3p(PI);
 	}
 
-	float pdfHemisphere(const glm::vec3& wi) {
+	float pdfHemisphere(const vec3p& wi) {
 		return MathUtils::saturate(wi.y) / PI;
 	}
 
@@ -73,7 +73,7 @@ namespace YAPT
 		return exp(exponent);
 	}
 
-	float DSheen(const glm::vec3& wm, float r)
+	float DSheen(const vec3p& wm, float r)
 	{
 		float rInv = 1.f / r;
 		float sinTheta2 = 1.f - wm.y * wm.y;
@@ -81,7 +81,7 @@ namespace YAPT
 		return v / (2.f * PI);
 	}
 
-	float GSheen(const glm::vec3& wo, const glm::vec3& wi, float r)
+	float GSheen(const vec3p& wo, const vec3p& wi, float r)
 	{
 
 		float lambdaI = GLambdaSheen(r, wi.y); //apply the "light side softening"? breaks reciprocity

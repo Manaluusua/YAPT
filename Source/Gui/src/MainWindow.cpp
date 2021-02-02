@@ -92,7 +92,7 @@ namespace YAPT
 
 		//also change rendering resolution to match
 		//setup camera and resolution
-		glm::ivec2 renderResolution = glm::ivec2(widget->width(), widget->height());
+		ivec2p renderResolution = ivec2p(widget->width(), widget->height());
 		m_controller->getRenderer()->getRendererConfiguration()->getRendererVariable("Generic.RenderResolution")->set(renderResolution);
 		m_controller->getScene()->getMainCamera()->setAspectRatio(float(renderResolution.x) / renderResolution.y);
 

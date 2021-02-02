@@ -40,10 +40,10 @@ namespace YAPT
 			emissiveTexIndex(TEX_UNBOUND_INDEX)
 		{}
 
-		MaterialParameters(glm::vec3 albedo, float transparency,
-		glm::vec3 specular, float metalness,
-		glm::vec3 absorption, float dielectricIOR,
-		glm::vec3 emissive, float roughness,
+		MaterialParameters(vec3p albedo, float transparency,
+		vec3p specular, float metalness,
+		vec3p absorption, float dielectricIOR,
+		vec3p emissive, float roughness,
 		float anisotropy, float anisotropyRotation)
 			:albedo(albedo),
 			transparency(transparency),
@@ -72,13 +72,13 @@ namespace YAPT
 			emissiveTexIndex(TEX_UNBOUND_INDEX)
 		{}
 		
-		glm::vec3 albedo;
+		vec3p albedo;
 		float transparency;
-		glm::vec3 specular;
+		vec3p specular;
 		float metalness;
-		glm::vec3 absorption;
+		vec3p absorption;
 		float dielectricIOR;
-		glm::vec3 emissive;
+		vec3p emissive;
 		float roughness;
 
 		float anisotropy;
@@ -91,7 +91,7 @@ namespace YAPT
 		float clearCoatIOR;
 		float clearCoatRoughness;
 
-		glm::vec3 sheenTint;
+		vec3p sheenTint;
 		float sheenRoughness;
 
 		float sheenAmount;

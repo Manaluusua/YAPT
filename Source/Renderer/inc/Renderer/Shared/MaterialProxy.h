@@ -33,17 +33,17 @@ namespace YAPT
 		virtual void setMetalness(float metalness) final;;
 		virtual float getMetalness() const final;
 
-		virtual void setAlbedo(const glm::vec3& v) final;
-		virtual const glm::vec3& getAlbedo() const final;
+		virtual void setAlbedo(const vec3p& v) final;
+		virtual const vec3p& getAlbedo() const final;
 
-		virtual void setSpecularTint(const glm::vec3& v) final;
-		virtual const glm::vec3& getSpecularTint() const final;
+		virtual void setSpecularTint(const vec3p& v) final;
+		virtual const vec3p& getSpecularTint() const final;
 
-		virtual void setAbsorption(const glm::vec3& v) final;
-		virtual const glm::vec3& getAbsorption() const final;
+		virtual void setAbsorption(const vec3p& v) final;
+		virtual const vec3p& getAbsorption() const final;
 
-		virtual void setEmission(const glm::vec3& v) final;
-		virtual const glm::vec3& getEmission() const final;
+		virtual void setEmission(const vec3p& v) final;
+		virtual const vec3p& getEmission() const final;
 
 		virtual void setDielectricIOR(float ior) final;
 		virtual float getDielectricIOR() const final;
@@ -75,8 +75,8 @@ namespace YAPT
 		virtual void setSheenRoughness(float val) final;
 		virtual float getSheenRoughness() const final;
 
-		virtual void setSheenTint(const glm::vec3& v) final;
-		virtual const glm::vec3& getSheenTint() const final;
+		virtual void setSheenTint(const vec3p& v) final;
+		virtual const vec3p& getSheenTint() const final;
 
 		virtual void setSheenAmount(float val) final;
 		virtual float getSheenAmount() const final;

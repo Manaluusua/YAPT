@@ -65,7 +65,7 @@ namespace YAPT
 			}
 
 			glm::uvec4 uvec;
-			glm::vec4 fvec;
+			vec4p fvec;
 			struct
 			{
 				float depth;
@@ -89,7 +89,7 @@ namespace YAPT
 		void set(float x, float y, float z, float w)
 		{
 			type = _ClearValueType::FLOAT;
-			value.fvec = glm::vec4(x, y, z, w);
+			value.fvec = vec4p(x, y, z, w);
 		}
 
 

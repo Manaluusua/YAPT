@@ -280,6 +280,8 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/SubmissionThreadVk.h
 		inc/Renderer/Vk/SyncUtilities.h
 		inc/Renderer/Vk/CommandBufferPoolVk.h
+		inc/Renderer/Vk/ShaderModuleVk.h
+		inc/Renderer/Vk/ShaderPipelineReflectionVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -293,6 +295,8 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/SubmissionThreadVk.cpp
 		src/Vk/SyncUtilities.cpp
 		src/Vk/CommandBufferPoolVk.cpp
+		src/Vk/ShaderModuleVk.cpp
+		src/Vk/ShaderPipelineReflectionVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

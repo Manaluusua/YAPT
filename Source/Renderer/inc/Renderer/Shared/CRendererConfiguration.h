@@ -56,12 +56,12 @@ namespace YAPT
 		virtual bool getInternal(float& val) = 0;
 		virtual bool getInternal(uint32_t& val) = 0;
 		virtual bool getInternal(int32_t& val) = 0;
-		virtual bool getInternal(glm::vec2& val) = 0;
-		virtual bool getInternal(glm::vec3& val) = 0;
-		virtual bool getInternal(glm::vec4& val) = 0;
-		virtual bool getInternal(glm::ivec2& val) = 0;
-		virtual bool getInternal(glm::ivec3& val) = 0;
-		virtual bool getInternal(glm::ivec4& val) = 0;
+		virtual bool getInternal(vec2p& val) = 0;
+		virtual bool getInternal(vec3p& val) = 0;
+		virtual bool getInternal(vec4p& val) = 0;
+		virtual bool getInternal(ivec2p& val) = 0;
+		virtual bool getInternal(ivec3p& val) = 0;
+		virtual bool getInternal(ivec4p& val) = 0;
 		virtual bool getInternal(RCPtr<Texture>& val) = 0;
 		virtual bool getInternal(RCPtr<Buffer>& val) = 0;
 
@@ -69,13 +69,13 @@ namespace YAPT
 		virtual void setLimits(const uint32_t& min, const uint32_t& max) = 0;
 		virtual void setLimits(const int32_t& min, const int32_t& max) = 0;
 				
-		virtual void setLimits(const glm::vec2& min, const glm::vec2& max) = 0;
-		virtual void setLimits(const glm::vec3& min, const glm::vec3& max) = 0;
-		virtual void setLimits(const glm::vec4& min, const glm::vec4& max) = 0;
+		virtual void setLimits(const vec2p& min, const vec2p& max) = 0;
+		virtual void setLimits(const vec3p& min, const vec3p& max) = 0;
+		virtual void setLimits(const vec4p& min, const vec4p& max) = 0;
 				
-		virtual void setLimits(const glm::ivec2& min, const glm::ivec2& max) = 0;
-		virtual void setLimits(const glm::ivec3& min, const glm::ivec3& max) = 0;
-		virtual void setLimits(const glm::ivec4& min, const glm::ivec4& max) = 0;
+		virtual void setLimits(const ivec2p& min, const ivec2p& max) = 0;
+		virtual void setLimits(const ivec3p& min, const ivec3p& max) = 0;
+		virtual void setLimits(const ivec4p& min, const ivec4p& max) = 0;
 
 
 	};
@@ -153,24 +153,24 @@ namespace YAPT
 		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(float)
 		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(uint32_t)
 		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(int32_t)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::vec2)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::vec3)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::vec4)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::ivec2)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::ivec3)
-		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(glm::ivec4)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(vec2p)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(vec3p)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(vec4p)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(ivec2p)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(ivec3p)
+		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(ivec4p)
 		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS(RCPtr<Texture>)
 		INTERNAL_DEFINE_RENDERVARTYPED_SETTERS(RCPtr<Buffer>)
 
 		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(float)
 		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(uint32_t)
 		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(int32_t)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::vec2)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::vec3)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::vec4)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::ivec2)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::ivec3)
-		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(glm::ivec4)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(vec2p)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(vec3p)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(vec4p)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(ivec2p)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(ivec3p)
+		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS_WITH_LIMITS(ivec4p)
 		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS(RCPtr<Texture>)
 		INTERNAL_DEFINE_RENDERVARTYPED_GETTERS(RCPtr<Buffer>)
 
@@ -209,12 +209,12 @@ namespace YAPT
 		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(uint32_t, BasetypeScalar)
 		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(int32_t, BasetypeScalar)
 
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::vec2, BasetypeVector)
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::vec3, BasetypeVector)
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::vec4, BasetypeVector)
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::ivec2, BasetypeVector)
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::ivec3, BasetypeVector)
-		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(glm::ivec4, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(vec2p, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(vec3p, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(vec4p, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(ivec2p, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(ivec3p, BasetypeVector)
+		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(ivec4p, BasetypeVector)
 
 		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(RCPtr<Texture>, BasetypeResource)
 		CRENDERVARIABLE_INTERNAL_DEFINE_ARCHETYPE(RCPtr<Buffer>, BasetypeResource)

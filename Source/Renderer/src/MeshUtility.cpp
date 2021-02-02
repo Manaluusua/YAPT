@@ -22,7 +22,7 @@ namespace YAPT
 				: ((tesselationZenith - 1) * 2 * tesselationAzimuth) * 3;
 		}
 
-		void generateUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles, glm::vec3* positions, uint32_t* indices, glm::vec3* normals, glm::vec4* tangents, glm::vec2* uvs)
+		void generateUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles, vec3p* positions, uint32_t* indices, vec3p* normals, vec4p* tangents, vec2p* uvs)
 		{
 
 			//tangents are generated only if normals and uvs are also generated
@@ -79,9 +79,9 @@ namespace YAPT
 			}
 
 			if (generateTangents) {
-				std::vector<glm::vec3> tempTan;
+				std::vector<vec3p> tempTan;
 				tempTan.resize(pointCount);
-				std::vector<glm::vec3> tempBitan;
+				std::vector<vec3p> tempBitan;
 				tempBitan.resize(pointCount);
 
 
@@ -92,20 +92,20 @@ namespace YAPT
 						size_t pointIndex3 = ((z + 1) % tesselationZenith) * tesselationAzimuth + a;
 						size_t pointIndex4 = ((z + 1) % tesselationZenith) * tesselationAzimuth + (a + 1) % tesselationAzimuth;
 						//tri1
-						const glm::vec3& p1 = positions[pointIndex1];
-						const glm::vec3& p2 = positions[pointIndex2];
-						const glm::vec3& p3 = positions[pointIndex3];
-						const glm::vec3& p4 = positions[pointIndex4];
+						const vec3p& p1 = positions[pointIndex1];
+						const vec3p& p2 = positions[pointIndex2];
+						const vec3p& p3 = positions[pointIndex3];
+						const vec3p& p4 = positions[pointIndex4];
 
-						const glm::vec2& t1 = uvs[pointIndex1];
-						const glm::vec2& t2 = uvs[pointIndex2];
-						const glm::vec2& t3 = uvs[pointIndex3];
-						const glm::vec2& t4 = uvs[pointIndex4];
+						const vec2p& t1 = uvs[pointIndex1];
+						const vec2p& t2 = uvs[pointIndex2];
+						const vec2p& t3 = uvs[pointIndex3];
+						const vec2p& t4 = uvs[pointIndex4];
 
-						glm::vec3 tangent1;
-						glm::vec3 tangent2;
-						glm::vec3 bitangent1;
-						glm::vec3 bitangent2;
+						vec3p tangent1;
+						vec3p tangent2;
+						vec3p bitangent1;
+						vec3p bitangent2;
 
 						calculateTangentAndBitangentFromPositionAndUv(p1, p4, p3, t1, t4, t3, tangent1, bitangent1);
 						calculateTangentAndBitangentFromPositionAndUv(p4, p1, p2, t4, t1, t2, tangent2, bitangent2);
@@ -130,12 +130,12 @@ namespace YAPT
 				}
 
 				for (size_t i = 0; i < pointCount; ++i) {
-					const glm::vec3& normal = normals[i];
-					glm::vec3& tangent = tempTan[i];
-					glm::vec3& bitangent = tempBitan[i];
-					glm::vec3 newTangent;
+					const vec3p& normal = normals[i];
+					vec3p& tangent = tempTan[i];
+					vec3p& bitangent = tempBitan[i];
+					vec3p newTangent;
 					orthogonalizeAndNormalizeTangent(tangent, normal, newTangent);
-					tangents[i] = glm::vec4(newTangent[0], newTangent[1], newTangent[2], calculateHandedness(tangent, bitangent, normal));
+					tangents[i] = vec4p(newTangent[0], newTangent[1], newTangent[2], calculateHandedness(tangent, bitangent, normal));
 
 				}
 
@@ -207,7 +207,7 @@ namespace YAPT
 			: ((tesselationZenith - 1) * 2 * tesselationAzimuth) * 3;
 	}
 	RENDERER_MODULE_INTERFACE void generateUnitPlane(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles,
-		glm::vec3* positions, uint32_t* indices, glm::vec3* normals, glm::vec4* tangents, glm::vec2* uvs);
+		vec3p* positions, uint32_t* indices, vec3p* normals, vec4p* tangents, vec2p* uvs);
 
 
 }

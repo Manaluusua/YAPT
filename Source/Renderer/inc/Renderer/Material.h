@@ -32,17 +32,17 @@ namespace YAPT
 		virtual void setMetalness(float metalness) = 0;;
 		virtual float getMetalness() const = 0;
 
-		virtual void setAlbedo(const glm::vec3& v) = 0;
-		virtual const glm::vec3& getAlbedo() const = 0;
+		virtual void setAlbedo(const vec3p& v) = 0;
+		virtual const vec3p& getAlbedo() const = 0;
 
-		virtual void setSpecularTint(const glm::vec3& v) = 0;
-		virtual const glm::vec3& getSpecularTint() const = 0;
+		virtual void setSpecularTint(const vec3p& v) = 0;
+		virtual const vec3p& getSpecularTint() const = 0;
 
-		virtual void setAbsorption(const glm::vec3& v) = 0;
-		virtual const glm::vec3& getAbsorption() const = 0;
+		virtual void setAbsorption(const vec3p& v) = 0;
+		virtual const vec3p& getAbsorption() const = 0;
 
-		virtual void setEmission(const glm::vec3& v) = 0;
-		virtual const glm::vec3& getEmission() const = 0;
+		virtual void setEmission(const vec3p& v) = 0;
+		virtual const vec3p& getEmission() const = 0;
 
 		virtual void setDielectricIOR(float ior) = 0;
 		virtual float getDielectricIOR() const = 0;
@@ -77,8 +77,8 @@ namespace YAPT
 		virtual void setSheenRoughness(float val) = 0;
 		virtual float getSheenRoughness() const = 0;
 
-		virtual void setSheenTint(const glm::vec3& v) = 0;
-		virtual const glm::vec3& getSheenTint() const = 0;
+		virtual void setSheenTint(const vec3p& v) = 0;
+		virtual const vec3p& getSheenTint() const = 0;
 
 		virtual void setThinFilmThickness(float val) = 0;
 		virtual float getThinFilmThickness() const = 0;

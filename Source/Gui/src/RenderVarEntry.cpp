@@ -40,37 +40,37 @@ namespace YAPT
 		break;
 		case YAPT::RendererVariableType::VEC2:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 2, glm::vec2, YAPT::RendererVariableType::VEC2>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 2, vec2p, YAPT::RendererVariableType::VEC2>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;
 		case YAPT::RendererVariableType::VEC3:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 3, glm::vec3, YAPT::RendererVariableType::VEC3>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 3, vec3p, YAPT::RendererVariableType::VEC3>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;
 		case YAPT::RendererVariableType::VEC4:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 4, glm::vec4, YAPT::RendererVariableType::VEC4>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<float, 4, vec4p, YAPT::RendererVariableType::VEC4>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;
 		case YAPT::RendererVariableType::IVEC2:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 2, glm::ivec2, YAPT::RendererVariableType::IVEC2>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 2, ivec2p, YAPT::RendererVariableType::IVEC2>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;
 		case YAPT::RendererVariableType::IVEC3:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 3, glm::ivec3, YAPT::RendererVariableType::IVEC3>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 3, ivec3p, YAPT::RendererVariableType::IVEC3>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;
 		case YAPT::RendererVariableType::IVEC4:
 		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 4, glm::ivec4, YAPT::RendererVariableType::IVEC4>(this, renderVar);
+			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 4, ivec4p, YAPT::RendererVariableType::IVEC4>(this, renderVar);
 			m_layout->addWidget(wrapper);
 		}
 		break;

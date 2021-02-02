@@ -58,6 +58,6 @@ generateVSFilters("${SOURCE}" ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_definitions(Common 
 		PUBLIC
-			GLM_FORCE_ALIGNED
+			GLM_FORCE_ALIGNED_GENTYPES
 	)
 

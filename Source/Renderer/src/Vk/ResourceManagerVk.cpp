@@ -2,6 +2,7 @@
 #include <Renderer/Vk/SubmissionThreadVk.h>
 #include <Renderer/Vk/UploadHelperVk.h>
 #include <Renderer/Vk/ResourceHandlesVk.h>
+#include <Renderer/Vk/ShaderModuleVk.h>
 #include <assert.h>
 
 
@@ -201,6 +202,41 @@ namespace YAPT
 			assert(!"unknown upload stage");
 			break;
 		}
+	}
+
+
+	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
+	{
+		ShaderModuleHandle mod = new ShaderModuleVk(filepath, moduleType, entryPoint, defines, defineCount);
+		assert("TODO");
+		/*for (size_t i = 0; i < defineCount; ++i)
+		{
+			stringToWString(defines[i].name, defineWstr[i * 2]);
+
+			definesDxc[i].Name = defineWstr[i * 2].c_str();
+			if (defines[i].value != nullptr)
+			{
+				stringToWString(defines[i].value, defineWstr[i * 2 + 1]);
+				definesDxc[i].Value = defineWstr[i * 2 + 1].c_str();
+			}
+		}
+
+		definesDxc.back().Name = L"VK";
+		definesDxc.back().Value = L"1";
+
+
+		mod->type = moduleType;
+		mod->shaderBlob = compileFromFile(profileWStr.data(), entryPointWStr.data(), moduleType == ShaderModuleType::LIBRARY_MODULE ? L"" : entryPointWStr.data(), filePathWStr.data(), definesDxc.data(), (UINT32)defineCountFinal);
+		if (mod->shaderBlob.get())
+		{
+			readReflectionData(mod->shaderBlob.get(), entryPoint, mod->reflection);
+		}
+		*/
+		return mod;
+	}
+	void ResourceManagerVk::destroyShaderModule(ShaderModuleHandle m)
+	{
+		delete m;
 	}
 
 }

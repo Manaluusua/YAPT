@@ -11,7 +11,7 @@ namespace YAPT
 		RENDERER_MODULE_INTERFACE size_t getRequiredVertexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth);
 		RENDERER_MODULE_INTERFACE size_t getRequiredIndexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool makeLineListInsteadOfTriangles);
 		RENDERER_MODULE_INTERFACE void generateUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles,
-			glm::vec3* positions, uint32_t* indices, glm::vec3* normals, glm::vec4* tangents, glm::vec2* uvs);
+			vec3p* positions, uint32_t* indices, vec3p* normals, vec4p* tangents, vec2p* uvs);
 
 
 	}

@@ -42,8 +42,8 @@ namespace YAPT
 		
 		float deltaTime = getRenderer()->getFrameDeltaInSeconds();
 
-		m_tonemapConstants.getData()->toeMidShoulderInit = glm::vec4(toe, mid, shoulder, m_isFirstRun ? 1.0f : 0.f);
-		m_tonemapConstants.getData()->exposureEyeAdaptTime = glm::vec4(enableAutoExposure == 0 ? 0.0f : 1.0f, enableAutoExposure != 0 ? exposureCompensation : manualExposure, eyeAdaptSpeed, deltaTime);
+		m_tonemapConstants.getData()->toeMidShoulderInit = vec4p(toe, mid, shoulder, m_isFirstRun ? 1.0f : 0.f);
+		m_tonemapConstants.getData()->exposureEyeAdaptTime = vec4p(enableAutoExposure == 0 ? 0.0f : 1.0f, enableAutoExposure != 0 ? exposureCompensation : manualExposure, eyeAdaptSpeed, deltaTime);
 		 
 		m_isFirstRun = false;
 	}

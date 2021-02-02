@@ -11,7 +11,9 @@ namespace YAPT
 		m_rotAngles(0,0),
 		m_verticalRotationSpeed(1.f),
 		m_horizontalRotationSpeed(1.f),
-		m_movementSpeed(30.0)
+		m_movementSpeed(30.0),
+		m_activeMovement(0.f, 0.f, 0.f),
+		m_pendingMouseMovement(0.f, 0.f)
 	{
 
 	}

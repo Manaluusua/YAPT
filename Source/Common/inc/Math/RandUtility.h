@@ -34,29 +34,29 @@ namespace YAPT
 
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec2* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::defaultp, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec3* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::defaultp, 2, 3, 5>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 2, 3, 5>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec4* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::defaultp, 2, 3, 5, 7>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 2, 3, 5, 7>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 
 		
-		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec2* samplesOut, size_t indexOffset)
+		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec2p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::highp, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
-		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec3* samplesOut, size_t indexOffset)
+		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec3p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::highp, 2, 3, 5>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 2, 3, 5>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
-		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec4* samplesOut, size_t indexOffset)
+		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec4p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::highp, 2, 3, 5, 7>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 2, 3, 5, 7>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		
 	}

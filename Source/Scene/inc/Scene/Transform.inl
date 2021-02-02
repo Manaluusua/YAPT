@@ -6,9 +6,10 @@ namespace YAPT
         m_usrData(usrData),
         m_translation(0, 0, 0),
         m_scale(1, 1, 1),
+        m_orientation(1.f, 0.f, 0.f, 0.f),
         m_dirty(true)
     {
-
+        
     }
     inline Transform::~Transform()
     {

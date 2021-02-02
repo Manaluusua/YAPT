@@ -45,6 +45,9 @@ namespace YAPT
 		void unmap(BufferHandleVk* handle);
 		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
 
+		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
+		void destroyShaderModule(ShaderModuleHandle m);
+
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
@@ -85,6 +88,7 @@ namespace YAPT
 			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
 		void* mapCopyRangeFromUploadHeap(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 
+		
 		
 		void deinitialize();	
 		

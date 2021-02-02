@@ -17,33 +17,33 @@ namespace YAPT
     }
 
 
-    glm::vec2 getConductorRefractiveIndexAndExtinctionthroughputSquared(float r, float g)
+    vec2p getConductorRefractiveIndexAndExtinctionthroughputSquared(float r, float g)
     {
         float rc = glm::clamp(r, 0.0f, 0.99f);
         float n = getConductorRefractiveIndex(rc, g);
         float k2 = getConductorExtinctionthroughputSquared(rc, n);
 
-        return glm::vec2(n, k2);
+        return vec2p(n, k2);
     }
 
     //from: https://seblagarde.wordpress.com/2013/04/29/memo-on-fresnel-equations/
-    glm::vec3 fresnelDielectricConductor(glm::vec3 etaReal, glm::vec3 etaImg, float cosTheta)
+    vec3p fresnelDielectricConductor(vec3p etaReal, vec3p etaImg, float cosTheta)
     {
         float cosTheta2 = cosTheta * cosTheta;
         float sinTheta2 = 1 - cosTheta2;
-        glm::vec3 etaReal2 = etaReal * etaReal;
-        glm::vec3 etaImg2 = etaImg * etaImg;
+        vec3p etaReal2 = etaReal * etaReal;
+        vec3p etaImg2 = etaImg * etaImg;
 
-        glm::vec3 t0 = etaReal2 - etaImg2 - sinTheta2;
-        glm::vec3 a2plusb2 = sqrt(t0 * t0 + 4.f * etaReal2 * etaImg2);
-        glm::vec3 t1 = a2plusb2 + cosTheta2;
-        glm::vec3 a = sqrt(0.5f * (a2plusb2 + t0));
-        glm::vec3 t2 = 2.f * a * cosTheta2;
-        glm::vec3 rs = (t1 - t2) / (t1 + t2);
+        vec3p t0 = etaReal2 - etaImg2 - sinTheta2;
+        vec3p a2plusb2 = sqrt(t0 * t0 + 4.f * etaReal2 * etaImg2);
+        vec3p t1 = a2plusb2 + cosTheta2;
+        vec3p a = sqrt(0.5f * (a2plusb2 + t0));
+        vec3p t2 = 2.f * a * cosTheta2;
+        vec3p rs = (t1 - t2) / (t1 + t2);
 
-        glm::vec3 t3 = cosTheta2 * a2plusb2 + sinTheta2 * sinTheta2;
-        glm::vec3 t4 = t2 * sinTheta2;
-        glm::vec3 rp = rs * (t3 - t4) / (t3 + t4);
+        vec3p t3 = cosTheta2 * a2plusb2 + sinTheta2 * sinTheta2;
+        vec3p t4 = t2 * sinTheta2;
+        vec3p rp = rs * (t3 - t4) / (t3 + t4);
 
         return 0.5f * (rp + rs);
     }

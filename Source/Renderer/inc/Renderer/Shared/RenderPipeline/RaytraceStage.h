@@ -51,8 +51,8 @@ namespace YAPT
 
 		void updateAccumulatedFrames();
 
-		glm::uvec4 getCurrentResolveTargetTexelOffsetParams();
-		glm::vec2 getCurrentRayGenerationOffset();
+		uvec4p getCurrentResolveTargetTexelOffsetParams();
+		vec2p getCurrentRayGenerationOffset();
 
 		uint32_t getCurrentNumberOfSamplesPerPixel();
 
@@ -62,51 +62,51 @@ namespace YAPT
 
 		void initSubpixelJitterSamples();
 
-		static glm::uvec2 packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
+		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
 
 		struct RaytracePayload
 		{
-			glm::vec3 coeff;
+			vec3p coeff;
 			uint32_t rayTerminated;
-			glm::vec3 throughput;
+			vec3p throughput;
 			uint32_t pathLength;
-			glm::vec3 rayOrigin;
+			vec3p rayOrigin;
 			uint32_t rayIndex;
-			glm::vec3 rayDirection;
+			vec3p rayDirection;
 			uint32_t numberVolumesEntered;
 			float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
-			glm::vec3 absorption;
+			vec3p absorption;
 		};
 
 
 		struct RaytraceConstantData
 		{
-			glm::mat4 uvToView;
-			glm::mat4 viewToWorld;
-			glm::vec4 cameraPosition;
-			glm::vec2 rayUVOffset;
+			mat4p uvToView;
+			mat4p viewToWorld;
+			vec4p cameraPosition;
+			vec2p rayUVOffset;
 			uint32_t currentSampleIndex;
 			uint32_t maxRayDepth;
 		};
 		  
 		struct RandomSamples
 		{
-			glm::vec4 samples[NUMBER_OF_RANDOM_SAMPLES];
+			vec4p samples[NUMBER_OF_RANDOM_SAMPLES];
 		};
 		 
 		
 		struct RayHitShaderTableConstantData
 		{
-			glm::uvec2 indexBuffer;
-			glm::uvec2 normalBuffer;
-			glm::uvec2 tangentBuffer;
-			glm::uvec2 uvBuffer;
+			uvec2p indexBuffer;
+			uvec2p normalBuffer;
+			uvec2p tangentBuffer;
+			uvec2p uvBuffer;
 
-			glm::vec4 specAmountClearCoatAmountIORRoughness;
-			glm::vec4 albedoTransparency;
-			glm::vec4 specularMetalness;
-			glm::vec4 absorptionDielectricIOR;
-			glm::vec4 emissiveRoughness;
+			vec4p specAmountClearCoatAmountIORRoughness;
+			vec4p albedoTransparency;
+			vec4p specularMetalness;
+			vec4p absorptionDielectricIOR;
+			vec4p emissiveRoughness;
 
 			float anisotropy;
 			float anisotropyRotation;
@@ -118,7 +118,7 @@ namespace YAPT
 			float pad1;
 			float pad2;
 
-			glm::vec4 sheenColorRoughness;
+			vec4p sheenColorRoughness;
 			uint32_t albedoTexIndex;
 			uint32_t normalTexIndex;
 			uint32_t ormTexIndex;
@@ -167,7 +167,7 @@ namespace YAPT
 
 		DeferredRenderGraphBindingUtility m_bindingsUtility;
 
-		glm::vec2 m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
+		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 
 		bool m_applySubpixelJitter;
 

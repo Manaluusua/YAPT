@@ -11,6 +11,7 @@ namespace YAPT
         m_projectionType(PERSPECTIVE),
         m_projectionCacheValid(false)
     {
+
     }
 
 
