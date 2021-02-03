@@ -7,6 +7,8 @@
 #include <Renderer/Dx12/UploadHelperDx12.h>
 #include <Renderer/Dx12/DescriptorHeapAllocatorDx12.h>
 #include <Renderer/Dx12/DescriptorSetPoolDx12.h>
+#include <Common/CommonWindowsUtility.h>
+#include <Renderer/Shared/Utility/DXCUtility.h>
 #include <assert.h>
 
 

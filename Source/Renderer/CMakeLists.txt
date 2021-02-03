@@ -86,6 +86,7 @@ set(HEADERS
 	inc/Renderer/Shared/Utility/ShaderTableHelper.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUT.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUTUtility.h
+	inc/Renderer/Shared/Utility/DXCUtility.h
 
 	inc/Renderer/Shared/RenderPipeline/RenderPipeline.h
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineBase.h
@@ -152,6 +153,7 @@ set(SOURCE
 	src/Shared/Utility/AccelerationStructureHelper.cpp
 	src/Shared/Utility/ShaderTableHelper.cpp
 	src/Shared/Utility/MultipleScatterLUT.cpp
+	src/Shared/Utility/DXCUtility.cpp
 
 	src/Shared/RenderPipeline/RenderPipelineBase.cpp
 	src/Shared/RenderPipeline/RenderStage.cpp
@@ -268,7 +270,12 @@ if(${BUILD_VK_BACKEND})
 	target_link_libraries(Renderer PRIVATE Vulkan::Vulkan Dxc::Dxc)
 	
 	copy_if_different(Renderer $<TARGET_FILE:Dxc::Dxc> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+	
+	#spirv-reflect
+	target_include_directories(Renderer PRIVATE "${YAPT_EXTERNALS_PATH}/SPIRV-Reflect/")
+	target_sources(Renderer PRIVATE "${YAPT_EXTERNALS_PATH}/SPIRV-Reflect/spirv_reflect.c")
 
+	
 	list(APPEND HEADERS 
 		inc/Renderer/Vk/RendererVk.h
 		inc/Renderer/Vk/PlatformTypesVk.h
@@ -307,6 +314,7 @@ if(${BUILD_VK_BACKEND})
 		PRIVATE
 			RENDERER_VK
 	)
+	
 	
 	
 endif()

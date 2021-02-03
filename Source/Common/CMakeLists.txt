@@ -19,6 +19,7 @@ set(HEADERS
 	inc/Common/RangeAllocator.h
 	inc/Common/StructureOfArrays.h
 	inc/Common/ThreadPool.h
+	inc/Common/CommonWindowsUtility.h
 
 	inc/Math/Math.h
 	inc/Math/MathUtility.h

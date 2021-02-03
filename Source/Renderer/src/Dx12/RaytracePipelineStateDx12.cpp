@@ -2,6 +2,7 @@
 #include <Renderer/Dx12/ResourceManagerDx12.h>
 #include <Renderer/Dx12/PipelineStateUtilityDx12.h>
 #include <Renderer/Dx12/Dx12MiscUtils.h>
+#include <Common/CommonWindowsUtility.h>
 
 
 #define SHADERTABLE_CONSTANT_SPACE 0

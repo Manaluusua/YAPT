@@ -29,9 +29,7 @@ namespace YAPT
 
 	bool d3d12StatePromotableFromCommon(D3D12_RESOURCE_STATES firstStateInExecute, bool isBufferOrSimultanousAccessTexture);
 
-	//String Utilities
-	void stringToWString(const std::string& str, std::wstring& out);
-	void stringToWString(const char* str, std::wstring& out);
+	
 
 	namespace UploadUtility
 	{

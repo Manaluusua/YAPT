@@ -10,3 +10,6 @@
 [submodule "External/xxHash"]
 	path = External/xxHash
 	url = https://github.com/Cyan4973/xxHash.git
+[submodule "External/SPIRV-Reflect"]
+	path = External/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect.git

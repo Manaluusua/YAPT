@@ -3,7 +3,7 @@
 #include <Renderer/Dx12/Dx12CommonIncludes.h>
 #include <Renderer/Dx12/Dx12MiscUtils.h>
 #include <Common/CommonUtilities.h>
-
+#include <Common/CommonWindowsUtility.h>
 
 namespace YAPT
 {
