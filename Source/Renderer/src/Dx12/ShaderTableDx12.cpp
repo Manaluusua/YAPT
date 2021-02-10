@@ -251,9 +251,10 @@ namespace YAPT
 	{
 		char* ptr = static_cast<char*>(dst);
 		memcpy(ptr, record.shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		ptr += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-		memcpy(ptr, entry.shaderTableExtraData, entry.extraDataInBytes);
+		//Disabled until supported by spirv codegen (need to emit ShaderRecordBufferKHR storage class opcode)
+		//ptr += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+		//memcpy(ptr, entry.shaderTableExtraData, entry.extraDataInBytes);
 
 	}
 

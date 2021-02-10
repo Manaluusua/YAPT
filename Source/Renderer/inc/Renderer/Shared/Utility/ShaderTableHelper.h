@@ -11,7 +11,7 @@ namespace YAPT
 		ShaderTableHelper();
 		~ShaderTableHelper();
 
-		void init(CRenderer* renderer, RaytracePipelineStateHandle pso, size_t rayGenExtraDataSize, size_t missExtraDataSize, size_t hitGroupExtraDataSize);
+		void init(CRenderer* renderer, RaytracePipelineStateHandle pso);
 		void deinit();
 
 		void resize(size_t rayGenEntries, size_t numberOfMissEntries, size_t numberOfHitgroupEntries);

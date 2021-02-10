@@ -1,19 +1,11 @@
 
 #include "raytraceCommonResources.hlsl"
 
-struct RayMissShaderTableConstantData
-{
-	uint environmentMapIndex;
-};
-
-
-SHADERTABLE_EXTRADATA_DECLARE(RayMissShaderTableConstantData);
-
 [shader("miss")]
 void rayMissEnvironment(inout Payload payload)
 {
 	float3 rayDir = WorldRayDirection();
-	uint cubemapIndex = SHADERTABLE_EXTRADATA.environmentMapIndex;
+	uint cubemapIndex = g_rayGenConstants.environmentMapIndex;
 	float4 color = g_texturesCube[NonUniformResourceIndex(cubemapIndex)].SampleLevel(g_colorSampler,rayDir,0);
 #ifdef WHITE_FURNACE_TEST
 	payload.totalLight += payload.throughput * color.a;

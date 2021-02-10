@@ -139,7 +139,8 @@ namespace YAPT
 	{
 		basicValidityCheck(desc);
 
-		initializeRootSignatures(desc.hitGroupShaderTableConstantsSizeInBytes, desc.missShaderTableConstantsSizeInBytes, desc.rayGenShaderTableConstantsSizeInBytes, desc.layout);
+		//initializeRootSignatures(desc.hitGroupShaderTableConstantsSizeInBytes, desc.missShaderTableConstantsSizeInBytes, desc.rayGenShaderTableConstantsSizeInBytes, desc.layout);
+		initializeRootSignatures(0, 0, 0, desc.layout);
 		createPso(desc);
 	}
 	RaytracePipelineStateDx12::~RaytracePipelineStateDx12()
@@ -471,9 +472,9 @@ namespace YAPT
 		}
 
 
-		m_missShaderLocalRootConstantsSizeInBytes = desc.missShaderTableConstantsSizeInBytes;
-		m_rayGenShaderLocalRootConstantsSizeInBytes = desc.rayGenShaderTableConstantsSizeInBytes;
-		m_hitGroupShaderLocalRootConstantsSizeInBytes = desc.hitGroupShaderTableConstantsSizeInBytes;
+		m_missShaderLocalRootConstantsSizeInBytes = 0;//desc.missShaderTableConstantsSizeInBytes;
+		m_rayGenShaderLocalRootConstantsSizeInBytes = 0;//desc.rayGenShaderTableConstantsSizeInBytes;
+		m_hitGroupShaderLocalRootConstantsSizeInBytes = 0;//desc.hitGroupShaderTableConstantsSizeInBytes;
 		
 
 	}

@@ -35,6 +35,7 @@ struct RaytraceConstantData
 	float2 rayUVOffset;
 	uint currentSampleIndex;
 	uint maxRayDepth;
+	uint environmentMapIndex;
 };
 
 struct RandomSamples
@@ -42,8 +43,41 @@ struct RandomSamples
 	float4 samples[NUMBER_OF_RANDOM_SAMPLES];
 };
 
+struct ObjectData
+{
+	//vertex data
+	uint2 indexBuffer;
+	uint2 normalBuffer;
+	uint2 tangentBuffer;
+	uint2 uvBuffer;
+	
+	//material data
+	float4 specAmountClearCoatAmountIORRoughness;
+	float4 albedoTransparency;
+	float4 specularMetalness;
+	float4 absorptionDielectricIOR;
+	float4 emissiveRoughness;
+	
+	float anisotropy;
+	float anisotropyRotation;
+	uint materialMask;
+	float thinFilmThickness;
+
+	float sheenAmount;
+	float pad0;
+	float pad1;
+	float pad2;
+	
+	float4 sheenColorRoughness;
+	uint albedoTexIndex;
+	uint normalTexIndex;
+	uint ormTexIndex;
+	uint emissiveTexIndex;
+};
 
 
+
+StructuredBuffer<ObjectData> g_objectData : register(t0, space0);
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
 RaytracingAccelerationStructure g_accelerationStructure : register(t3, space0);

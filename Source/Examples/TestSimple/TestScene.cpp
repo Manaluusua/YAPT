@@ -136,15 +136,12 @@ void TestScene::createHeroShotScene()
 	YAPT::RCObjectPtr<YAPT::Material> mat = m_renderer->createMaterial();
 	mat->Release();
 
-	auto dragonMesh = loadMesh(DRAGONXYZ_PATH);
-
-
 	mat->setFromMaterialPreset(YAPT::MaterialPreset::GLASS);
 	mat->setRoughness(0.05f);
 
 	float scale = 0.1f;
 
-	model->setMesh(dragonMesh);
+	model->setMesh(m_dragonMesh);
 	model->setMaterial(mat);
 	model->Release();
 
@@ -164,7 +161,7 @@ void TestScene::createHeroShotScene()
 
 void TestScene::createCarPaintComparison()
 {
-	float scale = 0.3f;
+	float scale = 0.04f;
 	
 
 	size_t i = 0;
@@ -228,7 +225,7 @@ void TestScene::createCarPaintComparison()
 			mat->setClearCoatAmount(1.f);
 			mat->setClearCoatIOR(1.7);
 			mat->setClearCoatRoughness(0.09f);
-			model->setMesh(m_sphereMesh);
+			model->setMesh(m_dragonMesh);
 			model->setMaterial(mat);
 			model->Release();
 
@@ -237,6 +234,9 @@ void TestScene::createCarPaintComparison()
 			vec3p pos(offset.x + gap * i, offset.y + gap * j, 0.f);
 
 			model->getTransform().setTranslation(pos);
+
+			auto q = glm::angleAxis(glm::pi<float>() * 0.5f, vec3p(1.f, 0.f, 0.f));
+			model->getTransform().setOrientation(q * glm::angleAxis(glm::pi<float>() * 0.15f, vec3p(0.f, 0.f, 1.f)));
 		}
 
 	}
@@ -578,7 +578,7 @@ void TestScene::loadMeshes()
 	m_torusMesh = loadMesh(TORUS_PATH);
 	m_bowlMesh = loadMesh(BOWL_PATH);
 	m_planeMesh = loadMesh(PLANE_PATH);
-	
+	m_dragonMesh = loadMesh(DRAGONXYZ_PATH);
 }
 
 

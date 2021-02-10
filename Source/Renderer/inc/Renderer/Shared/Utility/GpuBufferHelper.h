@@ -95,6 +95,23 @@ namespace YAPT
 			m_alignedEntrySize = align(sizeof(T), Gfx::getBufferMinimumAlignment(m_gfxHandle, usage));
 		}
 
+
+		DynamicSizeGpuBufferHelper(ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
+			:m_usage(usage),
+			m_bufferHandle(YAPT_NULL_HANDLE),
+			m_allocPool(YAPT_NULL_HANDLE),
+			m_gfxHandle(YAPT_NULL_HANDLE),
+			m_allocatedEntryCount(0)
+		{
+		}
+
+		void init(GfxApiHandle handle)
+		{
+			free();
+			m_gfxHandle = handle;
+			m_alignedEntrySize = align(sizeof(T), Gfx::getBufferMinimumAlignment(m_gfxHandle, m_usage));
+		}
+
 		~DynamicSizeGpuBufferHelper()
 		{
 			free();
@@ -105,6 +122,7 @@ namespace YAPT
 
 		void allocate(size_t numberOfEntries, const char* name = "")
 		{
+			assert(m_gfxHandle != YAPT_NULL_HANDLE);
 			free();
 
 			BufferDesc desc;

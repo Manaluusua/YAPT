@@ -41,29 +41,7 @@ namespace YAPT
 		void setRayTraceResolutionReductionFactor(uint32_t factor); //0 fullres, 1 is dimensions/2^1, 2 is dimensions/2^2 etc 
 
 	private:
-		       
-		bool hasCameraMoved();
-		bool hasSceneChanged();
-
-		void clearAccumulatedFrames();
-
-		void updateEffectiveRaytraceResolution();
-
-		void updateAccumulatedFrames();
-
-		uvec4p getCurrentResolveTargetTexelOffsetParams();
-		vec2p getCurrentRayGenerationOffset();
-
-		uint32_t getCurrentNumberOfSamplesPerPixel();
-
-		bool doesShaderTableNeedUpdate();
-		void updateShaderTable();
-		void writeShaderTableEntry(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry);
-
-		void initSubpixelJitterSamples();
-
-		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
-
+		
 		struct RaytracePayload
 		{
 			vec3p coeff;
@@ -88,13 +66,13 @@ namespace YAPT
 			uint32_t currentSampleIndex;
 			uint32_t maxRayDepth;
 		};
-		  
+
 		struct RandomSamples
 		{
 			vec4p samples[NUMBER_OF_RANDOM_SAMPLES];
 		};
-		 
-		
+
+
 		struct RayHitShaderTableConstantData
 		{
 			uvec2p indexBuffer;
@@ -132,6 +110,30 @@ namespace YAPT
 			uint32_t cubeMapIndex;
 		};
 
+		bool hasCameraMoved();
+		bool hasSceneChanged();
+
+		void clearAccumulatedFrames();
+
+		void updateEffectiveRaytraceResolution();
+
+		void updateAccumulatedFrames();
+
+		uvec4p getCurrentResolveTargetTexelOffsetParams();
+		vec2p getCurrentRayGenerationOffset();
+
+		uint32_t getCurrentNumberOfSamplesPerPixel();
+
+		bool doesShaderTableNeedUpdate();
+		void updateShaderTable();
+		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry, RayHitShaderTableConstantData& dataOut);
+
+		void initSubpixelJitterSamples();
+
+		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
+
+		
+
 		void initRaytracePass(const RenderGraphLifetimeData& data);
 		void setupMergePass(RenderResourcesPool* pool);
 
@@ -155,6 +157,7 @@ namespace YAPT
 		PostProcessComputePassUtility m_mergePass;
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;;
+		DynamicSizeGpuBufferHelper<RayHitShaderTableConstantData> m_perInstanceMaterialData;
 
 		uint32_t m_raysPerFrameWidth;
 		uint32_t m_raysPerFrameHeight;

@@ -35,6 +35,7 @@ private:
 	YAPT::RCObjectPtr<YAPT::Mesh> m_sphereMesh;
 	YAPT::RCObjectPtr<YAPT::Mesh> m_torusMesh;
 	YAPT::RCObjectPtr<YAPT::Mesh> m_bowlMesh;
+	YAPT::RCObjectPtr<YAPT::Mesh> m_dragonMesh;
 
 	YAPT::Renderer* m_renderer;
 	YAPT::Gui* m_gui;

@@ -299,15 +299,15 @@ namespace YAPT
 
 		RayHitGroupDescription* hitGroupDescriptions;
 		size_t numberOfHitGroupDescription;
-		size_t hitGroupShaderTableConstantsSizeInBytes;
+		//size_t hitGroupShaderTableConstantsSizeInBytes; //Disabled until supported by spirv codegen (need to emit ShaderRecordBufferKHR storage class opcode)
 
 		RayGenerationDescription* rayGenerationDescriptions;
 		size_t numberOfRayGenerationDescription;
-		size_t rayGenShaderTableConstantsSizeInBytes;
+		//size_t rayGenShaderTableConstantsSizeInBytes; //Disabled until supported by spirv codegen (need to emit ShaderRecordBufferKHR storage class opcode)
 
 		RayMissDescription* rayMissDescriptions;
 		size_t numberOfRayMissDescription;
-		size_t missShaderTableConstantsSizeInBytes;
+		//size_t missShaderTableConstantsSizeInBytes; //Disabled until supported by spirv codegen (need to emit ShaderRecordBufferKHR storage class opcode)
 		
 		size_t maxTraceRecursionDepth;
 	};
@@ -352,8 +352,9 @@ namespace YAPT
 	{
 		size_t shaderIndexInPso;
 		size_t shaderTableIndex;
-		uint8_t* shaderTableExtraData;
-		size_t extraDataInBytes;
+		//Disabled until supported by spirv codegen (need to emit ShaderRecordBufferKHR storage class opcode)
+		//uint8_t* shaderTableExtraData;
+		//size_t extraDataInBytes;
 	};
 
 	//forward declarations

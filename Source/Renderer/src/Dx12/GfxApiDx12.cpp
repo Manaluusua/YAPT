@@ -201,7 +201,7 @@ namespace YAPT
 			if (d.sizeInBytes == YAPT_BUFFER_WHOLE_RESOURCE)
 			{
 				assert(bufHandle->bufferDesc.Width > desc.offsetInBytes);
-				d.sizeInBytes = align(bufHandle->bufferDesc.Width - desc.offsetInBytes, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+				d.sizeInBytes = bufHandle->bufferDesc.Width - desc.offsetInBytes;
 			}
 
 			if (d.structureStrideInBytes == YAPT_BUFFER_WHOLE_RESOURCE)
