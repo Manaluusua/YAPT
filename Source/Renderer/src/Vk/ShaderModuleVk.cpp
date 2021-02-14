@@ -4,6 +4,7 @@
 #include <Common/CommonUtilities.h>
 #include <spirv_reflect.h>
 #include <assert.h>
+#include <algorithm>
 namespace YAPT
 {
 	const static LPCWSTR extraCompilerParams[] =
@@ -18,7 +19,50 @@ namespace YAPT
 		{L"-fspv-extension=SPV_GOOGLE_user_type"},*/
 	};
 
+	bool convertStrToAttributeSemantic(const char* str, AttributeSemantic& semanticOut)
+	{
+		return false;
+	}
+
+	DescriptorType convertToYaptDescriptorType(SpvReflectDescriptorType spvType)
+	{
+		switch (spvType)
+		{
+		case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLER:
+			return DescriptorType::SAMPLER;
+		
+		case SPV_REFLECT_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			return DescriptorType::TEXTURE;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			return DescriptorType::STORAGE_TEXTURE;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+			return DescriptorType::UNIFORM_TEXEL_BUFFER;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			return DescriptorType::STORAGE_TEXEL_BUFFER;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+			return DescriptorType::UNIFORM_BUFFER;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+			return DescriptorType::STORAGE_BUFFER;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+			return DescriptorType::UNIFORM_BUFFER_DYNAMIC;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			return DescriptorType::STORAGE_BUFFER_DYNAMIC;
+		case SPV_REFLECT_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
+			return DescriptorType::ACCELERATION_STRUCTURE;
+
+		case SPV_REFLECT_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+		case SPV_REFLECT_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+		default:
+			{
+				assert(!"DESCRIPTOR TYPE NOT SUPPORTED");
+				return DescriptorType::TEXTURE;
+			}
+			
+		}
+	}
+
 	ShaderModuleVk::ShaderModuleVk()
+		:m_moduleType(ShaderModuleType::LAST)
 	{
 		
 		
@@ -30,6 +74,8 @@ namespace YAPT
 
 		std::wstring filePathWStr;
 		std::wstring entryPointWStr;
+
+		m_moduleType = moduleType;
 
 		shaderTypeToProfile(moduleType, profileWStr);
 		stringToWString(filepath, filePathWStr);
@@ -79,7 +125,7 @@ namespace YAPT
 		std::vector<SpvReflectDescriptorSet*> descSets;
 		std::vector<SpvReflectDescriptorBinding*> descBindings;
 		// input variables
-		if(result == SPV_REFLECT_RESULT_SUCCESS)
+		if(result == SPV_REFLECT_RESULT_SUCCESS && m_moduleType == ShaderModuleType::VERTEX_MODULE)
 		{
 			uint32_t inputVariableCount = 0;
 
@@ -118,13 +164,65 @@ namespace YAPT
 			}
 		}
 
-		
+		if (result == SPV_REFLECT_RESULT_SUCCESS)
+		{
+			//handle input attributes
+			for (size_t i = 0; i < inputVariables.size(); ++i)
+			{
+				SpvReflectFormat format = inputVariables[i]->format;
+				const char* semanticStr = inputVariables[i]->semantic;
+				uint32_t location = inputVariables[i]->location;
+
+				AttributeSemantic semantic;
+				bool convStatus = convertStrToAttributeSemantic(semanticStr, semantic);
+				assert(convStatus);
+
+				m_inputAttributes.push_back({ semantic, location });
+			}
+
+			std::sort(m_inputAttributes.data(), m_inputAttributes.data() + m_inputAttributes.size(), 
+				[](const InputAttributes& a, const InputAttributes& b)
+				{
+					return a.location <= b.location;
+				}
+			);
 
 
-		// Output variables, descriptor bindings, descriptor sets, and push constants
-		// can be enumerated and extracted using a similar mechanism.
 
-		// Destroy the reflection data when no longer required.
+			//handle descSets
+			if (descSets.size() > 0)
+			{
+				uint32_t highestDescSetIndex = 0;
+				for (size_t i = 0; i < descSets.size(); ++i)
+				{
+					highestDescSetIndex = max(descSets[i]->set, highestDescSetIndex);
+				}
+
+				m_bindings.resize(highestDescSetIndex + 1);
+
+				for (size_t i = 0; i < descSets.size(); ++i)
+				{
+					std::vector<ResourceBinding>& bindings = m_bindings[i];
+					SpvReflectDescriptorSet& descSetRefl = *descSets[i];
+
+					bindings.resize(descSetRefl.binding_count);
+
+					for (size_t k = 0; k < bindings.size(); ++k)
+					{
+						SpvReflectDescriptorBinding* bindingRefl = descSetRefl.bindings[k];
+						ResourceBinding& binding = bindings[k];
+
+						binding.name = bindingRefl->name;
+						binding.type = convertToYaptDescriptorType(bindingRefl->descriptor_type);
+						binding.descriptorCount = bindingRefl->count;
+						binding.bindingIndex = bindingRefl->binding;
+						binding.accessFlags = bindingRefl->resource_type == SPV_REFLECT_RESOURCE_FLAG_UAV ? AccessFlagsBits::ACCESS_FLAGS_READ_WRITE : AccessFlagsBits::ACCESS_FLAGS_READ;
+					}
+				}
+			}
+			
+		}
+
 		spvReflectDestroyShaderModule(&module);
 
 		return false;

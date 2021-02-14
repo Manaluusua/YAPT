@@ -3,7 +3,7 @@
 #include <Common/CommonUtilities.h>
 #include <Renderer/Shared/GfxTypes.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
-
+#include <assert.h>
 namespace YAPT
 {
 	template<typename T, size_t ARRAY_COUNT = 1>

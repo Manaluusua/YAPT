@@ -8,10 +8,11 @@
 namespace YAPT
 {
 	class RendererVk;
+	class ShaderModuleVk;
 	struct TextureHandleVk;
 	struct BufferHandleVk;
 	struct BufferViewVk;
-
+	
 
 	struct SamplerHandleVk
 	{
@@ -35,7 +36,7 @@ namespace YAPT
 	typedef void* RenderPassHandle;
 	typedef void* DescriptorSetLayoutHandle;
 	typedef void* PipelineLayoutHandle;
-	typedef void* ShaderModuleHandle;
+	typedef ShaderModuleVk* ShaderModuleHandle;
 	typedef SamplerHandleVk* SamplerHandle;
 	typedef void* DescriptorSetPoolHandle;
 	typedef void* DescriptorSetHandle;
