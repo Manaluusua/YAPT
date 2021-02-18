@@ -194,7 +194,7 @@ namespace YAPT
 		case YAPT::ShaderModuleType::COMPUTE_MODULE:
 			return SHADERSTAGE_COMPUTE;
 		case YAPT::ShaderModuleType::LIBRARY_MODULE:
-			return SHADERSTAGE_RT_RAYGENERATION | SHADERSTAGE_RT_MISS | SHADERSTAGE_RT_ANY_HIT | SHADERSTAGE_RT_CLOSEST_HIT; //for now just assume library is always RT shader and add all potential stages.
+			return SHADERSTAGE_RT_RAYGENERATION | SHADERSTAGE_RT_MISS | SHADERSTAGE_RT_ANY_HIT | SHADERSTAGE_RT_CLOSEST_HIT | SHADERSTAGE_RT_INTERSECTION; //for now just assume library is always RT shader and add all potential stages.
 		case YAPT::ShaderModuleType::LAST:
 		default:
 			return SHADERSTAGE_NONE;

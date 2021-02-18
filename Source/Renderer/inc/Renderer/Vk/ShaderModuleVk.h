@@ -5,7 +5,7 @@
 namespace YAPT
 {
 
-	class ShaderModuleVk
+	struct ShaderModuleVk
 	{
 	public:
 
@@ -24,17 +24,12 @@ namespace YAPT
 			uint32_t location;
 		};
 
-		ShaderModuleVk();
-		~ShaderModuleVk();
-
 		bool compileFromHLSL(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
-	private:
-
 		bool reflect();
 
 		ShaderModuleType m_moduleType;
 		std::vector<char> m_spirv;
-		std::vector<std::vector<ResourceBinding>> m_bindings;
+		std::vector<std::vector<ResourceBinding>> m_sortedBindings;
 		std::vector<InputAttributes> m_inputAttributes;
 	};
 }

@@ -21,7 +21,7 @@ namespace YAPT
 		m_gfxHandle = handle;
 
 		m_bindingDef = bindingDefinition;
-		m_layout = Gfx::createDescriptorSetLayout(m_gfxHandle, &m_bindingDef, 1, DESCRIPTORSETLAYOUTFLAG_USE_BINDING_POINT_ALIASING);
+		m_layout = Gfx::createDescriptorSetLayout(m_gfxHandle, &m_bindingDef, 1, DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS);
 		m_pool = Gfx::createDescriptorSetPool(m_gfxHandle, m_layout, 1);
 		m_descriptorSet = Gfx::getDescriptorSet(m_pool, 0);
 		

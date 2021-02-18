@@ -40,4 +40,17 @@ namespace YAPT
 		vkFreeMemory(device, child, alloc);
 	}
 
+	template<>
+	inline void destroyVkDeviceChild<VkDescriptorSetLayout>(VkDevice device, VkDescriptorSetLayout child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyDescriptorSetLayout(device, child, VK_ALLOC_CB);
+	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkDescriptorPool>(VkDevice device, VkDescriptorPool child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyDescriptorPool(device, child, VK_ALLOC_CB);
+	}
+	
+	
 }

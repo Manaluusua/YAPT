@@ -21,6 +21,41 @@ namespace YAPT
 
 	bool convertStrToAttributeSemantic(const char* str, AttributeSemantic& semanticOut)
 	{
+		if (!str) return false;
+
+		std::string string(str);
+
+		auto tryToParseSemantic = [](const std::string& str, const char* strToFind, AttributeSemanticName semantic, AttributeSemantic& semanticOut) -> bool
+		{
+			size_t pos = str.find(strToFind);
+			if (pos == std::string::npos) return false;
+
+			size_t stringLength = strlen(strToFind);
+			uint16_t index = 0;
+
+			if (str.length() > stringLength)
+			{
+				index = stoi(str.substr(stringLength, stringLength - str.length()));
+			}
+
+			semanticOut.set(semantic, index);
+			return true;
+		};
+
+		size_t prefix = string.find("in.var.");
+		if (prefix != std::string::npos)
+		{
+			string.erase(prefix, 7);
+		}
+
+		if (tryToParseSemantic(string, "POSITION", AttributeSemanticName::POSITION, semanticOut)) return true;
+		if (tryToParseSemantic(string, "COLOR", AttributeSemanticName::COLOR, semanticOut)) return true;
+		if (tryToParseSemantic(string, "NORMAL", AttributeSemanticName::NORMAL, semanticOut)) return true;
+		if (tryToParseSemantic(string, "TANGENT", AttributeSemanticName::TANGENT, semanticOut)) return true;
+		if (tryToParseSemantic(string, "TEXCOORD", AttributeSemanticName::TEXCOORD, semanticOut)) return true;
+
+		
+
 		return false;
 	}
 
@@ -61,12 +96,6 @@ namespace YAPT
 		}
 	}
 
-	ShaderModuleVk::ShaderModuleVk()
-		:m_moduleType(ShaderModuleType::LAST)
-	{
-		
-		
-	}
 
 	bool ShaderModuleVk::compileFromHLSL(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{
@@ -170,11 +199,11 @@ namespace YAPT
 			for (size_t i = 0; i < inputVariables.size(); ++i)
 			{
 				SpvReflectFormat format = inputVariables[i]->format;
-				const char* semanticStr = inputVariables[i]->semantic;
+				const char* nameStr = inputVariables[i]->name;
 				uint32_t location = inputVariables[i]->location;
 
 				AttributeSemantic semantic;
-				bool convStatus = convertStrToAttributeSemantic(semanticStr, semantic);
+				bool convStatus = convertStrToAttributeSemantic(nameStr, semantic);
 				assert(convStatus);
 
 				m_inputAttributes.push_back({ semantic, location });
@@ -198,11 +227,11 @@ namespace YAPT
 					highestDescSetIndex = max(descSets[i]->set, highestDescSetIndex);
 				}
 
-				m_bindings.resize(highestDescSetIndex + 1);
+				m_sortedBindings.resize(highestDescSetIndex + 1);
 
 				for (size_t i = 0; i < descSets.size(); ++i)
 				{
-					std::vector<ResourceBinding>& bindings = m_bindings[i];
+					std::vector<ResourceBinding>& bindings = m_sortedBindings[i];
 					SpvReflectDescriptorSet& descSetRefl = *descSets[i];
 
 					bindings.resize(descSetRefl.binding_count);
@@ -218,6 +247,11 @@ namespace YAPT
 						binding.bindingIndex = bindingRefl->binding;
 						binding.accessFlags = bindingRefl->resource_type == SPV_REFLECT_RESOURCE_FLAG_UAV ? AccessFlagsBits::ACCESS_FLAGS_READ_WRITE : AccessFlagsBits::ACCESS_FLAGS_READ;
 					}
+
+					std::sort(bindings.data(), bindings.data() + bindings.size(), [](const ResourceBinding& a, const ResourceBinding& b)
+						{
+							return a.bindingIndex <= b.bindingIndex;
+						});
 				}
 			}
 			
@@ -225,11 +259,6 @@ namespace YAPT
 
 		spvReflectDestroyShaderModule(&module);
 
-		return false;
-	}
-
-	ShaderModuleVk::~ShaderModuleVk()
-	{
-
+		return result == SPV_REFLECT_RESULT_SUCCESS;
 	}
 }

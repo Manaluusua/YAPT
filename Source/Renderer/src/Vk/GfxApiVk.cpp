@@ -4,6 +4,7 @@
 #include <Renderer/Vk/ResourceAllocationPoolVk.h>
 #include <Renderer/Vk/YaptToVkConversions.h>
 #include <Renderer/Vk/ResourceHandlesVk.h>
+#include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Math/Math.h>
 
 namespace YAPT
@@ -270,12 +271,40 @@ namespace YAPT
 
 		DescriptorSetLayoutHandle createDescriptorSetLayout(GfxApiHandle h, const DescriptorSetLayoutBinding* bindings, size_t numberOfBindings, DescriptorSetLayoutFlags flags)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+			VkDescriptorSetLayoutCreateInfo info;
+			std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+
+			vkBindings.resize(numberOfBindings);
+			info.pNext = nullptr;
+			info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+			info.flags = (flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT : 0;
+			info.bindingCount = (uint32_t)vkBindings.size();
+			info.pBindings = vkBindings.data();
+			
+			for (size_t i = 0; i < numberOfBindings; ++i)
+			{
+				VkDescriptorSetLayoutBinding& vkBinding = vkBindings[i];
+				const DescriptorSetLayoutBinding& binding = bindings[i];
+
+				vkBinding.binding = binding.bindingIndex;
+				vkBinding.descriptorCount = binding.descriptorCount;
+				vkBinding.stageFlags = yaptShaderStagesToVk(binding.shaderStages);
+				vkBinding.descriptorType = yaptDescriptorTypeToVk(binding.type);
+				vkBinding.pImmutableSamplers = binding.staticSamplers;
+			}
+
+			assert(!"TODO: COUNT REQUIRED DESCRIPTORS");
+			checkVkResult(vkCreateDescriptorSetLayout(h->getDevice(), &info, VK_ALLOC_CB, &layout));
+
+			DescriptorSetLayoutHandleVk* handle = new DescriptorSetLayoutHandleVk;
+			handle->layout = layout;
+			return handle;
 		}
 		void destroyDescriptorSetLayout(GfxApiHandle h, DescriptorSetLayoutHandle layout)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->deferredDestroyVkResource(layout->layout);
+			delete layout;
 		}
 
 		PipelineLayoutHandle createPipelineLayout(GfxApiHandle h, const DescriptorSetLayoutHandle* descSetLayouts, size_t numberOfDescriptorSetLayouts)
@@ -290,24 +319,17 @@ namespace YAPT
 
 		SamplerHandle createSampler(GfxApiHandle h, const SamplerDescription& desc)
 		{
-			SamplerHandleVk* handle = new SamplerHandleVk;
+			VkSampler handle = VK_NULL_HANDLE;
 			VkSamplerCreateInfo info;
 			yaptSamplerDescToVk(desc, info);
-			VkResult res = vkCreateSampler(h->getDevice(), &info, VK_ALLOC_CB, &handle->sampler);
+			VkResult res = vkCreateSampler(h->getDevice(), &info, VK_ALLOC_CB, &handle);
 			checkVkResult(res);
-
-			if (res != VK_SUCCESS)
-			{
-				delete handle;
-				handle = nullptr;
-			}
 
 			return handle;
 		}
 		void destroySampler(GfxApiHandle h, SamplerHandle sampler)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(sampler->sampler);
-			delete sampler;
+			h->getResourceManager()->deferredDestroyVkResource(sampler);
 		}
 
 		ShaderModuleHandle createShaderModuleFromFile(GfxApiHandle h, const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
@@ -377,12 +399,24 @@ namespace YAPT
 
 		DescriptorSetPoolHandle createDescriptorSetPool(GfxApiHandle h, DescriptorSetLayoutHandle layout, size_t numberOfDescriptorSets)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			std::vector<VkDescriptorPoolSize> poolSizes;
+			poolSizes.reserve(layout->requiredDescriptorSpacePerType.size());
+
+			VkDescriptorPoolCreateInfo poolDef;
+			poolDef.pNext = nullptr;
+			poolDef.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			poolDef.maxSets = (uint32_t)numberOfDescriptorSets;
+			poolDef.flags = (layout->flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
+			poolDef.pPoolSizes = poolSizes.data();
+			poolDef.poolSizeCount = (uint32_t)poolSizes.size();
+			VkDescriptorPool pool;
+			vkCreateDescriptorPool(h->getDevice(), &poolDef, VK_ALLOC_CB, &pool);
+
+			return pool;
 		}
 		void destroyDescriptorSetPool(GfxApiHandle h, DescriptorSetPoolHandle pool)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->deferredDestroyVkResource(pool);
 		}
 
 
@@ -454,12 +488,11 @@ namespace YAPT
 
 		ShaderPipelineReflection* createShaderPipelineReflection(ShaderModuleHandle* shaderModules, size_t shaderModuleCount)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return new ShaderPipelineReflectionVk(shaderModules, shaderModuleCount);
 		}
 		void destroyShaderPipelineReflection(ShaderPipelineReflection* refl)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			delete refl;
 		}
 
 

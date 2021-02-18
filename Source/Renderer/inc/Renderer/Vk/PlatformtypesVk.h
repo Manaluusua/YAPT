@@ -8,15 +8,16 @@
 namespace YAPT
 {
 	class RendererVk;
-	class ShaderModuleVk;
+	struct ShaderModuleVk;
 	struct TextureHandleVk;
 	struct BufferHandleVk;
 	struct BufferViewVk;
 	
-
-	struct SamplerHandleVk
+	struct DescriptorSetLayoutHandleVk
 	{
-		VkSampler sampler;
+		VkDescriptorSetLayout layout;
+		std::vector<VkDescriptorPoolSize> requiredDescriptorSpacePerType;
+		DescriptorSetLayoutFlags flags;
 	};
 
 	typedef void* BottomLevelAccelerationStructureHandle;
@@ -34,11 +35,11 @@ namespace YAPT
 	typedef void* ComputePipelineStateHandle;
 	typedef void* RaytracePipelineStateHandle;
 	typedef void* RenderPassHandle;
-	typedef void* DescriptorSetLayoutHandle;
+	typedef DescriptorSetLayoutHandleVk* DescriptorSetLayoutHandle;
 	typedef void* PipelineLayoutHandle;
 	typedef ShaderModuleVk* ShaderModuleHandle;
-	typedef SamplerHandleVk* SamplerHandle;
-	typedef void* DescriptorSetPoolHandle;
+	typedef VkSampler SamplerHandle;
+	typedef VkDescriptorPool DescriptorSetPoolHandle;
 	typedef void* DescriptorSetHandle;
 	typedef void* ShaderTableHandle;
 
