@@ -20,6 +20,20 @@ namespace YAPT
 		DescriptorSetLayoutFlags flags;
 	};
 
+	struct DescriptorSetVk
+	{
+		RendererVk* renderer;
+		VkDescriptorSet set;
+		size_t frameLastUsed;
+		bool inUse;
+	};
+
+	struct DescriptorSetPoolVk
+	{
+		VkDescriptorPool pool;
+		std::vector<DescriptorSetVk> sets;
+	};
+
 	typedef void* BottomLevelAccelerationStructureHandle;
 	typedef void* TopLevelAccelerationStructureHandle;
 	typedef RendererVk* GfxApiHandle;
@@ -39,8 +53,8 @@ namespace YAPT
 	typedef void* PipelineLayoutHandle;
 	typedef ShaderModuleVk* ShaderModuleHandle;
 	typedef VkSampler SamplerHandle;
-	typedef VkDescriptorPool DescriptorSetPoolHandle;
-	typedef void* DescriptorSetHandle;
+	typedef DescriptorSetPoolVk* DescriptorSetPoolHandle;
+	typedef DescriptorSetVk* DescriptorSetHandle;
 	typedef void* ShaderTableHandle;
 
 	struct QueueDefinitionVk

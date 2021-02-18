@@ -50,6 +50,9 @@ namespace YAPT
 		const QueueDefinitionVk& getGraphicsQueue() const { return m_graphicsQueue; }
 		const QueueDefinitionVk& getComputeQueue() const { return m_computeQueue; }
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
+
+		size_t getFrameNumber() const { return m_syncUtility.getFrameCount(); }
+		size_t getFramePipelineLength() const { return m_syncUtility.getFramesInFlight(); }
 	private:
 
 		struct PhysicalDeviceInfos

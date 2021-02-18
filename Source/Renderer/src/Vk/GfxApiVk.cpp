@@ -6,6 +6,7 @@
 #include <Renderer/Vk/ResourceHandlesVk.h>
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Math/Math.h>
+#include <unordered_map>
 
 namespace YAPT
 {
@@ -275,6 +276,8 @@ namespace YAPT
 			VkDescriptorSetLayoutCreateInfo info;
 			std::vector<VkDescriptorSetLayoutBinding> vkBindings;
 
+			std::unordered_map<VkDescriptorType, uint32_t> countPerType;
+
 			vkBindings.resize(numberOfBindings);
 			info.pNext = nullptr;
 			info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -292,13 +295,20 @@ namespace YAPT
 				vkBinding.stageFlags = yaptShaderStagesToVk(binding.shaderStages);
 				vkBinding.descriptorType = yaptDescriptorTypeToVk(binding.type);
 				vkBinding.pImmutableSamplers = binding.staticSamplers;
+
+				countPerType[vkBinding.descriptorType] += vkBinding.descriptorCount;
 			}
 
-			assert(!"TODO: COUNT REQUIRED DESCRIPTORS");
+			
 			checkVkResult(vkCreateDescriptorSetLayout(h->getDevice(), &info, VK_ALLOC_CB, &layout));
 
 			DescriptorSetLayoutHandleVk* handle = new DescriptorSetLayoutHandleVk;
 			handle->layout = layout;
+			for (auto iter = countPerType.begin(); iter != countPerType.end(); ++iter)
+			{
+				handle->requiredDescriptorSpacePerType.push_back({ iter->first, iter->second });
+			}
+			handle->flags = flags;
 			return handle;
 		}
 		void destroyDescriptorSetLayout(GfxApiHandle h, DescriptorSetLayoutHandle layout)
@@ -412,33 +422,63 @@ namespace YAPT
 			VkDescriptorPool pool;
 			vkCreateDescriptorPool(h->getDevice(), &poolDef, VK_ALLOC_CB, &pool);
 
-			return pool;
+			DescriptorSetPoolVk* p = new DescriptorSetPoolVk;
+			p->pool = pool;
+			p->sets.resize(numberOfDescriptorSets);
+
+			std::vector<VkDescriptorSet> descSets;
+			descSets.resize(numberOfDescriptorSets);
+
+			std::vector<VkDescriptorSetLayout> layoutArray;
+			layoutArray.resize(numberOfDescriptorSets, layout->layout);
+
+			VkDescriptorSetAllocateInfo allocInfo;
+			allocInfo.pNext = nullptr;
+			allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+			allocInfo.descriptorSetCount = (uint32_t)numberOfDescriptorSets;
+			allocInfo.descriptorPool = pool;
+			allocInfo.pSetLayouts = layoutArray.data();
+
+			vkAllocateDescriptorSets(h->getDevice(), &allocInfo, descSets.data());
+
+			for (size_t i = 0; i < numberOfDescriptorSets; ++i)
+			{
+				p->sets[i].frameLastUsed = uint32_t(-1);
+				p->sets[i].renderer = h;
+				p->sets[i].set = descSets[i];
+				p->sets[i].inUse = false;
+			}
+
+			return p;
 		}
 		void destroyDescriptorSetPool(GfxApiHandle h, DescriptorSetPoolHandle pool)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(pool);
+			h->getResourceManager()->deferredDestroyVkResource(pool->pool);
+			delete pool;
 		}
 
 
 		DescriptorSetHandle getDescriptorSet(DescriptorSetPoolHandle pool, size_t descSetIndex)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			assert(descSetIndex < pool->sets.size());
+			return &pool->sets[descSetIndex];
 		}
 
 		void useDescriptorSet(DescriptorSetHandle handle)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			handle->inUse = true;
 		}
 
 		void freeDescriptorSet(DescriptorSetHandle handle)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			handle->frameLastUsed = handle->renderer->getFrameNumber();
+			handle->inUse = false;
 		}
 		bool isDescriptorSetUnused(DescriptorSetHandle handle)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return false;
+			if (handle->inUse) return false;
+
+			return (handle->frameLastUsed + handle->renderer->getFramePipelineLength()) < handle->renderer->getFrameNumber();
 		}
 		 
 		 
