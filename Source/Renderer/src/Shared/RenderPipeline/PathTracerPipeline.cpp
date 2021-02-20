@@ -31,9 +31,7 @@ namespace YAPT
 		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR));
 		
 		getRenderGraph()->compile();
-
-		setupCommandBufferPool(2);
-		setupRenderGraphSchedulingGroups(2);
+		getRenderGraph()->setupScheduling(2);
 	}
 
 

@@ -477,7 +477,6 @@ namespace YAPT
 		bool isDescriptorSetUnused(DescriptorSetHandle handle)
 		{
 			if (handle->inUse) return false;
-
 			return (handle->frameLastUsed + handle->renderer->getFramePipelineLength()) < handle->renderer->getFrameNumber();
 		}
 		 

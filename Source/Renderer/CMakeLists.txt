@@ -293,6 +293,10 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/CommandBufferPoolVk.h
 		inc/Renderer/Vk/ShaderModuleVk.h
 		inc/Renderer/Vk/ShaderPipelineReflectionVk.h
+		inc/Renderer/Vk/RenderGraphVk.h
+		inc/Renderer/Vk/RenderNodeVk.h
+		inc/Renderer/Vk/ComputeNodeVk.h
+		inc/Renderer/Vk/RaytraceNodeVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -308,6 +312,10 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/CommandBufferPoolVk.cpp
 		src/Vk/ShaderModuleVk.cpp
 		src/Vk/ShaderPipelineReflectionVk.cpp
+		src/Vk/RenderGraphVk.cpp
+		src/Vk/RenderNodeVk.cpp
+		src/Vk/ComputeNodeVk.cpp
+		src/Vk/RaytraceNodeVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

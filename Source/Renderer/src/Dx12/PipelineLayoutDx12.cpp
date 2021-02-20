@@ -46,7 +46,7 @@ namespace YAPT
 
 			DescriptorSetLayoutFlags flags = descSetLayout->getFlags();
 
-			bool hasAliasingBindingPoints = (descSetLayout->getFlags() & DESCRIPTORSETLAYOUTFLAG_USE_BINDING_POINT_ALIASING) != 0;
+			bool hasAliasingBindingPoints = (descSetLayout->getFlags() & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0;
 
 			for (size_t k = 0; k < descSetLayout->getNumberOfDescriptorSetLayoutbindings(); ++k)
 			{
@@ -124,7 +124,7 @@ namespace YAPT
 
 				DescriptorSetLayoutDx12* descSetLayout = m_descSetLayouts[i].get();
 
-				bool hasAliasingBindingPoints = (descSetLayout->getFlags() & DESCRIPTORSETLAYOUTFLAG_USE_BINDING_POINT_ALIASING) != 0;
+				bool hasAliasingBindingPoints = (descSetLayout->getFlags() & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0;
 
 				size_t tableRangeOffsetForThisDescSetNonSampler = currentTableRangeOffsetNonSampler;
 				size_t tableRangeOffsetForThisDescSetSampler = currentTableRangeOffsetSampler;

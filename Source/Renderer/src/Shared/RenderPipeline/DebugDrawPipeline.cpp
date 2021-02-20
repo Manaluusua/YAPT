@@ -27,9 +27,7 @@ namespace YAPT
 		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, meshDbg->getOutputConnection(MeshDebugStage::MESHDEBUG_STAGE_CONNECTION_COLOR));
 
 		getRenderGraph()->compile();
-
-		setupCommandBufferPool(1);
-		setupRenderGraphSchedulingGroups(1);
+		getRenderGraph()->setupScheduling(1);
 	}
 
 

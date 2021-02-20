@@ -56,19 +56,17 @@ namespace YAPT
 
 		void compile();
 
+		void setupScheduling(size_t numberOfCommandBuffers);
+
 		size_t getNodeCount() const { return m_nodes.size(); }
 		RenderGraphNode** getNodes() { return m_nodes.data(); }
 
-		virtual void beginExecution();
-		void executeNodes(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context);
-		virtual void endExecution();
-		virtual void afterRenderGraphSubmit();
-
+		
+		void execute();
+		
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }
 
 		bool isResourceBoundThisFrame(RenderGraphResourceId id) const;
-
-		
 
 	protected:
 
@@ -105,7 +103,23 @@ namespace YAPT
 			std::vector<size_t> slotsToClear;
 		};
 
+		struct RenderNodeSequence
+		{
+			size_t offset;
+			size_t count;
+		};
+
+		struct ScheduledRenderNodesPerBuffer
+		{
+			std::vector<RenderNodeSequence> renderNodeSequence;
+		};
+
 		void registerCustomNode(CustomNode* node);
+
+		virtual void createNodeSchedule();
+		virtual void beginExecution();
+		virtual void endExecution();
+		virtual void afterRenderGraphSubmit();
 
 		//sanity checks
 		bool containsRenderTargets(size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);
@@ -124,6 +138,9 @@ namespace YAPT
 
 		void createTextureViewDesc(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, TextureViewDesc& textureViewDescOut);
 
+		bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to) const;
+
+
 		//misc
 		inline void invokeNodeCallback(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext)
 		{
@@ -137,6 +154,11 @@ namespace YAPT
 		RenderGraphResourceRequirements m_resourceRequirements;
 
 		std::vector<ResourceStateDescription> m_lastStateInGraph;
+		
+		CommandBufferPoolHandle m_cmdBufferPool;
+		std::vector<CommandBufferHandle> m_commandBuffersRecording;
+		size_t m_numberOfCmdBuffersPerFrame;
+		std::vector<ScheduledRenderNodesPerBuffer> m_scheduledRenderGraphNodeGroups;
 
 		std::vector<RenderGraphNode*> m_nodes;
 		std::vector<CustomNode*> m_customNodes;

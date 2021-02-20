@@ -8,10 +8,9 @@ namespace YAPT
 {
 	RenderPipelineBase::RenderPipelineBase()
 		:m_gfxHandle(YAPT_NULL_HANDLE),
-		m_cmdBufferPool(YAPT_NULL_HANDLE),
+		
 		m_graph(nullptr),
 		m_renderer(nullptr),
-		m_numberOfCmdBuffersPerFrame(0),
 		m_renderResolutionWidth(0),
 		m_renderResolutionHeight(0),
 		m_renderResolutionDependantResources(nullptr),
@@ -66,7 +65,7 @@ namespace YAPT
 		delete m_renderGraphLifetimeResources;
 		m_renderGraphLifetimeResources = nullptr;
 
-		Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
+		
 
 		Gfx::destroyRenderGraph(m_gfxHandle, m_graph);
 
@@ -122,111 +121,14 @@ namespace YAPT
 	}
 	void RenderPipelineBase::execute()
 	{
-		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);
-
-		
-		RenderGraphNode** nodes = m_graph->getNodes();
-		size_t nodeCount = m_graph->getNodeCount();
-
-		m_graph->beginExecution();
-
-		//execute nodes (TODO: multithreaded)
-
-		for (size_t cmdBufInd = 0; cmdBufInd < m_numberOfCmdBuffersPerFrame; ++cmdBufInd)
-		{
-			CommandBufferHandle buff = Gfx::startRecording(m_gfxHandle, m_cmdBufferPool, cmdBufInd);
-			m_commandBuffersRecording[cmdBufInd] = buff;
-
-			RenderGraphNodeExecutionContext context;
-			context.cmdBuffer = buff;
-
-			for (size_t nodeSequenceIndex = 0; nodeSequenceIndex < m_scheduledRenderGraphNodeGroups[cmdBufInd].renderNodeSequence.size(); ++nodeSequenceIndex)
-			{
-				const RenderNodeSequence& sequence = m_scheduledRenderGraphNodeGroups[cmdBufInd].renderNodeSequence[nodeSequenceIndex];
-				m_graph->executeNodes(nodes + sequence.offset, sequence.count, context);
-				
-			}
-
-			Gfx::stopRecording(m_gfxHandle, buff);
-		}
-
-		m_graph->endExecution();
-
-		Gfx::submitCommandBuffers(m_gfxHandle, m_commandBuffersRecording.data(), m_commandBuffersRecording.size());
-
-		m_graph->afterRenderGraphSubmit();
-
-		m_commandBuffersRecording.clear();
+		m_graph->execute();
 		
 	}
 
 	void RenderPipelineBase::addRenderStage(RenderStage* stage)
 	{
-		
-
 		stage->setup(m_renderer, m_graph);
 		stage->initialize();
 		m_stages.push_back(stage);
 	}
-
-	void RenderPipelineBase::setupCommandBufferPool(size_t numberOfBuffersPerFrame)
-	{
-		m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfBuffersPerFrame, 0, nullptr);
-		m_numberOfCmdBuffersPerFrame = numberOfBuffersPerFrame;
-	}
-
-	void RenderPipelineBase::setupRenderGraphSchedulingGroups(size_t maximumNumberOfGroups)
-	{
-		size_t nodeCount = m_graph->getNodeCount();
-		size_t groupCount = maximumNumberOfGroups > nodeCount ? nodeCount : maximumNumberOfGroups;
-
-		assert(nodeCount > 0);
-
-		size_t nodesPerGroup = nodeCount / groupCount;
-		size_t extraNodes = nodeCount % groupCount;
-
-		size_t groupsPerCmdBuffer = groupCount / m_numberOfCmdBuffersPerFrame;
-		size_t extraGroups = groupCount % m_numberOfCmdBuffersPerFrame;
-
-		size_t cmdBuffersToUse = std::min(m_numberOfCmdBuffersPerFrame, groupCount);
-
-
-		m_scheduledRenderGraphNodeGroups.resize(cmdBuffersToUse);
-
-		size_t currentNodeIndex = 0;
-
-		for (size_t bufferIndex = 0; bufferIndex < cmdBuffersToUse; ++bufferIndex)
-		{
-
-			ScheduledRenderNodesPerBuffer& perBufferInfo = m_scheduledRenderGraphNodeGroups[bufferIndex];
-
-			size_t currentGroupCount = groupsPerCmdBuffer;
-			if (extraGroups > 0)
-			{
-				currentGroupCount += 1;
-				--extraGroups;
-			}
-
-			perBufferInfo.renderNodeSequence.resize(currentGroupCount);
-
-			for (size_t groupIndex = 0; groupIndex < currentGroupCount; ++groupIndex)
-			{
-				size_t currentNodeCount = nodesPerGroup;
-				if (extraNodes > 0)
-				{
-					++currentNodeCount;
-					--extraNodes;
-				}
-
-				RenderNodeSequence& seq = perBufferInfo.renderNodeSequence[groupIndex];
-				seq.offset = currentNodeIndex;
-				seq.count = currentNodeCount;
-				currentNodeIndex += currentNodeCount;
-			}
-
-		}
-
-	}
-
-	
 }

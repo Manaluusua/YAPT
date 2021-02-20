@@ -25,28 +25,16 @@ namespace YAPT
 
 	protected:
 
-		struct RenderNodeSequence
-		{
-			size_t offset;
-			size_t count;
-		};
-
-		struct ScheduledRenderNodesPerBuffer
-		{
-			std::vector<RenderNodeSequence> renderNodeSequence;
-		};
+		
 
 		void addRenderStage(RenderStage* stage);
 		virtual void setupRenderPipeline() = 0;
-		virtual void setupCommandBufferPool(size_t numberOfBuffersPerFrame);
-		virtual void setupRenderGraphSchedulingGroups(size_t maximumNumberOfGroups);
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
 		GfxApiHandle m_gfxHandle;
 		
-		CommandBufferPoolHandle m_cmdBufferPool;
-		size_t m_numberOfCmdBuffersPerFrame;
+		
 
 		size_t m_renderResolutionWidth;
 		size_t m_renderResolutionHeight;
@@ -54,11 +42,8 @@ namespace YAPT
 		RenderResourcesPool* m_renderResolutionDependantResources;
 		RenderResourcesPool* m_renderGraphLifetimeResources;
 
-		std::vector<ScheduledRenderNodesPerBuffer> m_scheduledRenderGraphNodeGroups;
-
 		std::vector<RenderStage*> m_stages;
 
-		std::vector<CommandBufferHandle> m_commandBuffersRecording;
 
 		bool m_firstPrepareAfterInit;
 

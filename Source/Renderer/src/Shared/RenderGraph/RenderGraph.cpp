@@ -12,7 +12,9 @@
 namespace YAPT
 {
 	RenderGraph::RenderGraph(GfxApiHandle h)
-		:m_gfxHandle(h)
+		:m_gfxHandle(h),
+		m_cmdBufferPool(YAPT_NULL_HANDLE),
+		m_numberOfCmdBuffersPerFrame(0)
 	{
 
 	}
@@ -32,6 +34,8 @@ namespace YAPT
 			delete m_nodes[i];
 		}
 		m_nodes.clear();
+
+		Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
 	}
 
 
@@ -305,6 +309,18 @@ namespace YAPT
 		textureViewDescOut.arraySliceCount = usage.resourceDescription.arraySliceCount;
 	}
 
+	bool RenderGraph::isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to) const
+	{
+
+		bool isFullResource = to.mipOffset == 0
+			&& to.arraySliceOffset == 0
+			&& resourceDesc.arraySliceCount == to.resourceDescription.arraySliceCount
+			&& resourceDesc.mipCount == to.resourceDescription.mipCount;
+
+
+		return isFullResource;
+	}
+
 	const ResourceStateDescription& RenderGraph::getLastStateForResource(RenderGraphResourceId resourceId)
 	{
 		return m_lastStateInGraph[resourceId];
@@ -365,6 +381,58 @@ namespace YAPT
 	}
 
 
+	void RenderGraph::createNodeSchedule()
+	{
+		size_t nodeCount = getNodeCount();
+		size_t groupCount = m_numberOfCmdBuffersPerFrame;
+
+		assert(nodeCount > 0);
+
+		size_t nodesPerGroup = nodeCount / groupCount;
+		size_t extraNodes = nodeCount % groupCount;
+
+		size_t groupsPerCmdBuffer = groupCount / m_numberOfCmdBuffersPerFrame;
+		size_t extraGroups = groupCount % m_numberOfCmdBuffersPerFrame;
+
+		size_t cmdBuffersToUse = std::min(m_numberOfCmdBuffersPerFrame, groupCount);
+
+
+		m_scheduledRenderGraphNodeGroups.resize(cmdBuffersToUse);
+
+		size_t currentNodeIndex = 0;
+
+		for (size_t bufferIndex = 0; bufferIndex < cmdBuffersToUse; ++bufferIndex)
+		{
+
+			ScheduledRenderNodesPerBuffer& perBufferInfo = m_scheduledRenderGraphNodeGroups[bufferIndex];
+
+			size_t currentGroupCount = groupsPerCmdBuffer;
+			if (extraGroups > 0)
+			{
+				currentGroupCount += 1;
+				--extraGroups;
+			}
+
+			perBufferInfo.renderNodeSequence.resize(currentGroupCount);
+
+			for (size_t groupIndex = 0; groupIndex < currentGroupCount; ++groupIndex)
+			{
+				size_t currentNodeCount = nodesPerGroup;
+				if (extraNodes > 0)
+				{
+					++currentNodeCount;
+					--extraNodes;
+				}
+
+				RenderNodeSequence& seq = perBufferInfo.renderNodeSequence[groupIndex];
+				seq.offset = currentNodeIndex;
+				seq.count = currentNodeCount;
+				currentNodeIndex += currentNodeCount;
+			}
+
+		}
+	}
+
 	void RenderGraph::beginExecution()
 	{
 		for (CustomNode* cNode : m_customNodes)
@@ -373,9 +441,61 @@ namespace YAPT
 		}
 	}
 
-	void RenderGraph::executeNodes(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context)
+	void RenderGraph::setupScheduling(size_t numberOfCommandBuffers)
 	{
-		executeNodesInternal(nodes, nodeCount, context);
+		if (m_cmdBufferPool != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
+		}
+
+		size_t nodeCount = getNodeCount();
+		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers > nodeCount ? nodeCount : numberOfCommandBuffers;
+
+		m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfCommandBuffers, 0, nullptr);
+		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers;
+
+		createNodeSchedule();
+
+	}
+
+	void RenderGraph::execute()
+	{
+		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);
+
+
+		RenderGraphNode** nodes = getNodes();
+		size_t nodeCount = getNodeCount();
+
+		beginExecution();
+
+		//execute nodes (TODO: multithreaded)
+
+		for (size_t cmdBufInd = 0; cmdBufInd < m_numberOfCmdBuffersPerFrame; ++cmdBufInd)
+		{
+			CommandBufferHandle buff = Gfx::startRecording(m_gfxHandle, m_cmdBufferPool, cmdBufInd);
+			m_commandBuffersRecording[cmdBufInd] = buff;
+
+			RenderGraphNodeExecutionContext context;
+			context.cmdBuffer = buff;
+
+			for (size_t nodeSequenceIndex = 0; nodeSequenceIndex < m_scheduledRenderGraphNodeGroups[cmdBufInd].renderNodeSequence.size(); ++nodeSequenceIndex)
+			{
+				const RenderNodeSequence& sequence = m_scheduledRenderGraphNodeGroups[cmdBufInd].renderNodeSequence[nodeSequenceIndex];
+				executeNodesInternal(nodes + sequence.offset, sequence.count, context);
+
+			}
+
+			Gfx::stopRecording(m_gfxHandle, buff);
+		}
+
+		endExecution();
+
+		Gfx::submitCommandBuffers(m_gfxHandle, m_commandBuffersRecording.data(), m_commandBuffersRecording.size());
+
+		afterRenderGraphSubmit();
+
+		m_commandBuffersRecording.clear();
+
 	}
 
 	void RenderGraph::endExecution()
