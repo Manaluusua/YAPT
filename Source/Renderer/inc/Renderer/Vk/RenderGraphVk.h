@@ -61,7 +61,7 @@ namespace YAPT
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 
-		void createRenderTargetResources();
+		void createRenderPasses();
 
 		void generateBarriers();
 		void mergeReadOnlyBarriers();
@@ -71,6 +71,8 @@ namespace YAPT
 
 		std::vector<BarriersPerNode> m_barriers;
 		std::vector<GeneralPerResourceTransitionInformation> m_perResourceBarrierInfo;
+
+		std::vector<VkRenderPass> m_renderPasses;
 
 
 	};

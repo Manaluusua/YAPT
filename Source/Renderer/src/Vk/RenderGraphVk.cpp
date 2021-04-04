@@ -30,7 +30,8 @@ namespace YAPT
 	{
 		generateBarriers();
 		mergeReadOnlyBarriers();
-		createRenderTargetResources();
+		createRenderPasses();
+		assert(!"TODO");
 	}
 
 	RenderNode* RenderGraphVk::createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
@@ -294,7 +295,7 @@ break;
 		}
 	}
 
-	void RenderGraphVk::createRenderTargetResources()
+	void RenderGraphVk::createRenderPasses()
 	{
 		/*size_t requiredRtvHeapEntries = 0;
 		size_t requiredDsvHeapEntries = 0;

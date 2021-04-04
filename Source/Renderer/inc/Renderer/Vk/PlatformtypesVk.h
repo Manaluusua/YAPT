@@ -50,7 +50,7 @@ namespace YAPT
 	typedef void* RaytracePipelineStateHandle;
 	typedef void* RenderPassHandle;
 	typedef DescriptorSetLayoutHandleVk* DescriptorSetLayoutHandle;
-	typedef void* PipelineLayoutHandle;
+	typedef VkPipelineLayout PipelineLayoutHandle;
 	typedef ShaderModuleVk* ShaderModuleHandle;
 	typedef VkSampler SamplerHandle;
 	typedef DescriptorSetPoolVk* DescriptorSetPoolHandle;

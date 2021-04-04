@@ -5,6 +5,7 @@
 #include <Renderer/Vk/YaptToVkConversions.h>
 #include <Renderer/Vk/ResourceHandlesVk.h>
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
+#include <Renderer/Vk/RenderGraphVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -319,12 +320,30 @@ namespace YAPT
 
 		PipelineLayoutHandle createPipelineLayout(GfxApiHandle h, const DescriptorSetLayoutHandle* descSetLayouts, size_t numberOfDescriptorSetLayouts)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			VkPipelineLayoutCreateInfo info{};
+			info.pNext = nullptr;
+			info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+			info.flags = 0;
+
+			info.pPushConstantRanges = nullptr;
+			info.pushConstantRangeCount = 0;
+
+			std::vector<VkDescriptorSetLayout> layouts(numberOfDescriptorSetLayouts);
+			for (size_t i = 0; i < numberOfDescriptorSetLayouts; ++i)
+			{
+				layouts[i] = descSetLayouts[i]->layout;
+			}
+
+			info.setLayoutCount = (uint32_t)numberOfDescriptorSetLayouts;
+			info.pSetLayouts = layouts.data();
+
+			VkPipelineLayout layout;
+			checkVkResult(vkCreatePipelineLayout(h->getDevice(), &info, VK_ALLOC_CB, &layout));
+			return layout;
 		}
 		void destroyPipelineLayout(GfxApiHandle h, PipelineLayoutHandle layout)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkDestroyPipelineLayout(h->getDevice(), layout, VK_ALLOC_CB);
 		}
 
 		SamplerHandle createSampler(GfxApiHandle h, const SamplerDescription& desc)
@@ -516,13 +535,12 @@ namespace YAPT
 		}
 		RenderGraph* createRenderGraph(GfxApiHandle h)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return new RenderGraphVk(h);
 		}
 
 		void destroyRenderGraph(GfxApiHandle h, RenderGraph* graph)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			delete graph;
 		}
 
 		ShaderPipelineReflection* createShaderPipelineReflection(ShaderModuleHandle* shaderModules, size_t shaderModuleCount)
