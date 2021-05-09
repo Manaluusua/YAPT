@@ -51,6 +51,12 @@ namespace YAPT
 	{
 		vkDestroyDescriptorPool(device, child, VK_ALLOC_CB);
 	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkPipeline>(VkDevice device, VkPipeline child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyPipeline(device, child, VK_ALLOC_CB);
+	}
 	
 	
 }

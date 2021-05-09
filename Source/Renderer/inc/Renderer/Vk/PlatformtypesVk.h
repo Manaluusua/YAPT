@@ -8,6 +8,7 @@
 namespace YAPT
 {
 	class RendererVk;
+	class ComputePipelineStateVk;
 	struct ShaderModuleVk;
 	struct TextureHandleVk;
 	struct BufferHandleVk;
@@ -46,7 +47,7 @@ namespace YAPT
 	typedef void* CommandBufferPoolHandle;
 	typedef void* CommandBufferHandle;
 	typedef void* GraphicsPipelineStateHandle;
-	typedef void* ComputePipelineStateHandle;
+	typedef VkPipeline ComputePipelineStateHandle;
 	typedef void* RaytracePipelineStateHandle;
 	typedef void* RenderPassHandle;
 	typedef DescriptorSetLayoutHandleVk* DescriptorSetLayoutHandle;

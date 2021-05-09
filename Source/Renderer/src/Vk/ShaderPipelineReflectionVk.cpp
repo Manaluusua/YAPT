@@ -52,7 +52,7 @@ namespace YAPT
 					binding.bindingIndex = bindingVk.bindingIndex;
 					binding.accessFlags = bindingVk.accessFlags;
 					binding.type = bindingVk.type;
-					binding.accessFlags |= shaderModuleTypeToShaderStagesFlag(mod->m_moduleType);
+					binding.shaderStages |= shaderModuleTypeToShaderStagesFlag(mod->m_moduleType);
 
 					tempNameMappings[ind].push_back(std::make_pair(bindingVk.name.c_str(), mod->m_moduleType));
 

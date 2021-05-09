@@ -6,6 +6,7 @@
 #include <Renderer/Vk/ResourceHandlesVk.h>
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Renderer/Vk/RenderGraphVk.h>
+#include <Renderer/Vk/ComputePipelineStateVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -398,12 +399,11 @@ namespace YAPT
 
 		ComputePipelineStateHandle createComputePipelineState(GfxApiHandle h, const ComputePipelineStateDesc& desc)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return ComputePipelineStateVk::create(h, desc);
 		}
 		void destroyComputePipelineState(GfxApiHandle h, ComputePipelineStateHandle state)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			ComputePipelineStateVk::destroy(h, state);
 		}
 
 		GraphicsPipelineStateHandle createGraphicsPipelineState(GfxApiHandle h, const GraphicsPipelineStateDesc& desc)
@@ -428,16 +428,14 @@ namespace YAPT
 
 		DescriptorSetPoolHandle createDescriptorSetPool(GfxApiHandle h, DescriptorSetLayoutHandle layout, size_t numberOfDescriptorSets)
 		{
-			std::vector<VkDescriptorPoolSize> poolSizes;
-			poolSizes.reserve(layout->requiredDescriptorSpacePerType.size());
 
 			VkDescriptorPoolCreateInfo poolDef;
 			poolDef.pNext = nullptr;
 			poolDef.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 			poolDef.maxSets = (uint32_t)numberOfDescriptorSets;
 			poolDef.flags = (layout->flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
-			poolDef.pPoolSizes = poolSizes.data();
-			poolDef.poolSizeCount = (uint32_t)poolSizes.size();
+			poolDef.pPoolSizes = layout->requiredDescriptorSpacePerType.data();
+			poolDef.poolSizeCount = (uint32_t)layout->requiredDescriptorSpacePerType.size();
 			VkDescriptorPool pool;
 			vkCreateDescriptorPool(h->getDevice(), &poolDef, VK_ALLOC_CB, &pool);
 

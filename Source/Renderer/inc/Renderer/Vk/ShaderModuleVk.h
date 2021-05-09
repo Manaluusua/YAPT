@@ -24,12 +24,13 @@ namespace YAPT
 			uint32_t location;
 		};
 
-		bool compileFromHLSL(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
+		bool compileFromHLSL(VkDevice device, const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		bool reflect();
 
 		ShaderModuleType m_moduleType;
 		std::vector<char> m_spirv;
 		std::vector<std::vector<ResourceBinding>> m_sortedBindings;
 		std::vector<InputAttributes> m_inputAttributes;
+		VkShaderModule m_vkShaderModule;
 	};
 }

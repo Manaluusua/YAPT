@@ -209,7 +209,7 @@ namespace YAPT
 	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{
 		ShaderModuleVk* mod = new ShaderModuleVk();
-		bool success = mod->compileFromHLSL(filepath, moduleType, entryPoint, defines, defineCount);
+		bool success = mod->compileFromHLSL(m_device, filepath, moduleType, entryPoint, defines, defineCount);
 		assert(success);
 		return mod;
 	}

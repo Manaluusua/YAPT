@@ -97,7 +97,7 @@ namespace YAPT
 	}
 
 
-	bool ShaderModuleVk::compileFromHLSL(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
+	bool ShaderModuleVk::compileFromHLSL(VkDevice device, const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{
 		std::wstring profileWStr;
 
@@ -141,7 +141,22 @@ namespace YAPT
 		
 		if (m_spirv.size() == 0) return false;
 
-		return reflect();
+		bool success = reflect();
+		if (success)
+		{
+			
+			VkShaderModuleCreateInfo shdModuleInfo{};
+			shdModuleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+			shdModuleInfo.pNext = NULL;
+			shdModuleInfo.pCode = (uint32_t*)m_spirv.data();
+			shdModuleInfo.codeSize = m_spirv.size();
+			shdModuleInfo.flags = 0;
+
+			VkResult res = vkCreateShaderModule(device, &shdModuleInfo, VK_ALLOC_CB, &m_vkShaderModule);
+			success = res == VK_SUCCESS;;
+		}
+
+		return success;
 	}
 
 	bool ShaderModuleVk::reflect()

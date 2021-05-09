@@ -121,7 +121,7 @@ namespace YAPT
 		{
 			const StaticSamplerEntry& s = staticSamplers[i];
 			ShaderPipelineReflection::NameMapping nameMapping;
-			bool found = pipelineInfo->reflection->getNameMapping(ShaderModuleType::FRAGMENT_MODULE, s.name, nameMapping);
+			bool found = pipelineInfo->reflection->getNameMapping(ShaderModuleType::COMPUTE_MODULE, s.name, nameMapping);
 			if (!found)
 			{
 				YAPT_LOG_ERROR("Unable to bind static sampler, not sampler named %s found from fragment module", s.name);

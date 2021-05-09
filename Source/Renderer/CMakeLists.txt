@@ -297,6 +297,9 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/RenderNodeVk.h
 		inc/Renderer/Vk/ComputeNodeVk.h
 		inc/Renderer/Vk/RaytraceNodeVk.h
+		inc/Renderer/Vk/ComputePipelineStateVk.h
+		inc/Renderer/Vk/GraphicsPipelineStateVk.h
+		inc/Renderer/Vk/RaytracePipelineStateVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -316,6 +319,9 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/RenderNodeVk.cpp
 		src/Vk/ComputeNodeVk.cpp
 		src/Vk/RaytraceNodeVk.cpp
+		src/Vk/ComputePipelineStateVk.cpp
+		src/Vk/GraphicsPipelineStateVk.cpp
+		src/Vk/RaytracePipelineStateVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

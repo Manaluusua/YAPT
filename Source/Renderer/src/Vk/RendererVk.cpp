@@ -188,7 +188,7 @@ namespace YAPT
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 		appInfo.pApplicationName = "YAPT";
 		appInfo.engineVersion = 1;
-		appInfo.apiVersion = VK_API_VERSION_1_0;
+		appInfo.apiVersion = VK_API_VERSION_1_2;
 
 		std::vector<const char*> instanceExtensions = {
 	#ifdef ENABLE_VK_DEBUG_LAYERS
