@@ -64,7 +64,8 @@ namespace YAPT
 		void createRenderPasses();
 
 		void generateBarriers();
-		void mergeReadOnlyBarriers();
+
+		VkRenderPass createRenderPassForRenderNodeInterval(size_t first, size_t count);
 
 		static bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to);
 		static void calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut);

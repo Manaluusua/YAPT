@@ -28,9 +28,8 @@ namespace YAPT
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
 	{
-		generateBarriers();
-		mergeReadOnlyBarriers();
 		createRenderPasses();
+		generateBarriers();
 		assert(!"TODO");
 	}
 
@@ -295,37 +294,63 @@ break;
 		}
 	}
 
-	void RenderGraphVk::createRenderPasses()
+	VkRenderPass RenderGraphVk::createRenderPassForRenderNodeInterval(size_t first, size_t count)
 	{
-		/*size_t requiredRtvHeapEntries = 0;
-		size_t requiredDsvHeapEntries = 0;
-		size_t pipelineLength = m_gfxHandle->getResourceManager().getPipelineLength();
-		for (size_t nodeIndex = 0; nodeIndex < m_nodes.size(); ++nodeIndex)
+		for (size_t ind = 0; ind != count; ++ind)
 		{
-			if (m_nodes[nodeIndex]->getType() != RenderGraphNode::Type::RENDER)
-			{
-				continue;
-			}
-
-			RenderNodeDx12* rNode = static_cast<RenderNodeDx12*>(m_nodes[nodeIndex]);
-			rNode->setRtvHeapDescriptorBaseOffset(requiredRtvHeapEntries);
-			rNode->setDsvHeapDescriptorBaseOffset(requiredDsvHeapEntries);
+			size_t nodexIndex = first + ind;
+			RenderNodeVk* rNode = static_cast<RenderNodeVk*>(m_nodes[nodexIndex]);
 
 			size_t attachmentCount = rNode->getNumberOfColorTargets();
 			bool hasDepthStencil = rNode->hasDepthStencil();
-
-			requiredRtvHeapEntries += attachmentCount * pipelineLength;
-			requiredDsvHeapEntries += (hasDepthStencil ? 1 : 0) * pipelineLength;
 		}
 
-		if (requiredRtvHeapEntries > 0)
+		assert(!"TODO");
+	}
+
+	void RenderGraphVk::createRenderPasses()
+	{
+		size_t nodeIndex = 0;
+		while(nodeIndex != m_nodes.size())
 		{
-			m_rtvHeap = m_gfxHandle->getResourceManager().createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, requiredRtvHeapEntries);
+			if (m_nodes[nodeIndex]->getType() != RenderGraphNode::Type::RENDER)
+			{
+				++nodeIndex;
+				continue;
+			}
+
+			size_t renderPassStartNode = nodeIndex;
+			size_t renderPassEndNode = nodeIndex + 1;
+
+			while (renderPassEndNode != m_nodes.size())
+			{
+				//TODO: check if we can establish subpass dependency (need to be recorded to same cmdbuffer). for now assume false;
+				bool canShareRenderPass = (m_nodes[renderPassEndNode]->getType() == RenderGraphNode::Type::RENDER) && false;
+				if (canShareRenderPass)
+				{
+					++renderPassEndNode;
+				}
+				else
+				{
+					break;
+				}
+					
+			}
+
+			VkRenderPass renderPass = createRenderPassForRenderNodeInterval(renderPassStartNode, renderPassEndNode - renderPassStartNode);
+			size_t renderPassIndex = m_renderPasses.size();
+			m_renderPasses.push_back(renderPass);
+
+			for (size_t i = renderPassStartNode; i != renderPassEndNode; ++i)
+			{
+				RenderNodeVk* rNode = static_cast<RenderNodeVk*>(m_nodes[i]);
+				rNode->setupRenderPass(renderPassIndex, i - renderPassStartNode);
+			}
+
+			nodeIndex = renderPassEndNode;
+			
 		}
-		if (requiredDsvHeapEntries > 0)
-		{
-			m_dsvHeap = m_gfxHandle->getResourceManager().createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, requiredDsvHeapEntries);
-		}		*/
+
 	}
 
 	void RenderGraphVk::calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut)
@@ -491,127 +516,6 @@ break;
 			}
 			m_perResourceBarrierInfo[resourceIndex].lastStateInGraph = getD3D12StateFromResourceUsage(getLastStateForResource(resourceIndex));
 		}*/
-	}
-
-
-	void RenderGraphVk::mergeReadOnlyBarriers()
-	{
-		/*auto canMergeReadonlyBarriers = [](const ResourceSlotBarrierDescription& a, const ResourceSlotBarrierDescription& b)
-		{
-			bool canMerge = true;
-
-			bool isReadOnlyA = (D3D12_ALL_WRITE_STATES & a.transitionedToState) == 0;
-			bool isReadOnlyB = (D3D12_ALL_WRITE_STATES & b.transitionedToState) == 0;
-
-			canMerge = canMerge && isReadOnlyA && isReadOnlyB;
-
-			//for now, only merge if subresources match. In reality, could just merge them too
-			canMerge = canMerge && (a.numberOfTransitionBarriers == b.numberOfTransitionBarriers);
-			if (canMerge)
-			{
-				for (size_t i = 0; i < a.numberOfTransitionBarriers; ++i)
-				{
-					if (a.beforeBarriersPerResource[i].Transition.Subresource != b.beforeBarriersPerResource[i].Transition.Subresource)
-					{
-						canMerge = false;
-						break;
-					}
-				}
-			}
-
-			return canMerge;
-		};
-
-		struct BarriersMerged
-		{
-			size_t fromNode;
-			size_t fromSlot;
-
-			size_t toNode;
-			size_t toSlot;
-		};
-
-		std::vector<BarriersMerged> mergedBarriers;
-		mergedBarriers.reserve(128);
-
-		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
-		{
-
-			mergedBarriers.clear();
-			const RenderGraphResourceDescription& resourceDesc = m_resourceRequirements.getRenderGraphResourceDescription(resourceIndex);
-
-			const NodeSlotIdentifier* nodeSlotIdentifiers;
-			size_t numberOfNodeSlotIdentifiers;
-			m_resourceRequirements.getNodeSlotsUsingResource(resourceIndex, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
-
-			for (size_t resourceUsageIndex = numberOfNodeSlotIdentifiers - 1; resourceUsageIndex > 0; --resourceUsageIndex)
-			{
-				size_t nodeIndex = nodeSlotIdentifiers[resourceUsageIndex].sortedNodeIndex;
-				size_t slotIndex = nodeSlotIdentifiers[resourceUsageIndex].slotIndex;
-
-				size_t beforeNodeIndex = nodeSlotIdentifiers[resourceUsageIndex - 1].sortedNodeIndex;
-				size_t beforeSlotIndex = nodeSlotIdentifiers[resourceUsageIndex - 1].slotIndex;
-
-				ResourceSlotBarrierDescription& barriersThis = m_barriers[nodeIndex].perSlotDesc[slotIndex];
-				ResourceSlotBarrierDescription& barriersBefore = m_barriers[beforeNodeIndex].perSlotDesc[beforeSlotIndex];
-
-
-				if (canMergeReadonlyBarriers(barriersBefore, barriersThis))
-				{
-#ifdef VERBOSE_BARRIER_MERGE_DX12
-					YAPT_LOG_DEBUG("Merging barriers from (node index %d, slot index %d) to (node index %d, slot index %d). Original state from %d, original state to %d, new state %d",
-						nodeIndex, slotIndex, beforeNodeIndex, beforeSlotIndex, barriersThis.transitionedToState, barriersBefore.transitionedToState, barriersThis.transitionedToState | barriersBefore.transitionedToState);
-#endif
-
-					D3D12_RESOURCE_STATES newState = barriersBefore.transitionedToState | barriersThis.transitionedToState;
-					//assumes that subresources are identical
-					for (size_t i = 0; i < barriersBefore.numberOfTransitionBarriers; ++i)
-					{
-						barriersBefore.beforeBarriersPerResource[i].Transition.StateAfter = newState;
-					}
-					//clear from
-					barriersThis.beforeBarriersPerResource.clear();
-					barriersThis.transitionedToState = newState;
-
-					mergedBarriers.push_back({ nodeIndex, slotIndex, beforeNodeIndex, beforeSlotIndex });
-					
-				}
-			}
-
-			//check if we merged the last usage barriers so we give back correct "state" the resource will be at the end of the graph
-			if (mergedBarriers.size() > 0 && mergedBarriers[0].fromNode == nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].sortedNodeIndex)
-			{
-				ResourceStateDescription resourceStateDesc = m_lastStateInGraph[resourceIndex];
-				size_t lastMergedNodeIndex = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].sortedNodeIndex;
-				for (size_t i = 0; i < mergedBarriers.size(); ++i)
-				{
-					if (lastMergedNodeIndex == mergedBarriers[i].fromNode)
-					{
-						const RenderGraphResourceUsage& usage = m_resourceRequirements.getRenderGraphResourceUsage(mergedBarriers[i].toNode, mergedBarriers[i].toSlot);
-
-						resourceStateDesc.accessFlags |= usage.resourceDescription.accessFlags;
-						resourceStateDesc.resourceUsage |= usage.resourceDescription.resourceUsage;
-						resourceStateDesc.shaderStagesUsedIn |= usage.resourceDescription.shaderStages;
-
-						lastMergedNodeIndex = mergedBarriers[i].toNode;
-					}
-				}
-				m_lastStateInGraph[resourceIndex] = resourceStateDesc;
-			}
-
-		}
-
-		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
-		{
-			const NodeSlotIdentifier* nodeSlotIdentifiers;
-			size_t numberOfNodeSlotIdentifiers;
-			m_resourceRequirements.getNodeSlotsUsingResource(resourceIndex, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
-
-			const NodeSlotIdentifier& nodeSlot = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1];
-			const ResourceSlotBarrierDescription& barrierDesc = m_barriers[nodeSlot.sortedNodeIndex].perSlotDesc[nodeSlot.slotIndex];
-			m_perResourceBarrierInfo[resourceIndex].lastStateInGraph = barrierDesc.transitionedToState;
-		}*/
-
 	}
 
 
