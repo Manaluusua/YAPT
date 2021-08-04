@@ -5,3 +5,4 @@
 *handle multiple rendergraphs in flight 
 *Implement MeshLayoutID (so that different ID actually means different layout)
 *Currently the preupload and upload are serialized, could allow both to execute conurrently and just sync with render start? 
+*Add a way to have guarantee on scheduling nodes, thus allowing actual subpasses to be used (can't break renderpass across commandbuffers)

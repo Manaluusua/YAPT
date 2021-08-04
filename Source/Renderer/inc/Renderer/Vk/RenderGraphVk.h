@@ -40,7 +40,7 @@ namespace YAPT
 
 		struct BarriersPerNode
 		{
-			//std::vector<ResourceSlotBarrierDescription> perSlotDesc;
+			std::vector<ResourceSlotBarrierDescription> perSlotDesc;
 		};
 		
 		virtual void resolveGraphDependenciesInternal() override;
@@ -61,11 +61,9 @@ namespace YAPT
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 
-		void createRenderPasses();
+		VkRenderPass createRenderPass(RenderNode* node);
 
-		void generateBarriers();
-
-		VkRenderPass createRenderPassForRenderNodeInterval(size_t first, size_t count);
+		void generateBarriersAndRenderPasses();
 
 		static bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to);
 		static void calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut);

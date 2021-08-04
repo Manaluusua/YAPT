@@ -5,23 +5,34 @@
 
 namespace YAPT
 {
-
 	struct RenderGraphNodeExecutionContext
 	{
 		CommandBufferHandle cmdBuffer;
 	};
+
+	enum RenderGraphNodeSlotFlagBits
+	{
+		RGNS_FLAG_NONE,
+		RGNS_FLAG_ALWAYS_REQUIRE_LOAD,
+		RGNS_FLAG_ALWAYS_REQUIRE_STORE
+	};
+
+	typedef Flags RenderGraphNodeSlotFlags;
 
 	struct RenderGraphNodeSlotDefinition
 	{
 		RenderGraphResourceDescription resourceDescription;
 		RenderNodeClearFrequency clearFrequency;
 		ClearValue clearValue;
+		RenderGraphNodeSlotFlags flags;
 	};
 
 	struct RenderGraphTextureSlotDefinition : public RenderGraphNodeSlotDefinition
 	{
 		RenderGraphTextureSlotDefinition(ResourceDimension resourceDimensions, ResourceFormat resourceFormat, ResourceUsage resourceUsage,
-			AccessFlags accessFlags, ShaderStages shaderStages, uint32_t mipCount, uint32_t arraySliceCount, RenderNodeClearFrequency clear = RenderNodeClearFrequency::NONE, ClearValue clearValue = ClearValue())
+			AccessFlags accessFlags, ShaderStages shaderStages, uint32_t mipCount, uint32_t arraySliceCount,
+			RenderNodeClearFrequency clear = RenderNodeClearFrequency::NONE, ClearValue clearValue = ClearValue(), 
+			RenderGraphNodeSlotFlags flags = RGNS_FLAG_NONE)
 		{
 			resourceDescription.resourceDimensions = resourceDimensions;
 			resourceDescription.resourceFormat = resourceFormat;
@@ -32,14 +43,16 @@ namespace YAPT
 			resourceDescription.arraySliceCount = arraySliceCount;
 			this->clearFrequency = clear;
 			this->clearValue = clearValue;
+			this->flags = flags;
 		}
 	};
 
 	struct RenderGraphBufferSlotDefinition : public RenderGraphNodeSlotDefinition
 	{
 		RenderGraphBufferSlotDefinition(ResourceUsage resourceUsage,
-			AccessFlags accessFlags, ShaderStages shaderStages,
-			RenderNodeClearFrequency clear = RenderNodeClearFrequency::NONE, ClearValue clearValue = ClearValue())
+			AccessFlags accessFlags, ShaderStages shaderStages, 
+			RenderNodeClearFrequency clear = RenderNodeClearFrequency::NONE, ClearValue clearValue = ClearValue(), 
+			RenderGraphNodeSlotFlags flags = RGNS_FLAG_NONE)
 		{
 			resourceDescription.resourceDimensions = ResourceDimension::BUFFER;
 			resourceDescription.resourceFormat = ResourceFormat::UNKNOWN;
@@ -50,6 +63,7 @@ namespace YAPT
 			resourceDescription.arraySliceCount = 1;
 			this->clearFrequency = clear;
 			this->clearValue = clearValue;
+			this->flags = flags;
 		}
 	};
 

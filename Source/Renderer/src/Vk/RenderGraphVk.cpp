@@ -28,8 +28,7 @@ namespace YAPT
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
 	{
-		createRenderPasses();
-		generateBarriers();
+		generateBarriersAndRenderPasses();
 		assert(!"TODO");
 	}
 
@@ -294,84 +293,45 @@ break;
 		}
 	}
 
-	VkRenderPass RenderGraphVk::createRenderPassForRenderNodeInterval(size_t first, size_t count)
+	VkRenderPass RenderGraphVk::createRenderPass(RenderNode* node)
 	{
-		for (size_t ind = 0; ind != count; ++ind)
-		{
-			size_t nodexIndex = first + ind;
-			RenderNodeVk* rNode = static_cast<RenderNodeVk*>(m_nodes[nodexIndex]);
 
-			size_t attachmentCount = rNode->getNumberOfColorTargets();
-			bool hasDepthStencil = rNode->hasDepthStencil();
-		}
-
-		assert(!"TODO");
 	}
 
-	void RenderGraphVk::createRenderPasses()
-	{
-		size_t nodeIndex = 0;
-		while(nodeIndex != m_nodes.size())
-		{
-			if (m_nodes[nodeIndex]->getType() != RenderGraphNode::Type::RENDER)
-			{
-				++nodeIndex;
-				continue;
-			}
-
-			size_t renderPassStartNode = nodeIndex;
-			size_t renderPassEndNode = nodeIndex + 1;
-
-			while (renderPassEndNode != m_nodes.size())
-			{
-				//TODO: check if we can establish subpass dependency (need to be recorded to same cmdbuffer). for now assume false;
-				bool canShareRenderPass = (m_nodes[renderPassEndNode]->getType() == RenderGraphNode::Type::RENDER) && false;
-				if (canShareRenderPass)
-				{
-					++renderPassEndNode;
-				}
-				else
-				{
-					break;
-				}
-					
-			}
-
-			VkRenderPass renderPass = createRenderPassForRenderNodeInterval(renderPassStartNode, renderPassEndNode - renderPassStartNode);
-			size_t renderPassIndex = m_renderPasses.size();
-			m_renderPasses.push_back(renderPass);
-
-			for (size_t i = renderPassStartNode; i != renderPassEndNode; ++i)
-			{
-				RenderNodeVk* rNode = static_cast<RenderNodeVk*>(m_nodes[i]);
-				rNode->setupRenderPass(renderPassIndex, i - renderPassStartNode);
-			}
-
-			nodeIndex = renderPassEndNode;
-			
-		}
-
-	}
 
 	void RenderGraphVk::calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut)
 	{
-		/*uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount + usage.resourceDescription.mipCount;
+		uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount + usage.resourceDescription.mipCount;
 		for (uint32_t i = 0; i < subResourcesCount; ++i)
 		{
 			uint32_t arraySlice = usage.arraySliceOffset + i / usage.resourceDescription.mipCount;
 			uint32_t mipSlice = usage.mipOffset + i % usage.resourceDescription.mipCount;
 
 
-			uint32_t subResourceIndex = D3D12CalcSubresource((UINT)mipSlice, (UINT)arraySlice, 0u, (UINT)resourceDesc.mipCount, (UINT)resourceDesc.arraySliceCount);
+			uint32_t subResourceIndex = mipSlice + arraySlice * usage.resourceDescription.mipCount;
 			indicesOut[i] = (size_t)subResourceIndex;
-		}*/
+		}
 	}
 
-	void RenderGraphVk::generateBarriers()
+	void RenderGraphVk::generateBarriersAndRenderPasses()
 	{
-		/*auto areSubresourcesSharingPreviousState = [](const std::vector<D3D12_RESOURCE_STATES>& states, size_t* indices, size_t numberOfIndices) -> bool
+		struct ResourceUsageAndAccess
 		{
-			D3D12_RESOURCE_STATES state;
+			bool operator==(const ResourceUsageAndAccess& o)
+			{
+				return (usage == o.usage) && (access == o.access);
+			}
+
+			bool operator!=(const ResourceUsageAndAccess& o)
+			{
+				return !(*this == o);
+			}
+			ResourceUsage usage;
+			AccessFlags access;
+		};
+		auto areSubresourcesSharingPreviousUsageAndAccess = [](const std::vector<ResourceUsageAndAccess>& states, size_t* indices, size_t numberOfIndices) -> bool
+		{
+			ResourceUsageAndAccess state;
 			bool stateIsShared = true;
 			for (size_t i = 0; i < numberOfIndices; ++i)
 			{
@@ -393,13 +353,14 @@ break;
 			return stateIsShared;
 		};
 
-		auto needsUavBarrier = [](const std::vector<D3D12_RESOURCE_STATES>& previousStates, size_t* indices, size_t numberOfIndices) -> bool
+		auto needsUavBarrier = [](const std::vector<ResourceUsageAndAccess>& previousStates, size_t* indices, size_t numberOfIndices) -> bool
 		{
 			bool needsUavBarrier = false;
 			for (size_t i = 0; i < numberOfIndices; ++i)
 			{
-				D3D12_RESOURCE_STATES state = previousStates[indices[i]];
-				if (state & D3D12_RESOURCE_STATE_UNORDERED_ACCESS)
+				ResourceUsageAndAccess state = previousStates[indices[i]];
+				if(state.usage & (RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_STORAGE_TEXEL_BUFFER | RESOURCE_USAGE_STORAGE_TEXTURE) && 
+					state.access & ACCESS_FLAGS_WRITE)
 				{
 					needsUavBarrier = true;
 					break;
@@ -409,11 +370,27 @@ break;
 			return needsUavBarrier;
 		};
 
+		const size_t nodeCount = getNodeCount();
+		m_barriers.resize(nodeCount);
+		for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
+		{
+			if (m_nodes[nodeIndex]->getType() == RenderGraphNode::Type::RENDER)
+			{
+				RenderNodeVk* rNode = static_cast<RenderNodeVk*>(m_nodes[nodeIndex]);
+				VkRenderPass rp = createRenderPass(rNode);
+				size_t rpIndex = m_renderPasses.size();
+				m_renderPasses.push_back(rp);
+				rNode->setRenderPassIndex(rpIndex);
+			}
 
-		std::vector<D3D12_RESOURCE_STATES> subResourceStates;
+		}
+
+		std::vector<ResourceUsageAndAccess> subResourceStates;
 		subResourceStates.reserve(512);
 		std::vector<size_t> subResourceIndices;
 		subResourceIndices.reserve(512);
+		std::vector<size_t> subResourceIndicesToTransition;
+		subResourceIndicesToTransition.reserve(512);
 
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
@@ -453,25 +430,45 @@ break;
 				bool fullResourceUsed = isUsingFullResource(resourceDesc, usageInThisSlot);
 				
 				bool isFirstUsage = resourceUsageIndex == 0;
-				bool subResourcesShareState = areSubresourcesSharingPreviousState(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
+				bool subResourcesShareState = areSubresourcesSharingPreviousUsageAndAccess(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
 				bool issueUavBarrier = needsUavBarrier(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
 				bool transitionFullResource = fullResourceUsed && subResourcesShareState;
 
-				size_t numberOfTransitionBarriers = transitionFullResource ? 1 : numberOfSubresources;
+				//check which subresources need to actually transition
+				subResourceIndicesToTransition.clear();
+				if (transitionFullResource)
+				{
+					if (statesInNode != subResourceStates[0])
+					{
+						subResourceIndicesToTransition.push_back(0);
+					}
+				}
+				else
+				{
+					for (size_t i = 0; i < numberOfSubresources; ++i)
+					{
+						if (statesInNode == subResourceStates[i])
+						{
+							subResourceIndicesToTransition.push_back(i);
+						}
+					}
+				}
+
+				size_t numberOfTransitionBarriers = subResourceIndicesToTransition.size();
 
 
 				perSlotBarriers.beforeBarriersPerResource.resize(numberOfTransitionBarriers + (issueUavBarrier ? 1 : 0));
 				perSlotBarriers.transitionedToState = statesInNode;
 
 				//transition barriers
-				for (size_t i = 0; i < numberOfTransitionBarriers; ++i)
+				for (int i = 0; i < numberOfTransitionBarriers; ++i)
 				{
 					D3D12_RESOURCE_BARRIER& barrier = perSlotBarriers.beforeBarriersPerResource[i];
 					barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 					barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 					barrier.Transition.StateAfter = statesInNode;
 
-					size_t subResourceIndex = subResourceIndices[i];
+					size_t subResourceIndex = subResourceIndicesToTransition[i];
 
 					if (transitionFullResource)
 					{
@@ -479,7 +476,7 @@ break;
 					}
 					else
 					{
-						barrier.Transition.Subresource = (UINT)subResourceIndices[i];
+						barrier.Transition.Subresource = (UINT)subResourceIndex;
 					}
 
 					if (!isFirstUsage)
@@ -515,7 +512,7 @@ break;
 				
 			}
 			m_perResourceBarrierInfo[resourceIndex].lastStateInGraph = getD3D12StateFromResourceUsage(getLastStateForResource(resourceIndex));
-		}*/
+		}
 	}
 
 

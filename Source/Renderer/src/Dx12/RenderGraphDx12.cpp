@@ -406,6 +406,8 @@ break;
 		subResourceStates.reserve(512);
 		std::vector<size_t> subResourceIndices;
 		subResourceIndices.reserve(512);
+		std::vector<size_t> subResourceIndicesToTransition;
+		subResourceIndices.reserve(512);
 
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
@@ -449,21 +451,41 @@ break;
 				bool issueUavBarrier = needsUavBarrier(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
 				bool transitionFullResource = fullResourceUsed && subResourcesShareState;
 
-				size_t numberOfTransitionBarriers = transitionFullResource ? 1 : numberOfSubresources;
+				//check which subresources need to actually transition
+				subResourceIndicesToTransition.clear();
+				if (transitionFullResource)
+				{
+					if (statesInNode != subResourceStates[0])
+					{
+						subResourceIndicesToTransition.push_back(0);
+					}
+				}
+				else
+				{
+					for (size_t i = 0; i < numberOfSubresources; ++i)
+					{
+						if (statesInNode == subResourceStates[i])
+						{
+							subResourceIndicesToTransition.push_back(i);
+						}
+					}
+				}
+
+				size_t numberOfTransitionBarriers = subResourceIndicesToTransition.size();
 
 
 				perSlotBarriers.beforeBarriersPerResource.resize(numberOfTransitionBarriers + (issueUavBarrier ? 1 : 0));
 				perSlotBarriers.transitionedToState = statesInNode;
 
 				//transition barriers
-				for (size_t i = 0; i < numberOfTransitionBarriers; ++i)
+				for (int i = 0; i < numberOfTransitionBarriers; ++i)
 				{
 					D3D12_RESOURCE_BARRIER& barrier = perSlotBarriers.beforeBarriersPerResource[i];
 					barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 					barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 					barrier.Transition.StateAfter = statesInNode;
 
-					size_t subResourceIndex = subResourceIndices[i];
+					size_t subResourceIndex = subResourceIndicesToTransition[i];
 
 					if (transitionFullResource)
 					{
@@ -471,7 +493,7 @@ break;
 					}
 					else
 					{
-						barrier.Transition.Subresource = (UINT)subResourceIndices[i];
+						barrier.Transition.Subresource = (UINT)subResourceIndex;
 					}
 
 					if (!isFirstUsage)
@@ -479,6 +501,8 @@ break;
 						barrier.Transition.StateBefore = subResourceStates[subResourceIndex];
 					}
 				}
+
+
 
 				//uav barriers
 				if (issueUavBarrier)
