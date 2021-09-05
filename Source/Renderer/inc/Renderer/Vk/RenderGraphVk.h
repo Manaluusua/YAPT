@@ -17,25 +17,52 @@ namespace YAPT
 
 	private:
 		
+		enum GeneratedBarrierTypeBit
+		{
+			GENERATED_BARRIER_TYPE_NONE = 0,
+			GENERATED_BARRIER_TYPE_IMAGE = YAPTBIT(0),
+			GENERATED_BARRIER_TYPE_BUFFER = YAPTBIT(1),
+			GENERATED_BARRIER_TYPE_GENERIC = YAPTBIT(2)
+		};
+		typedef uint8_t GeneratedBarrierTypeMask;
+
+		struct AccessFlagsAndLayout
+		{
+			bool operator==(const AccessFlagsAndLayout& o)
+			{
+				return (access == o.access) && (layout == o.layout);
+			}
+
+			bool operator!=(const AccessFlagsAndLayout& o)
+			{
+				return !(*this == o);
+			}
+			VkAccessFlags access;
+			VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		};
+
 		struct ResourceSlotBarrierDescription
 		{
-			/*std::vector<D3D12_RESOURCE_BARRIER> beforeBarriersPerResource;
-			std::vector<D3D12_RESOURCE_BARRIER> afterBarriersPerResource;
+			VkPipelineStageFlags srcStages;
 
-			std::vector<D3D12_RESOURCE_BARRIER> currentBeforeBarriers;
-			std::vector<D3D12_RESOURCE_BARRIER> currentAfterBarriers;
+			std::vector<VkMemoryBarrier> memoryBarriers;
+			std::vector<VkBufferMemoryBarrier> bufferBarriers;
+			std::vector<VkImageMemoryBarrier> imageBarriers;
 
-			size_t numberOfTransitionBarriers;
-			D3D12_RESOURCE_STATES transitionedToState; //state transitioned to, redundantly stated here
+			std::vector<VkMemoryBarrier> memoryBarriersForFrame;
+			std::vector<VkBufferMemoryBarrier> bufferBarriersForFrame;
+			std::vector<VkImageMemoryBarrier> imageBarriersForFrame;
+
+			AccessFlagsAndLayout transitionedToState; //"state" transitioned to, redundantly stated here
 			bool hasUavBarrier;
-			bool isFirstUsageForResource;*/
+			bool isFirstUsageForResource;
 		};
 		
 		struct GeneralPerResourceTransitionInformation
 		{
-			/*bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
-			D3D12_RESOURCE_STATES lastStateInGraph;
-			D3D12_RESOURCE_STATES overriddenBeforeState; //only valid if is first usage for resource in graph*/
+			bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
+			AccessFlagsAndLayout lastStateInGraph;
+			AccessFlagsAndLayout overriddenBeforeState; //only valid if is first usage for resource in graph
 		};
 
 		struct BarriersPerNode
@@ -68,10 +95,23 @@ namespace YAPT
 		static bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to);
 		static void calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut);
 
+		static bool getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to);
+		static bool getVkImageLayoutTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkImageLayout& from, VkImageLayout& to);
+
+		static GeneratedBarrierTypeMask createBarrierIfRequired(ResourceDimension resDimension, ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo,
+			uint32_t arrayOffset, uint32_t mipOffset, uint32_t arrayCount, uint32_t mipCount, uint32_t srcQueueFamilyIndex, uint32_t dstQueueFamilyIndex,
+			VkImageMemoryBarrier& imageBarrierOut, VkBufferMemoryBarrier& bufferBarrierOut, VkMemoryBarrier& memoryBarrier);
+
+		static void fillImageBarrier(const AccessFlagsAndLayout& from, const AccessFlagsAndLayout& to, VkImageMemoryBarrier& barrierOut);
+		static void fillBufferBarrier(const AccessFlagsAndLayout& from, const AccessFlagsAndLayout& to, VkBufferMemoryBarrier& barrierOut);
+		static void fillMemoryBarrier(const AccessFlagsAndLayout& from, const AccessFlagsAndLayout& to, VkMemoryBarrier& barrierOut);
+
 		std::vector<BarriersPerNode> m_barriers;
 		std::vector<GeneralPerResourceTransitionInformation> m_perResourceBarrierInfo;
 
 		std::vector<VkRenderPass> m_renderPasses;
+
+		std::vector<uint32_t> m_queueFamilyIndexPerNode;
 
 
 	};

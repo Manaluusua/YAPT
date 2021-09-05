@@ -315,64 +315,11 @@ break;
 
 	void RenderGraphVk::generateBarriersAndRenderPasses()
 	{
-		struct ResourceUsageAndAccess
-		{
-			bool operator==(const ResourceUsageAndAccess& o)
-			{
-				return (usage == o.usage) && (access == o.access);
-			}
-
-			bool operator!=(const ResourceUsageAndAccess& o)
-			{
-				return !(*this == o);
-			}
-			ResourceUsage usage;
-			AccessFlags access;
-		};
-		auto areSubresourcesSharingPreviousUsageAndAccess = [](const std::vector<ResourceUsageAndAccess>& states, size_t* indices, size_t numberOfIndices) -> bool
-		{
-			ResourceUsageAndAccess state;
-			bool stateIsShared = true;
-			for (size_t i = 0; i < numberOfIndices; ++i)
-			{
-				size_t subResourceIndex = indices[i];
-
-				if (i == 0)
-				{
-					state = states[subResourceIndex];
-				}
-				else
-				{
-					if (state != states[subResourceIndex])
-					{
-						stateIsShared = false;
-						break;
-					}
-				}
-			}
-			return stateIsShared;
-		};
-
-		auto needsUavBarrier = [](const std::vector<ResourceUsageAndAccess>& previousStates, size_t* indices, size_t numberOfIndices) -> bool
-		{
-			bool needsUavBarrier = false;
-			for (size_t i = 0; i < numberOfIndices; ++i)
-			{
-				ResourceUsageAndAccess state = previousStates[indices[i]];
-				if(state.usage & (RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_STORAGE_TEXEL_BUFFER | RESOURCE_USAGE_STORAGE_TEXTURE) && 
-					state.access & ACCESS_FLAGS_WRITE)
-				{
-					needsUavBarrier = true;
-					break;
-				}
-			}
-
-			return needsUavBarrier;
-		};
-
+		
+		
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
-		for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
+		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
 			if (m_nodes[nodeIndex]->getType() == RenderGraphNode::Type::RENDER)
 			{
@@ -385,7 +332,7 @@ break;
 
 		}
 
-		std::vector<ResourceUsageAndAccess> subResourceStates;
+		std::vector<AccessFlagsAndLayout> subResourceStates;
 		subResourceStates.reserve(512);
 		std::vector<size_t> subResourceIndices;
 		subResourceIndices.reserve(512);
@@ -394,7 +341,7 @@ break;
 
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
-		for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
+		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
 			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
 			perNodeBarriers.perSlotDesc.resize(getNodes()[nodeIndex]->getNumberOfSlots());
@@ -402,6 +349,81 @@ break;
 
 		m_perResourceBarrierInfo.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());
 
+
+		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
+		{
+			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
+			RenderGraphNode* node = getNodes()[nodeIndex];
+			size_t numberOfSlots = node->getNumberOfSlots();
+
+			uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
+
+			for (size_t slotIndex = 0; slotIndex != numberOfSlots; ++slotIndex)
+			{
+				ResourceSlotBarrierDescription& perSlotBarriers = perNodeBarriers.perSlotDesc[slotIndex];
+				const RenderGraphResourceUsage& usageInThisSlot = m_resourceRequirements.getRenderGraphResourceUsage(nodeIndex, slotIndex);
+
+				perSlotBarriers.srcStages = 0;
+
+				size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
+				RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
+
+				const NodeSlotIdentifier* nodeSlotIds;
+				size_t numberOfNodeSlotIds;
+
+				m_resourceRequirements.getNodeSlotsUsingResource(resID, nodeSlotIds, numberOfNodeSlotIds);
+
+				bool isFirstUsage = numberOfInputEdges == 0;
+				perSlotBarriers.isFirstUsageForResource = isFirstUsage;
+
+				VkImageMemoryBarrier imgBarrier;
+				VkBufferMemoryBarrier bufferBarrier;
+				VkMemoryBarrier memoryBarrier;
+
+				if (isFirstUsage)
+				{
+					size_t lastUsedNode = nodeSlotIds[numberOfNodeSlotIds - 1].sortedNodeIndex;
+					size_t lastUsedSlot = nodeSlotIds[numberOfNodeSlotIds - 1].slotIndex;
+
+					const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
+					uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
+					if (GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
+						lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
+						lastUsage.arraySliceOffset, lastUsage.mipOffset, lastUsage.resourceDescription.arraySliceCount, lastUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
+						imgBarrier, bufferBarrier, memoryBarrier))
+					{
+
+					}
+
+				}
+				else
+				{
+
+					for (size_t inputIndex = 0; inputIndex != numberOfInputEdges; ++inputIndex)
+					{
+						const RenderGraphNodeEdge* edge = node->getInputEdge(slotIndex, inputIndex);
+						const RenderGraphResourceUsage& previousUsage = m_resourceRequirements.getRenderGraphResourceUsage(edge->fromNode->getSortedIndex(), edge->fromSlot);
+
+						uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[edge->fromNode->getSortedIndex()];
+
+						if (GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
+							previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
+							previousUsage.arraySliceOffset, previousUsage.mipOffset, previousUsage.resourceDescription.arraySliceCount, previousUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
+							imgBarrier, bufferBarrier, memoryBarrier))
+						{
+							if (usageInThisSlot.resourceDescription.resourceUsage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE) != 0) //if used in renderpass, have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created
+							{
+								continue;
+							}
+
+						}
+
+					}
+				}
+			}
+		}
+
+		/*
 
 		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
 		{
@@ -418,6 +440,7 @@ break;
 			{
 				size_t nodeIndex = nodeSlotIdentifiers[resourceUsageIndex].sortedNodeIndex;
 				size_t slotIndex = nodeSlotIdentifiers[resourceUsageIndex].slotIndex;
+				RenderGraphNode* node = getNodes()[nodeIndex];
 
 				BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
 				ResourceSlotBarrierDescription& perSlotBarriers = perNodeBarriers.perSlotDesc[slotIndex];
@@ -426,19 +449,19 @@ break;
 				subResourceIndices.resize(numberOfSubresources);
 				calcUsedSubresourceIndices(resourceDesc, usageInThisSlot, subResourceIndices.data());
 
-				D3D12_RESOURCE_STATES statesInNode = getD3D12StateFromResourceUsage(usageInThisSlot);
+				AccessFlagsAndLayout accessFlagsAndLayout = accessFlagsAndLayoutFromUsage(usageInThisSlot);
 				bool fullResourceUsed = isUsingFullResource(resourceDesc, usageInThisSlot);
 				
 				bool isFirstUsage = resourceUsageIndex == 0;
 				bool subResourcesShareState = areSubresourcesSharingPreviousUsageAndAccess(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
-				bool issueUavBarrier = needsUavBarrier(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
+				bool issueUavBarrier = needsUavBarrier(, slotIndex);
 				bool transitionFullResource = fullResourceUsed && subResourcesShareState;
 
 				//check which subresources need to actually transition
 				subResourceIndicesToTransition.clear();
 				if (transitionFullResource)
 				{
-					if (statesInNode != subResourceStates[0])
+					if (accessFlagsAndLayout != subResourceStates[0])
 					{
 						subResourceIndicesToTransition.push_back(0);
 					}
@@ -447,7 +470,7 @@ break;
 				{
 					for (size_t i = 0; i < numberOfSubresources; ++i)
 					{
-						if (statesInNode == subResourceStates[i])
+						if (accessFlagsAndLayout == subResourceStates[i])
 						{
 							subResourceIndicesToTransition.push_back(i);
 						}
@@ -458,7 +481,7 @@ break;
 
 
 				perSlotBarriers.beforeBarriersPerResource.resize(numberOfTransitionBarriers + (issueUavBarrier ? 1 : 0));
-				perSlotBarriers.transitionedToState = statesInNode;
+				perSlotBarriers.transitionedToState = accessFlagsAndLayout;
 
 				//transition barriers
 				for (int i = 0; i < numberOfTransitionBarriers; ++i)
@@ -512,7 +535,8 @@ break;
 				
 			}
 			m_perResourceBarrierInfo[resourceIndex].lastStateInGraph = getD3D12StateFromResourceUsage(getLastStateForResource(resourceIndex));
-		}
+			*/
+		
 	}
 
 
@@ -608,6 +632,69 @@ break;
 			}
 
 		}*/
+	}
+
+	bool RenderGraphVk::getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to)
+	{
+		if (usageFrom == usageTo && accessFlagsFrom == accessFlagsTo) return false;
+		assert(!"TODO");
+
+	}
+	bool RenderGraphVk::getVkImageLayoutTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkImageLayout& from, VkImageLayout& to)
+	{
+		assert(!"TODO");
+	}
+
+	RenderGraphVk::GeneratedBarrierTypeMask RenderGraphVk::createBarrierIfRequired(ResourceDimension resDimension, ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo,
+		uint32_t arrayOffset, uint32_t mipOffset, uint32_t arrayCount, uint32_t mipCount, uint32_t srcQueueFamilyIndex, uint32_t dstQueueFamilyIndex,
+		VkImageMemoryBarrier& imageBarrierOut, VkBufferMemoryBarrier& bufferBarrierOut, VkMemoryBarrier& memoryBarrier)
+	{
+		VkAccessFlags fromAccess;
+		VkAccessFlags toAccess;
+		RenderGraphVk::GeneratedBarrierTypeMask mask = GENERATED_BARRIER_TYPE_NONE;
+
+
+		if (!getVkAccessMaskTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, fromAccess, toAccess))
+			return mask;
+
+		switch (resDimension)
+		{
+		case ResourceDimension::BUFFER:
+		{
+			mask |= GENERATED_BARRIER_TYPE_BUFFER;
+		}
+			
+		break;
+		case ResourceDimension::TEXTURE_1D:
+		case ResourceDimension::TEXTURE_1D_ARRAY:
+		case ResourceDimension::TEXTURE_2D:
+		case ResourceDimension::TEXTURE_2D_ARRAY:
+		case ResourceDimension::TEXTURE_3D:
+		case ResourceDimension::TEXTURE_CUBEMAP:
+		case ResourceDimension::TEXTURE_CUBEMAP_ARRAY:
+		{
+			VkImageLayout layoutFrom;
+			VkImageLayout layoutTo;
+			getVkImageLayoutTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, layoutFrom, layoutTo);
+
+			imageBarrierOut.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			imageBarrierOut.pNext = NULL;
+			imageBarrierOut.srcQueueFamilyIndex = srcQueueFamilyIndex;
+			imageBarrierOut.dstQueueFamilyIndex = dstQueueFamilyIndex;
+
+			imageBarrierOut.oldLayout = layoutFrom;
+			imageBarrierOut.newLayout = layoutTo;
+			imageBarrierOut.srcAccessMask = fromAccess;
+			imageBarrierOut.dstAccessMask = toAccess;
+
+			mask |= GENERATED_BARRIER_TYPE_IMAGE;
+		}
+			
+		break;
+
+		default:
+			assert(!"not implemented/unknown");
+		}
 	}
 	
 	
