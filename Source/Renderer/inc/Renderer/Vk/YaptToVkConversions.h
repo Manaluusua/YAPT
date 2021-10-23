@@ -335,6 +335,19 @@ namespace YAPT
 		}
 	}
 
+	inline VkImageAspectFlags yaptUsageToAspectFlags(ResourceUsage usage)
+	{
+		VkImageAspectFlags flags = 0;
+		if (usage & RESOURCE_USAGE_DEPTH_TEXTURE)
+			flags |= VK_IMAGE_ASPECT_DEPTH_BIT;
+		if (usage & RESOURCE_USAGE_STENCIL_TEXTURE)
+			flags |= VK_IMAGE_ASPECT_STENCIL_BIT;
+		if (usage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_STORAGE_TEXTURE | RESOURCE_USAGE_SAMPLED_TEXTURE | RESOURCE_USAGE_PRESENTABLE_TEXTURE))
+			flags |= VK_IMAGE_ASPECT_COLOR_BIT;
+
+		return flags;
+	}
+
 	inline VkAccessFlags yaptUsageAccessToVkAccess(ResourceUsage usage, AccessFlags accessFlags)
 	{
 		VkAccessFlags shaderReadWriteFlags = 0;
@@ -383,6 +396,73 @@ namespace YAPT
 
 		//FLAGS_CONVERT(usage, flags, RESOURCE_USAGE_PRESENTABLE_TEXTURE, VK_ACCESS_UNIFORM_READ_BIT); //???
 		return flags;
+	}
+
+	inline VkImageLayout yaptUsageToVkImageLayout(ResourceUsage usage, AccessFlags accessFlags)
+	{
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		bool hasWrite = accessFlags & ACCESS_FLAGS_WRITE != 0;
+		switch (usage)
+		{
+		
+			case RESOURCE_USAGE_COPY_DESTINATION:
+				layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+				break;
+			case RESOURCE_USAGE_COPY_SOURCE:
+				layout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+				break;
+			case RESOURCE_USAGE_SAMPLED_TEXTURE:
+				layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			case RESOURCE_USAGE_STORAGE_TEXTURE:
+				layout = VK_IMAGE_LAYOUT_GENERAL;
+				/*
+				if (hasWrite)
+				{
+					layout = VK_IMAGE_LAYOUT_GENERAL;
+				}
+				else
+				{
+					layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				}*/
+				break;
+			case RESOURCE_USAGE_RENDER_TARGET_TEXTURE:
+				layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+				break;
+			case RESOURCE_USAGE_DEPTH_TEXTURE:
+				if (hasWrite)
+				{
+					layout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+				}
+				else
+				{
+					layout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+				}
+				break;
+			case RESOURCE_USAGE_STENCIL_TEXTURE:
+				if (hasWrite)
+				{
+					layout = VK_IMAGE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL;
+				}
+				else
+				{
+					layout = VK_IMAGE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL;
+				}
+				break;
+			case RESOURCE_USAGE_DEPTH_STENCIL_TEXTURE:
+				if (hasWrite)
+				{
+					layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+				}
+				else
+				{
+					layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+				}
+				break;
+			case RESOURCE_USAGE_PRESENTABLE_TEXTURE:
+				layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+				break;
+		}
+		return layout;
 	}
 
 	inline void yaptBufferDescToVk(const YAPT::BufferDesc& desc, VkBufferCreateInfo& infoOut)

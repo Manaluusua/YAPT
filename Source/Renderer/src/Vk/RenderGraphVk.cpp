@@ -9,6 +9,8 @@
 
 #include <array>
 
+#include <Renderer/Vk/YaptToVkConversions.h>
+
 
 #if defined(DEBUG) || defined(_DEBUG) 
 #define VERBOSE_BARRIER_MERGE_VK
@@ -315,8 +317,6 @@ break;
 
 	void RenderGraphVk::generateBarriersAndRenderPasses()
 	{
-		
-		
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
 		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
@@ -406,15 +406,17 @@ break;
 
 						uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[edge->fromNode->getSortedIndex()];
 
+						if (usageInThisSlot.resourceDescription.resourceUsage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE) != 0) //if used in renderpass, have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created
+						{
+							continue;
+						}
+
 						if (GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
 							previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
 							previousUsage.arraySliceOffset, previousUsage.mipOffset, previousUsage.resourceDescription.arraySliceCount, previousUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
 							imgBarrier, bufferBarrier, memoryBarrier))
 						{
-							if (usageInThisSlot.resourceDescription.resourceUsage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE) != 0) //if used in renderpass, have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created
-							{
-								continue;
-							}
+							
 
 						}
 
@@ -637,12 +639,14 @@ break;
 	bool RenderGraphVk::getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to)
 	{
 		if (usageFrom == usageTo && accessFlagsFrom == accessFlagsTo) return false;
-		assert(!"TODO");
+		from = yaptUsageAccessToVkAccess(usageFrom, accessFlagsFrom);
+		to = yaptUsageAccessToVkAccess(usageTo, accessFlagsTo);
 
 	}
 	bool RenderGraphVk::getVkImageLayoutTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkImageLayout& from, VkImageLayout& to)
 	{
-		assert(!"TODO");
+		from = yaptUsageToVkImageLayout(usageFrom, accessFlagsFrom);
+		to = yaptUsageToVkImageLayout(usageTo, accessFlagsTo);
 	}
 
 	RenderGraphVk::GeneratedBarrierTypeMask RenderGraphVk::createBarrierIfRequired(ResourceDimension resDimension, ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo,
@@ -653,48 +657,75 @@ break;
 		VkAccessFlags toAccess;
 		RenderGraphVk::GeneratedBarrierTypeMask mask = GENERATED_BARRIER_TYPE_NONE;
 
-
-		if (!getVkAccessMaskTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, fromAccess, toAccess))
-			return mask;
-
-		switch (resDimension)
+		bool needsStorageHazardBarrier = false;
+		if ((usageTo & (RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_STORAGE_TEXEL_BUFFER | RESOURCE_USAGE_STORAGE_TEXTURE)) != 0 && ((accessFlagsFrom | accessFlagsTo) & ACCESS_FLAGS_WRITE) != 0)
 		{
-		case ResourceDimension::BUFFER:
+			needsStorageHazardBarrier = true;
+		}
+		
+
+		if (getVkAccessMaskTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, fromAccess, toAccess) || needsStorageHazardBarrier)
 		{
-			mask |= GENERATED_BARRIER_TYPE_BUFFER;
+			switch (resDimension)
+			{
+			case ResourceDimension::BUFFER:
+			{
+				bufferBarrierOut.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+				bufferBarrierOut.pNext = NULL;
+				bufferBarrierOut.srcQueueFamilyIndex = srcQueueFamilyIndex;
+				bufferBarrierOut.dstQueueFamilyIndex = dstQueueFamilyIndex;
+
+				bufferBarrierOut.srcAccessMask = fromAccess;
+				bufferBarrierOut.dstAccessMask = toAccess;
+
+				bufferBarrierOut.offset = 0;
+				bufferBarrierOut.size = 0;
+				bufferBarrierOut.buffer = VK_NULL_HANDLE;
+
+				mask |= GENERATED_BARRIER_TYPE_BUFFER;
+			}
+
+			break;
+			case ResourceDimension::TEXTURE_1D:
+			case ResourceDimension::TEXTURE_1D_ARRAY:
+			case ResourceDimension::TEXTURE_2D:
+			case ResourceDimension::TEXTURE_2D_ARRAY:
+			case ResourceDimension::TEXTURE_3D:
+			case ResourceDimension::TEXTURE_CUBEMAP:
+			case ResourceDimension::TEXTURE_CUBEMAP_ARRAY:
+			{
+				VkImageLayout layoutFrom;
+				VkImageLayout layoutTo;
+				getVkImageLayoutTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, layoutFrom, layoutTo);
+
+				imageBarrierOut.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+				imageBarrierOut.pNext = NULL;
+				imageBarrierOut.srcQueueFamilyIndex = srcQueueFamilyIndex;
+				imageBarrierOut.dstQueueFamilyIndex = dstQueueFamilyIndex;
+
+				imageBarrierOut.oldLayout = layoutFrom;
+				imageBarrierOut.newLayout = layoutTo;
+				imageBarrierOut.srcAccessMask = fromAccess;
+				imageBarrierOut.dstAccessMask = toAccess;
+
+				imageBarrierOut.subresourceRange.aspectMask = yaptUsageToAspectFlags(usageFrom | usageTo);
+				imageBarrierOut.subresourceRange.baseArrayLayer = arrayOffset;
+				imageBarrierOut.subresourceRange.baseMipLevel = mipOffset;
+				imageBarrierOut.subresourceRange.layerCount = arrayCount;
+				imageBarrierOut.subresourceRange.levelCount = mipCount;
+
+				mask |= GENERATED_BARRIER_TYPE_IMAGE;
+			}
+
+			break;
+
+			default:
+				assert(!"not implemented/unknown");
+			}
 		}
-			
-		break;
-		case ResourceDimension::TEXTURE_1D:
-		case ResourceDimension::TEXTURE_1D_ARRAY:
-		case ResourceDimension::TEXTURE_2D:
-		case ResourceDimension::TEXTURE_2D_ARRAY:
-		case ResourceDimension::TEXTURE_3D:
-		case ResourceDimension::TEXTURE_CUBEMAP:
-		case ResourceDimension::TEXTURE_CUBEMAP_ARRAY:
-		{
-			VkImageLayout layoutFrom;
-			VkImageLayout layoutTo;
-			getVkImageLayoutTransition(usageFrom, accessFlagsFrom, usageTo, accessFlagsTo, layoutFrom, layoutTo);
 
-			imageBarrierOut.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-			imageBarrierOut.pNext = NULL;
-			imageBarrierOut.srcQueueFamilyIndex = srcQueueFamilyIndex;
-			imageBarrierOut.dstQueueFamilyIndex = dstQueueFamilyIndex;
 
-			imageBarrierOut.oldLayout = layoutFrom;
-			imageBarrierOut.newLayout = layoutTo;
-			imageBarrierOut.srcAccessMask = fromAccess;
-			imageBarrierOut.dstAccessMask = toAccess;
-
-			mask |= GENERATED_BARRIER_TYPE_IMAGE;
-		}
-			
-		break;
-
-		default:
-			assert(!"not implemented/unknown");
-		}
+		
 	}
 	
 	
