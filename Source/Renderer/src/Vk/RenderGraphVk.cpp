@@ -297,7 +297,45 @@ break;
 
 	VkRenderPass RenderGraphVk::createRenderPass(RenderNode* node)
 	{
+		VkRenderPassCreateInfo createInfo{};
+		VkRenderPass renderPass;
+		//TODO
+		size_t numberOfSlots = node->getNumberOfSlots();
+		size_t nodeIndex = node->getSortedIndex();
+		uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
 
+		for (size_t slotIndex = 0; slotIndex != numberOfSlots; ++slotIndex)
+		{
+			size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
+			RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
+
+			const NodeSlotIdentifier* nodeSlotIds;
+			size_t numberOfNodeSlotIds;
+
+			bool isFirstUsage = numberOfInputEdges == 0;
+
+			if (isFirstUsage)
+			{
+				size_t lastUsedNode = nodeSlotIds[numberOfNodeSlotIds - 1].sortedNodeIndex;
+				size_t lastUsedSlot = nodeSlotIds[numberOfNodeSlotIds - 1].slotIndex;
+
+				const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
+				uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
+				
+
+			}
+			else
+			{
+
+				for (size_t inputIndex = 0; inputIndex != numberOfInputEdges; ++inputIndex)
+				{
+					
+				}
+			}
+		}
+
+		vkCreateRenderPass(getGfxApiHandle()->getDevice(), &createInfo, VK_ALLOC_CB, &renderPass);
+		return renderPass;
 	}
 
 
@@ -364,6 +402,7 @@ break;
 				const RenderGraphResourceUsage& usageInThisSlot = m_resourceRequirements.getRenderGraphResourceUsage(nodeIndex, slotIndex);
 
 				perSlotBarriers.srcStages = 0;
+				perSlotBarriers.dstStages = getPipelineStageFlags(usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.shaderStages);
 
 				size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
 				RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
@@ -387,13 +426,31 @@ break;
 
 					const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
 					uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
-					if (GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
+					GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
 						lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
 						lastUsage.arraySliceOffset, lastUsage.mipOffset, lastUsage.resourceDescription.arraySliceCount, lastUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
-						imgBarrier, bufferBarrier, memoryBarrier))
-					{
+						imgBarrier, bufferBarrier, memoryBarrier);
 
+					GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[resID];
+
+					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_IMAGE)
+					{
+						resourceTransitionInfo.wrapAroundImageBarriers.push_back(imgBarrier);
 					}
+
+					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_BUFFER)
+					{
+						resourceTransitionInfo.wrapAroundBufferBarriers.push_back(bufferBarrier);
+					}
+
+					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_MEMORY)
+					{
+						resourceTransitionInfo.wrapAroundMemoryBarriers.push_back(memoryBarrier);
+					}
+					AccessFlagsAndLayout lastState;
+					lastState.access = yaptUsageAccessToVkAccess(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags);
+					lastState.layout = yaptUsageToVkImageLayout(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags);
+					resourceTransitionInfo.lastStateInGraph = lastState;
 
 				}
 				else
@@ -411,133 +468,33 @@ break;
 							continue;
 						}
 
-						if (GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
+						GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
 							previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
 							previousUsage.arraySliceOffset, previousUsage.mipOffset, previousUsage.resourceDescription.arraySliceCount, previousUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
-							imgBarrier, bufferBarrier, memoryBarrier))
+							imgBarrier, bufferBarrier, memoryBarrier);
+						
+						if (generatedBarriersMask & GENERATED_BARRIER_TYPE_IMAGE)
 						{
-							
-
+							perSlotBarriers.imageBarriers.push_back(imgBarrier);
 						}
 
+						if (generatedBarriersMask & GENERATED_BARRIER_TYPE_BUFFER)
+						{
+							perSlotBarriers.bufferBarriers.push_back(bufferBarrier);
+						}
+
+						if (generatedBarriersMask & GENERATED_BARRIER_TYPE_MEMORY)
+						{
+							perSlotBarriers.memoryBarriers.push_back(memoryBarrier);
+						}
+
+						perSlotBarriers.srcStages |= getPipelineStageFlags(previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, previousUsage.resourceDescription.shaderStages);
+						
 					}
 				}
 			}
 		}
 
-		/*
-
-		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
-		{
-			const RenderGraphResourceDescription& resourceDesc = m_resourceRequirements.getRenderGraphResourceDescription(resourceIndex);
-
-			subResourceStates.resize(size_t(resourceDesc.mipCount * resourceDesc.arraySliceCount));
-
-
-			const NodeSlotIdentifier* nodeSlotIdentifiers;
-			size_t numberOfNodeSlotIdentifiers;
-			m_resourceRequirements.getNodeSlotsUsingResource(resourceIndex, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
-
-			for (size_t resourceUsageIndex = 0; resourceUsageIndex < numberOfNodeSlotIdentifiers; ++resourceUsageIndex)
-			{
-				size_t nodeIndex = nodeSlotIdentifiers[resourceUsageIndex].sortedNodeIndex;
-				size_t slotIndex = nodeSlotIdentifiers[resourceUsageIndex].slotIndex;
-				RenderGraphNode* node = getNodes()[nodeIndex];
-
-				BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
-				ResourceSlotBarrierDescription& perSlotBarriers = perNodeBarriers.perSlotDesc[slotIndex];
-				const RenderGraphResourceUsage& usageInThisSlot = m_resourceRequirements.getRenderGraphResourceUsage(nodeIndex, slotIndex);
-				uint32_t numberOfSubresources = usageInThisSlot.resourceDescription.arraySliceCount * usageInThisSlot.resourceDescription.mipCount;
-				subResourceIndices.resize(numberOfSubresources);
-				calcUsedSubresourceIndices(resourceDesc, usageInThisSlot, subResourceIndices.data());
-
-				AccessFlagsAndLayout accessFlagsAndLayout = accessFlagsAndLayoutFromUsage(usageInThisSlot);
-				bool fullResourceUsed = isUsingFullResource(resourceDesc, usageInThisSlot);
-				
-				bool isFirstUsage = resourceUsageIndex == 0;
-				bool subResourcesShareState = areSubresourcesSharingPreviousUsageAndAccess(subResourceStates, subResourceIndices.data(), subResourceIndices.size());
-				bool issueUavBarrier = needsUavBarrier(, slotIndex);
-				bool transitionFullResource = fullResourceUsed && subResourcesShareState;
-
-				//check which subresources need to actually transition
-				subResourceIndicesToTransition.clear();
-				if (transitionFullResource)
-				{
-					if (accessFlagsAndLayout != subResourceStates[0])
-					{
-						subResourceIndicesToTransition.push_back(0);
-					}
-				}
-				else
-				{
-					for (size_t i = 0; i < numberOfSubresources; ++i)
-					{
-						if (accessFlagsAndLayout == subResourceStates[i])
-						{
-							subResourceIndicesToTransition.push_back(i);
-						}
-					}
-				}
-
-				size_t numberOfTransitionBarriers = subResourceIndicesToTransition.size();
-
-
-				perSlotBarriers.beforeBarriersPerResource.resize(numberOfTransitionBarriers + (issueUavBarrier ? 1 : 0));
-				perSlotBarriers.transitionedToState = accessFlagsAndLayout;
-
-				//transition barriers
-				for (int i = 0; i < numberOfTransitionBarriers; ++i)
-				{
-					D3D12_RESOURCE_BARRIER& barrier = perSlotBarriers.beforeBarriersPerResource[i];
-					barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-					barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-					barrier.Transition.StateAfter = statesInNode;
-
-					size_t subResourceIndex = subResourceIndicesToTransition[i];
-
-					if (transitionFullResource)
-					{
-						barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-					}
-					else
-					{
-						barrier.Transition.Subresource = (UINT)subResourceIndex;
-					}
-
-					if (!isFirstUsage)
-					{
-						barrier.Transition.StateBefore = subResourceStates[subResourceIndex];
-					}
-				}
-
-				//uav barriers
-				if (issueUavBarrier)
-				{
-					D3D12_RESOURCE_BARRIER& barrier = perSlotBarriers.beforeBarriersPerResource.back();
-					barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
-					barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-					
-				}
-				
-				perSlotBarriers.hasUavBarrier = issueUavBarrier;
-				perSlotBarriers.numberOfTransitionBarriers = numberOfTransitionBarriers;
-
-				if (isFirstUsage)
-				{
-					perSlotBarriers.isFirstUsageForResource = true;
-				}
-
-				//replicate current state to subresources
-				for (size_t i = 0; i < numberOfSubresources; ++i)
-				{
-					size_t subResourceIndex = subResourceIndices[i];
-					subResourceStates[subResourceIndex] = statesInNode;
-				}
-
-				
-			}
-			m_perResourceBarrierInfo[resourceIndex].lastStateInGraph = getD3D12StateFromResourceUsage(getLastStateForResource(resourceIndex));
-			*/
 		
 	}
 
@@ -634,6 +591,11 @@ break;
 			}
 
 		}*/
+	}
+
+	VkPipelineStageFlags RenderGraphVk::getPipelineStageFlags(ResourceUsage resourceUsage, AccessFlags accessFlags, ShaderStages shaderStages)
+	{
+		assert(!"TODO");
 	}
 
 	bool RenderGraphVk::getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to)

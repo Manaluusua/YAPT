@@ -22,7 +22,7 @@ namespace YAPT
 			GENERATED_BARRIER_TYPE_NONE = 0,
 			GENERATED_BARRIER_TYPE_IMAGE = YAPTBIT(0),
 			GENERATED_BARRIER_TYPE_BUFFER = YAPTBIT(1),
-			GENERATED_BARRIER_TYPE_GENERIC = YAPTBIT(2)
+			GENERATED_BARRIER_TYPE_MEMORY = YAPTBIT(2)
 		};
 		typedef uint8_t GeneratedBarrierTypeMask;
 
@@ -53,7 +53,6 @@ namespace YAPT
 			std::vector<VkBufferMemoryBarrier> bufferBarriersForFrame;
 			std::vector<VkImageMemoryBarrier> imageBarriersForFrame;
 
-			AccessFlagsAndLayout transitionedToState; //"state" transitioned to, redundantly stated here
 			bool hasUavBarrier;
 			bool isFirstUsageForResource;
 		};
@@ -63,6 +62,9 @@ namespace YAPT
 			bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
 			AccessFlagsAndLayout lastStateInGraph;
 			AccessFlagsAndLayout overriddenBeforeState; //only valid if is first usage for resource in graph
+			std::vector<VkMemoryBarrier> wrapAroundMemoryBarriers;
+			std::vector<VkBufferMemoryBarrier> wrapAroundBufferBarriers;
+			std::vector<VkImageMemoryBarrier> wrapAroundImageBarriers;
 		};
 
 		struct BarriersPerNode
@@ -97,6 +99,7 @@ namespace YAPT
 
 		static bool getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to);
 		static bool getVkImageLayoutTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkImageLayout& from, VkImageLayout& to);
+		static VkPipelineStageFlags getPipelineStageFlags(ResourceUsage resourceUsage, AccessFlags accessFlags, ShaderStages shaderStages);
 
 		static GeneratedBarrierTypeMask createBarrierIfRequired(ResourceDimension resDimension, ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo,
 			uint32_t arrayOffset, uint32_t mipOffset, uint32_t arrayCount, uint32_t mipCount, uint32_t srcQueueFamilyIndex, uint32_t dstQueueFamilyIndex,
