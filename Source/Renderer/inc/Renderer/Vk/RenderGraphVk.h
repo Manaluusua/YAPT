@@ -44,6 +44,7 @@ namespace YAPT
 		struct ResourceSlotBarrierDescription
 		{
 			VkPipelineStageFlags srcStages;
+			VkPipelineStageFlags dstStages;
 
 			std::vector<VkMemoryBarrier> memoryBarriers;
 			std::vector<VkBufferMemoryBarrier> bufferBarriers;
@@ -91,6 +92,7 @@ namespace YAPT
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 
 		VkRenderPass createRenderPass(RenderNode* node);
+		void fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut);
 
 		void generateBarriersAndRenderPasses();
 

@@ -401,7 +401,7 @@ namespace YAPT
 	inline VkImageLayout yaptUsageToVkImageLayout(ResourceUsage usage, AccessFlags accessFlags)
 	{
 		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
-		bool hasWrite = accessFlags & ACCESS_FLAGS_WRITE != 0;
+		bool hasWrite = (accessFlags & ACCESS_FLAGS_WRITE) != 0;
 		switch (usage)
 		{
 		

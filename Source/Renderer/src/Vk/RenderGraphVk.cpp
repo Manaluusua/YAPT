@@ -109,7 +109,7 @@ namespace YAPT
 	}
 	void RenderGraphVk::issuePostBarriers(size_t nodeIndex, CommandBufferHandle buffer)
 	{
-		//nothing to do before split barriers are done
+		
 	}
 
 
@@ -295,44 +295,217 @@ break;
 		}
 	}
 
+	void RenderGraphVk::fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut)
+	{
+		size_t nodeIndex = node->getSortedIndex();
+		size_t numberOfInputEdges = node->getNumberOfInputEdges(slot);
+		size_t numberOfOutputEdges = node->getNumberOfOutputEdges(slot);
+		
+		const RenderGraphNodeSlotDefinition& slotDef = node->getNodeSlotResourceDefinition(slot);
+		RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slot);
+
+		const RenderGraphResourceDescription& resDesc = getRenderGraphResourceDescription(resID);
+		bool isDepthStencil = node->getNodeSlotIndexForDepthStencil() == slot;
+		bool isFirstUsage = numberOfInputEdges == 0;
+		bool isLastUsage = numberOfOutputEdges == 0;
+
+		bool forceLoad = (slotDef.flags & RGNS_FLAG_ALWAYS_REQUIRE_LOAD) != 0;
+		bool forceStore = (slotDef.flags & RGNS_FLAG_ALWAYS_REQUIRE_STORE) != 0;
+		bool hasClear = slotDef.clearFrequency == RenderNodeClearFrequency::ALWAYS;
+
+		descOut.flags = 0;
+		descOut.format = yaptFormatToVk(resDesc.resourceFormat);
+		descOut.samples = VK_SAMPLE_COUNT_1_BIT; //TODO: support MS
+
+		VkAttachmentLoadOp loadOp = (forceLoad || !isFirstUsage) ? VK_ATTACHMENT_LOAD_OP_LOAD : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		loadOp = hasClear ? VK_ATTACHMENT_LOAD_OP_CLEAR : loadOp;
+
+		VkAttachmentStoreOp storeOp = (forceStore || !isLastUsage) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		if (isDepthStencil)
+		{
+			descOut.stencilLoadOp = loadOp;
+			descOut.stencilStoreOp = storeOp;
+			descOut.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			descOut.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		}
+		else
+		{
+			descOut.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+			descOut.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			descOut.loadOp = loadOp;
+			descOut.storeOp = storeOp;
+		}
+		
+		descOut.initialLayout = initialLayout;
+		descOut.finalLayout = finalLayout;
+	}
+
 	VkRenderPass RenderGraphVk::createRenderPass(RenderNode* node)
 	{
-		VkRenderPassCreateInfo createInfo{};
 		VkRenderPass renderPass;
-		//TODO
-		size_t numberOfSlots = node->getNumberOfSlots();
+		VkRenderPassCreateInfo createInfo{};
+		VkSubpassDescription subPassDesc;
+		std::vector<VkAttachmentDescription> attachments;
+		std::vector<VkAttachmentReference> attachmentReferences;
+
+		VkSubpassDependency subPassDependencies[2];
+		
+		
+		size_t numberOfColorAttachments = node->getNumberOfColorTargets();
+		bool hasDepthStencil = node->hasDepthStencil();
+		size_t depthStencilNodeSlot = hasDepthStencil ? node->getNodeSlotIndexForDepthStencil() : -1;
+		attachments.resize(numberOfColorAttachments + (hasDepthStencil ? 1 : 0));
+		attachmentReferences.resize(attachments.size());
+		
+
+		createInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		createInfo.pNext = VK_NULL_HANDLE;
+		createInfo.flags = 0;
+		createInfo.subpassCount = 1;
+		createInfo.pSubpasses = &subPassDesc;
+		createInfo.attachmentCount = (uint32_t)attachments.size();
+		createInfo.pAttachments = attachments.data();
+		createInfo.dependencyCount = (uint32_t)countOf(subPassDependencies);
+		createInfo.pDependencies = subPassDependencies;
+
 		size_t nodeIndex = node->getSortedIndex();
 		uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
 
-		for (size_t slotIndex = 0; slotIndex != numberOfSlots; ++slotIndex)
+		VkAccessFlags accessBeforeSubpass = 0;
+		VkAccessFlags accessAfterSubpass = 0;
+		VkAccessFlags accessDuringSubpass = 0;
+
+		VkPipelineStageFlags stagesBeforeSubpass = 0;
+		VkPipelineStageFlags stagesDuringSubpass = 0;
+		VkPipelineStageFlags stagesAfterSubpass = 0;
+
+		for (size_t attInd = 0; attInd < attachments.size(); ++attInd)
 		{
+			bool isDepthStencilAttachment = attInd >= numberOfColorAttachments;
+			size_t slotIndex = isDepthStencilAttachment ? node->getNodeSlotIndexForDepthStencil() : node->getNodeSlotIndexForRenderTargetIndex(attInd);
+			VkAttachmentDescription& attachDesc = attachments[attInd];
+			VkAttachmentReference& attachRef = attachmentReferences[attInd];
+
 			size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
-			RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
-
-			const NodeSlotIdentifier* nodeSlotIds;
-			size_t numberOfNodeSlotIds;
-
+			size_t numberOfOutputEdges = node->getNumberOfOutputEdges(slotIndex);
 			bool isFirstUsage = numberOfInputEdges == 0;
+			bool isLastUsage = numberOfOutputEdges == 0;
+
+			//for now only one input edge per attachment 
+			assert(numberOfInputEdges < 2);
+
+			VkAccessFlags accessCurrent;
+			VkImageLayout currentLayout;
+
+			VkAccessFlags accessBefore;
+			VkImageLayout initialLayout;
+
+			VkAccessFlags accessAfter;
+			VkImageLayout finalLayout;
+			{
+				const RenderGraphNodeSlotDefinition& slotDef = node->getNodeSlotResourceDefinition(slotIndex);
+				accessCurrent = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+				currentLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+				stagesDuringSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+				accessDuringSubpass |= accessCurrent;
+			}
+			
 
 			if (isFirstUsage)
 			{
-				size_t lastUsedNode = nodeSlotIds[numberOfNodeSlotIds - 1].sortedNodeIndex;
-				size_t lastUsedSlot = nodeSlotIds[numberOfNodeSlotIds - 1].slotIndex;
-
-				const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
-				uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
-				
+				accessBefore = accessCurrent;
+				initialLayout = currentLayout;
+				//stagesBeforeSubpass |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT; //we use barrier to handle this so no need for this
 
 			}
 			else
 			{
+				const RenderGraphNodeEdge* edge = node->getInputEdge(slotIndex, 0);
+				RenderGraphNode* prevNode = edge->fromNode;
+				size_t prevSlot = edge->fromSlot;
 
-				for (size_t inputIndex = 0; inputIndex != numberOfInputEdges; ++inputIndex)
-				{
-					
-				}
+				const RenderGraphNodeSlotDefinition& slotDef = prevNode->getNodeSlotResourceDefinition(prevSlot);
+				initialLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+				accessBefore = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+				stagesBeforeSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+				accessBeforeSubpass |= accessBefore;
 			}
+
+			if (isLastUsage)
+			{
+				finalLayout = currentLayout;
+				accessAfter = accessCurrent;
+				//stagesAfterSubpass |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT; //we use barrier to handle this so no need for this
+			}
+			else
+			{
+				{
+					const RenderGraphNodeEdge* edge = node->getOutputEdge(slotIndex, 0);
+					RenderGraphNode* nextNode = edge->toNode;
+					size_t nextSlot = edge->toSlot;
+
+					const RenderGraphNodeSlotDefinition& slotDef = nextNode->getNodeSlotResourceDefinition(nextSlot);
+					finalLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+					accessAfter = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+
+					stagesAfterSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+					accessAfterSubpass |= accessAfter;
+				}
+
+				for (size_t outputIndex = 1; outputIndex < numberOfOutputEdges; ++numberOfOutputEdges)
+				{
+					const RenderGraphNodeEdge* edge = node->getOutputEdge(slotIndex, outputIndex);
+					RenderGraphNode* nextNode = edge->toNode;
+					size_t nextSlot = edge->toSlot;
+
+					const RenderGraphNodeSlotDefinition& slotDef = nextNode->getNodeSlotResourceDefinition(nextSlot);
+					VkAccessFlags access = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+					VkImageLayout layout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
+
+					stagesAfterSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+					accessAfterSubpass |= access;
+
+					assert(layout == finalLayout);
+				}
+
+			}
+
+			fillAttachmentDescription(node, slotIndex, initialLayout, finalLayout, attachDesc);
+			attachRef.attachment = (uint32_t)attInd;
+			attachRef.layout = currentLayout;
 		}
+
+		//Simple dependencies, one for before and for after subpass
+		subPassDependencies[0].dependencyFlags = 0;
+		subPassDependencies[0].dstAccessMask = accessDuringSubpass;
+		subPassDependencies[0].srcAccessMask = accessBeforeSubpass;
+		subPassDependencies[0].dstStageMask = stagesDuringSubpass;
+		subPassDependencies[0].srcStageMask = stagesBeforeSubpass;
+		subPassDependencies[0].dstSubpass = 0;
+		subPassDependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+
+		subPassDependencies[1].dependencyFlags = 0;
+		subPassDependencies[1].dstAccessMask = accessAfterSubpass;
+		subPassDependencies[1].srcAccessMask = accessDuringSubpass;
+		subPassDependencies[1].dstStageMask = stagesAfterSubpass;
+		subPassDependencies[1].srcStageMask = stagesDuringSubpass;
+		subPassDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+		subPassDependencies[1].srcSubpass = 0;
+
+		subPassDesc.colorAttachmentCount = (uint32_t)numberOfColorAttachments;
+		subPassDesc.pColorAttachments = attachmentReferences.data();
+		subPassDesc.pDepthStencilAttachment = hasDepthStencil ? &attachmentReferences.back() : VK_NULL_HANDLE;
+		//for now we only have one subpass per renderpass and don't support MS so some of the attachments are always 0
+		subPassDesc.inputAttachmentCount = 0;
+		subPassDesc.pInputAttachments = VK_NULL_HANDLE;
+		subPassDesc.preserveAttachmentCount = 0;
+		subPassDesc.pPreserveAttachments = VK_NULL_HANDLE;
+		subPassDesc.pResolveAttachments = VK_NULL_HANDLE;
+
+		subPassDesc.flags = 0;
+		subPassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+
 
 		vkCreateRenderPass(getGfxApiHandle()->getDevice(), &createInfo, VK_ALLOC_CB, &renderPass);
 		return renderPass;
@@ -377,8 +550,6 @@ break;
 		std::vector<size_t> subResourceIndicesToTransition;
 		subResourceIndicesToTransition.reserve(512);
 
-		const size_t nodeCount = getNodeCount();
-		m_barriers.resize(nodeCount);
 		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
 			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
@@ -456,14 +627,17 @@ break;
 				else
 				{
 
+					//TODO: There is a hazard that if the rendertarget is not a single subresource, and different subresources have different layout (several inputs of different layouts), we should be creating barriers to take care of this. for now we assert
+					assert((usageInThisSlot.resourceDescription.resourceUsage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE)) == 0 || numberOfInputEdges < 2);
+
 					for (size_t inputIndex = 0; inputIndex != numberOfInputEdges; ++inputIndex)
 					{
 						const RenderGraphNodeEdge* edge = node->getInputEdge(slotIndex, inputIndex);
 						const RenderGraphResourceUsage& previousUsage = m_resourceRequirements.getRenderGraphResourceUsage(edge->fromNode->getSortedIndex(), edge->fromSlot);
 
 						uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[edge->fromNode->getSortedIndex()];
-
-						if (usageInThisSlot.resourceDescription.resourceUsage & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE) != 0) //if used in renderpass, have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created
+						//if used in renderpass (or previous usage was renderpass), have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created. 
+						if (((usageInThisSlot.resourceDescription.resourceUsage | previousUsage.resourceDescription.resourceUsage) & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE)) != 0)
 						{
 							continue;
 						}
@@ -604,11 +778,15 @@ break;
 		from = yaptUsageAccessToVkAccess(usageFrom, accessFlagsFrom);
 		to = yaptUsageAccessToVkAccess(usageTo, accessFlagsTo);
 
+		return true;
+
 	}
 	bool RenderGraphVk::getVkImageLayoutTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkImageLayout& from, VkImageLayout& to)
 	{
+		if (usageFrom == usageTo && accessFlagsFrom == accessFlagsTo) return false;
 		from = yaptUsageToVkImageLayout(usageFrom, accessFlagsFrom);
 		to = yaptUsageToVkImageLayout(usageTo, accessFlagsTo);
+		return true;
 	}
 
 	RenderGraphVk::GeneratedBarrierTypeMask RenderGraphVk::createBarrierIfRequired(ResourceDimension resDimension, ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo,
@@ -685,8 +863,7 @@ break;
 				assert(!"not implemented/unknown");
 			}
 		}
-
-
+		return mask;
 		
 	}
 	
