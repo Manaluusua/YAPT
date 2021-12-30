@@ -349,7 +349,7 @@ break;
 		std::vector<VkAttachmentDescription> attachments;
 		std::vector<VkAttachmentReference> attachmentReferences;
 
-		VkSubpassDependency subPassDependencies[2];
+		VkSubpassDependency subPassDependencies[2]; //We don't in reality always need 2 dependencies since if it's for example the first usage for all resources in the pass, we have barrier taking care of dependencies and no need to do it here
 		
 		
 		size_t numberOfColorAttachments = node->getNumberOfColorTargets();
@@ -769,7 +769,44 @@ break;
 
 	VkPipelineStageFlags RenderGraphVk::getPipelineStageFlags(ResourceUsage resourceUsage, AccessFlags accessFlags, ShaderStages shaderStages)
 	{
-		assert(!"TODO");
+		VkPipelineStageFlags flags = 0;
+		FLAGS_CONVERT(resourceUsage, flags, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_COPY_SOURCE, VK_PIPELINE_STAGE_TRANSFER_BIT);
+		FLAGS_CONVERT(resourceUsage, flags, RESOURCE_USAGE_VERTEX_BUFFER | RESOURCE_USAGE_INDEX_BUFFER, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
+		FLAGS_CONVERT(resourceUsage, flags, RESOURCE_USAGE_RENDER_TARGET_TEXTURE, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
+
+		if ((resourceUsage & RESOURCE_USAGE_DEPTH_STENCIL_TEXTURE) != 0)
+		{
+			if (accessFlags & ACCESS_FLAGS_WRITE)
+			{
+				flags |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+			}
+
+			if (accessFlags & ACCESS_FLAGS_READ)
+			{
+				flags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			}
+		}
+		// shader resources
+		if ((resourceUsage & (RESOURCE_USAGE_UNIFORM_BUFFER | 
+			RESOURCE_USAGE_UNIFORM_TEXEL_BUFFER |
+			RESOURCE_USAGE_STORAGE_BUFFER | 
+			RESOURCE_USAGE_STORAGE_TEXEL_BUFFER | 
+			RESOURCE_USAGE_SAMPLED_TEXTURE | 
+			RESOURCE_USAGE_STORAGE_TEXTURE |
+			RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUFFER |
+			RESOURCE_USAGE_SHADERTABLE_BUFFER)) != 0)
+		{
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_VERTEX, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT);
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_HULL, VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT);
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_DOMAIN, VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT);
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_GEOMETRY, VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT);
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_FRAGMENT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_COMPUTE, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
+			FLAGS_CONVERT(shaderStages, flags, SHADERSTAGE_RT_RAYGENERATION | SHADERSTAGE_RT_MISS | SHADERSTAGE_RT_ANY_HIT | SHADERSTAGE_RT_CLOSEST_HIT | SHADERSTAGE_RT_INTERSECTION, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
+		}
+
+		return flags;
 	}
 
 	bool RenderGraphVk::getVkAccessMaskTransition(ResourceUsage usageFrom, AccessFlags accessFlagsFrom, ResourceUsage usageTo, AccessFlags accessFlagsTo, VkAccessFlags& from, VkAccessFlags& to)
