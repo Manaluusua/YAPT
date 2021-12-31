@@ -52,6 +52,7 @@ namespace YAPT
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 
 		size_t getFrameNumber() const { return m_syncUtility.getFrameCount(); }
+		size_t getFramePipelineIndex() const { return m_syncUtility.getFrameIndex(); }
 		size_t getFramePipelineLength() const { return m_syncUtility.getFramesInFlight(); }
 	private:
 

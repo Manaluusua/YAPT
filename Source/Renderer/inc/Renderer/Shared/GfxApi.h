@@ -69,6 +69,8 @@ namespace YAPT
 		void destroyPipelineLayout(GfxApiHandle h, PipelineLayoutHandle layout);
 
 		//commandlists
+		size_t getQueueId(GfxApiHandle h, QueueType type);
+
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name);
 		void destroyCommandBufferPool(GfxApiHandle h, CommandBufferPoolHandle group);
 

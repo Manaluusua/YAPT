@@ -19,6 +19,7 @@ namespace YAPT
 {
 	class SubmissionThreadVk;
 	class UploadHelperVk;
+	class CommandBufferPoolVk;
 
 	class ResourceManagerVk
 	{
@@ -48,6 +49,10 @@ namespace YAPT
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
 
+		CommandBufferPoolVk* createAutoResetCommandBufferPool();
+		void destroyAutoResetCommandBufferPool(CommandBufferPoolVk* pool);
+		void resetCommandBufferPools(size_t pipelineFrameIndex);
+
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
@@ -69,7 +74,7 @@ namespace YAPT
 				destroyVkDeviceChild(device, t, alloc);
 			};
 
-			std::unique_lock<std::mutex> lock(m_destroyObjectsMutex);
+			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
 			m_pendingDestroyedObjects[m_destroyObjectsIndex].push_back(entry);
 		}
 
@@ -105,9 +110,13 @@ namespace YAPT
 		UploadHelperVk* m_preFrameUploads;
 		UploadHelperVk* m_duringFrameUploads;
 
+		//command buffer pools
+		std::vector<CommandBufferPoolVk*> m_commandBufferPools;
+		std::mutex m_commandBufferPoolsMutex;
+
 		//pending destruction lists
 		std::vector<std::vector<DestroyResourceEntry>> m_pendingDestroyedObjects;
-		std::mutex m_destroyObjectsMutex;
+		std::mutex m_destroyObjectsLock;
 		size_t m_destroyObjectsIndex;
 
 	};

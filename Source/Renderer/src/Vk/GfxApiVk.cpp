@@ -7,6 +7,7 @@
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Renderer/Vk/RenderGraphVk.h>
 #include <Renderer/Vk/ComputePipelineStateVk.h>
+#include <Renderer/Vk/CommandBufferPoolVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -371,25 +372,27 @@ namespace YAPT
 			h->getResourceManager()->destroyShaderModule(m);
 		}
 
+		size_t getQueueId(GfxApiHandle h, QueueType type)
+		{
+			return h->getGraphicsQueue().queueFamilyIndex;
+		}
 
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return h->getResourceManager()->createAutoResetCommandBufferPool();
 		}
 		void destroyCommandBufferPool(GfxApiHandle h, CommandBufferPoolHandle pool)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->destroyAutoResetCommandBufferPool(pool);
 		}
 
 		CommandBufferHandle startRecording(GfxApiHandle h, CommandBufferPoolHandle grp, size_t bufferIndex)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return grp->beginCommandBufferRecording(h->getFramePipelineIndex(), bufferIndex);
 		}
 		void stopRecording(GfxApiHandle h, CommandBufferHandle buff)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			CommandBufferPoolVk::endCommandBufferRecording(buff);
 		}
 
 		void submitCommandBuffers(GfxApiHandle h, CommandBufferHandle* buffers, size_t numberOfBuffers)

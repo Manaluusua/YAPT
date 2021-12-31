@@ -44,10 +44,19 @@ namespace YAPT
 	{
 		m_preFrameUploads->prepareNextUploadBatch();
 		{
-			std::unique_lock<std::mutex> lock(m_destroyObjectsMutex);
-			m_destroyObjectsIndex = (m_destroyObjectsIndex + 1) % m_pendingDestroyedObjects.size();;
-			m_pendingDestroyedObjects[m_destroyObjectsIndex].clear();
+			//apply & clear pending destruction list
+			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
+			m_destroyObjectsIndex = (m_destroyObjectsIndex + 1) % m_pendingDestroyedObjects.size();
+
+			std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[m_destroyObjectsIndex];
+			for (size_t i = 0; i < destroyList.size(); ++i)
+			{
+				destroyList[i].cb(m_device, destroyList[i].data, VK_ALLOC_CB);
+			}
+			destroyList.clear();
 		}
+		
+		
 
 		m_lastSignaledSemaphore = semaphoreToWaitBeforeUploads;
 	}
@@ -216,6 +225,46 @@ namespace YAPT
 	void ResourceManagerVk::destroyShaderModule(ShaderModuleHandle m)
 	{
 		delete m;
+	}
+
+	CommandBufferPoolVk* ResourceManagerVk::createAutoResetCommandBufferPool()
+	{
+		CommandBufferPoolVk* pool = new CommandBufferPoolVk(m_device);
+		{
+			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
+			m_commandBufferPools.push_back(pool);
+		}
+		
+		return pool;
+	}
+	void ResourceManagerVk::destroyAutoResetCommandBufferPool(CommandBufferPoolVk* pool)
+	{
+		{
+			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
+			//removing by traversing the list, inefficint, fix later
+			auto iter = std::find(m_commandBufferPools.begin(), m_commandBufferPools.end(), pool);
+			if (iter != m_commandBufferPools.end())
+			{
+				std::iter_swap(iter, m_commandBufferPools.end() - 1);
+				m_commandBufferPools.pop_back();
+			}
+			
+		}
+
+		pool->deinitialize();
+		delete pool;
+
+	}
+	void ResourceManagerVk::resetCommandBufferPools(size_t frameIndex)
+	{
+		//reset command buffer pools
+		{
+			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
+			for (size_t i = 0; i < m_commandBufferPools.size(); ++i)
+			{
+				m_commandBufferPools[i]->clearPool(frameIndex);
+			}
+		}
 	}
 
 }

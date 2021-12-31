@@ -21,7 +21,7 @@ namespace YAPT
 		VkCommandBuffer getCommandBuffer(size_t poolIndex, size_t bufferIndex);
 		VkCommandBuffer beginCommandBufferRecording(size_t poolIndex, size_t bufferIndex);
 		void endCommandBufferRecording(size_t poolIndex, size_t bufferIndex);
-
+		static void endCommandBufferRecording(VkCommandBuffer buff);
 
 	private:
 

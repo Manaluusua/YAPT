@@ -286,6 +286,11 @@ namespace YAPT
 			h->getResourceManager().destroyShaderModule(m);
 		}
 
+		size_t getQueueId(GfxApiHandle h, QueueType type)
+		{
+			return 0;
+		}
+
 
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name)
 		{

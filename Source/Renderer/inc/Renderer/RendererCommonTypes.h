@@ -43,6 +43,12 @@ namespace YAPT
 	};
 	typedef Flags ResourceUsage;
 
+	enum class QueueType
+	{
+		QUEUE_TYPE_GRAPHICS,
+		QUEUE_TYPE_COMPUTE
+	};
+
 	enum class ResourcePoolType
 	{
 		//common/idle

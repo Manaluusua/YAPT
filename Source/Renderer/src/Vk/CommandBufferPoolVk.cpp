@@ -75,7 +75,11 @@ namespace YAPT
 	}
 	void CommandBufferPoolVk::endCommandBufferRecording(size_t poolIndex, size_t bufferIndex)
 	{
-		VkCommandBuffer buff = getCommandBuffer(poolIndex, bufferIndex);
+		endCommandBufferRecording(getCommandBuffer(poolIndex, bufferIndex));
+	}
+
+	void CommandBufferPoolVk::endCommandBufferRecording(VkCommandBuffer buff)
+	{
 		checkForVkError(vkEndCommandBuffer(buff));
 	}
 

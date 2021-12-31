@@ -30,8 +30,12 @@ namespace YAPT
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
 	{
+		uint32_t queueFamily = getGfxApiHandle()->getGraphicsQueue().queueFamilyIndex;
+
+		m_queueFamilyIndexPerNode.resize(getNodeCount(), queueFamily);
+
 		generateBarriersAndRenderPasses();
-		assert(!"TODO");
+
 	}
 
 	RenderNode* RenderGraphVk::createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
@@ -690,6 +694,7 @@ break;
 	void RenderGraphVk::resourcesBoundToPipeline(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound)
 	{
 		updateBarriersForResource(id, previousState, numberOfResourcesBound);
+		assert(!"TODO");
 	}
 
 	

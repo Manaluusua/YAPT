@@ -448,10 +448,12 @@ namespace YAPT
 			Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
 		}
 
+		size_t queueIndex = Gfx::getQueueId(getGfxApiHandle(), QueueType::QUEUE_TYPE_GRAPHICS);
+
 		size_t nodeCount = getNodeCount();
 		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers > nodeCount ? nodeCount : numberOfCommandBuffers;
 
-		m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfCommandBuffers, 0, nullptr);
+		m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfCommandBuffers, queueIndex, nullptr);
 		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers;
 
 		createNodeSchedule();
