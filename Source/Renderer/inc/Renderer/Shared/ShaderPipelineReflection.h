@@ -12,7 +12,7 @@ namespace YAPT
 	class ShaderPipelineReflection
 	{
 	public:
-
+		
 		struct ResourceBinding
 		{
 			uint32_t bindingIndex = uint32_t(-1);

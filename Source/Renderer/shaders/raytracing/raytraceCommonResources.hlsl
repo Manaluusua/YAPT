@@ -100,12 +100,16 @@ Texture2D g_noiseTex : register(t20, space0);
 
 
 //bindless texture aliases
+[[vk::binding(0, 1)]]
 Texture2D g_textures2D[] : register(t0, space1);
+[[vk::binding(0, 1)]]
 TextureCube g_texturesCube[] : register(t0, space10001);
 
 
 //bindless buffer aliases
+[[vk::binding(0, 2)]]
 Buffer<uint> g_buffersUint[] : register(t0, space2);
+[[vk::binding(0, 2)]]
 Buffer<float> g_buffersFloat[] : register(t0, space10002);
 
 

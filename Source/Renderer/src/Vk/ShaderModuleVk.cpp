@@ -239,7 +239,7 @@ namespace YAPT
 				uint32_t highestDescSetIndex = 0;
 				for (size_t i = 0; i < descSets.size(); ++i)
 				{
-					highestDescSetIndex = max(descSets[i]->set, highestDescSetIndex);
+					highestDescSetIndex = max(descSets[i]->set % BINDINGPOINT_ALIAS_MULTIPLE, highestDescSetIndex);
 				}
 
 				m_sortedBindings.resize(highestDescSetIndex + 1);
@@ -265,7 +265,7 @@ namespace YAPT
 
 					std::sort(bindings.data(), bindings.data() + bindings.size(), [](const ResourceBinding& a, const ResourceBinding& b)
 						{
-							return a.bindingIndex <= b.bindingIndex;
+							return a.bindingIndex < b.bindingIndex;
 						});
 				}
 			}
