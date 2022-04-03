@@ -7,6 +7,7 @@
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Renderer/Vk/RenderGraphVk.h>
 #include <Renderer/Vk/ComputePipelineStateVk.h>
+#include <Renderer/Vk/RaytracePipelineStateVk.h>
 #include <Renderer/Vk/CommandBufferPoolVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
@@ -421,12 +422,11 @@ namespace YAPT
 
 		RaytracePipelineStateHandle createRaytracePipelineState(GfxApiHandle h, const RaytracePipelineStateDesc& desc)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return RaytracePipelineStateVk::create(h, desc);
 		}
 		void destroyRaytracePipelineState(GfxApiHandle h, RaytracePipelineStateHandle state)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			RaytracePipelineStateVk::destroy(h, state);
 		}
 
 		DescriptorSetPoolHandle createDescriptorSetPool(GfxApiHandle h, DescriptorSetLayoutHandle layout, size_t numberOfDescriptorSets)

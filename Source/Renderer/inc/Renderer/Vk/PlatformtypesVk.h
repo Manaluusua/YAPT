@@ -49,7 +49,7 @@ namespace YAPT
 	typedef VkCommandBuffer CommandBufferHandle;
 	typedef void* GraphicsPipelineStateHandle;
 	typedef VkPipeline ComputePipelineStateHandle;
-	typedef void* RaytracePipelineStateHandle;
+	typedef VkPipeline RaytracePipelineStateHandle;
 	typedef void* RenderPassHandle;
 	typedef DescriptorSetLayoutHandleVk* DescriptorSetLayoutHandle;
 	typedef VkPipelineLayout PipelineLayoutHandle;

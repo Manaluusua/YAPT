@@ -30,6 +30,7 @@ namespace YAPT
 
 
 		VkResult res = vkCreateComputePipelines(renderer->getDevice(), VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
+		assert(res == VK_SUCCESS);
 		return pipeline;
 	}
 
