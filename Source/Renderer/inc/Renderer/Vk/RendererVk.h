@@ -54,6 +54,13 @@ namespace YAPT
 		size_t getFrameNumber() const { return m_syncUtility.getFrameCount(); }
 		size_t getFramePipelineIndex() const { return m_syncUtility.getFrameIndex(); }
 		size_t getFramePipelineLength() const { return m_syncUtility.getFramesInFlight(); }
+
+		//extension functions. For now use expose here, could move these somewhere else or or vk loader 
+		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
+		PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+		PFN_vkCmdTraceRaysIndirectKHR vkCmdTraceRaysIndirectKHR;
+		PFN_vkGetRayTracingShaderGroupStackSizeKHR vkGetRayTracingShaderGroupStackSizeKHR;
+		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
 	private:
 
 		struct PhysicalDeviceInfos
@@ -84,6 +91,7 @@ namespace YAPT
 		void queryPhysicalDeviceInfos();
 		void queryPresentInfosForSurface(VkSurfaceKHR surface);
 		void selectPhysicalDevice(SelectedDeviceConfiguration& config);
+		void loadExtensionMethods();
 		void printQueueFamilyCapabilities();
 
 		bool createDevice(const SelectedDeviceConfiguration& config);
@@ -111,6 +119,7 @@ namespace YAPT
 
 		ResourceManagerVk* m_resourceManager;
 		SubmitSyncUtility m_syncUtility;
+
 	};
 
 

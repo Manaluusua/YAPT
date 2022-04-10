@@ -27,10 +27,10 @@ namespace YAPT
 		createInfo.maxPipelineRayRecursionDepth = (uint32_t)desc.maxTraceRecursionDepth;
 
 		std::vector<VkPipelineShaderStageCreateInfo> stagesArray;
-		stagesArray.reserve(desc.numberOfShaders);
+		stagesArray.resize(desc.numberOfShaders);
 
 		std::vector<VkRayTracingShaderGroupCreateInfoKHR> groupsArray;
-		groupsArray.reserve(desc.numberOfHitGroupDescription + desc.numberOfRayGenerationDescription + desc.numberOfRayMissDescription);
+		groupsArray.resize(desc.numberOfHitGroupDescription + desc.numberOfRayGenerationDescription + desc.numberOfRayMissDescription);
 
 		//convert shaders
 		for (size_t i = 0; i < desc.numberOfShaders; ++i)
@@ -113,7 +113,7 @@ namespace YAPT
 		createInfo.pGroups = groupsArray.data();
 
 
-		VkResult res = vkCreateRayTracingPipelinesKHR(renderer->getDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
+		VkResult res = renderer->vkCreateRayTracingPipelinesKHR(renderer->getDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
 		assert(res == VK_SUCCESS);
 		return pipeline;
 	}
