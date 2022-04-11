@@ -370,8 +370,7 @@ break;
 		createInfo.pSubpasses = &subPassDesc;
 		createInfo.attachmentCount = (uint32_t)attachments.size();
 		createInfo.pAttachments = attachments.data();
-		createInfo.dependencyCount = (uint32_t)countOf(subPassDependencies);
-		createInfo.pDependencies = subPassDependencies;
+		
 
 		size_t nodeIndex = node->getSortedIndex();
 		uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
@@ -497,6 +496,22 @@ break;
 		subPassDependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
 		subPassDependencies[1].srcSubpass = 0;
 
+		//if there are no attachments for a subpass that needs a dependency (either all inputs are first use where a barrier handles the sync, and/or all attachments are last use, where a barrier in the next first use handles the depdendency) 
+		uint32_t subPassDepsCount = 2;
+		uint32_t subPassDepsOffset = 0;
+		if (stagesBeforeSubpass == 0)
+		{
+			--subPassDepsCount;
+			++subPassDepsOffset;
+		}
+		if (stagesAfterSubpass == 0)
+		{
+			--subPassDepsCount;
+		}
+
+		createInfo.dependencyCount = subPassDepsCount;
+		createInfo.pDependencies = &subPassDependencies[subPassDepsOffset];
+
 		subPassDesc.colorAttachmentCount = (uint32_t)numberOfColorAttachments;
 		subPassDesc.pColorAttachments = attachmentReferences.data();
 		subPassDesc.pDepthStencilAttachment = hasDepthStencil ? &attachmentReferences.back() : VK_NULL_HANDLE;
@@ -511,7 +526,8 @@ break;
 		subPassDesc.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 
 
-		vkCreateRenderPass(getGfxApiHandle()->getDevice(), &createInfo, VK_ALLOC_CB, &renderPass);
+		VkResult res = vkCreateRenderPass(getGfxApiHandle()->getDevice(), &createInfo, VK_ALLOC_CB, &renderPass);
+		assert(res == VK_SUCCESS);
 		return renderPass;
 	}
 

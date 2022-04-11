@@ -26,14 +26,33 @@ namespace YAPT
 
 		createInfo.maxPipelineRayRecursionDepth = (uint32_t)desc.maxTraceRecursionDepth;
 
-		std::vector<VkPipelineShaderStageCreateInfo> stagesArray;
-		stagesArray.resize(desc.numberOfShaders);
-
 		std::vector<VkRayTracingShaderGroupCreateInfoKHR> groupsArray;
 		groupsArray.resize(desc.numberOfHitGroupDescription + desc.numberOfRayGenerationDescription + desc.numberOfRayMissDescription);
 
+		std::vector<VkPipelineShaderStageCreateInfo> stagesArray;
+		stagesArray.reserve(desc.numberOfHitGroupDescription * 3 + desc.numberOfRayGenerationDescription + desc.numberOfRayMissDescription);
+
+		auto addShaderStage = [&](size_t indexInModulearray, ShaderStageBits stage) -> uint32_t
+		{
+			stagesArray.resize(stagesArray.size() + 1);
+			VkPipelineShaderStageCreateInfo& shdInfo = stagesArray.back();;
+			const ShaderStageCreateInfo& shdInfoSrc = desc.shaders[indexInModulearray];
+
+			shdInfo.pNext = NULL;
+			shdInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+
+			shdInfo.pSpecializationInfo = NULL;
+
+			shdInfo.module = shdInfoSrc.shaderModule->m_vkShaderModule;
+			shdInfo.pName = shdInfoSrc.entryPoint;
+			shdInfo.stage = yaptShaderStageBitstoVk(stage);
+			shdInfo.flags = 0;
+
+			return (uint32_t)(stagesArray.size() - 1);
+		};
+
 		//convert shaders
-		for (size_t i = 0; i < desc.numberOfShaders; ++i)
+		/*for (size_t i = 0; i < desc.numberOfShaders; ++i)
 		{
 			VkPipelineShaderStageCreateInfo& shdInfo = stagesArray[i];
 			const ShaderStageCreateInfo& shdInfoSrc = desc.shaders[i];
@@ -47,7 +66,7 @@ namespace YAPT
 			shdInfo.pName = shdInfoSrc.entryPoint;
 			shdInfo.stage = yaptShaderStageBitstoVk(shdInfoSrc.stage);
 			shdInfo.flags = 0;
-		}
+		}*/
 
 		//convert groups
 		size_t groupsArrayIndex = 0;
@@ -64,14 +83,14 @@ namespace YAPT
 
 			groupsEntry.type = groupDescSrc.hitGroupType == HitGroupType::BOUNDINGBOX ? VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR : VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
 
-			groupsEntry.closestHitShader = (uint32_t)(groupDescSrc.closestHitShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : groupDescSrc.closestHitShaderIndex);
-			groupsEntry.intersectionShader = (uint32_t)(groupDescSrc.intersectionShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : groupDescSrc.intersectionShaderIndex);
-			groupsEntry.anyHitShader = (uint32_t)(groupDescSrc.anyHitShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : groupDescSrc.anyHitShaderIndex);
+			groupsEntry.closestHitShader = groupDescSrc.closestHitShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : addShaderStage(groupDescSrc.closestHitShaderIndex, ShaderStageBits::SHADERSTAGE_RT_CLOSEST_HIT);
+			groupsEntry.intersectionShader = groupDescSrc.intersectionShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : addShaderStage(groupDescSrc.intersectionShaderIndex, ShaderStageBits::SHADERSTAGE_RT_INTERSECTION);
+			groupsEntry.anyHitShader = groupDescSrc.anyHitShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : addShaderStage(groupDescSrc.anyHitShaderIndex, ShaderStageBits::SHADERSTAGE_RT_ANY_HIT);
 		}
 
 		for (size_t i = 0; i < desc.numberOfRayGenerationDescription; ++i, ++groupsArrayIndex)
 		{
-			const RayGenerationDescription& groupDescSrc = desc.rayGenerationDescriptions[i];
+			const RayGenerationDescription& rayGenDesc = desc.rayGenerationDescriptions[i];
 			VkRayTracingShaderGroupCreateInfoKHR& groupsEntry = groupsArray[groupsArrayIndex];
 
 			groupsEntry.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
@@ -82,7 +101,7 @@ namespace YAPT
 			groupsEntry.intersectionShader = VK_SHADER_UNUSED_KHR;
 			groupsEntry.anyHitShader = VK_SHADER_UNUSED_KHR;
 
-			groupsEntry.generalShader = (uint32_t)groupDescSrc.shaderIndex;
+			groupsEntry.generalShader = addShaderStage(rayGenDesc.shaderIndex, ShaderStageBits::SHADERSTAGE_RT_RAYGENERATION);
 
 			groupsEntry.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 
@@ -91,7 +110,7 @@ namespace YAPT
 
 		for (size_t i = 0; i < desc.numberOfRayMissDescription; ++i, ++groupsArrayIndex)
 		{
-			const RayMissDescription& groupDescSrc = desc.rayMissDescriptions[i];
+			const RayMissDescription& missDesc = desc.rayMissDescriptions[i];
 			VkRayTracingShaderGroupCreateInfoKHR& groupsEntry = groupsArray[groupsArrayIndex];
 
 			groupsEntry.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
@@ -102,7 +121,7 @@ namespace YAPT
 			groupsEntry.intersectionShader = VK_SHADER_UNUSED_KHR;
 			groupsEntry.anyHitShader = VK_SHADER_UNUSED_KHR;
 
-			groupsEntry.generalShader = (uint32_t)groupDescSrc.shaderIndex;
+			groupsEntry.generalShader = addShaderStage(missDesc.shaderIndex, ShaderStageBits::SHADERSTAGE_RT_MISS);
 
 			groupsEntry.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
 		}

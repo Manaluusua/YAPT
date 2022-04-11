@@ -22,6 +22,7 @@ namespace YAPT
 	class RendererVk
 	{
 	public:
+
 		RendererVk(const GfxApiInitConfig& config);
 		~RendererVk();
 		
@@ -36,7 +37,7 @@ namespace YAPT
 
 		VkDevice getDevice() const { return m_device; }
 		ResourceManagerVk* getResourceManager() { return m_resourceManager; }
-		const VkPhysicalDeviceProperties& getDeviceProps() const { return m_physicalDeviceInfos.properties[m_selectedPhysicalDeviceIndex]; }
+		const VkPhysicalDeviceProperties2& getDeviceProps() const { return m_physicalDeviceInfos.properties[m_selectedPhysicalDeviceIndex]; }
 
 		//SwapChainDx12* createSwapChain(const WindowSurfaceDefinition& windowSurface);
 		//void destroySwapChain(SwapChainDx12* swapChain);
@@ -63,11 +64,31 @@ namespace YAPT
 		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
 	private:
 
+		struct PhysicalDeviceFeatures
+		{
+			PhysicalDeviceFeatures()
+				:baseFeatures{},
+				descIndexingFeatures{},
+				rtFeatures{}
+			{
+				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+				rtFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+				baseFeatures.pNext = &descIndexingFeatures;
+				descIndexingFeatures.pNext = &rtFeatures;
+				
+			}
+
+			VkPhysicalDeviceFeatures2 baseFeatures;
+			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
+			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures;
+		};
+
 		struct PhysicalDeviceInfos
 		{
 			std::vector<VkPhysicalDevice> devices;
-			std::vector<VkPhysicalDeviceProperties> properties;
-			std::vector<VkPhysicalDeviceFeatures> features;
+			std::vector<VkPhysicalDeviceProperties2> properties;
+			std::vector<PhysicalDeviceFeatures> features;
 			std::vector<std::vector<VkQueueFamilyProperties> > queueFamilyProperties;
 		};
 
@@ -96,8 +117,8 @@ namespace YAPT
 
 		bool createDevice(const SelectedDeviceConfiguration& config);
 
-		const VkPhysicalDeviceFeatures& getRequiredPhysicalDeviceFeatures();
-		bool hasRequiredPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features);
+		const PhysicalDeviceFeatures* getRequiredPhysicalDeviceFeatures();
+		bool hasRequiredPhysicalDeviceFeatures(const PhysicalDeviceFeatures& features);
 
 		//bool createDevice();
 		//bool createCoreResources();

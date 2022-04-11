@@ -266,9 +266,11 @@ namespace YAPT
 
 			uint32_t queueFamilyCount;
 
+			m_physicalDeviceInfos.properties[deviceIndex].sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+
 			const VkPhysicalDevice& physicalDevice = m_physicalDeviceInfos.devices[deviceIndex];
-			vkGetPhysicalDeviceProperties(physicalDevice, &m_physicalDeviceInfos.properties[deviceIndex]);
-			vkGetPhysicalDeviceFeatures(physicalDevice, &m_physicalDeviceInfos.features[deviceIndex]);
+			vkGetPhysicalDeviceProperties2(physicalDevice, &m_physicalDeviceInfos.properties[deviceIndex]);
+			vkGetPhysicalDeviceFeatures2(physicalDevice, &m_physicalDeviceInfos.features[deviceIndex].baseFeatures);
 			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, NULL);
 
 
@@ -364,7 +366,7 @@ namespace YAPT
 		};
 
 		std::vector<size_t> reservedQueues;
-
+		config.selectedPhysicalDeviceIndex = uint32_t(-1);
 		for (uint32_t deviceIndex = 0; deviceIndex < m_physicalDeviceInfos.devices.size(); ++deviceIndex) 
 		{
 			//check for device features support
@@ -436,7 +438,7 @@ namespace YAPT
 	{
 		for (size_t deviceIndex = 0; deviceIndex < m_physicalDeviceInfos.devices.size(); ++deviceIndex)
 		{
-			YAPT_LOG_DEBUG("Found device %s with %d queue families", m_physicalDeviceInfos.properties[deviceIndex].deviceName, m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size());
+			YAPT_LOG_DEBUG("Found device %s with %d queue families", m_physicalDeviceInfos.properties[deviceIndex].properties.deviceName, m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size());
 			for (size_t queueFamilyIndex = 0; queueFamilyIndex < m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size(); ++queueFamilyIndex)
 			{
 				VkQueueFamilyProperties& prop = m_physicalDeviceInfos.queueFamilyProperties[deviceIndex][queueFamilyIndex];
@@ -562,6 +564,11 @@ namespace YAPT
 		devInfo.ppEnabledLayerNames = layers.data();
 		devInfo.queueCreateInfoCount = (uint32_t)queueInfo.size();
 		devInfo.pQueueCreateInfos = queueInfo.data();
+		
+		//TODO: enable required features
+		
+		devInfo.pNext = getRequiredPhysicalDeviceFeatures();
+
 
 		VkResult res = vkCreateDevice(m_physicalDeviceInfos.devices[config.selectedPhysicalDeviceIndex], &devInfo, NULL, &m_device);
 		bool success = res == VK_SUCCESS;
@@ -586,24 +593,54 @@ namespace YAPT
 		return checkForVkError(res);
 	}
 
-	const VkPhysicalDeviceFeatures& RendererVk::getRequiredPhysicalDeviceFeatures()
+	const RendererVk::PhysicalDeviceFeatures* RendererVk::getRequiredPhysicalDeviceFeatures()
 	{
-		static VkPhysicalDeviceFeatures features{};
-		features.shaderSampledImageArrayDynamicIndexing = true;
-		features.shaderStorageBufferArrayDynamicIndexing = true;
-		features.shaderStorageImageArrayDynamicIndexing = true;
-		features.shaderUniformBufferArrayDynamicIndexing = true;
+		static PhysicalDeviceFeatures f;
+
+
+		//vanilla vulkan features
+		f.baseFeatures.features.shaderSampledImageArrayDynamicIndexing = VK_TRUE;
+		f.baseFeatures.features.shaderStorageBufferArrayDynamicIndexing = VK_TRUE;
+		f.baseFeatures.features.shaderStorageImageArrayDynamicIndexing = VK_TRUE;
+		f.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
+
+		//descriptor indexing features
+
+		f.descIndexingFeatures.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderInputAttachmentArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing = VK_TRUE;
+		f.descIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing = VK_TRUE;
+		//f.descIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+		f.descIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+		f.descIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
 		
-		return features;
+		//rt pipeline features
+		f.rtFeatures.rayTracingPipeline = VK_TRUE;
+		
+		return &f;
 	}
 
-	bool RendererVk::hasRequiredPhysicalDeviceFeatures(const VkPhysicalDeviceFeatures& features)
+	bool RendererVk::hasRequiredPhysicalDeviceFeatures(const RendererVk::PhysicalDeviceFeatures& features)
 	{
+		//TODO: actually check all the required elements
 		if (
-			features.shaderSampledImageArrayDynamicIndexing &&
-			features.shaderStorageBufferArrayDynamicIndexing &&
-			features.shaderStorageImageArrayDynamicIndexing &&
-			features.shaderUniformBufferArrayDynamicIndexing
+			features.baseFeatures.features.shaderSampledImageArrayDynamicIndexing &&
+			features.baseFeatures.features.shaderStorageBufferArrayDynamicIndexing &&
+			features.baseFeatures.features.shaderStorageImageArrayDynamicIndexing &&
+			features.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing
 			)
 		{
 			return true;

@@ -27,7 +27,7 @@ namespace YAPT
 		b.descriptorCount = maxNumberOfBuffers;
 		b.shaderStages = ALL_SHADER_STAGES;
 		b.staticSamplers = nullptr;
-		b.type = DescriptorType::STORAGE_BUFFER;
+		b.type = DescriptorType::UNIFORM_TEXEL_BUFFER; //Buffer<> type in hlsl parlance
 		m_resourceUtility.init(m_renderer->getGfxHandle(), maxNumberOfBuffers, b);
 	}
 

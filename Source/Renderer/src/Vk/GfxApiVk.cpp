@@ -180,9 +180,9 @@ namespace YAPT
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)
 		{
 			
-			const VkPhysicalDeviceProperties& props = h->getDeviceProps();
-			const VkDeviceSize minStorageAlignment = props.limits.minStorageBufferOffsetAlignment;
-			const VkDeviceSize minUniformAlignment = props.limits.minUniformBufferOffsetAlignment;
+			const VkPhysicalDeviceProperties2& props = h->getDeviceProps();
+			const VkDeviceSize minStorageAlignment = props.properties.limits.minStorageBufferOffsetAlignment;
+			const VkDeviceSize minUniformAlignment = props.properties.limits.minUniformBufferOffsetAlignment;
 
 			VkDeviceSize alignment = 1;
 
