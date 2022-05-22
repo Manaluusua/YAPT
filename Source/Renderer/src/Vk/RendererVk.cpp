@@ -566,7 +566,6 @@ namespace YAPT
 		devInfo.pQueueCreateInfos = queueInfo.data();
 		
 		//TODO: enable required features
-		
 		devInfo.pNext = getRequiredPhysicalDeviceFeatures();
 
 

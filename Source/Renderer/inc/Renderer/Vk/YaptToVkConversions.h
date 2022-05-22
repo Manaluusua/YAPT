@@ -1,5 +1,7 @@
 #pragma once
 
+#include <assert.h>
+
 #define FLAGS_CONVERT(source, target, from, to) if((source & from) != 0) { target |= to; }
 
 namespace YAPT

@@ -9,6 +9,9 @@
 #include <Renderer/Vk/ComputePipelineStateVk.h>
 #include <Renderer/Vk/RaytracePipelineStateVk.h>
 #include <Renderer/Vk/CommandBufferPoolVk.h>
+#include <Renderer/Vk/DescriptorSetLayoutVk.h>
+#include <Renderer/Vk/DescriptorSetPoolVk.h>
+#include <Renderer/Vk/DescriptorSetVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -276,48 +279,10 @@ namespace YAPT
 
 		DescriptorSetLayoutHandle createDescriptorSetLayout(GfxApiHandle h, const DescriptorSetLayoutBinding* bindings, size_t numberOfBindings, DescriptorSetLayoutFlags flags)
 		{
-			VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-			VkDescriptorSetLayoutCreateInfo info;
-			std::vector<VkDescriptorSetLayoutBinding> vkBindings;
-
-			std::unordered_map<VkDescriptorType, uint32_t> countPerType;
-
-			vkBindings.resize(numberOfBindings);
-			info.pNext = nullptr;
-			info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-			info.flags = (flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT : 0;
-			info.bindingCount = (uint32_t)vkBindings.size();
-			info.pBindings = vkBindings.data();
-			
-			for (size_t i = 0; i < numberOfBindings; ++i)
-			{
-				VkDescriptorSetLayoutBinding& vkBinding = vkBindings[i];
-				const DescriptorSetLayoutBinding& binding = bindings[i];
-
-				vkBinding.binding = binding.bindingIndex;
-				vkBinding.descriptorCount = binding.descriptorCount;
-				vkBinding.stageFlags = yaptShaderStagesToVk(binding.shaderStages);
-				vkBinding.descriptorType = yaptDescriptorTypeToVk(binding.type);
-				vkBinding.pImmutableSamplers = binding.staticSamplers;
-
-				countPerType[vkBinding.descriptorType] += vkBinding.descriptorCount;
-			}
-
-			
-			checkVkResult(vkCreateDescriptorSetLayout(h->getDevice(), &info, VK_ALLOC_CB, &layout));
-
-			DescriptorSetLayoutHandleVk* handle = new DescriptorSetLayoutHandleVk;
-			handle->layout = layout;
-			for (auto iter = countPerType.begin(); iter != countPerType.end(); ++iter)
-			{
-				handle->requiredDescriptorSpacePerType.push_back({ iter->first, iter->second });
-			}
-			handle->flags = flags;
-			return handle;
+			return  DescriptorSetLayoutVk::create(h, bindings, numberOfBindings, flags);
 		}
 		void destroyDescriptorSetLayout(GfxApiHandle h, DescriptorSetLayoutHandle layout)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(layout->layout);
 			delete layout;
 		}
 
@@ -334,7 +299,7 @@ namespace YAPT
 			std::vector<VkDescriptorSetLayout> layouts(numberOfDescriptorSetLayouts);
 			for (size_t i = 0; i < numberOfDescriptorSetLayouts; ++i)
 			{
-				layouts[i] = descSetLayouts[i]->layout;
+				layouts[i] = descSetLayouts[i]->getLayout();
 			}
 
 			info.setLayoutCount = (uint32_t)numberOfDescriptorSetLayouts;
@@ -431,79 +396,55 @@ namespace YAPT
 
 		DescriptorSetPoolHandle createDescriptorSetPool(GfxApiHandle h, DescriptorSetLayoutHandle layout, size_t numberOfDescriptorSets)
 		{
-
-			VkDescriptorPoolCreateInfo poolDef;
-			poolDef.pNext = nullptr;
-			poolDef.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-			poolDef.maxSets = (uint32_t)numberOfDescriptorSets;
-			poolDef.flags = (layout->flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
-			poolDef.pPoolSizes = layout->requiredDescriptorSpacePerType.data();
-			poolDef.poolSizeCount = (uint32_t)layout->requiredDescriptorSpacePerType.size();
-			VkDescriptorPool pool;
-			vkCreateDescriptorPool(h->getDevice(), &poolDef, VK_ALLOC_CB, &pool);
-
-			DescriptorSetPoolVk* p = new DescriptorSetPoolVk;
-			p->pool = pool;
-			p->sets.resize(numberOfDescriptorSets);
-
-			std::vector<VkDescriptorSet> descSets;
-			descSets.resize(numberOfDescriptorSets);
-
-			std::vector<VkDescriptorSetLayout> layoutArray;
-			layoutArray.resize(numberOfDescriptorSets, layout->layout);
-
-			VkDescriptorSetAllocateInfo allocInfo;
-			allocInfo.pNext = nullptr;
-			allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-			allocInfo.descriptorSetCount = (uint32_t)numberOfDescriptorSets;
-			allocInfo.descriptorPool = pool;
-			allocInfo.pSetLayouts = layoutArray.data();
-
-			vkAllocateDescriptorSets(h->getDevice(), &allocInfo, descSets.data());
-
-			for (size_t i = 0; i < numberOfDescriptorSets; ++i)
-			{
-				p->sets[i].frameLastUsed = uint32_t(-1);
-				p->sets[i].renderer = h;
-				p->sets[i].set = descSets[i];
-				p->sets[i].inUse = false;
-			}
-
-			return p;
+			return DescriptorSetPoolVk::create(h, layout, numberOfDescriptorSets);
+			
 		}
 		void destroyDescriptorSetPool(GfxApiHandle h, DescriptorSetPoolHandle pool)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(pool->pool);
 			delete pool;
 		}
 
 
 		DescriptorSetHandle getDescriptorSet(DescriptorSetPoolHandle pool, size_t descSetIndex)
 		{
-			assert(descSetIndex < pool->sets.size());
-			return &pool->sets[descSetIndex];
+			return pool->getDescriptorSet(descSetIndex);
 		}
 
 		void useDescriptorSet(DescriptorSetHandle handle)
 		{
-			handle->inUse = true;
+			handle->setInUse(true);
 		}
 
 		void freeDescriptorSet(DescriptorSetHandle handle)
 		{
-			handle->frameLastUsed = handle->renderer->getFrameNumber();
-			handle->inUse = false;
+			handle->setInUse(false);
 		}
 		bool isDescriptorSetUnused(DescriptorSetHandle handle)
 		{
-			if (handle->inUse) return false;
-			return (handle->frameLastUsed + handle->renderer->getFramePipelineLength()) < handle->renderer->getFrameNumber();
+			return handle->isInUse();
 		}
 		 
 		 
 		void updateDescriptorSet(GfxApiHandle h, DescriptorSetHandle handle, const DescriptorSetUpdate* updates, size_t updateCount)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			std::vector<VkWriteDescriptorSet> descSetWrites;
+			descSetWrites.resize(updateCount);
+
+
+
+			for (size_t i = 0; i < updateCount; ++i)
+			{
+				VkWriteDescriptorSet& descSetWrite = descSetWrites[i];
+				const DescriptorSetUpdate& descSetSrc = updates[i];
+
+				descSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				descSetWrite.pNext = NULL;
+				
+
+			}
+
+			vkUpdateDescriptorSets(h->getDevice(), (uint32_t)updateCount, descSetWrites.data(), 0, NULL);
+
 		}
 
 		void setVertexBuffers(GfxApiHandle h, CommandBufferHandle buff, BufferViewHandle* vertexBuffers, size_t numberOfBuffers, size_t bindingPointOffset)

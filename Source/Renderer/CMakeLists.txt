@@ -300,6 +300,9 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/ComputePipelineStateVk.h
 		inc/Renderer/Vk/GraphicsPipelineStateVk.h
 		inc/Renderer/Vk/RaytracePipelineStateVk.h
+		inc/Renderer/Vk/DescriptorSetLayoutVk.h
+		inc/Renderer/Vk/DescriptorSetPoolVk.h
+		inc/Renderer/Vk/DescriptorSetVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -322,6 +325,9 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/ComputePipelineStateVk.cpp
 		src/Vk/GraphicsPipelineStateVk.cpp
 		src/Vk/RaytracePipelineStateVk.cpp
+		src/Vk/DescriptorSetLayoutVk.cpp
+		src/Vk/DescriptorSetPoolVk.cpp
+		src/Vk/DescriptorSetVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 
