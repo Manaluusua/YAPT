@@ -24,7 +24,7 @@ namespace YAPT
 
 	private:
 
-		DescriptorSetPoolVk(RendererVk* renderer, VkDescriptorPool pool, size_t numberOfSets, VkDescriptorSet* sets);
+		DescriptorSetPoolVk(RendererVk* renderer, VkDescriptorPool pool, DescriptorSetLayoutVk* layout, size_t numberOfSets, VkDescriptorSet* sets);
 		RendererVk* m_renderer;
 		VkDescriptorPool m_pool;
 		std::vector<DescriptorSetVk> m_sets;

@@ -11,7 +11,7 @@ namespace YAPT
 	{
 	public:
 
-		DescriptorSetVk(RendererVk* r, VkDescriptorSet set);
+		DescriptorSetVk(RendererVk* r, VkDescriptorSet set, DescriptorSetLayoutVk* layout);
 		~DescriptorSetVk();
 
 		void setInUse(bool inUse)
@@ -29,10 +29,12 @@ namespace YAPT
 			return (m_frameLastUsed + m_renderer->getFramePipelineLength()) < m_renderer->getFrameNumber();
 		}
 
-	private:
+		void updateContents(const DescriptorSetUpdate* updates, size_t updateCount);
 
+	private:
 		RendererVk* m_renderer;
 		VkDescriptorSet m_set;
+		DescriptorSetLayoutVk* m_layout;
 		size_t m_frameLastUsed;
 		bool m_inUse;
 	};

@@ -39,11 +39,11 @@ namespace YAPT
 		if (res != VK_SUCCESS) return nullptr;
 
 
-		DescriptorSetPoolVk* p = new DescriptorSetPoolVk(renderer, pool, numberOfDescriptorSets, descSets.data());
+		DescriptorSetPoolVk* p = new DescriptorSetPoolVk(renderer, pool, layout, numberOfDescriptorSets, descSets.data());
 		return p;
 	}
 
-	DescriptorSetPoolVk::DescriptorSetPoolVk(RendererVk* renderer, VkDescriptorPool pool, size_t numberOfSets, VkDescriptorSet* sets)
+	DescriptorSetPoolVk::DescriptorSetPoolVk(RendererVk* renderer, VkDescriptorPool pool, DescriptorSetLayoutVk* layout, size_t numberOfSets, VkDescriptorSet* sets)
 		:m_renderer(renderer),
 		m_pool(pool)
 	{
@@ -51,7 +51,7 @@ namespace YAPT
 		m_sets.reserve(numberOfSets);
 		for (size_t i = 0; i < numberOfSets; ++i)
 		{
-			m_sets.emplace_back(renderer, sets[i]);
+			m_sets.emplace_back(renderer, sets[i], layout);
 		}
 		
 	}

@@ -427,24 +427,7 @@ namespace YAPT
 		 
 		void updateDescriptorSet(GfxApiHandle h, DescriptorSetHandle handle, const DescriptorSetUpdate* updates, size_t updateCount)
 		{
-			std::vector<VkWriteDescriptorSet> descSetWrites;
-			descSetWrites.resize(updateCount);
-
-
-
-			for (size_t i = 0; i < updateCount; ++i)
-			{
-				VkWriteDescriptorSet& descSetWrite = descSetWrites[i];
-				const DescriptorSetUpdate& descSetSrc = updates[i];
-
-				descSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				descSetWrite.pNext = NULL;
-				
-
-			}
-
-			vkUpdateDescriptorSets(h->getDevice(), (uint32_t)updateCount, descSetWrites.data(), 0, NULL);
-
+			handle->updateContents(updates, updateCount);
 		}
 
 		void setVertexBuffers(GfxApiHandle h, CommandBufferHandle buff, BufferViewHandle* vertexBuffers, size_t numberOfBuffers, size_t bindingPointOffset)

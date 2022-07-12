@@ -17,7 +17,11 @@ namespace YAPT
 		DescriptorSetLayoutFlags getFlags() const { return m_flags; }
 		const VkDescriptorPoolSize* getDescriptorCountPerType() const { return m_requiredDescriptorSpacePerType.data(); }
 		const size_t getDescriptorTypesCount() const { return m_requiredDescriptorSpacePerType.size(); }
+
+		const DescriptorSetLayoutBinding& getDescriptorLayoutBinding(size_t bindingIndex);
 		
+		bool hasBindingAtIndex(size_t bindingIndex);
+
 		~DescriptorSetLayoutVk();
 
 	private:
@@ -27,6 +31,7 @@ namespace YAPT
 		RendererVk* m_renderer;
 		VkDescriptorSetLayout m_layout;
 		std::vector<VkDescriptorPoolSize> m_requiredDescriptorSpacePerType;
+		std::vector<DescriptorSetLayoutBinding> m_bindings;
 		DescriptorSetLayoutFlags m_flags;
 	};
 }

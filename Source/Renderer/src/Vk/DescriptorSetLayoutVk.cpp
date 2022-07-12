@@ -5,6 +5,7 @@
 #include <unordered_map>
 namespace YAPT
 {
+	static const DescriptorSetLayoutBinding g_dummyBinding = { uint32_t(-1), 0 };
 
 	DescriptorSetLayoutVk* DescriptorSetLayoutVk::create(RendererVk* renderer, const DescriptorSetLayoutBinding* bindings, size_t numberOfBindings, DescriptorSetLayoutFlags flags)
 	{
@@ -21,6 +22,8 @@ namespace YAPT
 		info.bindingCount = (uint32_t)vkBindings.size();
 		info.pBindings = vkBindings.data();
 
+		uint32_t largestBindingIndex = 0;
+
 		for (size_t i = 0; i < numberOfBindings; ++i)
 		{
 			VkDescriptorSetLayoutBinding& vkBinding = vkBindings[i];
@@ -33,6 +36,7 @@ namespace YAPT
 			vkBinding.pImmutableSamplers = binding.staticSamplers;
 
 			countPerType[vkBinding.descriptorType] += vkBinding.descriptorCount;
+			largestBindingIndex = std::max(largestBindingIndex, binding.bindingIndex);
 		}
 
 
@@ -52,7 +56,30 @@ namespace YAPT
 			handle->m_requiredDescriptorSpacePerType.push_back({ iter->first, iter->second });
 		}
 		handle->m_flags = flags;
+
+		
+
+		handle->m_bindings.assign(size_t(largestBindingIndex) + 1u, g_dummyBinding);
+		
+		for (uint32_t i = 0; i != numberOfBindings; ++i)
+		{
+			const DescriptorSetLayoutBinding& binding = bindings[i];
+			handle->m_bindings[binding.bindingIndex] = binding;
+		}
+
 		return handle;
+	}
+
+	const DescriptorSetLayoutBinding& DescriptorSetLayoutVk::getDescriptorLayoutBinding(size_t bindingIndex)
+	{
+		if (bindingIndex >= m_bindings.size()) return g_dummyBinding;
+
+		return m_bindings[bindingIndex];
+	}
+
+	bool DescriptorSetLayoutVk::hasBindingAtIndex(size_t bindingIndex)
+	{
+		return getDescriptorLayoutBinding(bindingIndex).bindingIndex != uint32_t(-1);
 	}
 
 	DescriptorSetLayoutVk::DescriptorSetLayoutVk()
