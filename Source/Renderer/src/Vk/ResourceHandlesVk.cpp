@@ -18,12 +18,32 @@ namespace YAPT
 		BufferViewVk* view = new BufferViewVk;
 		view->bufferDesc = v;
 		view->buffer = buffer;
+		view->bufferView = VK_NULL_HANDLE;
+
+		if (v.nonStructuredFormat != ResourceFormat::UNKNOWN && ((createInfo.usage & (VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER | VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER) ) != 0) )
+		{
+			VkBufferViewCreateInfo info;
+			info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
+			info.pNext = nullptr;
+			info.offset = v.offsetInBytes;
+			info.range = v.sizeInBytes;
+			info.buffer = buffer;
+			info.flags = 0;
+			info.format = yaptFormatToVk(v.nonStructuredFormat);
+			VkResult res = vkCreateBufferView(resMngr.getDevice(), &info, VK_ALLOC_CB, &view->bufferView);
+			checkForVkError(res);
+		}
+
 		return view;
 
 	}
 
 	void BufferHandleVk::destroyView(BufferViewVk* v)
 	{
+		if (v->bufferView != VK_NULL_HANDLE)
+		{
+			resMngr.deferredDestroyVkResource(v->bufferView);
+		}
 		delete v;
 	}
 

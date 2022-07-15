@@ -57,6 +57,12 @@ namespace YAPT
 	{
 		vkDestroyPipeline(device, child, VK_ALLOC_CB);
 	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkBufferView>(VkDevice device, VkBufferView child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyBufferView(device, child, VK_ALLOC_CB);
+	}
 	
 	
 }

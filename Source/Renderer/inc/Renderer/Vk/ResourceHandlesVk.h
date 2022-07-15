@@ -10,6 +10,7 @@ namespace YAPT
 	{
 		BufferViewDesc bufferDesc;
 		VkBuffer buffer;
+		VkBufferView bufferView;
 	};
 
 	struct BufferHandleVk

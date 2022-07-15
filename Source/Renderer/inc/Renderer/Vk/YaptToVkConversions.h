@@ -415,6 +415,7 @@ namespace YAPT
 				break;
 			case RESOURCE_USAGE_SAMPLED_TEXTURE:
 				layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				break;
 			case RESOURCE_USAGE_STORAGE_TEXTURE:
 				layout = VK_IMAGE_LAYOUT_GENERAL;
 				/*
@@ -463,6 +464,28 @@ namespace YAPT
 			case RESOURCE_USAGE_PRESENTABLE_TEXTURE:
 				layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 				break;
+		}
+		return layout;
+	}
+
+	inline VkImageLayout vkDescriptorTypeToVkImageLayout(VkDescriptorType descType)
+	{
+		VkImageLayout layout = VK_IMAGE_LAYOUT_UNDEFINED;
+		switch (descType)
+		{
+			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				break;
+			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				break;
+			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+				layout = VK_IMAGE_LAYOUT_GENERAL;
+				break;
+			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+				layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				break;
+		
 		}
 		return layout;
 	}
