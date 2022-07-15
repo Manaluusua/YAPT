@@ -4,8 +4,8 @@
 namespace YAPT
 {
 
-	TextureImpl::TextureImpl(ResourceDimension d, ResourceFormat f, Flags u, uint32_t w, uint32_t h, uint32_t m, uint32_t s, ResourceAllocationPoolImpl* p)
-		:m_desc(d, f,u,w,h,m,s),
+	TextureImpl::TextureImpl(const TextureDesc texDesc, ResourceAllocationPoolImpl* p)
+		:m_desc(texDesc),
 		m_resourceAllocationPool(p),
 		m_texHandle(YAPT_NULL_HANDLE),
 		m_bindlessArrayIndex(uint32_t(-1))

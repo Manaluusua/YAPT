@@ -46,6 +46,11 @@ namespace YAPT
 		m_indexAllocator->flush();
 	}
 
+	void BindlessBufferManager::bufferToBeCreated(BufferDesc& d)
+	{
+		d.resourceUsage |= RESOURCE_USAGE_UNIFORM_TEXEL_BUFFER;
+	}
+
 	void BindlessBufferManager::bufferCreated(BufferImpl* buff)
 	{
 		uint32_t index = m_indexAllocator->allocate();

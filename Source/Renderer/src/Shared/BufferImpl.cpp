@@ -4,8 +4,8 @@
 namespace YAPT
 {
 
-	BufferImpl::BufferImpl(Flags usage, size_t size, ResourceAllocationPoolImpl* pool)
-		:m_desc(usage, size),
+	BufferImpl::BufferImpl(const BufferDesc& desc, ResourceAllocationPoolImpl* pool)
+		:m_desc(desc),
 		m_resourceAllocationPool(pool),
 		m_bufferHandle(YAPT_NULL_HANDLE),
 		m_bindlessArrayIndex(0)

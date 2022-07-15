@@ -25,7 +25,9 @@ namespace YAPT
 	{
 		assert(m_allocated == false);
 		m_resourcesAlive.fetch_add(1);
-		TextureImpl* tex = new TextureImpl(dimensions, format, resourceUsage, width, height, mips, depthOrSlices, this);
+		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
+		m_renderer->textureToBeCreated(desc);
+		TextureImpl* tex = new TextureImpl(desc, this);
 		ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
 		TextureHandle texHandle = Gfx::createTexture(m_renderer->getGfxHandle(), tex->getDesc(), state, name);
 		tex->setResourceHandle(texHandle);
@@ -37,7 +39,9 @@ namespace YAPT
 	{
 		assert(m_allocated == false);
 		m_resourcesAlive.fetch_add(1);
-		BufferImpl* buf = new BufferImpl(usageFlags, size, this);
+		BufferDesc desc(usageFlags, size);
+		m_renderer->bufferToBeCreated(desc);
+		BufferImpl* buf = new BufferImpl(desc, this);
 		ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
 		BufferHandle bufHandle = Gfx::createBuffer(m_renderer->getGfxHandle(), buf->getDesc(), state, name);
 		buf->setResourceHandle(bufHandle);

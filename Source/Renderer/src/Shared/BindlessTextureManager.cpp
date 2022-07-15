@@ -46,6 +46,11 @@ namespace YAPT
 		m_indexAllocator->flush();
 	}
 
+	void BindlessTextureManager::textureToBeCreated(TextureDesc& d)
+	{
+
+	}
+
 	void BindlessTextureManager::textureCreated(TextureImpl* tex)
 	{
 		TextureViewDesc desc;

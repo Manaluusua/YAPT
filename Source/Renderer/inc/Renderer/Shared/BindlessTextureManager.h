@@ -17,6 +17,7 @@ namespace YAPT
 
 		void flush();
 
+		void textureToBeCreated(TextureDesc& d);
 		void textureCreated(TextureImpl* tex);
 		void textureReleased(TextureImpl* tex);
 

@@ -17,8 +17,9 @@ namespace YAPT
 
 		void flush();
 
-		void bufferCreated(BufferImpl* tex);
-		void bufferReleased(BufferImpl* tex);
+		void bufferToBeCreated(BufferDesc& d);
+		void bufferCreated(BufferImpl* b);
+		void bufferReleased(BufferImpl* b);
 
 		DescriptorSetLayoutHandle getLayout() const { return m_resourceUtility.getLayout(); }
 		const DescriptorSetLayoutBinding& getBindingDefinition() const { return m_resourceUtility.getBindingDefinition(); }

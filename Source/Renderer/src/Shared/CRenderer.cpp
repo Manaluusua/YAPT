@@ -242,6 +242,11 @@ namespace YAPT
 		return m_renderObjectManager->createRenderObject();
 	}
 
+	void CRenderer::textureToBeCreated(TextureDesc& d)
+	{
+		m_textureManager->textureToBeCreated(d);
+	}
+
 	void CRenderer::textureCreated(TextureImpl* t)
 	{
 		m_textureManager->textureCreated(t);
@@ -250,6 +255,11 @@ namespace YAPT
 	void CRenderer::textureReleased(TextureImpl* t)
 	{
 		m_textureManager->textureReleased(t);
+	}
+
+	void CRenderer::bufferToBeCreated(BufferDesc& d)
+	{
+		m_bufferManager->bufferToBeCreated(d);
 	}
 
 	void CRenderer::bufferCreated(BufferImpl* t)

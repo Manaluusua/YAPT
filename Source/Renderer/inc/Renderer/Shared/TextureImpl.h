@@ -9,7 +9,7 @@ namespace YAPT
 	class TextureImpl : public Texture
 	{
 	public:
-		TextureImpl(ResourceDimension d, ResourceFormat f, Flags u, uint32_t w, uint32_t h, uint32_t m, uint32_t s, ResourceAllocationPoolImpl* p);
+		TextureImpl(const TextureDesc texDesc, ResourceAllocationPoolImpl* p);
 		virtual ~TextureImpl();
 
 		//Texture

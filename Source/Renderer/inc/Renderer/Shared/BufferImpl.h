@@ -10,7 +10,7 @@ namespace YAPT
 	class BufferImpl : public Buffer
 	{
 	public:
-		BufferImpl(Flags usage, size_t size, ResourceAllocationPoolImpl* pool);
+		BufferImpl(const BufferDesc& desc, ResourceAllocationPoolImpl* pool);
 		virtual ~BufferImpl();
 
 		//Buffer

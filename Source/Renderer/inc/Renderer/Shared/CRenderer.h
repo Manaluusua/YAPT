@@ -65,9 +65,11 @@ namespace YAPT
 		MaterialManager& getMaterialManager() { return *m_materialMngr; };
 		RenderObjectManager& getRenderObjectManager() { return *m_renderObjectManager; }
 
+		void textureToBeCreated(TextureDesc& desc);
 		void textureCreated(TextureImpl* t);
 		void textureReleased(TextureImpl* t);
 
+		void bufferToBeCreated(BufferDesc& desc);
 		void bufferCreated(BufferImpl* t);
 		void bufferReleased(BufferImpl* t);
 
