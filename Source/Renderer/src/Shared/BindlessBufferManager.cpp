@@ -57,7 +57,7 @@ namespace YAPT
 		buff->setBindlessResourceArrayIndex(index);
 		 
 		BufferViewDesc desc;
-		desc.structureStrideInBytes = 4; //for now always use 4 byte alignment
+		desc.nonStructuredFormat = ResourceFormat::R32_UINT; 
 		BufferViewHandle handle = Gfx::getBufferView(m_renderer->getGfxHandle(), buff->getResourceHandle(), desc);
 
 		m_resourceUtility.updateDescriptor(index, handle);

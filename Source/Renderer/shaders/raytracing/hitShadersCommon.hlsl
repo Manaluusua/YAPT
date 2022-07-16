@@ -43,7 +43,7 @@ struct SurfaceDefinition
 
 float bbLoadFloat(in uint bufferIndex, in uint bufferOffset)
 {
-	return (g_buffersFloat[NonUniformResourceIndex(bufferIndex)][bufferOffset]);
+	return asfloat(g_buffersUint[NonUniformResourceIndex(bufferIndex)][bufferOffset]);
 }
 
 float2 bbLoadFloat2(in uint bufferIndex, in uint bufferOffset)
