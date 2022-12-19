@@ -35,18 +35,18 @@ namespace YAPT
 
 		void waitForAllFramesDone();
 
-		VkDevice getDevice() const { return m_device; }
 		ResourceManagerVk* getResourceManager() { return m_resourceManager; }
+
+		VkDevice getDevice() const { return m_device; }
+		VkPhysicalDevice getPhysicalDevice() const { return m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex]; }
 		const VkPhysicalDeviceProperties2& getDeviceProps() const { return m_physicalDeviceInfos.properties[m_selectedPhysicalDeviceIndex]; }
 
-		//SwapChainDx12* createSwapChain(const WindowSurfaceDefinition& windowSurface);
-		//void destroySwapChain(SwapChainDx12* swapChain);
-		//void present(SwapChainDx12* swapChain);
 
-		//CommandListPoolerDx12* createCommandListPooler();
-		//void destroyCommandListPooler(CommandListPoolerDx12* pooler);
+		SwapChainVk* createSwapChain(const WindowSurfaceDefinition& windowSurface);
+		void destroySwapChain(SwapChainVk* swapChain);
+		void present(SwapChainVk* swapChain);
 
-		//void submitCommandLists(CommandBufferHandle* buffers, size_t numberOfBuffers);
+		void submitCommandLists(CommandBufferHandle* buffers, size_t numberOfBuffers);
 
 		const QueueDefinitionVk& getGraphicsQueue() const { return m_graphicsQueue; }
 		const QueueDefinitionVk& getComputeQueue() const { return m_computeQueue; }
@@ -90,14 +90,9 @@ namespace YAPT
 			std::vector<VkPhysicalDeviceProperties2> properties;
 			std::vector<PhysicalDeviceFeatures> features;
 			std::vector<std::vector<VkQueueFamilyProperties> > queueFamilyProperties;
+			std::vector< std::vector<VkBool32>> supportsPresent;
 		};
 
-		struct PresentInfos
-		{
-			std::vector<std::vector<VkBool32> > presentSupport;
-			std::vector<std::vector<VkSurfaceFormatKHR> > supportedSurfaceFormats;
-			std::vector<VkSurfaceCapabilitiesKHR> surfaceCapabilities;
-		};
 
 		struct SelectedDeviceConfiguration
 		{
@@ -120,9 +115,6 @@ namespace YAPT
 		const PhysicalDeviceFeatures* getRequiredPhysicalDeviceFeatures();
 		bool hasRequiredPhysicalDeviceFeatures(const PhysicalDeviceFeatures& features);
 
-		//bool createDevice();
-		//bool createCoreResources();
-
 		void deinitialize();
 
 		GfxApiInitConfig m_gfxConfig;
@@ -130,17 +122,28 @@ namespace YAPT
 		VkDevice m_device;
 		VkSurfaceKHR m_surface;
 		PhysicalDeviceInfos m_physicalDeviceInfos;
-		PresentInfos m_presentInfos;
 		uint32_t m_selectedPhysicalDeviceIndex;
 		SubmissionThreadVk m_submissionThread;
+		SubmissionThreadVk::SubmissionId m_lastSubmitId;
+
 
 		QueueDefinitionVk m_copyQueue;
 		QueueDefinitionVk m_computeQueue;
 		QueueDefinitionVk m_graphicsQueue;
 
 		ResourceManagerVk* m_resourceManager;
-		SubmitSyncUtility m_syncUtility;
+		RingSyncUtility m_syncUtility;
 
+		std::vector<VkCommandBuffer> m_submittedCommandBuffers;
+		std::vector<SwapChainVk*> m_swapChainsToPresent;
+		std::vector<VkSemaphore> m_semaphoresToSignal;
+		std::vector<VkSemaphore> m_semaphoresToWait;
+		struct SubmittedSwapChains 
+		{
+			SwapChainVk** swapchainsToPresent;
+			size_t numberOfSwapchains;
+			VkQueue presentQueue;
+		} m_submittedSwapChainPresents;
 	};
 
 

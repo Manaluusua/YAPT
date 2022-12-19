@@ -79,6 +79,7 @@ namespace YAPT
 		}
 	}
 
+	
 	bool ResourceManagerVk::allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, AllocatedMemoryInfo& out)
 	{
 		for (uint32_t i = 0; i < m_memoryProps.memoryTypeCount; ++i)

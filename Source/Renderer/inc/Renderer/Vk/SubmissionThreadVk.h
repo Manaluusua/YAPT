@@ -63,7 +63,7 @@ namespace YAPT
 
 		SubmissionId submit(CommandQueueType commandQueueType, size_t commandQueueIndex, const Submission& submission);
 
-		void issueCallback(SubmissionThreadVkCallback callback, void* usrData);
+		SubmissionId issueCallback(SubmissionThreadVkCallback callback, void* usrData);
 
 		bool isPending(SubmissionId id);
 

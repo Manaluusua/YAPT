@@ -95,6 +95,11 @@ namespace YAPT
 	void RendererVk::renderBegin()
 	{
 		m_resourceManager->flushPreFrameUploads();
+		//Since our swapchain submit is currently a bit naive, we need to wait here to make sure that the submit thread has processed the request before we might be getting new calls to present swapchain
+		while(m_submissionThread.isPending(m_lastSubmitId))
+		{
+			std::this_thread::sleep_for(std::chrono::microseconds(1));
+		}
 	}
 	void RendererVk::executeBegin()
 	{
@@ -104,12 +109,82 @@ namespace YAPT
 	}
 	void RendererVk::executeEnd()
 	{
-		assert(!"TODO");
+		//issue waits for uploads and swapchains before the commandlist submit
+		//TODO: here we are making all commands wait for swapchain images being free. In reality, they are usually only needed at the very end. Should make the rendergraph somehow handle/detect this and break the submission so that the swapchain waits are only for before commandbuffers that need it. Need a mechanism to communicate this tho
+		{
+			m_semaphoresToWait.push_back(m_resourceManager->getLastSignaledSemaphore());
+			m_semaphoresToSignal.push_back(m_syncUtility.getSemaphoreForThisFrame());
+
+			for (size_t i = 0; i < m_swapChainsToPresent.size(); ++i)
+			{
+				m_semaphoresToWait.push_back(m_swapChainsToPresent[i]->getBeforeUsageSemaphoreCurrentFrame());
+				m_semaphoresToSignal.push_back(m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
+			}
+
+			assert(!"Add swapchain semaphores to wait and also signals for presents!");
+		
+			SubmissionThreadVk::Submission submission{};
+			submission.commandLists = m_submittedCommandBuffers.data();
+			submission.commandListsCount = m_submittedCommandBuffers.size();
+			submission.semaphoresToWait = m_semaphoresToWait.data();
+			submission.semaphoresToWaitCount = m_semaphoresToWait.size();
+			submission.semaphoresToSignal = m_semaphoresToSignal.data();
+			submission.semaphoresToWaitCount = m_semaphoresToSignal.size();
+
+			m_submissionThread.submit(SubmissionThreadVk::COMMANDQUEUETYPE_GRAPHICS, 0, submission);
+
+			m_semaphoresToWait.clear();
+			m_semaphoresToSignal.clear();
+		}
+		
+		//quick and dirty present. Should in reality handle presents just like commandbuffers: add them to some sequential commandlist and process it with submits. 
+		
+		auto cb = [](void* ptr)
+		{
+			SubmittedSwapChains* sw = static_cast<SubmittedSwapChains*>(ptr);
+			VkQueue presentQueue = sw->presentQueue;
+			for (size_t i = 0; i < sw->numberOfSwapchains; ++i)
+			{
+				sw->swapchainsToPresent[i]->present(presentQueue);
+			}
+		};
+
+		m_submittedSwapChainPresents.numberOfSwapchains = m_swapChainsToPresent.size();
+		m_submittedSwapChainPresents.swapchainsToPresent = m_swapChainsToPresent.data();
+
+		m_lastSubmitId = m_submissionThread.issueCallback(cb, &m_submittedSwapChainPresents);
+		
+		m_swapChainsToPresent.clear();
 	}
 
 	void RendererVk::waitForAllFramesDone()
 	{
 		assert(!"TODO");
+	}
+
+
+	void RendererVk::submitCommandLists(CommandBufferHandle* buffers, size_t numberOfBuffers)
+	{
+		m_submittedCommandBuffers.reserve(m_submittedCommandBuffers.size() + numberOfBuffers);
+		for (size_t i = 0; i < numberOfBuffers; ++i)
+		{
+			m_submittedCommandBuffers.push_back(buffers[i]);
+		}
+	}
+
+	SwapChainVk* RendererVk::createSwapChain(const WindowSurfaceDefinition& windowSurface)
+	{
+		SwapChainVk* sc = SwapChainVk::createSwapChain(this, windowSurface.width, windowSurface.height, getFramePipelineLength(), m_surface);
+		assert(sc && "Failed to create swapchain");
+		return sc;
+	}
+	void RendererVk::destroySwapChain(SwapChainVk* swapChain)
+	{
+		delete swapChain;
+	}
+	void RendererVk::present(SwapChainVk* swapChain)
+	{
+		m_swapChainsToPresent.push_back(swapChain);
 	}
 
 	bool RendererVk::initialize()
@@ -119,15 +194,10 @@ namespace YAPT
 		{
 			if (m_gfxConfig.renderSurfaceHandle != YAPT_NULL_HANDLE)
 			{
-				m_surface = createVkSurface(m_instance, m_gfxConfig.renderSurfaceHandle);
+				m_surface = SwapChainVk::createVkSurface(m_instance, m_gfxConfig.renderSurfaceHandle);
 			}
 
 			queryPhysicalDeviceInfos();
-
-			if (m_surface != VK_NULL_HANDLE)
-			{
-				queryPresentInfosForSurface(m_surface);
-			}
 
 			SelectedDeviceConfiguration config;
 			selectPhysicalDevice(config);
@@ -256,6 +326,7 @@ namespace YAPT
 		m_physicalDeviceInfos.properties.resize(deviceCount);
 		m_physicalDeviceInfos.features.resize(deviceCount);
 		m_physicalDeviceInfos.queueFamilyProperties.resize(deviceCount);
+		m_physicalDeviceInfos.supportsPresent.resize(deviceCount);
 		
 
 		res = vkEnumeratePhysicalDevices(m_instance, &deviceCount, m_physicalDeviceInfos.devices.data());
@@ -277,43 +348,23 @@ namespace YAPT
 			std::vector<VkQueueFamilyProperties>& queueFamilyProps = m_physicalDeviceInfos.queueFamilyProperties[deviceIndex];
 			queueFamilyProps.resize(queueFamilyCount);
 			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilyProps.data());
-		}
-	}
 
-	void RendererVk::queryPresentInfosForSurface(VkSurfaceKHR surface)
-	{
-		uint32_t deviceCount = (uint32_t)m_physicalDeviceInfos.devices.size();
-		m_presentInfos.presentSupport.resize(deviceCount);
-		m_presentInfos.supportedSurfaceFormats.resize(deviceCount);
-		m_presentInfos.surfaceCapabilities.resize(deviceCount);
 
-		for (uint32_t deviceIndex = 0; deviceIndex < deviceCount; deviceIndex++) {
-
-			uint32_t queueFamilyCount = (uint32_t)m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size();
-			const VkPhysicalDevice& physicalDevice = m_physicalDeviceInfos.devices[deviceIndex];
-
-			std::vector<VkBool32>& queueFamilyPresentSupport = m_presentInfos.presentSupport[deviceIndex];
-			std::vector<VkSurfaceFormatKHR>& supportedFormats = m_presentInfos.supportedSurfaceFormats[deviceIndex];
-
-			queueFamilyPresentSupport.resize(queueFamilyCount);
-
-			VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &m_presentInfos.surfaceCapabilities[deviceIndex]);
-			checkForVkError(res);
-			for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < queueFamilyCount; queueFamilyIndex++)
+			//check for present support
+			std::vector<VkBool32>& queueFamilyPresentSupport = m_physicalDeviceInfos.supportsPresent[deviceIndex];
+			queueFamilyPresentSupport.resize(queueFamilyCount, VK_FALSE);
+			if (m_surface != VK_NULL_HANDLE)
 			{
-				res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface, &(queueFamilyPresentSupport[queueFamilyIndex]));
-				checkForVkError(res);
+				for (uint32_t queueFamilyIndex = 0; queueFamilyIndex < queueFamilyCount; queueFamilyIndex++)
+				{
+					res = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, m_surface, &(queueFamilyPresentSupport[queueFamilyIndex]));
+					checkForVkError(res);
+				}
 			}
-
-			uint32_t supportedFormatCount = 0;
-			vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &supportedFormatCount, NULL);
-			supportedFormats.resize(supportedFormatCount);
-
-			res = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &supportedFormatCount, supportedFormats.data());
-			checkForVkError(res);
-			
 		}
 	}
+
+	
 
 	void RendererVk::selectPhysicalDevice(SelectedDeviceConfiguration& config)
 	{
@@ -332,7 +383,7 @@ namespace YAPT
 
 				if (needsToSupportPresent)
 				{
-					if (!m_presentInfos.presentSupport[deviceIndex][queueFamilyIndex])
+					if (!m_physicalDeviceInfos.supportsPresent[deviceIndex][queueFamilyIndex])
 					{
 						continue;
 					}

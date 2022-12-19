@@ -83,7 +83,7 @@ namespace YAPT
 
 	}
 
-	void SubmissionThreadVk::issueCallback(SubmissionThreadVkCallback callback, void* usrData)
+	SubmissionThreadVk::SubmissionId SubmissionThreadVk::issueCallback(SubmissionThreadVkCallback callback, void* usrData)
 	{
 		Task* t = m_taskQueue.getNextForWriting();
 		t->type = TaskType::CUSTOM_CALLBACK;
@@ -91,6 +91,8 @@ namespace YAPT
 		t->usrData = usrData;
 
 		m_taskQueue.commit();
+
+		return SubmissionThreadVk::SubmissionId{ m_submitted.fetch_add(1, std::memory_order_relaxed) };
 	}
 
 	bool SubmissionThreadVk::isPending(SubmissionId id)
@@ -139,10 +141,7 @@ namespace YAPT
 				}
 			
 				bool success = m_taskQueue.popNext();
-				if (t->type != TaskType::CUSTOM_CALLBACK)
-				{
-					m_processed.fetch_add(1);
-				}
+				m_processed.fetch_add(1);
 				assert(success);
 			}
 			else

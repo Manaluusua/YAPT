@@ -12,6 +12,7 @@
 #include <Renderer/Vk/DescriptorSetLayoutVk.h>
 #include <Renderer/Vk/DescriptorSetPoolVk.h>
 #include <Renderer/Vk/DescriptorSetVk.h>
+#include <Renderer/Vk/SwapChainVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -36,24 +37,23 @@ namespace YAPT
 
 		SwapChainHandle createSwapChain(GfxApiHandle h, const WindowSurfaceDefinition& windowSurface)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return h->createSwapChain(windowSurface);
 		}
 
 		void destroySwapChain(GfxApiHandle h, SwapChainHandle sw)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->destroySwapChain(sw);
 		}
 
 		void present(GfxApiHandle h, SwapChainHandle swapChain)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->present(swapChain);
 		}
 
 		TextureHandle getTextureHandleToNextBackbuffer(SwapChainHandle swapChain)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			swapChain->acquireNextFrame();
+			return swapChain->getTextureHandleCurrentFrame();
 		}
 
 		void prepare(GfxApiHandle h)

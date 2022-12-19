@@ -6,13 +6,13 @@
 
 namespace YAPT
 {
-	class SubmitSyncUtility
+	class RingSyncUtility
 	{
 	public:
-		SubmitSyncUtility();
-		~SubmitSyncUtility();
+		RingSyncUtility();
+		~RingSyncUtility();
 
-		void initialize(VkDevice device, size_t numberOfFramesInFlight, bool createFences, bool createSemaphores);
+		void initialize(VkDevice device, size_t numberOfEntries, bool createFences, bool createSemaphores);
 		void deinitialize();
 
 		void nextFrame();

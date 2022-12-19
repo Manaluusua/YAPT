@@ -20,6 +20,13 @@ namespace YAPT
 		return a <= b ? a : b;
 	}
 
+
+	template<typename T>
+	constexpr T clamp(const T& x, const T& minimum, const T& maximum)
+	{
+		return min(max(x, minimum), maximum);
+	}
+
 	template<typename T, typename U> 
 	constexpr T align(T val, U alignment)
 	{

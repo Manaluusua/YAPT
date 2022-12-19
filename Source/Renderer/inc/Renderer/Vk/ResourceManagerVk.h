@@ -8,7 +8,6 @@
 
 #include <Renderer/Vk/ResourceUtilityVk.h>
 
-
 #include <vector>
 #include <assert.h>
 
@@ -37,6 +36,7 @@ namespace YAPT
 		void flushPreFrameUploads();
 		void flushFrameUploads();
 
+
 		VkDevice getDevice() const { return m_device; }
 
 		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, AllocatedMemoryInfo& out);
@@ -56,6 +56,7 @@ namespace YAPT
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
+		void clearLastSignaledSemaphore() { m_lastSignaledSemaphore = VK_NULL_HANDLE; }
 
 		template<typename T>
 		inline void deferredDestroyVkResource(T resource)

@@ -66,7 +66,7 @@ namespace YAPT
 		GrowingMultiProducerPendingList<VkDeviceMemory> m_pendingUnmaps;
 
 		CommandBufferPoolVk m_commandBuffersPool;
-		SubmitSyncUtility m_syncUtility;
+		RingSyncUtility m_syncUtility;
 
 	};
 

@@ -2,23 +2,23 @@
 
 namespace YAPT
 {
-	SubmitSyncUtility::SubmitSyncUtility()
+	RingSyncUtility::RingSyncUtility()
 		:m_device(VK_NULL_HANDLE),
 		m_entryDataIndex(0),
 		m_tickCount(0)
 	{
 
 	}
-	SubmitSyncUtility::~SubmitSyncUtility()
+	RingSyncUtility::~RingSyncUtility()
 	{
-
+		deinitialize();
 	}
 
-	void SubmitSyncUtility::initialize(VkDevice device, size_t numberOfFramesInFlight, bool createFences, bool createSemaphores)
+	void RingSyncUtility::initialize(VkDevice device, size_t numberOfEntries, bool createFences, bool createSemaphores)
 	{
 		m_tickCount = 0;
 		m_entryDataIndex = 0;
-		m_syncData.resize(numberOfFramesInFlight);
+		m_syncData.resize(numberOfEntries);
 		for (size_t i = 0; i < m_syncData.size(); ++i)
 		{
 			if (createFences)
@@ -47,7 +47,7 @@ namespace YAPT
 		}
 
 	}
-	void SubmitSyncUtility::deinitialize()
+	void RingSyncUtility::deinitialize()
 	{
 		for (size_t i = 0; i < m_syncData.size(); ++i)
 		{
@@ -65,7 +65,7 @@ namespace YAPT
 		m_syncData.clear();
 	}
 
-	void SubmitSyncUtility::nextFrame()
+	void RingSyncUtility::nextFrame()
 	{
 		if (m_syncData[m_entryDataIndex].fence != YAPT_NULL_HANDLE && m_syncData[m_entryDataIndex].issued)
 		{
@@ -77,35 +77,35 @@ namespace YAPT
 		m_entryDataIndex = m_tickCount % m_syncData.size();
 	}
 
-	void SubmitSyncUtility::markThisFrameSyncDataIssued()
+	void RingSyncUtility::markThisFrameSyncDataIssued()
 	{
 		m_syncData[m_entryDataIndex].issued = true;
 	}
 
-	VkFence SubmitSyncUtility::getFenceForThisFrame() const
+	VkFence RingSyncUtility::getFenceForThisFrame() const
 	{
 		return getFenceForFrameIndex(m_entryDataIndex);
 	}
-	VkSemaphore SubmitSyncUtility::getSemaphoreForThisFrame() const
+	VkSemaphore RingSyncUtility::getSemaphoreForThisFrame() const
 	{
 		return getSemaphoreForFrameIndex(m_entryDataIndex);
 	}
 
-	VkFence SubmitSyncUtility::getFenceForFrameNumber(size_t frameNumber) const
+	VkFence RingSyncUtility::getFenceForFrameNumber(size_t frameNumber) const
 	{
 		return getFenceForFrameIndex(frameNumber % getFramesInFlight());
 	}
-	VkSemaphore SubmitSyncUtility::getSemaphoreForFrameNumber(size_t frameNumber) const
+	VkSemaphore RingSyncUtility::getSemaphoreForFrameNumber(size_t frameNumber) const
 	{
 		return getSemaphoreForFrameIndex(frameNumber % getFramesInFlight());
 	}
 
-	VkFence SubmitSyncUtility::getFenceForFrameIndex(size_t index) const
+	VkFence RingSyncUtility::getFenceForFrameIndex(size_t index) const
 	{
 		return m_syncData[index].fence;
 
 	}
-	VkSemaphore SubmitSyncUtility::getSemaphoreForFrameIndex(size_t index) const
+	VkSemaphore RingSyncUtility::getSemaphoreForFrameIndex(size_t index) const
 	{
 		return m_syncData[m_entryDataIndex].semaphore;
 	}
