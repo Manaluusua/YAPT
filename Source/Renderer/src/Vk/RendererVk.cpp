@@ -159,7 +159,7 @@ namespace YAPT
 
 	void RendererVk::waitForAllFramesDone()
 	{
-		assert(!"TODO");
+		vkDeviceWaitIdle(getDevice());
 	}
 
 
