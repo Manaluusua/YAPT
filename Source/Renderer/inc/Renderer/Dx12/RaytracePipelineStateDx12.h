@@ -3,7 +3,7 @@
 
 namespace YAPT
 {
-	//NOTE: the implementation assumes that shaderrecords can have constant data reserved after shader record but this path is disabled for now (at least until dxc supports emitting correct opcode to spirv for it)
+
 	class ResourceManagerDx12;
 	class RaytracePipelineStateDx12
 	{

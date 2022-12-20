@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 
+#define SHADERTABLE_EXTRADATA_NAME "___ShaderTableExtraData___"
 
 namespace YAPT
 {

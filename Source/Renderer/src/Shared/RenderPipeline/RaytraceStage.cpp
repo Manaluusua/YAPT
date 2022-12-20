@@ -26,8 +26,7 @@ namespace YAPT
 		m_resolveTargetWidth(0),
 		m_resolveTargetHeight(0),
 		m_raysPerFrameDivisor(1),
-		m_applySubpixelJitter(true),
-		m_perInstanceMaterialData(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER)
+		m_applySubpixelJitter(true)
 	{
 		initSubpixelJitterSamples();
 	}
@@ -92,7 +91,6 @@ namespace YAPT
 		 
 		getGraph()->createEdge(m_rtNode, 0, m_mergeNode, 1);
 		m_accStructureHelper.init(getRenderer());
-		m_perInstanceMaterialData.init(getRenderer()->getGfxHandle());
 	} 
 	void RaytraceStage::shutdown()
 	{
@@ -260,21 +258,22 @@ namespace YAPT
 		 
 		desc.hitGroupDescriptions = hitGroupDescs;
 		desc.numberOfHitGroupDescription = countOf(hitGroupDescs);
-		
+		desc.hitGroupShaderTableConstantsSizeInBytes = sizeof(RayHitShaderTableConstantData);
 
 		desc.rayGenerationDescriptions = rayGenDescs;
 		desc.numberOfRayGenerationDescription = countOf(rayGenDescs);
-
+		desc.missShaderTableConstantsSizeInBytes = sizeof(RayMissShaderTableConstantData);
 
 		desc.rayMissDescriptions = rayMissDescs;
 		desc.numberOfRayMissDescription = countOf(rayMissDescs);
-
+		desc.rayGenShaderTableConstantsSizeInBytes = 0;
 
 		desc.maxTraceRecursionDepth = 2;
 
 		m_raytracePso = Gfx::createRaytracePipelineState(getRenderer()->getGfxHandle(), desc);
 
-		m_shaderTableHelper.init(getRenderer(), m_raytracePso);
+		m_shaderTableHelper.init(getRenderer(), m_raytracePso, desc.rayGenShaderTableConstantsSizeInBytes,
+			desc.missShaderTableConstantsSizeInBytes, desc.hitGroupShaderTableConstantsSizeInBytes);
 
 
 		m_rayTraceConstants.init(data.renderGraphLifetimeResources);
@@ -307,7 +306,7 @@ namespace YAPT
 		return v;
 	}
 	      
-	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry, RayHitShaderTableConstantData& dataOut)
+	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry)
 	{
 		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh)
 		{
@@ -334,20 +333,20 @@ namespace YAPT
 			}
 			return retVal;
 		};
+		RayHitShaderTableConstantData rayHitConstants;
 		//index buffer
 		{
 			const MeshBufferBinding& indexBufferBinding = mesh->getIndexBuffer();
 			size_t offsetInBytes = indexBufferBinding.offsetInBytes;
-			
-			dataOut.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), 3, uint32_t(offsetInBytes) / sizeof(uint32_t));
+			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), 3, uint32_t(offsetInBytes) / sizeof(uint32_t));
 		}
 		//vertex data
 		{
 			const MeshLayoutInfo& info = mesh->getLayoutInfo();
 
-			dataOut.normalBuffer = getPackedBufferInfo(info, info.normal0, mesh);
-			dataOut.tangentBuffer = getPackedBufferInfo(info, info.tangent0, mesh);
-			dataOut.uvBuffer = getPackedBufferInfo(info, info.uv0, mesh);
+			rayHitConstants.normalBuffer = getPackedBufferInfo(info, info.normal0, mesh);
+			rayHitConstants.tangentBuffer = getPackedBufferInfo(info, info.tangent0, mesh);
+			rayHitConstants.uvBuffer = getPackedBufferInfo(info, info.uv0, mesh);
 		}
 		   
 		//material data
@@ -358,27 +357,30 @@ namespace YAPT
 			float metalness = matParams.metalness;
 
 
-			dataOut.specAmountClearCoatAmountIORRoughness = vec4p(saturate(matParams.specularAmount),
+			rayHitConstants.specAmountClearCoatAmountIORRoughness = vec4p(saturate(matParams.specularAmount),
 				saturate(matParams.clearCoatAmount), matParams.clearCoatIOR, saturate(matParams.clearCoatRoughness));
 			 
-			dataOut.albedoTransparency = vec4p(matParams.albedo, matParams.transparency);
-			dataOut.specularMetalness = vec4p(matParams.specular, matParams.metalness);
-			dataOut.absorptionDielectricIOR = vec4p(matParams.absorption, glm::clamp(matParams.dielectricIOR, 0.3f, 3.0f));
-			dataOut.emissiveRoughness = vec4p(matParams.emissive, saturate(matParams.roughness));
-			dataOut.anisotropy = saturate(matParams.anisotropy);
-			dataOut.anisotropyRotation = matParams.anisotropyRotation;
+			rayHitConstants.albedoTransparency = vec4p(matParams.albedo, matParams.transparency);
+			rayHitConstants.specularMetalness = vec4p(matParams.specular, matParams.metalness);
+			rayHitConstants.absorptionDielectricIOR = vec4p(matParams.absorption, glm::clamp(matParams.dielectricIOR, 0.3f, 3.0f));
+			rayHitConstants.emissiveRoughness = vec4p(matParams.emissive, saturate(matParams.roughness));
+			rayHitConstants.anisotropy = saturate(matParams.anisotropy);
+			rayHitConstants.anisotropyRotation = matParams.anisotropyRotation;
 
-			dataOut.materialMask = matParams.materialMask;
-			dataOut.thinFilmThickness = matParams.thinFilmThickness;
+			rayHitConstants.materialMask = matParams.materialMask;
+			rayHitConstants.thinFilmThickness = matParams.thinFilmThickness;
 
-			dataOut.sheenAmount = matParams.sheenAmount;
-			dataOut.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
+			rayHitConstants.sheenAmount = matParams.sheenAmount;
+			rayHitConstants.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
 
-			dataOut.albedoTexIndex = matParams.albedoTexIndex;
-			dataOut.normalTexIndex = matParams.normalTexIndex;
-			dataOut.ormTexIndex = matParams.ormTexIndex;
-			dataOut.emissiveTexIndex = matParams.emissiveTexIndex;
+			rayHitConstants.albedoTexIndex = matParams.albedoTexIndex;
+			rayHitConstants.normalTexIndex = matParams.normalTexIndex;
+			rayHitConstants.ormTexIndex = matParams.ormTexIndex;
+			rayHitConstants.emissiveTexIndex = matParams.emissiveTexIndex;
 		}
+
+		entry->extraDataInBytes = sizeof(RayHitShaderTableConstantData);
+		memcpy(entry->shaderTableExtraData, &rayHitConstants, sizeof(RayHitShaderTableConstantData));
              
 		entry->shaderIndexInPso = 0;
 		entry->shaderTableIndex = id;
@@ -395,7 +397,6 @@ namespace YAPT
 		if (roMngr.getHighestId() >= m_shaderTableHelper.getNumberOfHitGroupEntries() )
 		{
 			m_shaderTableHelper.resize(1, 1, roMngr.getNumberOfObjects() + SHADERTABLE_EXTRA_GROW_AMOUNT);
-			m_perInstanceMaterialData.allocate(roMngr.getNumberOfObjects() + SHADERTABLE_EXTRA_GROW_AMOUNT, "RayHitShaderTableConstantData");
 			needToRecreateAllEntries = true;
 		}
 		 
@@ -405,17 +406,12 @@ namespace YAPT
 			MaterialInternal** materials = roMngr.getAllMaterials();
 			MeshInternal** meshes = roMngr.getAllMeshes();
 			size_t entryCount = roMngr.getNumberOfObjects();
-			char* instanceData = m_perInstanceMaterialData.map(0, entryCount);
-			size_t alignedInstanceDataSize = m_perInstanceMaterialData.getAlignedEntrySize();
-
-			RayHitShaderTableConstantData constantDataTemp;
 
 			for (size_t i = 0; i < entryCount; ++i)
 			{
 				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
 
-				writeShaderTableEntryAndConstantData(ids[i], materials[i], meshes[i], entry, constantDataTemp);
-				memcpy(instanceData + alignedInstanceDataSize * i, &constantDataTemp, sizeof(RayHitShaderTableConstantData));
+				writeShaderTableEntryAndConstantData(ids[i], materials[i], meshes[i], entry);
 			}
 			  
 			//update rayGen
@@ -423,6 +419,7 @@ namespace YAPT
 				ShaderTableEntry* entry = m_shaderTableHelper.appendRayGenUpdate();
 				entry->shaderIndexInPso = 0;
 				entry->shaderTableIndex = 0;
+				entry->extraDataInBytes = 0;
 			}
 			
 
@@ -435,6 +432,8 @@ namespace YAPT
 				ShaderTableEntry* entry = m_shaderTableHelper.appendMissShaderUpdate();
 				entry->shaderIndexInPso = 0;
 				entry->shaderTableIndex = 0;
+				entry->extraDataInBytes = sizeof(RayMissShaderTableConstantData);
+				memcpy(entry->shaderTableExtraData, &missConstantData, sizeof(RayMissShaderTableConstantData));
 			}
 			
 
@@ -601,10 +600,8 @@ namespace YAPT
 
 			TextureViewHandle noiseTex = getRenderer()->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
 			
-			BufferViewHandle instanceData = m_perInstanceMaterialData.getBufferViewHandle();
 
 			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, nullptr, &instanceData, nullptr},
 				{1, 0, 1, nullptr, m_rayTraceConstants.getViewPtr(), nullptr},
 				{2, 0, 1, nullptr, m_randomSamples.getViewPtr(), nullptr},
 				{3, 0, 1, nullptr, &accStructView, nullptr },

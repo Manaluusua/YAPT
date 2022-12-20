@@ -6,18 +6,16 @@
 void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
 	//Initial surface setup
-	ObjectData objectData = g_objectData.Load(InstanceID());
-
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-	uint3 indices = fetchIndices(objectData.indexBuffer);
-	float3 geometryNormal = fetchMeshNormal(objectData.normalBuffer, indices, barycentrics);
-	float3 tangent = fetchMeshTangent(objectData.tangentBuffer,indices, barycentrics);
-	float2 uv = fetchMeshUV(objectData.uvBuffer, indices, barycentrics);
+	uint3 indices = fetchIndices();
+	float3 geometryNormal = fetchMeshNormal(indices, barycentrics);
+	float3 tangent = fetchMeshTangent(indices, barycentrics);
+	float2 uv = fetchMeshUV(indices, barycentrics);
 	
 	
 	//fetch surface material parameters
 	SurfaceDefinition surfaceDef;
-	fetchSurfaceMaterialParameters(objectData, surfaceDef);
+	fetchSurfaceMaterialParameters(surfaceDef);
 	
 	
 	float3 rayDir = ObjectRayDirection();
@@ -34,7 +32,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	
 	float3 normal = geometryNormal;
 	
-	modifySurfaceMaterialParametersWithTextures(objectData.albedoTexIndex, objectData.normalTexIndex, objectData.ormTexIndex, objectData.emissiveTexIndex, uv, normal, tangent, surfaceDef);
+	modifySurfaceMaterialParametersWithTextures(uv, normal, tangent, surfaceDef);
 	
 	
 	float3 normalBaseLayer = geometryNormal;

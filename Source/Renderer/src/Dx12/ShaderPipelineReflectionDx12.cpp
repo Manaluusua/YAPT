@@ -42,17 +42,28 @@ namespace YAPT
 			{
 				const ShaderReflectionDataBindingDx12& bindingDx12 = mod->reflection.sortedBindings[bindingInd];
 
+				//handle shader table extra data as a special case, it cannot be bound directly and can't be queried
+				if (bindingDx12.name == SHADERTABLE_EXTRADATA_NAME)
+				{
+					assert(bindingDx12.spaceIndex == 0);
+					assert(bindingDx12.bindPoint == 0);
+					assert(bindingDx12.type == DescriptorType::UNIFORM_BUFFER);
+					assert(bindingDx12.bindCount == 1);
 
-				
-				uint64_t ind = (uint64_t)bindingDx12.spaceIndex << 32 | bindingDx12.bindPoint;
-				ShaderPipelineReflection::ResourceBinding& binding = tempBindings[ind];
-				binding.descriptorCount = bindingDx12.bindCount;
-				binding.bindingIndex = bindingDx12.bindPoint;
-				binding.accessFlags = bindingDx12.accessFlags;
-				binding.type = bindingDx12.type;
-				binding.accessFlags |= shaderModuleTypeToShaderStagesFlag(mod->type);
+					m_hasShaderTableBuffer = true;
+				}
+				else
+				{
+					uint64_t ind = (uint64_t)bindingDx12.spaceIndex << 32 | bindingDx12.bindPoint;
+					ShaderPipelineReflection::ResourceBinding& binding = tempBindings[ind];
+					binding.descriptorCount = bindingDx12.bindCount;
+					binding.bindingIndex = bindingDx12.bindPoint;
+					binding.accessFlags = bindingDx12.accessFlags;
+					binding.type = bindingDx12.type;
+					binding.accessFlags |= shaderModuleTypeToShaderStagesFlag(mod->type);
 
-				tempNameMappings[ind].push_back(std::make_pair(bindingDx12.name.c_str(), mod->type));
+					tempNameMappings[ind].push_back(std::make_pair(bindingDx12.name.c_str(), mod->type));
+				}
 				
 
 				

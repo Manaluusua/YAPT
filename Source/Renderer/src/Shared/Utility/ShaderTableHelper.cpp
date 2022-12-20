@@ -15,13 +15,13 @@ namespace YAPT
 
 	}
 
-	void ShaderTableHelper::init(CRenderer* renderer, RaytracePipelineStateHandle pso)
+	void ShaderTableHelper::init(CRenderer* renderer, RaytracePipelineStateHandle pso, size_t rayGenExtraConstantsSizeInBytes, size_t missExtraConstantsSizeInBytes, size_t hitGroupExtraConstantsSizeInBytes)
 	{
 		m_renderer = renderer;
 		m_pso = pso;
-		m_rayGenExtraConstantsSizeInBytes = 0;
-		m_missExtraConstantsSizeInBytes = 0;
-		m_hitGroupExtraConstantsSizeInBytes = 0;
+		m_rayGenExtraConstantsSizeInBytes = rayGenExtraConstantsSizeInBytes;
+		m_missExtraConstantsSizeInBytes = missExtraConstantsSizeInBytes;
+		m_hitGroupExtraConstantsSizeInBytes = hitGroupExtraConstantsSizeInBytes;
 
 	}
 	void ShaderTableHelper::deinit()
@@ -70,7 +70,7 @@ namespace YAPT
 		m_updatedRayGenEntries.resize(m_updatedRayGenEntries.size() + 1);
 		size_t index = m_updatedRayGenEntries.size() - 1;
 		assert(index < m_numberOfRayGenEntries);
-		//m_updatedRayGenEntries[index].shaderTableExtraData = m_rayGenExtraData.data() + index * m_rayGenExtraConstantsSizeInBytes;
+		m_updatedRayGenEntries[index].shaderTableExtraData = m_rayGenExtraData.data() + index * m_rayGenExtraConstantsSizeInBytes;
 		return &m_updatedRayGenEntries[index];
 	}
 	ShaderTableEntry* ShaderTableHelper::appendMissShaderUpdate()
@@ -78,7 +78,7 @@ namespace YAPT
 		m_updatedMissEntries.resize(m_updatedMissEntries.size() + 1);
 		size_t index = m_updatedMissEntries.size() - 1;
 		assert(index < m_numberOfMissEntries);
-		//m_updatedMissEntries[index].shaderTableExtraData = m_missExtraData.data() + index * m_missExtraConstantsSizeInBytes;
+		m_updatedMissEntries[index].shaderTableExtraData = m_missExtraData.data() + index * m_missExtraConstantsSizeInBytes;
 		return &m_updatedMissEntries[index];
 	}
 	ShaderTableEntry* ShaderTableHelper::appendHitGroupUpdate()
@@ -86,7 +86,7 @@ namespace YAPT
 		m_updatedHitGroupEntries.resize(m_updatedHitGroupEntries.size() + 1);
 		size_t index = m_updatedHitGroupEntries.size() - 1;
 		assert(index < m_numberOfHitGroupEntries);
-		//m_updatedHitGroupEntries[index].shaderTableExtraData = m_hitGroupExtraData.data() + index * m_hitGroupExtraConstantsSizeInBytes;
+		m_updatedHitGroupEntries[index].shaderTableExtraData = m_hitGroupExtraData.data() + index * m_hitGroupExtraConstantsSizeInBytes;
 		return &m_updatedHitGroupEntries[index];
 	}
 

@@ -126,7 +126,7 @@ namespace YAPT
 
 		bool doesShaderTableNeedUpdate();
 		void updateShaderTable();
-		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry, RayHitShaderTableConstantData& dataOut);
+		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry);
 
 		void initSubpixelJitterSamples();
 
@@ -157,7 +157,6 @@ namespace YAPT
 		PostProcessComputePassUtility m_mergePass;
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;;
-		DynamicSizeGpuBufferHelper<RayHitShaderTableConstantData> m_perInstanceMaterialData;
 
 		uint32_t m_raysPerFrameWidth;
 		uint32_t m_raysPerFrameHeight;
