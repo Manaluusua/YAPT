@@ -214,7 +214,7 @@ namespace YAPT
 			break;
 		}
 	}
-
+	 
 
 	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{

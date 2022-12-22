@@ -589,6 +589,7 @@ namespace YAPT
 			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+			//VK_KHR_RAY_QUERY_EXTENSION_NAME, //need this because DXC handles acceleration structures as needing rayquery instead of raytracing pipeline like before. But seems like this capapbility actually needs a GPU with RT hw that I don't have. Enable when have proper GPU
 
 			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
 			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
