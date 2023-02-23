@@ -3,7 +3,7 @@
 #include <Renderer/RendererConfiguration.h>
 #include <Common/Logger.h>
 #include <unordered_map>
-
+#include <string>
 
 #define INTERNAL_DEFINE_RENDERVARTYPED_SETTERS_WITH_LIMITS(TYPE)\
 		virtual void set(const TYPE& val) final		\

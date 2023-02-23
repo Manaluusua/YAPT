@@ -9,13 +9,13 @@
 #include <Scene/Camera.h>
 #include <Common/CommonUtilities.h>
 
-#define ASSETPATH "E:/Projektit/RandomAssets/"
-#define CUBEMAPS_PATH "E:/Ohjelmia/cmftStudio/"
+#define ASSETPATH "D:/Random/3DSampleAssets/"
+#define CUBEMAPS_PATH "D:/Random/3DSampleAssets/EnvMaps/"
 
 //#define ASSETPATH ""
 //#define CUBEMAPS_PATH ""
 
-#define ENVMAP_PATH CUBEMAPS_PATH "skybox_basketball.ktx"
+#define ENVMAP_PATH CUBEMAPS_PATH "skybox_studio.ktx"
 //#define MODEL_PATH "I:/Libraries/glTF-Sample-Models/2.0/Suzanne/glTF/Suzanne.gltf"
 //#define MODEL_PATH "I:/Libraries/glTF-Sample-Models/2.0/BoomBox/glTF-Binary/BoomBox.glb"
 #define TORUS_PATH ASSETPATH "Torus/torus.glb"
@@ -576,9 +576,9 @@ void TestScene::loadMeshes()
 {
 	m_sphereMesh = loadMesh(SPHERE_PATH);
 	m_torusMesh = loadMesh(TORUS_PATH);
-	m_bowlMesh = loadMesh(BOWL_PATH);
+	//m_bowlMesh = loadMesh(BOWL_PATH);
 	m_planeMesh = loadMesh(PLANE_PATH);
-	m_dragonMesh = loadMesh(DRAGONXYZ_PATH);
+	//m_dragonMesh = loadMesh(DRAGONXYZ_PATH);
 }
 
 

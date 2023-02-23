@@ -9,8 +9,8 @@ set(LibKtx_LIBRARYDIR "" CACHE PATH "Path to libKtx binaries")
 
 find_path(LibKtx_HEADERS ktx.h PATHS ${LibKtx_INCLUDEDIR})
 
-find_library (LibKtx_Lib libktx PATHS ${LibKtx_LIBRARYDIR})
-find_file (LibKtx_Dll libktx.dll PATHS ${LibKtx_LIBRARYDIR})
+find_library (LibKtx_Lib ktx PATHS ${LibKtx_LIBRARYDIR})
+find_file (LibKtx_Dll ktx.dll PATHS ${LibKtx_LIBRARYDIR})
 
 mark_as_advanced (
 	LibKtx_HEADERS

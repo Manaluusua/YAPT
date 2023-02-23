@@ -56,16 +56,16 @@ add_library(Gui SHARED)
 target_sources(Gui PRIVATE ${SOURCE} ${HEADERS})
 target_include_directories(Gui PUBLIC inc)
 
-find_package(Qt5Core CONFIG REQUIRED)
-find_package(Qt5Widgets CONFIG REQUIRED)
-find_package(Qt5Gui CONFIG REQUIRED)
+find_package(Qt6Core CONFIG REQUIRED)
+find_package(Qt6Widgets CONFIG REQUIRED)
+find_package(Qt6Gui CONFIG REQUIRED)
 
 
-copy_if_different(Gui $<TARGET_FILE:Qt5::Core> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
-copy_if_different(Gui $<TARGET_FILE:Qt5::Widgets>  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
-copy_if_different(Gui $<TARGET_FILE:Qt5::Gui>  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+copy_if_different(Gui $<TARGET_FILE:Qt6::Core> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+copy_if_different(Gui $<TARGET_FILE:Qt6::Widgets>  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+copy_if_different(Gui $<TARGET_FILE:Qt6::Gui>  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
 
-target_link_libraries(Gui PUBLIC Qt5::Core Qt5::Widgets Qt5::Gui)
+target_link_libraries(Gui PUBLIC Qt6::Core Qt6::Widgets Qt6::Gui)
 target_link_libraries(Gui PRIVATE Common Renderer Scene)
 
 target_compile_definitions(Gui PRIVATE GUI_MODULE)
