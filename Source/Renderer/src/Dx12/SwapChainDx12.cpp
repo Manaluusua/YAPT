@@ -87,7 +87,7 @@ namespace YAPT
 				name += std::to_wstring(i);
 				texHandle->resource->SetName(name.c_str());
 				
-				texHandle->initialState = D3D12_RESOURCE_STATE_PRESENT;
+				texHandle->lastSeenState.init(D3D12_RESOURCE_STATE_PRESENT, 1);
 #ifdef DX12_DEBUGNAMES_ENABLE
 				texHandle->name = "Swapchain Image";
 #endif

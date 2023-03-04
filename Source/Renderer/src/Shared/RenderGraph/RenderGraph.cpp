@@ -185,8 +185,6 @@ namespace YAPT
 		}
 
 
-
-
 		return true;
 	}
 
@@ -201,7 +199,7 @@ namespace YAPT
 		return m_resourceRequirements.getRenderGraphResourceDescription(id);
 	}
 
-	void RenderGraph::setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount, const ResourceStateDescription previousStates)
+	void RenderGraph::setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount)
 	{
 		if (getRenderGraphResourceDescription(id).resourceDimensions != ResourceDimension::BUFFER)
 		{
@@ -211,7 +209,7 @@ namespace YAPT
 		m_boundRenderGraphResources[id].bufferHandles.assign(handles, handles + handleCount);
 		m_boundRenderGraphResources[id].boundInThisFrame = true;
 
-		resourcesBoundToPipeline(id, previousStates, handleCount);
+		resourcesBoundToPipeline(id, handleCount);
 
 		//generate resource views for the bound resource
 		const NodeSlotIdentifier* nodeSlotIdentifiers;
@@ -232,7 +230,7 @@ namespace YAPT
 		return m_boundRenderGraphResources[id].boundInThisFrame;
 	}
 	 
-	void RenderGraph::setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount, const ResourceStateDescription previousState)
+	void RenderGraph::setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount)
 	{
 		if (getRenderGraphResourceDescription(id).resourceDimensions == ResourceDimension::BUFFER)
 		{
@@ -243,7 +241,7 @@ namespace YAPT
 		m_boundRenderGraphResources[id].textureHandles.assign(handles, handles + handleCount);;
 		m_boundRenderGraphResources[id].boundInThisFrame = true;
 
-		resourcesBoundToPipeline(id, previousState, handleCount);
+		resourcesBoundToPipeline(id, handleCount);
 
 		//generate resource views for the bound resource
 		const RenderGraphResourceDescription&  resDesc = m_resourceRequirements.getRenderGraphResourceDescription(id);

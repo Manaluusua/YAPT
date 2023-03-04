@@ -29,10 +29,9 @@ namespace YAPT
 		m_swapChainNode->setSwapChain(data.swapChain);
 
 		RenderGraphResourceId swapChainResourceId = m_swapChainNode->getRenderGraphResourceIdForSlot(0);
-		ResourceStateDescription state = m_swapChainNode->getGraph()->getLastStateForResource(swapChainResourceId);
 
 		TextureHandle tex = Gfx::getTextureHandleToNextBackbuffer(data.swapChain);
-		m_swapChainNode->getGraph()->setRenderGraphResourceTexture(swapChainResourceId, tex, state);
+		m_swapChainNode->getGraph()->setRenderGraphResourceTexture(swapChainResourceId, tex);
 	}
 	void SwapChainStage::update(const UpdateData& data)
 	{

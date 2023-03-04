@@ -46,13 +46,13 @@ namespace YAPT
 				{
 					size_t index = textureCount - 1 - currentRtTexCount++;
 					resourceDescs[index] = textures[i]->textureDesc;
-					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->initialState : defaultState;
+					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->lastSeenState.getStateForSubResource(0) : defaultState;
 				}
 				else
 				{
 					size_t index = currentNonRtTexCount++;
 					resourceDescs[index] = textures[i]->textureDesc;
-					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->initialState : defaultState;
+					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->lastSeenState.getStateForSubResource(0) : defaultState;
 				}
 			}
 
@@ -134,7 +134,7 @@ namespace YAPT
 			for (size_t i = 0; i < bufferCount; ++i)
 			{
 				resourceDescs[i] = buffers[i]->bufferDesc;
-				resourceInitialStates[i] = heapType == D3D12_HEAP_TYPE_DEFAULT ? buffers[i]->initialState : defaultState;
+				resourceInitialStates[i] = heapType == D3D12_HEAP_TYPE_DEFAULT ? buffers[i]->lastSeenState.getStateForSubResource(0) : defaultState;
 			}
 
 

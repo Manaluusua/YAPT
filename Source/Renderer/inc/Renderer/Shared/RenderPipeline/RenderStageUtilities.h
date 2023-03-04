@@ -8,15 +8,14 @@ namespace YAPT
 	class DeferredRenderGraphBindingUtility
 	{
 	public:
-		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, TextureHandle handle, const ResourceStateDescription& previousState);
-		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, BufferHandle handle, const ResourceStateDescription& previousState);
+		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, TextureHandle handle);
+		void setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, BufferHandle handle);
 
 		void flushDeferredRenderGraphResourceBindings(RenderGraph* graph);
 	private:
 		struct DeferredRenderGraphResourceBinding
 		{
 			RenderGraphResourceId id;
-			ResourceStateDescription stateDesc;
 			enum
 			{
 				BUFFER,

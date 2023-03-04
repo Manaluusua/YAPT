@@ -120,12 +120,8 @@ namespace YAPT
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(rtTarget);
 
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_resolveTargetWidth, m_resolveTargetHeight, 1, 1);
-			ResourceStateDescription state;
-
-			state = getGraph()->getLastStateForResource(rtTarget);
-			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, state, "Main scene RT Color Target");
-
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(rtTarget, rtTargetTex, state);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(rtTarget, rtTargetTex);
 		}
 		
 
@@ -138,13 +134,9 @@ namespace YAPT
 
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_resolveTargetWidth, m_resolveTargetHeight, 1, 1);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "merged RT result");
 
-			ResourceStateDescription state;
-
-			state = getGraph()->getLastStateForResource(resId);
-			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, state, "merged RT result");
-
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(resId, tex, state);
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(resId, tex);
 		}
 
 		clearAccumulatedFrames();

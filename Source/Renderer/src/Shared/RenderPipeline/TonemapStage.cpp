@@ -206,31 +206,25 @@ namespace YAPT
 		{
 			RenderGraphResourceId histogramBufferId = m_generateHistogramNode->getRenderGraphResourceIdForSlot(0);
 
-			ResourceStateDescription state = getGraph()->getLastStateForResource(histogramBufferId);
-
 			BufferDesc histogramBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(uint32_t) * HISTOGRAM_BUCKETS_COUNT);
-			m_histogramBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramBufferDesc, state, "Luminance Histogram Buffer");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramBufferId, m_histogramBuffer, state);
+			m_histogramBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramBufferDesc, "Luminance Histogram Buffer");
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramBufferId, m_histogramBuffer);
 		}
 		
 		{
 			RenderGraphResourceId histogramResultId = m_analyzeHistogramNode->getRenderGraphResourceIdForSlot(0);
 
-			ResourceStateDescription state = getGraph()->getLastStateForResource(histogramResultId);
-
 			BufferDesc histogramResultBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(LuminanceHistogramAnalysisResults));
-			m_luminanceAnalysisResultsBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramResultBufferDesc, state, "Luminance Info Buffer");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramResultId, m_luminanceAnalysisResultsBuffer, state);
+			m_luminanceAnalysisResultsBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramResultBufferDesc, "Luminance Info Buffer");
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramResultId, m_luminanceAnalysisResultsBuffer);
 		}
 
 		{
 			RenderGraphResourceId prepareDataId = m_preparetonemapDataNode->getRenderGraphResourceIdForSlot(0);
 
-			ResourceStateDescription state = getGraph()->getLastStateForResource(prepareDataId);
-
 			BufferDesc exposureInfoBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(ExposureInfo));
-			m_exposureInfo = data.renderGraphLifetimeResources->requestBuffer(exposureInfoBufferDesc, state, "Exposure Info");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(prepareDataId, m_exposureInfo, state);
+			m_exposureInfo = data.renderGraphLifetimeResources->requestBuffer(exposureInfoBufferDesc, "Exposure Info");
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(prepareDataId, m_exposureInfo);
 		}
 
 		
@@ -262,14 +256,12 @@ namespace YAPT
 
 		const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
 
-		ResourceStateDescription state = getGraph()->getLastStateForResource(renderTargetResId);
-
 		
 		if (!m_outputToSwapchain)
 		{
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1);
-			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, state, "LDR Color Target");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_colorTarget, state);
+			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "LDR Color Target");
+			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_colorTarget);
 		}
 		
 		

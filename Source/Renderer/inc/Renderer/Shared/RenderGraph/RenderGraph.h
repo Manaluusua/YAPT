@@ -37,22 +37,22 @@ namespace YAPT
 		RenderGraphResourceId getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot);
 		const RenderGraphResourceDescription& getRenderGraphResourceDescription(RenderGraphResourceId id) const;
 
-		void setRenderGraphResourceBuffer(RenderGraphResourceId id, BufferHandle handle, const ResourceStateDescription previousState)
+		void setRenderGraphResourceBuffer(RenderGraphResourceId id, BufferHandle handle)
 		{
-			setRenderGraphResourceBuffers(id, &handle, 1, previousState);
+			setRenderGraphResourceBuffers(id, &handle, 1);
 		}
-		void setRenderGraphResourceTexture(RenderGraphResourceId id, TextureHandle handle, const ResourceStateDescription previousState)
+		void setRenderGraphResourceTexture(RenderGraphResourceId id, TextureHandle handle)
 		{
-			setRenderGraphResourceTextures(id, &handle, 1, previousState);
+			setRenderGraphResourceTextures(id, &handle, 1);
 		}
 
-		void setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount, const ResourceStateDescription previousState);
-		void setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount, const ResourceStateDescription previousState);
-
-		const ResourceStateDescription& getLastStateForResource(RenderGraphResourceId resourceId);
+		void setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount);
+		void setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount);
 
 		BufferHandle getBufferFromNodeSlot(size_t nodeIndex, size_t slot);
 		TextureViewHandle getTextureViewFromNodeSlot(size_t nodeIndex, size_t slot);
+
+		
 
 		void compile();
 
@@ -134,7 +134,7 @@ namespace YAPT
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) = 0;
 
 
-		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound) = 0;
+		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) = 0;
 
 		void createTextureViewDesc(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, TextureViewDesc& textureViewDescOut);
 
@@ -147,8 +147,8 @@ namespace YAPT
 			node->invokeCallback(execContext);
 		}
 		void sortNodes(std::vector<RenderGraphNode*>& nodesToSort);
-		
-		
+		const ResourceStateDescription& getLastStateForResource(RenderGraphResourceId resourceId);
+
 		GfxApiHandle m_gfxHandle;
 
 		RenderGraphResourceRequirements m_resourceRequirements;

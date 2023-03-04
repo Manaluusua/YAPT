@@ -87,6 +87,7 @@ set(HEADERS
 	inc/Renderer/Shared/Utility/MultipleScatterLUT.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUTUtility.h
 	inc/Renderer/Shared/Utility/DXCUtility.h
+	inc/Renderer/Shared/Utility/ResourceStateTracker.h
 
 	inc/Renderer/Shared/RenderPipeline/RenderPipeline.h
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineBase.h

@@ -78,9 +78,9 @@ namespace YAPT
 		virtual ComputeNode* createComputeNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) final;
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) final;
 		virtual void executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context) final;
-		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound) final;
+		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) final;
 
-		void updateBarriersForResource(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound);
+		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound);
 
 		void issuePreBarriers(size_t nodeIndex, CommandBufferHandle buffer);
 		void issuePostBarriers(size_t nodeIndex, CommandBufferHandle buffer);

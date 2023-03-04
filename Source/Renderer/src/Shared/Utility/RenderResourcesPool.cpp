@@ -13,6 +13,15 @@ namespace YAPT
 
 	}
 
+	TextureHandle RenderResourcesPool::requestTexture(const YAPT::TextureDesc& desc, const char* name)
+	{
+		return requestTexture(desc, ResourceStateDescription::default(), name);
+	}
+	BufferHandle RenderResourcesPool::requestBuffer(const YAPT::BufferDesc& desc, const char* name)
+	{
+		return requestBuffer(desc, ResourceStateDescription::default(), name);
+	}
+
 	TextureHandle RenderResourcesPool::requestTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
 	{
 		TextureHandle texHandle =  Gfx::createTexture(m_apiHandle, desc, initialState, name);

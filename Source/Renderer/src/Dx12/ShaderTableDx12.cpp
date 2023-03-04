@@ -33,7 +33,7 @@ namespace YAPT
 		for (size_t i = 0; i < bufferCount; ++i)
 		{
 			m_bufferHandles[i] = new BufferHandleDx12;
-			m_bufferHandles[i]->initialState = D3D12_RESOURCE_STATE_COPY_DEST;
+			m_bufferHandles[i]->lastSeenState.init(D3D12_RESOURCE_STATE_COPY_DEST, 1);
 #ifdef DX12_DEBUGNAMES_ENABLE
 			m_bufferHandles[i]->name = "ShaderTable";
 #endif

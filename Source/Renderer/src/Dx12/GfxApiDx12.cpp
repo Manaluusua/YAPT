@@ -111,7 +111,7 @@ namespace YAPT
 			TextureHandleDx12* textureHandle = new TextureHandleDx12;
 			textureDescToDx12ResourceDesc(desc, textureHandle->textureDesc);
 			textureHandle->dimension = desc.dimension;
-			textureHandle->initialState = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			textureHandle->lastSeenState.init(yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn), desc.depthOrSlices * desc.mips);
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
 			{
@@ -124,7 +124,7 @@ namespace YAPT
 		{
 			BufferHandleDx12* bufferHandle = new BufferHandleDx12;
 			bufferDescToDx12ResourceDesc(desc, bufferHandle->bufferDesc);
-			bufferHandle->initialState = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			bufferHandle->lastSeenState.init(yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn), 1);
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
 			{

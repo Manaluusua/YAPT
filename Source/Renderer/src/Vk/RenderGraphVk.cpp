@@ -707,14 +707,14 @@ break;
 
 
 
-	void RenderGraphVk::resourcesBoundToPipeline(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound)
+	void RenderGraphVk::resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound)
 	{
-		updateBarriersForResource(id, previousState, numberOfResourcesBound);
+		updateBarriersForResource(id,  numberOfResourcesBound);
 		assert(!"TODO");
 	}
 
 	
-	void RenderGraphVk::updateBarriersForResource(RenderGraphResourceId id, const ResourceStateDescription previousState, size_t numberOfResourcesBound)
+	void RenderGraphVk::updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound)
 	{
 		/*auto injectResourceToBarrier = [](ID3D12Resource* resource, D3D12_RESOURCE_BARRIER& barrier)
 		{

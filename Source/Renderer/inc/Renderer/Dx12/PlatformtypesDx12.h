@@ -3,6 +3,7 @@
 
 #include "Dx12CommonIncludes.h"
 #include <Renderer/Shared/Utility/ResourceViewPool.h>
+#include <Renderer/Shared/Utility/ResourceStateTracker.h>
 #include <dxcapi.h>
 #include <vector>
 #include <string>
@@ -100,12 +101,12 @@ namespace YAPT
 		{
 			delete texView;
 		}
-		ResourceDimension dimension;
+		TextureViews views;
 		D3D12_RESOURCE_DESC textureDesc;
-		D3D12_RESOURCE_STATES initialState;
+		ResourceDimension dimension;
 		RCPtr<ID3D12Resource> resource;
 		D3D12_HEAP_TYPE heapType;
-		TextureViews views;
+		ResourceStateTracker<D3D12_RESOURCE_STATES> lastSeenState;
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;
@@ -165,13 +166,12 @@ namespace YAPT
 		{
 			delete buffView;
 		}
-
+		BufferViews views;
 		D3D12_RESOURCE_DESC bufferDesc;
-		D3D12_RESOURCE_STATES initialState;
 		RCPtr<ID3D12Resource> resource;
 		D3D12_HEAP_TYPE heapType;
-		
-		BufferViews views;
+		ResourceStateTracker<D3D12_RESOURCE_STATES> lastSeenState;
+
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;

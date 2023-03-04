@@ -72,6 +72,8 @@ namespace YAPT
 		ResourceUsage resourceUsage;
 		AccessFlags accessFlags;
 		ShaderStages shaderStagesUsedIn;
+
+		static ResourceStateDescription default() { return { RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE }; }
 	};
 
 	struct ShaderModuleDefine
@@ -359,8 +361,6 @@ namespace YAPT
 	//forward declarations
 	class RenderGraph;
 	class ShaderPipelineReflection;
-
-
 }
 
 
