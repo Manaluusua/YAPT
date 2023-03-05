@@ -10,13 +10,13 @@ namespace YAPT
 	{
 	public:
 
-		void init(const STATE&& state, size_t numberOfSubResources);
+		void init(const STATE& state, size_t numberOfSubResources);
 		
-		void setSharedState(const STATE&& state);
-		void setStateForSubResource(int subresource, const STATE&& state);
+		void setSharedState(const STATE& state);
+		void setStateForSubResource(size_t subresource, const STATE& state);
 
 		size_t getNumberOfSubResources() const;
-		STATE getStateForSubResource(int subresource);
+		STATE getStateForSubResource(size_t subresource);
 
 		void checkSharedState();
 
@@ -30,7 +30,7 @@ namespace YAPT
 
 	//impl
 	template<typename STATE>
-	void ResourceStateTracker<STATE>::init(const STATE&& state, size_t numberOfSubResources)
+	void ResourceStateTracker<STATE>::init(const STATE& state, size_t numberOfSubResources)
 	{
 		m_sharedState = state;
 		if (numberOfSubResources > 1)
@@ -45,7 +45,7 @@ namespace YAPT
 	}
 
 	template<typename STATE>
-	void ResourceStateTracker<STATE>::setSharedState(const STATE&& state)
+	void ResourceStateTracker<STATE>::setSharedState(const STATE& state)
 	{
 		if (!m_allSubresourcesShareState)
 		{
@@ -61,7 +61,7 @@ namespace YAPT
 	}
 
 	template<typename STATE>
-	void ResourceStateTracker<STATE>::setStateForSubResource(int subresource, const STATE&& state)
+	void ResourceStateTracker<STATE>::setStateForSubResource(size_t subresource, const STATE& state)
 	{
 		if (m_allSubresourcesShareState && m_sharedState == state) return;
 
@@ -85,7 +85,7 @@ namespace YAPT
 
 
 	template<typename STATE>
-	STATE ResourceStateTracker<STATE>::getStateForSubResource(int subresource)
+	STATE ResourceStateTracker<STATE>::getStateForSubResource(size_t subresource)
 	{
 		if (m_allSubresourcesShareState || (subresource == 0 && m_statePerSubResource.size() == 0))
 		{

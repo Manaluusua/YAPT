@@ -27,6 +27,7 @@ namespace YAPT
 	class DescriptorSetPoolDx12;
 	class ShaderTableDx12;
 	struct DescriptorSetDx12;
+	typedef ResourceStateTracker<D3D12_RESOURCE_STATES> ResourceStateTrackerDx12;
 
 	struct ShaderReflectionDataBindingDx12
 	{
@@ -106,7 +107,7 @@ namespace YAPT
 		ResourceDimension dimension;
 		RCPtr<ID3D12Resource> resource;
 		D3D12_HEAP_TYPE heapType;
-		ResourceStateTracker<D3D12_RESOURCE_STATES> lastSeenState;
+		ResourceStateTrackerDx12 lastSeenState;
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;
@@ -170,7 +171,7 @@ namespace YAPT
 		D3D12_RESOURCE_DESC bufferDesc;
 		RCPtr<ID3D12Resource> resource;
 		D3D12_HEAP_TYPE heapType;
-		ResourceStateTracker<D3D12_RESOURCE_STATES> lastSeenState;
+		ResourceStateTrackerDx12 lastSeenState;
 
 
 #ifdef DX12_DEBUGNAMES_ENABLE

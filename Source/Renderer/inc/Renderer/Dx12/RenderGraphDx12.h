@@ -19,11 +19,14 @@ namespace YAPT
 		
 		struct ResourceSlotBarrierDescription
 		{
-			std::vector<D3D12_RESOURCE_BARRIER> beforeBarriersPerResource;
-			std::vector<D3D12_RESOURCE_BARRIER> afterBarriersPerResource;
+			//pregenerated barriers for a resource that is bound to this slot (these are generated before any knowledge of the exact resource and the number of them)
+			std::vector<D3D12_RESOURCE_BARRIER> preGeneratedBeforeBarriersPerResource;
+			std::vector<D3D12_RESOURCE_BARRIER> preGeneratedAfterBarriersPerResource;
 
+			//actual barriers generated for the resource in slot. Note that there might be more than 1 resource in this slot, so the number of these barriers can be more than the pregenerated one.
 			std::vector<D3D12_RESOURCE_BARRIER> currentBeforeBarriers;
 			std::vector<D3D12_RESOURCE_BARRIER> currentAfterBarriers;
+			std::vector<D3D12_RESOURCE_BARRIER> overriddenBeforeBarriers;
 
 			size_t numberOfTransitionBarriers;
 			D3D12_RESOURCE_STATES transitionedToState; //state transitioned to, redundantly stated here
@@ -35,7 +38,6 @@ namespace YAPT
 		{
 			bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
 			D3D12_RESOURCE_STATES lastStateInGraph;
-			std::vector< D3D12_RESOURCE_STATES> overriddenBeforeStates; //only valid if is first usage for resource in graph
 		};
 
 		struct BarriersPerNode
