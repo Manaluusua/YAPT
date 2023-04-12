@@ -1,5 +1,6 @@
 #include <Renderer/Vk/UploadHelperVk.h>
 #include <Renderer/Vk/ResourceManagerVk.h>
+#include <Renderer/Vk/ResourceHandlesVk.h>
 
 #define INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE 1024  
 
@@ -63,8 +64,7 @@ namespace YAPT
 		
 	}
 	
-	void UploadHelperVk::uploadDataForTexture(VkImage texture, const VkImageCreateInfo& resourceDesc, VkImageLayout current, VkImageLayout afterCopy,
-		size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions)
+	void UploadHelperVk::uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions)
 	{
 		//calculate required memory
 		size_t memoryRequiredInBytes = 0;
@@ -105,11 +105,8 @@ namespace YAPT
 		//upload
 		char* uploadBufferPtr = uploadInfo.mappedPtr;
 		TextureUpload* info = m_pendingTextureUploads.add(1);
-		info->dstImage = texture;
+		info->dstImage = image;
 		info->srcBuffer = uploadInfo.uploadBuffer;
-		info->currentLayout = current;
-		info->copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		info->afterCopyLayout = afterCopy;
 		info->copyDescs.resize(arraySliceCount * mipCount);
 		size_t currentUploadBufferOffset = uploadInfo.offsetToHeap;
 
@@ -128,8 +125,8 @@ namespace YAPT
 				VkBufferImageCopy& imageCopyStruct = info->copyDescs[arraySlice * mipCount + mipLevel];
 				const TextureDataDefinition& texData = textureDataDefinitions[arraySlice * mipCount + mipLevel];
 
-				imageCopyStruct.bufferRowLength = (uint32_t)texData.rowPitchInBytes;
-				imageCopyStruct.bufferImageHeight = (uint32_t)texData.rowPitchInBytes * height;
+				imageCopyStruct.bufferRowLength = width;//(uint32_t)texData.rowPitchInBytes;
+				imageCopyStruct.bufferImageHeight = height;//(uint32_t)texData.rowPitchInBytes * height;
 				imageCopyStruct.bufferOffset = currentUploadBufferOffset;
 				imageCopyStruct.imageOffset = { 0, 0 ,0 };
 				imageCopyStruct.imageExtent = { width, height, depth };
@@ -173,6 +170,8 @@ namespace YAPT
 		VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buff);
 		bool success = m_resMngr.allocateDeviceMemory(0xFFFFFFFF, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeRequested, memInfo);
 
+		res = vkBindBufferMemory(m_resMngr.getDevice(), buff, memInfo.memory, 0);
+
 		checkVkResult(res);
 		assert(success);
 
@@ -196,6 +195,7 @@ namespace YAPT
 	
 	bool UploadHelperVk::flushUploadBatch(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
 	{
+
 		VkDeviceMemory* pendingUnmaps = m_pendingUnmaps.getAll();
 		for (size_t i = 0; i < m_pendingUnmaps.count(); ++i)
 		{
@@ -212,36 +212,121 @@ namespace YAPT
 		TextureUpload* textureUploadsList = m_pendingTextureUploads.getAll();
 		BufferUpload* bufferUploadsList = m_pendingBufferUploads.getAll();
 
-		//issue buffer copies
-		for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
-		{
-			const BufferUpload& info = bufferUploadsList[i];
-			vkCmdCopyBuffer(cmdBuff, info.srcBuffer, info.dstBuffer, 1, &info.copyDesc);
-		}
-		
 
-		//issue texture copies
-		for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+		// Buffer copies
 		{
-			const TextureUpload& info = textureUploadsList[i];
-
-			if (info.currentLayout != info.copyLayout)
+			
+			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
 			{
-				//issue transition barrier
-				assert(!"TODO");
-
+				const BufferUpload& info = bufferUploadsList[i];
+				vkCmdCopyBuffer(cmdBuff, info.srcBuffer, info.dstBuffer, 1, &info.copyDesc);
 			}
 
-			vkCmdCopyBufferToImage(cmdBuff, info.srcBuffer, info.dstImage, info.copyLayout, (uint32_t)info.copyDescs.size(), info.copyDescs.data());
-
-			if(info.copyLayout != info.afterCopyLayout)
-			{
-				assert(!"TODO");
-			}
 		}
 		
-		
+		//image copies
+		{
+			std::vector<VkImageMemoryBarrier> imageBarriers;
+			auto addImageBarrier = [&imageBarriers](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount) -> void
+			{
+				VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
+				barrier.srcAccessMask = 0;
+				barrier.dstAccessMask = 0;
+				barrier.dstQueueFamilyIndex = 0;
+				barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				barrier.image = image;
+				barrier.newLayout = newLayout;
+				barrier.oldLayout = oldLayout;
+				barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+				barrier.subresourceRange.baseArrayLayer = slice;
+				barrier.subresourceRange.baseMipLevel = mip;
+				barrier.subresourceRange.layerCount = sliceCount;
+				barrier.subresourceRange.levelCount = mipCount;
 
+				imageBarriers.push_back(barrier);
+			};
+
+			VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			//before copy barriers (image layout transitions)
+			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+			{
+				const TextureUpload& info = textureUploadsList[i];
+				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
+				
+				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
+				{
+					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
+					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
+					{
+						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
+						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
+						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
+
+						if (currentLayout != copyLayout)
+						{
+							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1);
+							layouts.setStateForSubResource(subresourceIndex, copyLayout);
+						}
+					}
+					
+					
+				}
+			}
+
+			if (imageBarriers.size() > 0)
+			{
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, (uint32_t)imageBarriers.size(), imageBarriers.data());
+				imageBarriers.clear();
+			}
+			
+
+			//issue texture copies
+			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+			{
+				const TextureUpload& info = textureUploadsList[i];
+				vkCmdCopyBufferToImage(cmdBuff, info.srcBuffer, info.dstImage->image, copyLayout, (uint32_t)info.copyDescs.size(), info.copyDescs.data());
+			}
+
+			//after copy barriers (image layout transitions)
+			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+			{
+				const TextureUpload& info = textureUploadsList[i];
+				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
+
+				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
+				{
+					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
+					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
+					{
+						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
+						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
+						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
+
+						if (currentLayout != afterCopyLayout)
+						{
+							addImageBarrier(currentLayout, afterCopyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1);
+							layouts.setStateForSubResource(subresourceIndex, afterCopyLayout);
+						}
+					}
+				}
+			}
+
+			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+			{
+				const TextureUpload& info = textureUploadsList[i];
+				info.dstImage->currentLayouts.checkSharedState();
+			}
+
+			if (imageBarriers.size() > 0)
+			{
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, (uint32_t)imageBarriers.size(), imageBarriers.data());
+				imageBarriers.clear();
+			}
+		}
+
+		
 
 		m_pendingBufferUploads.clear();
 		m_pendingTextureUploads.clear();

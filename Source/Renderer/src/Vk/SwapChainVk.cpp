@@ -166,7 +166,7 @@ namespace YAPT
 				texHandle->memoryFlags = memoryFlags;
 				texHandle->createInfo = vkImageInfo;
 				texHandle->dimensions = ResourceDimension::TEXTURE_2D;
-				texHandle->currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+				texHandle->currentLayouts.setSharedState(VK_IMAGE_LAYOUT_UNDEFINED);
 				texHandle->image = vkImage;
 #ifdef VK_DEBUGNAMES_ENABLE
 				texHandle->name = "SwapChain Image " + std::to_string(i);

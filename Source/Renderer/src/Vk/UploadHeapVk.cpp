@@ -26,6 +26,8 @@ namespace YAPT
 		bool success = resourceMngr.allocateDeviceMemory(0xFFFFFFFF, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, heapSize, memInfo);
 		m_deviceMemory = memInfo.memory;
 
+		res = vkBindBufferMemory(m_resMngr.getDevice(), m_uploadBuffer, m_deviceMemory, 0);
+
 		checkVkResult(res);
 		assert(success);
 

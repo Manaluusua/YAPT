@@ -25,6 +25,9 @@ namespace YAPT
 		return res == VK_SUCCESS;
 	}
 
-
+	inline uint32_t calculateSubresourceIndex(uint32_t mipLevel, uint32_t arraySlice, uint32_t mipLevels, uint32_t arraySize)
+	{
+		return mipLevel + arraySlice * mipLevels;
+	}
 
 }

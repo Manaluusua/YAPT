@@ -20,6 +20,8 @@ namespace YAPT
 
 		void checkSharedState();
 
+		bool allSubResourcesShareState() const { return m_allSubresourcesShareState; }
+
 	private:
 
 		STATE m_sharedState;
@@ -104,7 +106,7 @@ namespace YAPT
 		if (m_statePerSubResource.size() == 0) return;
 
 		bool stateShared = true;
-		const STATE&& state = m_statePerSubResource[0];
+		const STATE& state = m_statePerSubResource[0];
 		for (int i = 1; i < m_statePerSubResource.size(); ++i)
 		{
 			if (m_statePerSubResource[i] != state)

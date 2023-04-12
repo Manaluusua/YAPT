@@ -20,8 +20,7 @@ namespace YAPT
 		void* mapCopyRangeForBufferData(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes);
 		void uploadDataForBuffer(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data);
 
-		void uploadDataForTexture(VkImage texture, const VkImageCreateInfo& resourceDesc, VkImageLayout currentLayout, VkImageLayout afterCopyLayout,
-			size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions);
+		void uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions);
 
 		void prepareNextUploadBatch();
 		bool flushUploadBatch(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore);
@@ -40,10 +39,7 @@ namespace YAPT
 		{
 			std::vector<VkBufferImageCopy> copyDescs;
 			VkBuffer srcBuffer;
-			VkImage dstImage;
-			VkImageLayout currentLayout;
-			VkImageLayout copyLayout;
-			VkImageLayout afterCopyLayout;
+			TextureHandleVk* dstImage;
 		};
 
 		struct BufferUpload

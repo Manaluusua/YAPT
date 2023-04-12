@@ -69,19 +69,23 @@ namespace YAPT
 			PhysicalDeviceFeatures()
 				:baseFeatures{},
 				descIndexingFeatures{},
-				rtFeatures{}
+				rayTracePipelineFeatures{},
+				rayQueryFeatures{}
 			{
 				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-				rtFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 				baseFeatures.pNext = &descIndexingFeatures;
-				descIndexingFeatures.pNext = &rtFeatures;
+				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
+				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
 				
 			}
 
 			VkPhysicalDeviceFeatures2 baseFeatures;
 			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
-			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rtFeatures;
+			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
+			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
 		};
 
 		struct PhysicalDeviceInfos

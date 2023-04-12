@@ -2,6 +2,7 @@
 #include <Renderer/Shared/Utility/ResourceViewPool.h>
 #include <Renderer/Vk/CommonVk.h>
 #include <Renderer/Shared/GfxTypes.h>
+#include <Renderer/Shared/Utility/ResourceStateTracker.h>
 namespace YAPT
 {
 	class ResourceManagerVk;
@@ -44,7 +45,7 @@ namespace YAPT
 		ResourceDimension dimensions;
 		VkImageCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;
-		VkImageLayout currentLayout;
+		ResourceStateTracker<VkImageLayout> currentLayouts;
 		char* mappedMemory;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;

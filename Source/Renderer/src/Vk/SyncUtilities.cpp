@@ -19,6 +19,7 @@ namespace YAPT
 		m_tickCount = 0;
 		m_entryDataIndex = 0;
 		m_syncData.resize(numberOfEntries);
+		m_device = device;
 		for (size_t i = 0; i < m_syncData.size(); ++i)
 		{
 			if (createFences)

@@ -193,20 +193,17 @@ namespace YAPT
 
 	void ResourceManagerVk::copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
 	{
-		VkImageLayout currentLayout = image->currentLayout;
-		VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		image->currentLayout = afterCopyLayout;
 		switch (heapType)
 		{
 		case YAPT::GpuUploadStage::BEFORE_RENDER:
 		{
-			m_preFrameUploads->uploadDataForTexture(image->image, image->createInfo, currentLayout, afterCopyLayout, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
+			m_preFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
 			break;
 		}
 		case YAPT::GpuUploadStage::DURING_RENDER:
 		{
-			m_duringFrameUploads->uploadDataForTexture(image->image, image->createInfo, currentLayout, afterCopyLayout, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
+			m_duringFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
 			break;
 		}
 		default:
