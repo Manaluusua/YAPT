@@ -60,7 +60,7 @@ namespace YAPT
 		GrowingMultiProducerPendingList<BufferUpload> m_pendingBufferUploads;
 		GrowingMultiProducerPendingList<TextureUpload> m_pendingTextureUploads;
 		GrowingMultiProducerPendingList<VkDeviceMemory> m_pendingUnmaps;
-
+		std::vector<SubmissionThreadVk::SubmissionId> m_submissionIDs;
 		CommandBufferPoolVk m_commandBuffersPool;
 		RingSyncUtility m_syncUtility;
 

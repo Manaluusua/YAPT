@@ -68,14 +68,15 @@ namespace YAPT
 
 	void RingSyncUtility::nextFrame()
 	{
+		m_tickCount++;
+		m_entryDataIndex = m_tickCount % m_syncData.size();
+
 		if (m_syncData[m_entryDataIndex].fence != YAPT_NULL_HANDLE && m_syncData[m_entryDataIndex].issued)
 		{
 			checkVkResult(vkWaitForFences(m_device, 1, &m_syncData[m_entryDataIndex].fence, VK_TRUE, uint64_t(-1)));
 		}
 		m_syncData[m_entryDataIndex].issued = false;
 
-		m_tickCount++;
-		m_entryDataIndex = m_tickCount % m_syncData.size();
 	}
 
 	void RingSyncUtility::markThisFrameSyncDataIssued()
@@ -94,11 +95,11 @@ namespace YAPT
 
 	VkFence RingSyncUtility::getFenceForFrameNumber(size_t frameNumber) const
 	{
-		return getFenceForFrameIndex(frameNumber % getFramesInFlight());
+		return getFenceForFrameIndex(getFrameIndexForFrameNumber(frameNumber));
 	}
 	VkSemaphore RingSyncUtility::getSemaphoreForFrameNumber(size_t frameNumber) const
 	{
-		return getSemaphoreForFrameIndex(frameNumber % getFramesInFlight());
+		return getSemaphoreForFrameIndex(getFrameIndexForFrameNumber(frameNumber));
 	}
 
 	VkFence RingSyncUtility::getFenceForFrameIndex(size_t index) const

@@ -20,6 +20,7 @@ namespace YAPT
 
 		m_syncUtility.initialize(resourceMngr.getDevice(), numberOfPartitions, true, true);
 		m_commandBuffersPool.initialize(numberOfPartitions, 1, resourceMngr.getCopyQueue().queueFamilyIndex);
+		m_submissionIDs.resize(numberOfPartitions);
 	}
 
 
@@ -188,6 +189,7 @@ namespace YAPT
 
 	void UploadHelperVk::prepareNextUploadBatch()
 	{
+
 		m_syncUtility.nextFrame();
 		m_uploadHeap.nextPartition();
 	}
@@ -339,6 +341,7 @@ namespace YAPT
 		SubmissionThreadVk::Submission submission;
 		submission.semaphoresToSignalCount = 1;
 		submission.semaphoresToSignal = &signalSem;
+		signaledSemaphore = signalSem;
 
 		submission.semaphoresToWaitCount = semaphoresToWaitCount;
 		submission.semaphoresToWait = semaphoresToWait;
@@ -347,9 +350,10 @@ namespace YAPT
 		submission.commandListsCount = 1;
 
 		submission.fenceToSignal = m_syncUtility.getFenceForThisFrame();
+		
 		m_syncUtility.markThisFrameSyncDataIssued();
 
-		m_submissionThread.submit(SubmissionThreadVk::COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
+		m_submissionIDs[m_syncUtility.getFrameIndex()] = m_submissionThread.submit(SubmissionThreadVk::COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
 		return true;
 
 	}

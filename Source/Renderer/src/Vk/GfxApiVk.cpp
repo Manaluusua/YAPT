@@ -108,7 +108,7 @@ namespace YAPT
 			TextureHandleVk* texHandle = new TextureHandleVk(*h->getResourceManager());
 			yaptTextureDescToVk(desc, texHandle->createInfo);
 			texHandle->dimensions = desc.dimension;
-			texHandle->currentLayouts.setSharedState(VK_IMAGE_LAYOUT_UNDEFINED);
+			texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
 #ifdef VK_DEBUGNAMES_ENABLE
 			if (name)
 			{

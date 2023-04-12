@@ -30,6 +30,7 @@ namespace YAPT
 
 		size_t getFrameCount() const { return m_tickCount; }
 		size_t getFrameIndex() const { return m_entryDataIndex; }
+		size_t getFrameIndexForFrameNumber(size_t frameNumber) const { return frameNumber % getFramesInFlight(); }
 
 		size_t getFramesInFlight() const { return m_syncData.size(); }
 
