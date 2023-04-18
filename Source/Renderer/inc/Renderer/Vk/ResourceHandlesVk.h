@@ -14,6 +14,7 @@ namespace YAPT
 		VkBufferView bufferView;
 	};
 
+	
 	struct BufferHandleVk
 	{
 		typedef ResourceViewPool<BufferViewDesc, BufferViewVk*, BufferHandleVk, 3> BufferViews;

@@ -18,6 +18,7 @@ namespace YAPT
 	struct TextureHandleVk;
 	struct BufferHandleVk;
 	struct BufferViewVk;
+	struct RenderPassHandleVk;
 
 	typedef void* BottomLevelAccelerationStructureHandle;
 	typedef void* TopLevelAccelerationStructureHandle;
@@ -30,10 +31,10 @@ namespace YAPT
 	typedef SwapChainVk* SwapChainHandle;
 	typedef CommandBufferPoolVk* CommandBufferPoolHandle;
 	typedef VkCommandBuffer CommandBufferHandle;
-	typedef void* GraphicsPipelineStateHandle;
+	typedef VkPipeline GraphicsPipelineStateHandle;
 	typedef VkPipeline ComputePipelineStateHandle;
 	typedef VkPipeline RaytracePipelineStateHandle;
-	typedef void* RenderPassHandle;
+	typedef const RenderPassHandleVk* RenderPassHandle;
 	typedef DescriptorSetLayoutVk* DescriptorSetLayoutHandle;
 	typedef VkPipelineLayout PipelineLayoutHandle;
 	typedef ShaderModuleVk* ShaderModuleHandle;
@@ -49,4 +50,11 @@ namespace YAPT
 		uint32_t queueIndex;
 		VkQueueFamilyProperties props;
 	};
+
+	struct RenderPassHandleVk
+	{
+		VkRenderPass pass;
+		uint32_t index;
+	};
+
 }

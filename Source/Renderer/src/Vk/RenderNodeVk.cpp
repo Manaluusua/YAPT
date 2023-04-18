@@ -18,7 +18,7 @@ namespace YAPT
 
 	RenderPassHandle RenderNodeVk::getRenderPassHandle()
 	{
-		return nullptr;
+		return &m_renderPassHandle;
 	}
 
 }

@@ -316,6 +316,162 @@ namespace YAPT
 		}
 	}
 
+	inline VkStencilOp yaptStencilOpToVk(StencilOp ss)
+	{
+		switch (ss)
+		{
+		case YAPT::StencilOp::KEEP:
+			return VK_STENCIL_OP_KEEP;
+		case YAPT::StencilOp::ZERO:
+			return VK_STENCIL_OP_ZERO;
+		case YAPT::StencilOp::REPLACE:
+			return VK_STENCIL_OP_REPLACE;
+		case YAPT::StencilOp::INCREMENT_AND_CLAMP:
+			return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+		case YAPT::StencilOp::DECREMENT_AND_CLAMP:
+			return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+		case YAPT::StencilOp::INVERT:
+			return VK_STENCIL_OP_INVERT;
+		case YAPT::StencilOp::INCREMENT_AND_WRAP:
+			return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+		case YAPT::StencilOp::DECREMENT_AND_WRAP:
+			return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+		default:
+			return VK_STENCIL_OP_KEEP;
+		}
+	}
+
+	inline VkLogicOp yaptLogicOpToVk(LogicOp lo)
+	{
+		switch (lo)
+		{
+		case YAPT::LogicOp::CLEAR:
+			return VK_LOGIC_OP_CLEAR;
+		case YAPT::LogicOp::AND:
+			return VK_LOGIC_OP_AND;
+		case YAPT::LogicOp::AND_REVERSE:
+			return VK_LOGIC_OP_AND_REVERSE;
+		case YAPT::LogicOp::COPY:
+			return VK_LOGIC_OP_COPY;
+		case YAPT::LogicOp::AND_INVERTED:
+			return VK_LOGIC_OP_AND_INVERTED;
+		case YAPT::LogicOp::NO_OP:
+			return VK_LOGIC_OP_NO_OP;
+		case YAPT::LogicOp::XOR:
+			return VK_LOGIC_OP_XOR;
+		case YAPT::LogicOp::OR:
+			return VK_LOGIC_OP_OR;
+		case YAPT::LogicOp::NOR:
+			return VK_LOGIC_OP_NOR;
+		case YAPT::LogicOp::EQUIVALENT:
+			return VK_LOGIC_OP_EQUIVALENT;
+		case YAPT::LogicOp::INVERT:
+			return VK_LOGIC_OP_INVERT;
+		case YAPT::LogicOp::OR_REVERSE:
+			return VK_LOGIC_OP_OR_REVERSE;
+		case YAPT::LogicOp::COPY_INVERTED:
+			return VK_LOGIC_OP_COPY_INVERTED;
+		case YAPT::LogicOp::OR_INVERTED:
+			return VK_LOGIC_OP_OR_INVERTED;
+		case YAPT::LogicOp::NAND:
+			return VK_LOGIC_OP_NAND;
+		case YAPT::LogicOp::SET:
+			return VK_LOGIC_OP_SET;
+		default:
+			return VK_LOGIC_OP_NO_OP;
+		}
+	}
+
+	inline VkBlendOp yaptBlendOpToVk(BlendOp bo)
+	{
+		switch (bo)
+		{
+		case YAPT::BlendOp::ADD:
+			return VK_BLEND_OP_ADD;
+		case YAPT::BlendOp::SUBTRACT:
+			return VK_BLEND_OP_SUBTRACT;
+		case YAPT::BlendOp::REVERSE_SUBTRACT:
+			return VK_BLEND_OP_REVERSE_SUBTRACT;
+		case YAPT::BlendOp::MIN:
+			return VK_BLEND_OP_MIN;
+		case YAPT::BlendOp::MAX:
+			return VK_BLEND_OP_MAX;
+		default:
+			return VK_BLEND_OP_ADD;
+		}
+	}
+
+	inline VkBlendFactor yaptBlendFactorToVk(BlendFactor bf)
+	{
+		switch (bf)
+		{
+		case YAPT::BlendFactor::ZERO:
+			return VK_BLEND_FACTOR_ZERO;
+		case YAPT::BlendFactor::ONE:
+			return VK_BLEND_FACTOR_ONE;
+		case YAPT::BlendFactor::SRC_COLOR:
+			return VK_BLEND_FACTOR_SRC_COLOR;
+		case YAPT::BlendFactor::ONE_MINUS_SRC_COLOR:
+			return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+		case YAPT::BlendFactor::DST_COLOR:
+			return VK_BLEND_FACTOR_DST_COLOR;
+		case YAPT::BlendFactor::ONE_MINUS_DST_COLOR:
+			return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+		case YAPT::BlendFactor::SRC_ALPHA:
+			return VK_BLEND_FACTOR_SRC_ALPHA;
+		case YAPT::BlendFactor::ONE_MINUS_SRC_ALPHA:
+			return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		case YAPT::BlendFactor::DST_ALPHA:
+			return VK_BLEND_FACTOR_DST_ALPHA;
+		case YAPT::BlendFactor::ONE_MINUS_DST_ALPHA:
+			return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+		case YAPT::BlendFactor::CONSTANT_COLOR:
+			return VK_BLEND_FACTOR_CONSTANT_COLOR;
+		case YAPT::BlendFactor::ONE_MINUS_CONSTANT_COLOR:
+			return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+		case YAPT::BlendFactor::CONSTANT_ALPHA:
+			return VK_BLEND_FACTOR_CONSTANT_ALPHA;
+		case YAPT::BlendFactor::ONE_MINUS_CONSTANT_ALPHA:
+			return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+		case YAPT::BlendFactor::SRC_ALPHA_SATURATE:
+			return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+		case YAPT::BlendFactor::SRC1_COLOR:
+			return VK_BLEND_FACTOR_SRC1_COLOR;
+		case YAPT::BlendFactor::ONE_MINUS_SRC1_COLOR:
+			return VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR;
+		case YAPT::BlendFactor::SRC1_ALPHA:
+			return VK_BLEND_FACTOR_SRC1_ALPHA;
+		case YAPT::BlendFactor::ONE_MINUS_SRC1_ALPHA:
+			return VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA;
+		default:
+			return VK_BLEND_FACTOR_ONE;
+		}
+	}
+
+	inline VkColorComponentFlags yaptColorMaskToVk(ColorMask cm)
+	{
+		VkColorComponentFlags mask;
+		FLAGS_CONVERT(cm, mask, ColorMaskBits::RED, VK_COLOR_COMPONENT_R_BIT);
+		FLAGS_CONVERT(cm, mask, ColorMaskBits::GREEN, VK_COLOR_COMPONENT_G_BIT);
+		FLAGS_CONVERT(cm, mask, ColorMaskBits::BLUE, VK_COLOR_COMPONENT_B_BIT);
+		FLAGS_CONVERT(cm, mask, ColorMaskBits::ALPHA, VK_COLOR_COMPONENT_A_BIT);
+		return mask;
+	}
+
+	inline VkStencilOpState yaptStencilStateToVk(StencilState ss, uint32_t writeMask, uint32_t compareMask)
+	{
+		VkStencilOpState state;
+		state.compareOp = yaptCompareOpToVk(ss.compareOp);
+		state.depthFailOp = yaptStencilOpToVk(ss.depthFailOp);
+		state.failOp = yaptStencilOpToVk(ss.failOp);
+		state.passOp = yaptStencilOpToVk(ss.passOp);
+		state.reference = ss.reference;
+		state.writeMask = writeMask;
+		state.compareMask = compareMask;
+
+		return state;
+	}
+
 	inline VkBorderColor yaptBorderColorToVk(BorderColor color)
 	{
 		switch (color)
@@ -490,6 +646,113 @@ namespace YAPT
 		return layout;
 	}
 
+	inline VkSampleCountFlagBits yaptSampleCountToVk(SampleCount sampleCount)
+	{
+		switch (sampleCount)
+		{
+		case YAPT::SampleCount::SAMPLE_COUNT_1:
+			return VK_SAMPLE_COUNT_1_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_2:
+			return VK_SAMPLE_COUNT_2_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_4:
+			return VK_SAMPLE_COUNT_4_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_8:
+			return VK_SAMPLE_COUNT_8_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_16:
+			return VK_SAMPLE_COUNT_16_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_32:
+			return VK_SAMPLE_COUNT_32_BIT;
+		case YAPT::SampleCount::SAMPLE_COUNT_64:
+			return VK_SAMPLE_COUNT_64_BIT;
+		default:
+			return VK_SAMPLE_COUNT_1_BIT;
+		}
+	}
+
+	inline VkPolygonMode yaptPolygonModeToVk(PolygonMode polyMode)
+	{
+		switch (polyMode)
+		{
+		case YAPT::PolygonMode::FILL:
+			return VK_POLYGON_MODE_FILL;
+		case YAPT::PolygonMode::LINE:
+			return VK_POLYGON_MODE_LINE;
+		case YAPT::PolygonMode::POINT:
+			return VK_POLYGON_MODE_POINT;
+		default:
+			return VK_POLYGON_MODE_FILL;
+		}
+	}
+
+	inline VkCullModeFlags yaptCullModeToVk(CullMode cullMode)
+	{
+		switch (cullMode)
+		{
+		case YAPT::CullMode::NONE:
+			return VK_CULL_MODE_NONE;
+		case YAPT::CullMode::FRONT:
+			return VK_CULL_MODE_FRONT_BIT;
+		case YAPT::CullMode::BACK:
+			return VK_CULL_MODE_BACK_BIT;
+		default:
+			return VK_CULL_MODE_NONE;
+		}
+	}
+
+	inline VkFrontFace yaptWindingOrderToVk(FrontFace frontFace)
+	{
+		switch (frontFace)
+		{
+		case YAPT::FrontFace::COUNTER_CLOCKWISE:
+			return VK_FRONT_FACE_CLOCKWISE;
+		case YAPT::FrontFace::CLOCKWISE:
+			return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		default:
+			return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		}
+	}
+
+	inline VkPrimitiveTopology yaptPrimitiveTopologyToVk(PrimitiveTopology pt)
+	{
+		switch (pt)
+		{
+		case YAPT::PrimitiveTopology::POINTLIST:
+			return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+		case YAPT::PrimitiveTopology::LINELIST:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		case YAPT::PrimitiveTopology::LINESTRIP:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+		case YAPT::PrimitiveTopology::TRIANGLELIST:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		case YAPT::PrimitiveTopology::TRIANGLESTRIP:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+		case YAPT::PrimitiveTopology::LINELIST_WITH_ADJACENCY:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY;
+		case YAPT::PrimitiveTopology::LINESTRIP_WITH_ADJACENCY:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY;
+		case YAPT::PrimitiveTopology::TRIANGLELIST_WITH_ADJACENCY:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY;
+		case YAPT::PrimitiveTopology::TRIANGLESTRIP_WITH_ADJACENCY:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY;
+		case YAPT::PrimitiveTopology::PATCHLIST:
+			return VK_PRIMITIVE_TOPOLOGY_PATCH_LIST;
+		default:
+			return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+		}
+	}
+	
+	inline void yaptDynamicPipelineStateToVk(DynamicPipelineStates dps, VkDynamicState* dynamicStatesOut)
+	{
+
+	}
+
+	inline uint32_t getDynamicStatesCount(DynamicPipelineStates dps)
+	{
+
+	}
+	
+
+
 	inline void yaptBufferDescToVk(const YAPT::BufferDesc& desc, VkBufferCreateInfo& infoOut)
 	{
 		infoOut ={};
@@ -557,5 +820,107 @@ namespace YAPT
 		infoOut.unnormalizedCoordinates = false;
 	}
 
+	inline void yaptDepthStencilStateToVk(const YAPT::DepthStencilStateDescription& desc, VkPipelineDepthStencilStateCreateInfo& infoOut)
+	{
+		infoOut = {};
+		infoOut.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		infoOut.depthCompareOp = yaptCompareOpToVk(desc.depthCompareOp);
+		infoOut.depthBoundsTestEnable = desc.depthBoundsTestEnable;
+		infoOut.depthTestEnable = desc.depthTestEnable;
+		infoOut.depthWriteEnable = desc.depthWriteEnable;
+		infoOut.maxDepthBounds = desc.maxDepthBounds;
+		infoOut.minDepthBounds = desc.minDepthBounds;
+		infoOut.stencilTestEnable = desc.stencilTestEnable;
+		infoOut.front = yaptStencilStateToVk(desc.stencilFront, desc.writeMask, desc.compareMask);
+		infoOut.back = yaptStencilStateToVk(desc.stencilBack, desc.writeMask, desc.compareMask);
+		infoOut.flags = 0;
+
+	}
+
+	inline void yaptColorBlendStateToVk(const YAPT::BlendStateDescription& desc, VkPipelineColorBlendStateCreateInfo& infoOut, VkPipelineColorBlendAttachmentState* attachmentStateOut)
+	{
+		infoOut = {};
+		infoOut.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		infoOut.flags = 0;
+
+		for (uint32_t i = 0; i < 4; ++i)
+		{
+			infoOut.blendConstants[i] = desc.blendConstants[i];
+		}
+		infoOut.logicOpEnable = desc.enableLogicalOp;
+		infoOut.logicOp = yaptLogicOpToVk(desc.logicalOp);
+
+		infoOut.attachmentCount = desc.numberOfBlendTargets;
+		for (uint32_t i = 0; i < desc.numberOfBlendTargets; ++i)
+		{
+			VkPipelineColorBlendAttachmentState& stateOut = attachmentStateOut[i];
+			BlendTargetDescription& stateIn = desc.blendTargetDescriptions[i];
+
+			stateOut.blendEnable = stateIn.blendEnable;
+			stateOut.colorWriteMask = yaptColorMaskToVk(stateIn.colorWriteMask);
+			stateOut.alphaBlendOp = yaptBlendOpToVk(stateIn.alphaBlendOp);
+			stateOut.colorBlendOp = yaptBlendOpToVk(stateIn.colorBlendOp);
+			stateOut.dstAlphaBlendFactor = yaptBlendFactorToVk(stateIn.dstAlpha);
+			stateOut.srcAlphaBlendFactor = yaptBlendFactorToVk(stateIn.srcAlpha);
+			stateOut.dstColorBlendFactor = yaptBlendFactorToVk(stateIn.dstColor);
+			stateOut.srcColorBlendFactor = yaptBlendFactorToVk(stateIn.srcColor);
+
+
+		}
+	}
+
+	inline void yaptRasterizerStateToVk(const YAPT::RasterizerStateDescription& desc, VkPipelineRasterizationStateCreateInfo& infoOut)
+	{
+		infoOut = {};
+		infoOut.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		infoOut.flags = 0;
+		infoOut.depthClampEnable = desc.depthClampEnable;
+		infoOut.rasterizerDiscardEnable = desc.rasterizerDiscardEnable;
+		infoOut.polygonMode = yaptPolygonModeToVk(desc.polygonMode);
+		infoOut.cullMode = yaptCullModeToVk(desc.cullMode);
+		infoOut.frontFace = yaptWindingOrderToVk(desc.frontFace);
+		infoOut.depthBiasEnable = desc.depthBiasEnable;
+		infoOut.depthBiasConstantFactor = desc.depthBiasConstantFactor;
+		infoOut.depthBiasClamp = desc.depthBiasClamp;
+		infoOut.depthBiasSlopeFactor = desc.depthBiasSlopeFactor;
+		infoOut.lineWidth = desc.lineWidth;
+
+	}
+
+	inline void yaptMultisampleStateToVk(const YAPT::MultisampleStateDescription& desc, VkPipelineMultisampleStateCreateInfo& infoOut, VkSampleMask sampleMask[2])
+	{
+		infoOut = {};
+		infoOut.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		infoOut.flags = 0;
+		infoOut.alphaToCoverageEnable = desc.enableAlphaToCoverage;
+		infoOut.alphaToOneEnable = desc.enableAlphaToOne;
+		infoOut.minSampleShading = desc.minSampleShading;
+		infoOut.sampleShadingEnable = desc.enableSampleShading;
+		infoOut.rasterizationSamples = yaptSampleCountToVk(desc.sampleCount);
+		infoOut.pSampleMask = sampleMask;
+
+		sampleMask[0] = uint32_t(desc.sampleMask & 0xFFFFFFFF);
+		sampleMask[1] = uint32_t(desc.sampleMask >> 32);
+	}
+
+	inline void yaptViewportToVk(const YAPT::ViewPort& desc, VkViewport& viewportOut)
+	{
+		viewportOut.x = desc.x;
+		viewportOut.y = desc.y;
+		viewportOut.width = desc.width;
+		viewportOut.height = desc.height;
+		viewportOut.minDepth = desc.minDepth;
+		viewportOut.maxDepth = desc.maxDepth;
+
+	}
+
+	inline void yaptScissorsToVk(const YAPT::ScissorRect& desc, VkRect2D& scissorsOut)
+	{
+		scissorsOut.offset.x = desc.x;
+		scissorsOut.offset.y = desc.y;
+		scissorsOut.extent.width = desc.width;
+		scissorsOut.extent.height= desc.height;
+
+	}
 
 }

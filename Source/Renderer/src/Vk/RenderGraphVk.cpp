@@ -558,7 +558,7 @@ break;
 				VkRenderPass rp = createRenderPass(rNode);
 				size_t rpIndex = m_renderPasses.size();
 				m_renderPasses.push_back(rp);
-				rNode->setRenderPassIndex(rpIndex);
+				rNode->setRenderPassAndIndex(rp, rpIndex);
 			}
 
 		}

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderGraph/RenderNode.h>
-
+#include <Renderer/Vk/PlatformtypesVk.h>
 namespace YAPT
 {
 	class RenderGraphVk;
@@ -11,18 +11,18 @@ namespace YAPT
 	public:
 		virtual RenderPassHandle getRenderPassHandle() final;
 
-		size_t getRenderPassIndex() { return m_renderPassIndex; }
 		
 
 	private:
 		RenderNodeVk(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);
 		virtual ~RenderNodeVk();
 
-		void setRenderPassIndex(size_t renderPassIndex)
+		void setRenderPassAndIndex(VkRenderPass renderPass, size_t renderPassIndex)
 		{
-			m_renderPassIndex = renderPassIndex;
+			m_renderPassHandle.index = (uint32_t)renderPassIndex;
+			m_renderPassHandle.pass = renderPass;
 		}
-
-		size_t m_renderPassIndex;
+		
+		RenderPassHandleVk m_renderPassHandle;
 	};
 }

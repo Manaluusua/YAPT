@@ -7,6 +7,7 @@
 #include <Renderer/Vk/ShaderPipelineReflectionVk.h>
 #include <Renderer/Vk/RenderGraphVk.h>
 #include <Renderer/Vk/ComputePipelineStateVk.h>
+#include <Renderer/Vk/GraphicsPipelineStateVk.h>
 #include <Renderer/Vk/RaytracePipelineStateVk.h>
 #include <Renderer/Vk/CommandBufferPoolVk.h>
 #include <Renderer/Vk/DescriptorSetLayoutVk.h>
@@ -377,12 +378,12 @@ namespace YAPT
 
 		GraphicsPipelineStateHandle createGraphicsPipelineState(GfxApiHandle h, const GraphicsPipelineStateDesc& desc)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return GraphicsPipelineStateVk::create(h, desc);
+			
 		}
 		void destroyGraphicsPipelineState(GfxApiHandle h, GraphicsPipelineStateHandle state)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			GraphicsPipelineStateVk::destroy(h, state);
 		}
 
 		RaytracePipelineStateHandle createRaytracePipelineState(GfxApiHandle h, const RaytracePipelineStateDesc& desc)
