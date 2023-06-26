@@ -6,6 +6,18 @@
 
 namespace YAPT
 {
+	uint32_t getInputLocationForSemantic(AttributeSemantic semantic, const std::vector<ShaderModuleVk::InputAttributes>& inputAttributes)
+	{
+		for each (ShaderModuleVk::InputAttributes attr in inputAttributes)
+		{
+			if (semantic == attr.semantic)
+			{
+				return attr.location;
+			}
+		}
+		return -1;
+	}
+
 	VkPipeline GraphicsPipelineStateVk::create(RendererVk* renderer, const GraphicsPipelineStateDesc& desc)
 	{
 
@@ -38,6 +50,7 @@ namespace YAPT
 			dstInfo.pSpecializationInfo = NULL;
 		}
 		createInfo.stageCount = desc.numberOfShaderStages;
+		createInfo.pStages = stageCreateInfos.data();
 
 		VkPipelineDepthStencilStateCreateInfo dsvInfo;
 		VkPipelineColorBlendStateCreateInfo colorBlendInfo;
@@ -53,17 +66,75 @@ namespace YAPT
 			yaptMultisampleStateToVk(*desc.multisampleState, multiSampleInfo, sampleMask);
 		}
 
+		colorBlendInfo.pAttachments = blendStates.data();
+
 		//Vertex input
 		VkPipelineVertexInputStateCreateInfo vertexInputInfo;
+		std::vector<VkVertexInputAttributeDescription> attributeDescs;
+		std::vector<VkVertexInputBindingDescription> bindingDescs;
 		{
+			size_t numberOfAttributeDescs = 0;
+			for (size_t i = 0; i < desc.numberOfVertexBufferLayouts; ++i)
+			{
+				numberOfAttributeDescs += desc.vertexBufferLayouts[i].numberOfVertexAttributes;
+			}
 
+			vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+			vertexInputInfo.pNext = nullptr;
+			vertexInputInfo.flags = 0;
+
+			bindingDescs.resize(desc.numberOfVertexBufferLayouts);
+			attributeDescs.resize(numberOfAttributeDescs);
+
+			size_t attributeDescOffset = 0;
+			ShaderModuleHandle vertexShader = nullptr;
+			for (size_t i = 0; i < desc.numberOfShaderStages; ++i)
+			{
+				if (desc.shaderStages[i].stage == SHADERSTAGE_VERTEX)
+				{
+					vertexShader = desc.shaderStages[i].shaderModule;
+					break;
+				}
+			}
+
+			assert(vertexShader != nullptr);
+
+			for (size_t i = 0; i < desc.numberOfVertexBufferLayouts; ++i)
+			{
+				const VertexBufferDefinition& srcDef = desc.vertexBufferLayouts[i];
+				VkVertexInputBindingDescription& dstDef = bindingDescs[i];
+
+				dstDef.stride = srcDef.stride;
+				dstDef.inputRate = srcDef.vertexInputRate == 0 ? VK_VERTEX_INPUT_RATE_VERTEX : VK_VERTEX_INPUT_RATE_INSTANCE;
+				dstDef.binding = (uint32_t)i;
+
+				for (size_t k = 0; k < srcDef.numberOfVertexAttributes; ++k)
+				{
+					VkVertexInputAttributeDescription& attribDesc = attributeDescs[attributeDescOffset++];
+					const VertexInputAttribute& attributeSrc = srcDef.attributes[k];
+
+					attribDesc.binding = (uint32_t)i;
+					attribDesc.format = yaptFormatToVk(attributeSrc.format);
+					attribDesc.offset = attributeSrc.perVertexOffset;
+
+					
+					attribDesc.location = getInputLocationForSemantic(attributeSrc.shaderInputSlot, vertexShader->m_inputAttributes);
+					assert(attribDesc.location != -1);
+				}
+			}
+
+			vertexInputInfo.pVertexAttributeDescriptions = attributeDescs.data();
+			vertexInputInfo.pVertexBindingDescriptions = bindingDescs.data();
+			vertexInputInfo.vertexAttributeDescriptionCount = (uint32_t)attributeDescs.size();
+			vertexInputInfo.vertexBindingDescriptionCount = (uint32_t)bindingDescs.size();
 		}
+
 
 		//viewport
 		VkPipelineViewportStateCreateInfo viewPortInfo;
+		std::vector<VkViewport> viewPorts;
+		std::vector<VkRect2D> scissors;
 		{
-			std::vector<VkViewport> viewPorts;
-			std::vector<VkRect2D> scissors;
 			viewPorts.resize(desc.numberOfViewportsAndScissors);
 			scissors.resize(desc.numberOfViewportsAndScissors);
 

@@ -1,7 +1,8 @@
 #pragma once
 
 #include <assert.h>
-
+#include <bitset>
+#include <Common/CommonUtilities.h>
 #define FLAGS_CONVERT(source, target, from, to) if((source & from) != 0) { target |= to; }
 
 namespace YAPT
@@ -741,17 +742,49 @@ namespace YAPT
 		}
 	}
 	
-	inline void yaptDynamicPipelineStateToVk(DynamicPipelineStates dps, VkDynamicState* dynamicStatesOut)
+	inline VkDynamicState yaptDynamicStateToVk(DynamicPipelineStateBits bitt)
 	{
-
+		switch (bitt)
+		{
+		case YAPT::DYNAMIC_PIPELINESTATE_VIEWPORT:
+			return VK_DYNAMIC_STATE_VIEWPORT;
+		case YAPT::DYNAMIC_PIPELINESTATE_SCISSOR:
+			return VK_DYNAMIC_STATE_SCISSOR;
+		case YAPT::DYNAMIC_PIPELINESTATE_LINE_WIDTH:
+			return VK_DYNAMIC_STATE_LINE_WIDTH;
+		case YAPT::DYNAMIC_PIPELINESTATE_DEPTH_BIAS:
+			return VK_DYNAMIC_STATE_DEPTH_BIAS;
+		case YAPT::DYNAMIC_PIPELINESTATE_BLEND_CONSTANTS:
+			return VK_DYNAMIC_STATE_BLEND_CONSTANTS;
+		case YAPT::DYNAMIC_PIPELINESTATE_DEPTH_BOUNDS:
+			return VK_DYNAMIC_STATE_DEPTH_BOUNDS;
+		case YAPT::DYNAMIC_PIPELINESTATE_STENCIL_COMPARE_MASK:
+			return VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
+		case YAPT::DYNAMIC_PIPELINESTATE_STENCIL_WRITE_MASK:
+			return VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
+		case YAPT::DYNAMIC_PIPELINESTATE_STENCIL_REFERENCE:
+			return VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+		default:
+			return VK_DYNAMIC_STATE_MAX_ENUM;
+		}
 	}
 
 	inline uint32_t getDynamicStatesCount(DynamicPipelineStates dps)
 	{
-
+		std::bitset<sizeof(uint32_t) * 8> bs(dps);
+		return (uint32_t)bs.count();
 	}
-	
 
+	inline void yaptDynamicPipelineStateToVk(DynamicPipelineStates dps, VkDynamicState* dynamicStatesOut)
+	{
+		uint32_t count = getDynamicStatesCount(dps);
+		for (uint32_t i = 0; i < count; ++i)
+		{
+			uint32_t bit = getLSB(dps);
+			dynamicStatesOut[i] = yaptDynamicStateToVk((DynamicPipelineStateBits)bit);
+			dps = ~bit & dps;
+		}
+	}
 
 	inline void yaptBufferDescToVk(const YAPT::BufferDesc& desc, VkBufferCreateInfo& infoOut)
 	{
