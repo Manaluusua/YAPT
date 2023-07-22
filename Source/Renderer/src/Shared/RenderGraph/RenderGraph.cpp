@@ -305,6 +305,7 @@ namespace YAPT
 		textureViewDescOut.mipCount = usage.resourceDescription.mipCount;
 		textureViewDescOut.arraySliceOffset = usage.arraySliceOffset;
 		textureViewDescOut.arraySliceCount = usage.resourceDescription.arraySliceCount;
+		textureViewDescOut.resourceUsage = usage.resourceDescription.resourceUsage;
 	}
 
 	bool RenderGraph::isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to) const

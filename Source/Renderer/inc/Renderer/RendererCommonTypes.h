@@ -515,7 +515,8 @@ namespace YAPT
 	struct TextureViewDesc
 	{
 
-		ResourceFormat format;
+		ResourceFormat format = ResourceFormat::UNKNOWN;
+		ResourceUsage resourceUsage = RESOURCE_USAGE_UNKNOWN;
 		ResourceDimension dimensions = ResourceDimension::UNDEFINED;
 		uint32_t mipOffset = 0;
 		uint32_t mipCount = YAPT_TEXTURE_VIEW_DESC_ALL_MIPS;
@@ -544,7 +545,8 @@ namespace YAPT
 			a.mipOffset == b.mipOffset &&
 			a.mipCount == b.mipCount &&
 			a.arraySliceOffset == b.arraySliceOffset &&
-			a.arraySliceCount == b.arraySliceCount;
+			a.arraySliceCount == b.arraySliceCount &&
+			a.resourceUsage == b.resourceUsage;
 	}
 
 	inline bool operator==(const BufferViewDesc& a, const BufferViewDesc& b)

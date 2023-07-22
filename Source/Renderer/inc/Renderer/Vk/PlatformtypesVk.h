@@ -14,6 +14,8 @@ namespace YAPT
 	class DescriptorSetPoolVk;
 	class DescriptorSetVk;
 	class SwapChainVk;
+	class RaytracePipelineStateVk;
+	class ResourceAllocationPoolVk;
 	struct ShaderModuleVk;
 	struct TextureHandleVk;
 	struct BufferHandleVk;
@@ -27,13 +29,13 @@ namespace YAPT
 	typedef BufferHandleVk* BufferHandle;
 	typedef VkImageView TextureViewHandle;
 	typedef BufferViewVk* BufferViewHandle;
-	typedef void* ResourceAllocationPoolHandle;
+	typedef ResourceAllocationPoolVk* ResourceAllocationPoolHandle;
 	typedef SwapChainVk* SwapChainHandle;
 	typedef CommandBufferPoolVk* CommandBufferPoolHandle;
 	typedef VkCommandBuffer CommandBufferHandle;
 	typedef VkPipeline GraphicsPipelineStateHandle;
 	typedef VkPipeline ComputePipelineStateHandle;
-	typedef VkPipeline RaytracePipelineStateHandle;
+	typedef RaytracePipelineStateVk* RaytracePipelineStateHandle;
 	typedef const RenderPassHandleVk* RenderPassHandle;
 	typedef DescriptorSetLayoutVk* DescriptorSetLayoutHandle;
 	typedef VkPipelineLayout PipelineLayoutHandle;

@@ -217,26 +217,66 @@ namespace YAPT
 
 		// Buffer copies
 		{
-			
+			std::vector<VkBufferMemoryBarrier> bufferBarriers;
+			auto addBufferBarrier = [&bufferBarriers](VkBuffer buffer, uint32_t offset, uint32_t size, uint32_t srcQueueFamily, uint32_t dstQueueFamily)
+			{
+				VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr };
+				barrier.srcAccessMask = 0;
+				barrier.dstAccessMask = 0;
+				barrier.dstQueueFamilyIndex = dstQueueFamily;
+				barrier.srcQueueFamilyIndex = srcQueueFamily;
+				barrier.buffer = buffer;
+				barrier.offset = offset;
+				barrier.size = size;
+
+
+				bufferBarriers.push_back(barrier);
+			};
+
+			//pre barriers
+			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
+			{
+				//TODO: actually check if queue family transfer is needed. for now ignored
+
+			}
+
+			if (bufferBarriers.size() > 0)
+			{
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)bufferBarriers.size(), bufferBarriers.data(), 0, nullptr);
+				bufferBarriers.clear();
+			}
+
+			//copy
 			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
 			{
 				const BufferUpload& info = bufferUploadsList[i];
 				vkCmdCopyBuffer(cmdBuff, info.srcBuffer, info.dstBuffer, 1, &info.copyDesc);
 			}
 
+			//post barriers
+			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
+			{
+
+			}
+
+			if (bufferBarriers.size() > 0)
+			{
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)bufferBarriers.size(), bufferBarriers.data(), 0, nullptr);
+				bufferBarriers.clear();
+			}
 		}
 		
 		//image copies
 		{
 			std::vector<VkImageMemoryBarrier> imageBarriers;
-			auto addImageBarrier = [&imageBarriers](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount) -> void
+			
+			auto addImageBarrier = [&imageBarriers](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
 			{
 				VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
 				barrier.srcAccessMask = 0;
 				barrier.dstAccessMask = 0;
-				barrier.dstQueueFamilyIndex = 0;
-				barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-				barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+				barrier.dstQueueFamilyIndex = dstQueueFamily;
+				barrier.srcQueueFamilyIndex = srcQueueFamily;
 				barrier.image = image;
 				barrier.newLayout = newLayout;
 				barrier.oldLayout = oldLayout;
@@ -248,6 +288,8 @@ namespace YAPT
 
 				imageBarriers.push_back(barrier);
 			};
+
+			
 
 			VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -268,7 +310,7 @@ namespace YAPT
 
 						if (currentLayout != copyLayout)
 						{
-							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1);
+							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
 							layouts.setStateForSubResource(subresourceIndex, copyLayout);
 						}
 					}
@@ -308,7 +350,7 @@ namespace YAPT
 
 						if (currentLayout != afterCopyLayout)
 						{
-							addImageBarrier(currentLayout, afterCopyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1);
+							addImageBarrier(currentLayout, afterCopyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, m_resMngr.getCopyQueue().queueFamilyIndex, info.dstImage->owningQueueFamily);
 							layouts.setStateForSubResource(subresourceIndex, afterCopyLayout);
 						}
 					}

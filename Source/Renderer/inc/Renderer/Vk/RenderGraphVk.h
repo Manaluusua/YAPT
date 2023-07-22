@@ -46,13 +46,17 @@ namespace YAPT
 			VkPipelineStageFlags srcStages;
 			VkPipelineStageFlags dstStages;
 
-			std::vector<VkMemoryBarrier> memoryBarriers;
-			std::vector<VkBufferMemoryBarrier> bufferBarriers;
-			std::vector<VkImageMemoryBarrier> imageBarriers;
+			std::vector<VkMemoryBarrier> preGeneratedMemoryBarriers;
+			std::vector<VkBufferMemoryBarrier> preGeneratedBufferBarriers;
+			std::vector<VkImageMemoryBarrier> preGeneratedImageBarriers;
 
-			std::vector<VkMemoryBarrier> memoryBarriersForFrame;
-			std::vector<VkBufferMemoryBarrier> bufferBarriersForFrame;
-			std::vector<VkImageMemoryBarrier> imageBarriersForFrame;
+			std::vector<VkMemoryBarrier> memoryBarriersEveryFrame;
+			std::vector<VkBufferMemoryBarrier> bufferBarriersEveryFrame;
+			std::vector<VkImageMemoryBarrier> imageBarriersEveryFrame;
+
+			std::vector<VkMemoryBarrier> memoryBarriersOnce;
+			std::vector<VkBufferMemoryBarrier> bufferBarriersOnce;
+			std::vector<VkImageMemoryBarrier> imageBarriersOnce;
 
 			bool hasUavBarrier;
 			bool isFirstUsageForResource;
@@ -60,12 +64,11 @@ namespace YAPT
 		
 		struct GeneralPerResourceTransitionInformation
 		{
-			bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
 			AccessFlagsAndLayout lastStateInGraph;
-			AccessFlagsAndLayout overriddenBeforeState; //only valid if is first usage for resource in graph
 			std::vector<VkMemoryBarrier> wrapAroundMemoryBarriers;
 			std::vector<VkBufferMemoryBarrier> wrapAroundBufferBarriers;
 			std::vector<VkImageMemoryBarrier> wrapAroundImageBarriers;
+
 		};
 
 		struct BarriersPerNode
@@ -82,12 +85,16 @@ namespace YAPT
 
 		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound);
 
-		void issuePreBarriers(size_t nodeIndex, CommandBufferHandle buffer);
-		void issuePostBarriers(size_t nodeIndex, CommandBufferHandle buffer);
+
+		void issueBarriers(size_t nodeIndex, CommandBufferHandle buffer);
 
 		void prepareNodeExecution(RenderNodeVk* node, const RenderGraphNodeExecutionContext& context);
 		void prepareNodeExecution(ComputeNodeVk* node, const RenderGraphNodeExecutionContext& context);
 		void prepareNodeExecution(RaytraceNodeVk* node, const RenderGraphNodeExecutionContext& context);
+
+		void endNodeExecution(RenderNodeVk* node, const RenderGraphNodeExecutionContext& context);
+		void endNodeExecution(ComputeNodeVk* node, const RenderGraphNodeExecutionContext& context);
+		void endNodeExecution(RaytraceNodeVk* node, const RenderGraphNodeExecutionContext& context);
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 

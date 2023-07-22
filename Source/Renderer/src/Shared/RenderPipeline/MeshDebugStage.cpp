@@ -46,7 +46,7 @@ namespace YAPT
 				{
 					RenderGraphTextureSlotDefinition(ResourceDimension::TEXTURE_2D,
 					ResourceFormat::D24_UNORM_S8_UINT,
-					RESOURCE_USAGE_DEPTH_TEXTURE,
+					RESOURCE_USAGE_DEPTH_STENCIL_TEXTURE,
 					ACCESS_FLAGS_READ_WRITE,
 					SHADERSTAGE_FRAGMENT,
 					1,
@@ -92,13 +92,6 @@ namespace YAPT
 		m_psoDescHelper.pipelineDesc.renderPass = m_renderMeshesNode->getRenderPassHandle();
 		m_psoDescHelper.pipelineDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
 
-
-
-		m_descSet = m_layout.getDescriptorSetUtility(0).getNewDescriptorSet();
-		
-		//TODO: fill update
-		DescriptorSetUpdate update;
-		Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_descSet, &update, 1);
 	}
 
 	void MeshDebugStage::shutdown()

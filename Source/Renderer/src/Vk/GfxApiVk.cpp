@@ -110,6 +110,7 @@ namespace YAPT
 			yaptTextureDescToVk(desc, texHandle->createInfo);
 			texHandle->dimensions = desc.dimension;
 			texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
+			texHandle->owningQueueFamily = h->getGraphicsQueue().queueFamilyIndex;
 #ifdef VK_DEBUGNAMES_ENABLE
 			if (name)
 			{
@@ -139,6 +140,8 @@ namespace YAPT
 #endif
 			VkResult res = vkCreateBuffer(h->getDevice(), &buffHandle->createInfo, VK_ALLOC_CB, &buffHandle->buffer);
 			checkVkResult(res);
+
+			buffHandle->owningQueueFamily = h->getGraphicsQueue().queueFamilyIndex;
 
 			if (res != VK_SUCCESS)
 			{
@@ -223,6 +226,8 @@ namespace YAPT
 			{
 				d.mipCount = texHandle->createInfo.mipLevels;
 			}
+
+			assert(desc.format != ResourceFormat::UNKNOWN);
 
 
 			return texHandle->views.get(d);

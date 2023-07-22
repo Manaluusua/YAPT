@@ -55,6 +55,7 @@ namespace YAPT
 	{
 		TextureViewDesc desc;
 		desc.format = tex->getDesc().format;
+		desc.resourceUsage = RESOURCE_USAGE_SAMPLED_TEXTURE;
 		TextureViewHandle handle = Gfx::getTextureView(m_renderer->getGfxHandle(), tex->getResourceHandle(), desc);
 		uint32_t index = addTextureView(handle);
 

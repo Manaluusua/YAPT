@@ -27,6 +27,7 @@ namespace YAPT
 		VkBuffer buffer;
 		VkBufferCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;
+		uint32_t owningQueueFamily;
 		char* mappedMemory;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;
@@ -46,6 +47,7 @@ namespace YAPT
 		ResourceDimension dimensions;
 		VkImageCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;
+		uint32_t owningQueueFamily;
 		ResourceStateTracker<VkImageLayout> currentLayouts;
 		char* mappedMemory;
 #ifdef VK_DEBUGNAMES_ENABLE

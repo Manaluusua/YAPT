@@ -6,7 +6,7 @@
 
 namespace YAPT
 {
-	VkPipeline RaytracePipelineStateVk::create(RendererVk* renderer, const RaytracePipelineStateDesc& desc)
+	RaytracePipelineStateVk* RaytracePipelineStateVk::create(RendererVk* renderer, const RaytracePipelineStateDesc& desc)
 	{
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkRayTracingPipelineCreateInfoKHR createInfo{};
@@ -134,11 +134,19 @@ namespace YAPT
 
 		VkResult res = renderer->vkCreateRayTracingPipelinesKHR(renderer->getDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
 		assert(res == VK_SUCCESS);
-		return pipeline;
+
+		RaytracePipelineStateVk* rtPipeline = new RaytracePipelineStateVk();
+		rtPipeline->m_pipeline = pipeline;
+		rtPipeline->m_hitGroupConstantsSizeInBytes = desc.hitGroupShaderTableConstantsSizeInBytes;
+		rtPipeline->m_missConstantsSizeInBytes = desc.missShaderTableConstantsSizeInBytes;
+		rtPipeline->m_rayGenConstantsSizeInBytes = desc.rayGenShaderTableConstantsSizeInBytes;
+
+		return rtPipeline;
 	}
 
-	void RaytracePipelineStateVk::destroy(RendererVk* renderer, VkPipeline pipeline)
+	void RaytracePipelineStateVk::destroy(RendererVk* renderer, RaytracePipelineStateVk* pipeline)
 	{
-		renderer->getResourceManager()->deferredDestroyVkResource(pipeline);
+		renderer->getResourceManager()->deferredDestroyVkResource(pipeline->getPipeline());
+		delete pipeline;
 	}
 }

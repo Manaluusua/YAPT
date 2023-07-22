@@ -451,7 +451,7 @@ namespace YAPT
 
 	inline VkColorComponentFlags yaptColorMaskToVk(ColorMask cm)
 	{
-		VkColorComponentFlags mask;
+		VkColorComponentFlags mask = 0;
 		FLAGS_CONVERT(cm, mask, ColorMaskBits::RED, VK_COLOR_COMPONENT_R_BIT);
 		FLAGS_CONVERT(cm, mask, ColorMaskBits::GREEN, VK_COLOR_COMPONENT_G_BIT);
 		FLAGS_CONVERT(cm, mask, ColorMaskBits::BLUE, VK_COLOR_COMPONENT_B_BIT);
