@@ -58,6 +58,7 @@ namespace YAPT
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
 		void clearLastSignaledSemaphore() { m_lastSignaledSemaphore = VK_NULL_HANDLE; }
 
+
 		template<typename T>
 		inline void deferredDestroyVkResource(T resource)
 		{
@@ -89,10 +90,10 @@ namespace YAPT
 			char data[32];
 		};
 
-		void copyViaUploadHeap(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
+		void copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount,
 			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
-		void* mapCopyRangeFromUploadHeap(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
+		void* mapCopyRangeFromUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 
 		
 		

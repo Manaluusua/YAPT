@@ -7,6 +7,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <Common/SimpleTaskQueue.h>
+#include <unordered_map>
 
 #define SUBMIT_QUEUE_MAX_LENGTH 256
 
@@ -23,14 +24,6 @@ namespace YAPT
 			UINT64 val = 0;
 		};
 
-		enum CommandQueueType
-		{
-			COMMANDQUEUETYPE_GRAPHICS = 0,
-			COMMANDQUEUETYPE_COMPUTE,
-			COMMANDQUEUETYPE_COPY,
-			COMMANDQUEUETYPE_COUNT
-		};
-
 		struct QueueDefinition
 		{
 
@@ -40,6 +33,8 @@ namespace YAPT
 		{
 			VkQueue* queues[COMMANDQUEUETYPE_COUNT];
 			size_t numberOfQueues[COMMANDQUEUETYPE_COUNT];
+			uint32_t* queueFamily[COMMANDQUEUETYPE_COUNT];
+				
 		};
 
 		
@@ -62,6 +57,7 @@ namespace YAPT
 		void deinitialize();
 
 		SubmissionId submit(CommandQueueType commandQueueType, size_t commandQueueIndex, const Submission& submission);
+		SubmissionId submit(uint32_t queueFamilyIndex, const Submission& submission);
 
 		SubmissionId issueCallback(SubmissionThreadVkCallback callback, void* usrData);
 
@@ -98,6 +94,7 @@ namespace YAPT
 
 		std::vector<VkQueue> m_queues[COMMANDQUEUETYPE_COUNT];
 		size_t m_numberOfQueues[COMMANDQUEUETYPE_COUNT];
+		std::unordered_map<uint32_t, std::pair<CommandQueueType, uint32_t>> m_queueFamilyToQueueTypeAndIndex;
 
 		SimpleTaskQueue<Task, SUBMIT_QUEUE_MAX_LENGTH> m_taskQueue;
 

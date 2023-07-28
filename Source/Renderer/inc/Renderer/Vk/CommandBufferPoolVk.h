@@ -17,7 +17,7 @@ namespace YAPT
 		void initialize(size_t numberOfPools, size_t numberOfBuffersPerPool, uint32_t queueFamilyIndex, bool isSecondary = false);
 		void deinitialize();
 
-		void clearPool(size_t index, bool resetResources = false);
+		void resetPool(size_t index, bool resetResources = false);
 		VkCommandBuffer getCommandBuffer(size_t poolIndex, size_t bufferIndex);
 		VkCommandBuffer beginCommandBufferRecording(size_t poolIndex, size_t bufferIndex);
 		void endCommandBufferRecording(size_t poolIndex, size_t bufferIndex);

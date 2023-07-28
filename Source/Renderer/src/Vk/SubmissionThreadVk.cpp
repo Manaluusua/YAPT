@@ -23,6 +23,7 @@ namespace YAPT
 			for (size_t k = 0; k < config.numberOfQueues[i]; ++k)
 			{
 				m_queues[i][k] = config.queues[i][k];
+				m_queueFamilyToQueueTypeAndIndex[config.queueFamily[i][k]] = std::make_pair((CommandQueueType)i, (uint32_t)k);
 				
 			}
 		}
@@ -50,6 +51,25 @@ namespace YAPT
 		m_submissionThread.join();
 	}
 
+	SubmissionThreadVk::SubmissionId SubmissionThreadVk::submit(uint32_t queueFamilyIndex, const Submission& submission)
+	{
+		CommandQueueType commandQueueType;
+		size_t commandQueueIndex;
+		auto iter = m_queueFamilyToQueueTypeAndIndex.find(queueFamilyIndex);
+		if (iter != m_queueFamilyToQueueTypeAndIndex.end())
+		{
+			commandQueueType = iter->second.first;
+			commandQueueIndex = iter->second.second;
+			return submit(commandQueueType, queueFamilyIndex, submission);
+		}
+		else
+		{
+			assert(!"Could not map queue family index!");
+			return SubmissionThreadVk::SubmissionId{};
+		}
+
+		
+	}
 
 	SubmissionThreadVk::SubmissionId SubmissionThreadVk::submit(CommandQueueType commandQueueType, size_t commandQueueIndex, const Submission& submission)
 	{

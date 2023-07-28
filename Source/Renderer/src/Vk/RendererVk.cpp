@@ -131,7 +131,7 @@ namespace YAPT
 			submission.semaphoresToSignal = m_semaphoresToSignal.data();
 			submission.semaphoresToWaitCount = m_semaphoresToSignal.size();
 
-			m_submissionThread.submit(SubmissionThreadVk::COMMANDQUEUETYPE_GRAPHICS, 0, submission);
+			m_submissionThread.submit(COMMANDQUEUETYPE_GRAPHICS, 0, submission);
 
 			m_semaphoresToWait.clear();
 			m_semaphoresToSignal.clear();
@@ -215,15 +215,22 @@ namespace YAPT
 			loadExtensionMethods();
 
 			SubmissionThreadVk::Configuration submitThreadConfig;
-			std::vector<VkQueue> queues[SubmissionThreadVk::COMMANDQUEUETYPE_COUNT];
-			queues[SubmissionThreadVk::COMMANDQUEUETYPE_GRAPHICS].push_back(m_graphicsQueue.queue);
-			queues[SubmissionThreadVk::COMMANDQUEUETYPE_COMPUTE].push_back(m_computeQueue.queue);
-			queues[SubmissionThreadVk::COMMANDQUEUETYPE_COPY].push_back(m_copyQueue.queue);
+			std::vector<VkQueue> queues[COMMANDQUEUETYPE_COUNT];
+			std::vector<uint32_t> queueFamilies[COMMANDQUEUETYPE_COUNT];
+			queues[COMMANDQUEUETYPE_GRAPHICS].push_back(m_graphicsQueue.queue);
+			queues[COMMANDQUEUETYPE_COMPUTE].push_back(m_computeQueue.queue);
+			queues[COMMANDQUEUETYPE_COPY].push_back(m_copyQueue.queue);
 
-			for (size_t i = 0; i < SubmissionThreadVk::COMMANDQUEUETYPE_COUNT; ++i)
+			queueFamilies[COMMANDQUEUETYPE_GRAPHICS].push_back(m_graphicsQueue.queueFamilyIndex);
+			queueFamilies[COMMANDQUEUETYPE_COMPUTE].push_back(m_computeQueue.queueFamilyIndex);
+			queueFamilies[COMMANDQUEUETYPE_COPY].push_back(m_copyQueue.queueFamilyIndex);
+
+
+			for (size_t i = 0; i < COMMANDQUEUETYPE_COUNT; ++i)
 			{
 				submitThreadConfig.numberOfQueues[i] = queues[i].size();
 				submitThreadConfig.queues[i] = queues[i].data();
+				submitThreadConfig.queueFamily[i] = queueFamilies[i].data();
 			}
 			//TODO: fill
 			m_submissionThread.initialize(submitThreadConfig);

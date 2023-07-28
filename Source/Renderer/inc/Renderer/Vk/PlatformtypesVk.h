@@ -59,4 +59,12 @@ namespace YAPT
 		uint32_t index;
 	};
 
+	enum CommandQueueType
+	{
+		COMMANDQUEUETYPE_GRAPHICS = 0,
+		COMMANDQUEUETYPE_COMPUTE,
+		COMMANDQUEUETYPE_COPY,
+		COMMANDQUEUETYPE_COUNT
+	};
+
 }

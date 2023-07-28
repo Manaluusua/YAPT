@@ -14,13 +14,15 @@ namespace YAPT
 		m_pendingBufferUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
 		m_pendingTextureUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
 		m_pendingUnmaps(128),
-		m_commandBuffersPool(resourceMngr.getDevice())
+		m_commandBuffersPool(resourceMngr.getDevice()),
+		m_lastSignaledSemaphore(VK_NULL_HANDLE)
 
 	{
 
 		m_syncUtility.initialize(resourceMngr.getDevice(), numberOfPartitions, true, true);
 		m_commandBuffersPool.initialize(numberOfPartitions, 1, resourceMngr.getCopyQueue().queueFamilyIndex);
 		m_submissionIDs.resize(numberOfPartitions);
+
 	}
 
 
@@ -28,10 +30,18 @@ namespace YAPT
 	{
 		m_syncUtility.deinitialize();
 		m_commandBuffersPool.deinitialize();
+
+		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			QueueFamilyTransitionData& transitionData = iter->second;
+			transitionData.commandBuffersPool.deinitialize();
+			transitionData.preSyncUtility.deinitialize();
+			transitionData.postSyncUtility.deinitialize();
+		}
 		
 	}
 
-	void* UploadHelperVk::mapCopyRangeForBufferData(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes)
+	void* UploadHelperVk::mapCopyRangeForBufferData(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes)
 	{
 
 		BufferUpload* info = m_pendingBufferUploads.add(1);
@@ -48,13 +58,13 @@ namespace YAPT
 		info->copyDesc.srcOffset = uploadInfo.offsetToHeap;
 		info->copyDesc.dstOffset = offsetInBytes;
 		info->copyDesc.size = sizeInBytes;
-
+		info->dstBufferQueueFamilyIndex = buffer->owningQueueFamily;
 		info->srcBuffer = uploadInfo.uploadBuffer;
-		info->dstBuffer = buffer;
+		info->dstBuffer = buffer->buffer;
 
 		return uploadInfo.mappedPtr;
 	}
-	void UploadHelperVk::uploadDataForBuffer(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data)
+	void UploadHelperVk::uploadDataForBuffer(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data)
 	{
 		void* ptr = mapCopyRangeForBufferData(buffer, offsetInBytes, sizeInBytes);
 		assert(ptr != nullptr);
@@ -194,9 +204,51 @@ namespace YAPT
 		m_uploadHeap.nextPartition();
 	}
 
+
+
 	
 	bool UploadHelperVk::flushUploadBatch(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
 	{
+
+		VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+		VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		auto addBufferBarrier = [this](VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t srcQueueFamily, uint32_t dstQueueFamily)
+		{
+			VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr };
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = 0;
+			barrier.dstQueueFamilyIndex = dstQueueFamily;
+			barrier.srcQueueFamilyIndex = srcQueueFamily;
+			barrier.buffer = buffer;
+			barrier.offset = offset;
+			barrier.size = size;
+
+			m_allBufferBarriers.push_back(barrier);
+
+
+		};
+
+		auto addImageBarrier = [this](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
+		{
+			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
+			barrier.srcAccessMask = 0;
+			barrier.dstAccessMask = 0;
+			barrier.dstQueueFamilyIndex = dstQueueFamily;
+			barrier.srcQueueFamilyIndex = srcQueueFamily;
+			barrier.image = image;
+			barrier.newLayout = newLayout;
+			barrier.oldLayout = oldLayout;
+			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			barrier.subresourceRange.baseArrayLayer = slice;
+			barrier.subresourceRange.baseMipLevel = mip;
+			barrier.subresourceRange.layerCount = sliceCount;
+			barrier.subresourceRange.levelCount = mipCount;
+
+			m_allImageBarriers.push_back(barrier);
+
+		};
+
 
 		VkDeviceMemory* pendingUnmaps = m_pendingUnmaps.getAll();
 		for (size_t i = 0; i < m_pendingUnmaps.count(); ++i)
@@ -206,46 +258,73 @@ namespace YAPT
 
 		if (m_pendingBufferUploads.count() == 0 && m_pendingTextureUploads.count() == 0) return false;
 
-		m_commandBuffersPool.clearPool(m_syncUtility.getFrameIndex());
-
-		VkCommandBuffer cmdBuff = m_commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
 		
+
+		//clear all previous barriers
+		m_allImageBarriers.clear();
+		m_allBufferBarriers.clear();
 
 		TextureUpload* textureUploadsList = m_pendingTextureUploads.getAll();
 		BufferUpload* bufferUploadsList = m_pendingBufferUploads.getAll();
 
+		//image barriers
+		{
+
+			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
+			{
+				const TextureUpload& info = textureUploadsList[i];
+				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
+
+				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
+				{
+					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
+					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
+					{
+						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
+						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
+						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
+
+						if (currentLayout != copyLayout || info.dstImage->owningQueueFamily != m_resMngr.getCopyQueue().queueFamilyIndex)
+						{
+							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
+							layouts.setStateForSubResource(subresourceIndex, copyLayout);
+						}
+					}
+
+
+				}
+			}
+		}
+
+		//buffer barriers
+		{
+			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
+			{
+				const BufferUpload& info = bufferUploadsList[i];
+				if (info.dstBufferQueueFamilyIndex != m_resMngr.getCopyQueue().queueFamilyIndex)
+				{
+					addBufferBarrier(info.dstBuffer, info.copyDesc.dstOffset, info.copyDesc.size, info.dstBufferQueueFamilyIndex, m_resMngr.getCopyQueue().queueFamilyIndex);
+				}
+			}
+
+		}
+
+
+		issuePreCopyBarriers(semaphoresToWait, semaphoresToWaitCount);
+
+		m_commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
+
+		VkCommandBuffer cmdBuff = m_commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
+
+		if (m_allBufferBarriers.size() > 0 || m_allImageBarriers.size() > 0)
+		{
+			vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)m_allBufferBarriers.size(), m_allBufferBarriers.data(), (uint32_t)m_allImageBarriers.size(), m_allImageBarriers.data());
+		}
+
 
 		// Buffer copies
 		{
-			std::vector<VkBufferMemoryBarrier> bufferBarriers;
-			auto addBufferBarrier = [&bufferBarriers](VkBuffer buffer, uint32_t offset, uint32_t size, uint32_t srcQueueFamily, uint32_t dstQueueFamily)
-			{
-				VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr };
-				barrier.srcAccessMask = 0;
-				barrier.dstAccessMask = 0;
-				barrier.dstQueueFamilyIndex = dstQueueFamily;
-				barrier.srcQueueFamilyIndex = srcQueueFamily;
-				barrier.buffer = buffer;
-				barrier.offset = offset;
-				barrier.size = size;
-
-
-				bufferBarriers.push_back(barrier);
-			};
-
-			//pre barriers
-			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
-			{
-				//TODO: actually check if queue family transfer is needed. for now ignored
-
-			}
-
-			if (bufferBarriers.size() > 0)
-			{
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)bufferBarriers.size(), bufferBarriers.data(), 0, nullptr);
-				bufferBarriers.clear();
-			}
-
+			
 			//copy
 			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
 			{
@@ -253,78 +332,10 @@ namespace YAPT
 				vkCmdCopyBuffer(cmdBuff, info.srcBuffer, info.dstBuffer, 1, &info.copyDesc);
 			}
 
-			//post barriers
-			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
-			{
-
-			}
-
-			if (bufferBarriers.size() > 0)
-			{
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)bufferBarriers.size(), bufferBarriers.data(), 0, nullptr);
-				bufferBarriers.clear();
-			}
 		}
 		
 		//image copies
 		{
-			std::vector<VkImageMemoryBarrier> imageBarriers;
-			
-			auto addImageBarrier = [&imageBarriers](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
-			{
-				VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
-				barrier.srcAccessMask = 0;
-				barrier.dstAccessMask = 0;
-				barrier.dstQueueFamilyIndex = dstQueueFamily;
-				barrier.srcQueueFamilyIndex = srcQueueFamily;
-				barrier.image = image;
-				barrier.newLayout = newLayout;
-				barrier.oldLayout = oldLayout;
-				barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-				barrier.subresourceRange.baseArrayLayer = slice;
-				barrier.subresourceRange.baseMipLevel = mip;
-				barrier.subresourceRange.layerCount = sliceCount;
-				barrier.subresourceRange.levelCount = mipCount;
-
-				imageBarriers.push_back(barrier);
-			};
-
-			
-
-			VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-			VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			//before copy barriers (image layout transitions)
-			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
-			{
-				const TextureUpload& info = textureUploadsList[i];
-				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
-				
-				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
-				{
-					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
-					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
-					{
-						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
-						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
-						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
-
-						if (currentLayout != copyLayout)
-						{
-							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
-							layouts.setStateForSubResource(subresourceIndex, copyLayout);
-						}
-					}
-					
-					
-				}
-			}
-
-			if (imageBarriers.size() > 0)
-			{
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, (uint32_t)imageBarriers.size(), imageBarriers.data());
-				imageBarriers.clear();
-			}
-			
 
 			//issue texture copies
 			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
@@ -332,45 +343,26 @@ namespace YAPT
 				const TextureUpload& info = textureUploadsList[i];
 				vkCmdCopyBufferToImage(cmdBuff, info.srcBuffer, info.dstImage->image, copyLayout, (uint32_t)info.copyDescs.size(), info.copyDescs.data());
 			}
+		}
 
-			//after copy barriers (image layout transitions)
-			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
-			{
-				const TextureUpload& info = textureUploadsList[i];
-				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
+		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
+		{
+			std::swap(m_allBufferBarriers[i].dstQueueFamilyIndex, m_allBufferBarriers[i].srcQueueFamilyIndex);
+		}
 
-				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
-				{
-					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
-					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
-					{
-						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
-						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
-						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
-
-						if (currentLayout != afterCopyLayout)
-						{
-							addImageBarrier(currentLayout, afterCopyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, m_resMngr.getCopyQueue().queueFamilyIndex, info.dstImage->owningQueueFamily);
-							layouts.setStateForSubResource(subresourceIndex, afterCopyLayout);
-						}
-					}
-				}
-			}
-
-			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
-			{
-				const TextureUpload& info = textureUploadsList[i];
-				info.dstImage->currentLayouts.checkSharedState();
-			}
-
-			if (imageBarriers.size() > 0)
-			{
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, (uint32_t)imageBarriers.size(), imageBarriers.data());
-				imageBarriers.clear();
-			}
+		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
+		{
+			std::swap(m_allImageBarriers[i].dstQueueFamilyIndex, m_allImageBarriers[i].srcQueueFamilyIndex);
+			m_allImageBarriers[i].oldLayout = m_allImageBarriers[i].newLayout;
+			m_allImageBarriers[i].newLayout = afterCopyLayout;
 		}
 
 		
+
+		if (m_allBufferBarriers.size() > 0 || m_allImageBarriers.size() > 0)
+		{
+			vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)m_allBufferBarriers.size(), m_allBufferBarriers.data(), (uint32_t)m_allImageBarriers.size(), m_allImageBarriers.data());
+		}
 
 		m_pendingBufferUploads.clear();
 		m_pendingTextureUploads.clear();
@@ -383,10 +375,10 @@ namespace YAPT
 		SubmissionThreadVk::Submission submission;
 		submission.semaphoresToSignalCount = 1;
 		submission.semaphoresToSignal = &signalSem;
-		signaledSemaphore = signalSem;
+		
 
-		submission.semaphoresToWaitCount = semaphoresToWaitCount;
-		submission.semaphoresToWait = semaphoresToWait;
+		submission.semaphoresToWaitCount = m_lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWaitCount :  1;
+		submission.semaphoresToWait = m_lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWait : &m_lastSignaledSemaphore;
 
 		submission.commandLists = &cmdBuff;
 		submission.commandListsCount = 1;
@@ -395,9 +387,188 @@ namespace YAPT
 		
 		m_syncUtility.markThisFrameSyncDataIssued();
 
-		m_submissionIDs[m_syncUtility.getFrameIndex()] = m_submissionThread.submit(SubmissionThreadVk::COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
+		m_submissionIDs[m_syncUtility.getFrameIndex()] = m_submissionThread.submit(COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
+		
+		m_lastSignaledSemaphore = signalSem;
+
+		issuePostCopyBarriers();
+
+		signaledSemaphore = m_lastSignaledSemaphore;
+
 		return true;
 
+	}
+
+	void UploadHelperVk::issuePreCopyBarriers(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount)
+	{
+
+		
+		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			iter->second.bufferBarriers.clear();
+			iter->second.imageBarriers.clear();
+		}
+
+		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
+		{
+			if (m_allBufferBarriers[i].dstQueueFamilyIndex != m_allBufferBarriers[i].srcQueueFamilyIndex)
+			{
+				getQueueFamilyTransitionData(m_allBufferBarriers[i].dstQueueFamilyIndex).bufferBarriers.push_back(m_allBufferBarriers[i]);
+			}
+		}
+
+		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
+		{
+			if (m_allImageBarriers[i].dstQueueFamilyIndex != m_allImageBarriers[i].srcQueueFamilyIndex)
+			{
+				getQueueFamilyTransitionData(m_allImageBarriers[i].dstQueueFamilyIndex).imageBarriers.push_back(m_allImageBarriers[i]);
+			}
+		}
+
+		bool isFirstSubmit = true;
+		m_lastSignaledSemaphore = VK_NULL_HANDLE;
+		for(auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			QueueFamilyTransitionData& transitionData = iter->second;
+			
+			if (transitionData.imageBarriers.size() > 0 || transitionData.bufferBarriers.size() > 0)
+			{
+				transitionData.commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
+
+				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)transitionData.bufferBarriers.size(), transitionData.bufferBarriers.data(), (uint32_t)transitionData.imageBarriers.size(), transitionData.imageBarriers.data());
+				
+				transitionData.commandBuffersPool.endCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
+
+				VkSemaphore signalSemaphore = transitionData.preSyncUtility.getSemaphoreForThisFrame();
+
+				SubmissionThreadVk::Submission submission;
+
+				if (isFirstSubmit)
+				{
+					submission.semaphoresToWaitCount = semaphoresToWaitCount;
+					submission.semaphoresToWait = semaphoresToWait;
+					isFirstSubmit = false;
+				}
+				else
+				{
+					submission.semaphoresToWaitCount = 1;
+					submission.semaphoresToWait = &m_lastSignaledSemaphore;
+				}
+
+				submission.semaphoresToSignalCount = 1;
+				submission.semaphoresToSignal = &signalSemaphore;
+
+				submission.commandLists = &cmdBuff;
+				submission.commandListsCount = 1;
+
+				submission.fenceToSignal = VK_NULL_HANDLE;
+
+		
+				m_submissionThread.submit(iter->first,submission);
+
+				transitionData.preSyncUtility.markThisFrameSyncDataIssued();
+				m_lastSignaledSemaphore = signalSemaphore;
+				transitionData.preSyncUtility.nextFrame();
+
+			}
+		}
+	}
+
+	void UploadHelperVk::issuePostCopyBarriers()
+	{
+		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			iter->second.bufferBarriers.clear();
+			iter->second.imageBarriers.clear();
+		}
+
+		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
+		{
+			if (m_allBufferBarriers[i].dstQueueFamilyIndex != m_allBufferBarriers[i].srcQueueFamilyIndex)
+			{
+				getQueueFamilyTransitionData(m_allBufferBarriers[i].dstQueueFamilyIndex).bufferBarriers.push_back(m_allBufferBarriers[i]);
+			}
+		}
+
+		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
+		{
+			if (m_allImageBarriers[i].dstQueueFamilyIndex != m_allImageBarriers[i].srcQueueFamilyIndex)
+			{
+				getQueueFamilyTransitionData(m_allImageBarriers[i].dstQueueFamilyIndex).imageBarriers.push_back(m_allImageBarriers[i]);
+			}
+		}
+
+		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			QueueFamilyTransitionData& transitionData = iter->second;
+
+			if (transitionData.imageBarriers.size() > 0 || transitionData.bufferBarriers.size() > 0)
+			{
+
+				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 1);
+				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)transitionData.bufferBarriers.size(), transitionData.bufferBarriers.data(), (uint32_t)transitionData.imageBarriers.size(), transitionData.imageBarriers.data());
+
+				transitionData.commandBuffersPool.endCommandBufferRecording(m_syncUtility.getFrameIndex(), 1);
+
+				VkSemaphore signalSemaphore = transitionData.postSyncUtility.getSemaphoreForThisFrame();
+
+				SubmissionThreadVk::Submission submission;
+
+
+				submission.semaphoresToWaitCount = 1;
+				submission.semaphoresToWait = &m_lastSignaledSemaphore;
+				
+
+				submission.semaphoresToSignalCount = 1;
+				submission.semaphoresToSignal = &signalSemaphore;
+
+				submission.commandLists = &cmdBuff;
+				submission.commandListsCount = 1;
+
+				submission.fenceToSignal = VK_NULL_HANDLE;
+
+
+				m_submissionThread.submit(iter->first, submission);
+
+				transitionData.postSyncUtility.markThisFrameSyncDataIssued();
+				m_lastSignaledSemaphore = signalSemaphore;
+				transitionData.postSyncUtility.nextFrame();
+
+			}
+		}
+
+	}
+
+
+	UploadHelperVk::QueueFamilyTransitionData& UploadHelperVk::getQueueFamilyTransitionData(uint32_t queueFamily)
+	{
+		auto iter = m_queueFamilyTransitionData.find(queueFamily);
+		if (iter != m_queueFamilyTransitionData.end())
+		{
+			return iter->second;
+		}
+		else
+		{
+			m_queueFamilyTransitionData.emplace(std::piecewise_construct, std::forward_as_tuple(queueFamily), std::forward_as_tuple(m_resMngr.getDevice(), (uint32_t)m_submissionIDs.size(), queueFamily));
+			return m_queueFamilyTransitionData.at(queueFamily);
+
+		}
+	}
+
+
+	UploadHelperVk::QueueFamilyTransitionData::QueueFamilyTransitionData(VkDevice device, uint32_t numberOfPartitions, uint32_t queueFamilyIndex)
+	:commandBuffersPool(device)
+	{
+		commandBuffersPool.initialize(numberOfPartitions, 2, queueFamilyIndex);
+		preSyncUtility.initialize(device, numberOfPartitions, false, true);
+		postSyncUtility.initialize(device, numberOfPartitions, false, true);
+	}
+	UploadHelperVk::QueueFamilyTransitionData::~QueueFamilyTransitionData()
+	{
+		commandBuffersPool.deinitialize();
+		preSyncUtility.deinitialize();
+		postSyncUtility.deinitialize();
 	}
 
 }

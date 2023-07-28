@@ -110,7 +110,7 @@ namespace YAPT
 	{
 		if ((handle->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
 		{
-			copyViaUploadHeap(handle->buffer, offsetInBytes, sizeInBytes, data, heapType);
+			copyViaUploadHeap(handle, offsetInBytes, sizeInBytes, data, heapType);
 		}
 		else
 		{
@@ -122,7 +122,7 @@ namespace YAPT
 	{
 		if ((handle->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
 		{
-			return mapCopyRangeFromUploadHeap(handle->buffer, offsetInBytes, sizeInBytes, heapType);
+			return mapCopyRangeFromUploadHeap(handle, offsetInBytes, sizeInBytes, heapType);
 		}
 		else
 		{
@@ -149,7 +149,7 @@ namespace YAPT
 		}
 	}
 
-	void* ResourceManagerVk::mapCopyRangeFromUploadHeap(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
+	void* ResourceManagerVk::mapCopyRangeFromUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 	{
 		switch (heapType)
 		{
@@ -170,7 +170,7 @@ namespace YAPT
 		return nullptr;
 	}
 
-	void ResourceManagerVk::copyViaUploadHeap(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
+	void ResourceManagerVk::copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 	{
 		switch (heapType)
 		{
@@ -260,7 +260,7 @@ namespace YAPT
 			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
 			for (size_t i = 0; i < m_commandBufferPools.size(); ++i)
 			{
-				m_commandBufferPools[i]->clearPool(frameIndex);
+				m_commandBufferPools[i]->resetPool(frameIndex);
 			}
 		}
 	}

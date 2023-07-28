@@ -6,6 +6,8 @@
 #include <Renderer/Vk/SubmissionThreadVk.h>
 #include <Renderer/Vk/SyncUtilities.h>
 #include <Renderer/Vk/CommandBufferPoolVk.h>
+#include <unordered_map>
+
 namespace YAPT
 {
 
@@ -17,8 +19,8 @@ namespace YAPT
 		UploadHelperVk(ResourceManagerVk& resourceMngr, SubmissionThreadVk& submitThread, size_t heapSize, size_t numberOfPartitions);
 		~UploadHelperVk();
 
-		void* mapCopyRangeForBufferData(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes);
-		void uploadDataForBuffer(VkBuffer buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data);
+		void* mapCopyRangeForBufferData(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes);
+		void uploadDataForBuffer(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data);
 
 		void uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions);
 
@@ -47,11 +49,31 @@ namespace YAPT
 			VkBufferCopy copyDesc;
 			VkBuffer srcBuffer;
 			VkBuffer dstBuffer;
+			uint32_t dstBufferQueueFamilyIndex;
 		};
+
+		struct QueueFamilyTransitionData
+		{
+			QueueFamilyTransitionData(VkDevice device, uint32_t numberOfPartitions, uint32_t queueFamilyIndex);
+			~QueueFamilyTransitionData();
+
+			CommandBufferPoolVk commandBuffersPool;
+			RingSyncUtility preSyncUtility;
+			RingSyncUtility postSyncUtility;
+			std::vector<VkBufferMemoryBarrier> bufferBarriers;
+			std::vector<VkImageMemoryBarrier> imageBarriers;
+		};
+
 
 		bool getHeapMemory(size_t sizeRequested, UploadHeapVk::UploadHeapAllocationInfo& info);
 		void getHeapMemoryFromTemporaryHeap(size_t sizeRequested, UploadHeapVk::UploadHeapAllocationInfo& info);
+
 		
+		void issuePreCopyBarriers(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount);
+		void issuePostCopyBarriers();
+
+		QueueFamilyTransitionData& getQueueFamilyTransitionData(uint32_t queueFamily);
+
 
 		ResourceManagerVk& m_resMngr;
 		SubmissionThreadVk& m_submissionThread;
@@ -63,6 +85,11 @@ namespace YAPT
 		std::vector<SubmissionThreadVk::SubmissionId> m_submissionIDs;
 		CommandBufferPoolVk m_commandBuffersPool;
 		RingSyncUtility m_syncUtility;
+		VkSemaphore m_lastSignaledSemaphore;
+
+		std::unordered_map<uint32_t, QueueFamilyTransitionData> m_queueFamilyTransitionData; //TODO: optimize not to use unordered map?
+		std::vector<VkBufferMemoryBarrier> m_allBufferBarriers;
+		std::vector<VkImageMemoryBarrier> m_allImageBarriers;;
 
 	};
 

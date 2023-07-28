@@ -49,7 +49,7 @@ namespace YAPT
 		m_pools.clear();
 	}
 
-	void CommandBufferPoolVk::clearPool(size_t index, bool resetResources)
+	void CommandBufferPoolVk::resetPool(size_t index, bool resetResources)
 	{
 		assert(index < m_pools.size());
 		vkResetCommandPool(m_device, m_pools[index].pool, resetResources ? VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT : 0);
