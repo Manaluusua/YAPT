@@ -111,8 +111,9 @@ namespace YAPT
 	{
 		//issue waits for uploads and swapchains before the commandlist submit
 		//TODO: here we are making all commands wait for swapchain images being free. In reality, they are usually only needed at the very end. Should make the rendergraph somehow handle/detect this and break the submission so that the swapchain waits are only for before commandbuffers that need it. Need a mechanism to communicate this tho
+		//also should maybe directly just submit to submitthread or call this differently to emphasize that these are just deferred commandlists to be submitted at the end of RG execution
 		{
-			m_semaphoresToWait.push_back(m_resourceManager->getLastSignaledSemaphore());
+			
 			m_semaphoresToSignal.push_back(m_syncUtility.getSemaphoreForThisFrame());
 
 			for (size_t i = 0; i < m_swapChainsToPresent.size(); ++i)
@@ -155,6 +156,11 @@ namespace YAPT
 		m_lastSubmitId = m_submissionThread.issueCallback(cb, &m_submittedSwapChainPresents);
 		
 		m_swapChainsToPresent.clear();
+	}
+
+	void RendererVk::addSemaphoreToWaitBeforeCommandlistSubmit(VkSemaphore semaphore)
+	{
+		m_semaphoresToWait.push_back(semaphore);
 	}
 
 	void RendererVk::waitForAllFramesDone()

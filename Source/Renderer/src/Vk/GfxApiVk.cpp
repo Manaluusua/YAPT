@@ -346,12 +346,21 @@ namespace YAPT
 
 		size_t getQueueId(GfxApiHandle h, QueueType type)
 		{
-			return h->getGraphicsQueue().queueFamilyIndex;
+			switch (type)
+			{
+			case YAPT::QueueType::QUEUE_TYPE_GRAPHICS:
+				return h->getGraphicsQueue().queueFamilyIndex;
+			case YAPT::QueueType::QUEUE_TYPE_COMPUTE:
+				return h->getComputeQueue().queueFamilyIndex;
+			default:
+				return h->getGraphicsQueue().queueFamilyIndex;
+			}
+			 
 		}
 
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name)
 		{
-			return h->getResourceManager()->createAutoResetCommandBufferPool();
+			return h->getResourceManager()->createAutoResetCommandBufferPool(numberOfBuffersPerFrame, queueId);
 		}
 		void destroyCommandBufferPool(GfxApiHandle h, CommandBufferPoolHandle pool)
 		{

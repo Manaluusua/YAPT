@@ -22,11 +22,11 @@ namespace YAPT
 	RenderGraphVk::RenderGraphVk(GfxApiHandle h)
 		:RenderGraph(h)
 	{
-
+		m_queueTransitionHelper.initialize(h->getDevice(), h->getFramePipelineLength(), 1);
 	}
 	RenderGraphVk::~RenderGraphVk()
 	{
-		
+		m_queueTransitionHelper.deinitialize();
 	}
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
@@ -284,10 +284,27 @@ break;
 		}*/
 	}
 
+	void RenderGraphVk::beginExecution()
+	{
+		VkSemaphore waitSemaphore = m_gfxHandle->getResourceManager()->getLastSignaledSemaphore();
+		VkSemaphore semaphoreOut;
+		m_queueTransitionHelper.issueTransitionBarriers(m_gfxHandle->getSubmissionThread(), m_gfxHandle->getFramePipelineIndex(), 0, &waitSemaphore, 1, semaphoreOut);
+		m_gfxHandle->addSemaphoreToWaitBeforeCommandlistSubmit(semaphoreOut);
+	}
+	void RenderGraphVk::endExecution()
+	{
+
+	}
+	void RenderGraphVk::afterRenderGraphSubmit()
+	{
+		m_queueTransitionHelper.clearBarriers();
+	}
+
 
 	void RenderGraphVk::executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context)
 	{
 
+		
 		for (size_t i = 0; i < nodeCount; ++i)
 		{
 			size_t nodeIndex = nodes[i]->getSortedIndex();
@@ -322,6 +339,7 @@ break;
 				break;
 			}
 		}
+
 	}
 
 	void RenderGraphVk::fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut)
@@ -707,6 +725,9 @@ break;
 							perSlotBarriers.preGeneratedMemoryBarriers.push_back(memoryBarrier);
 						}
 
+						//TODO: if the previous usage and current usage are from different queue families, need both release and acquire barriers. Ignored for now.
+						assert(fromQueueFamilyIndex == toQueueFamilyIndex);
+
 						perSlotBarriers.srcStages |= getPipelineStageFlags(previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, previousUsage.resourceDescription.shaderStages);
 						
 					}
@@ -817,8 +838,8 @@ break;
 								TextureHandleVk* imageHandle = m_boundRenderGraphResources[id].textureHandles[resIndex];
 								VkImageLayout previousLayout = imageHandle->currentLayouts.getStateForSubResource((size_t)calculateSubresourceIndex(mip, arraySlice, resourceUsage.resourceDescription.mipCount, resourceUsage.resourceDescription.arraySliceCount));
 								VkImageLayout currentLayout = yaptUsageToVkImageLayout(resourceUsage.resourceDescription.resourceUsage, resourceUsage.resourceDescription.accessFlags);
-
-								if (previousLayout != currentLayout)
+								//TODO: correct queue transitions
+								if (previousLayout != currentLayout || fromQueueFamilyIndex != toQueueFamilyIndex)
 								{
 									imgBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 									imgBarrier.pNext = NULL;
@@ -837,6 +858,7 @@ break;
 									imgBarrier.subresourceRange.levelCount = subresourcesShareState ? resourceUsage.resourceDescription.mipCount : 1;
 									imgBarrier.image = imageHandle->image;
 									barrierDescs.imageBarriersOnce.push_back(imgBarrier);
+									m_queueTransitionHelper.addFromBarriers(&imgBarrier, 1, true);
 								}
 
 							}
@@ -860,6 +882,7 @@ break;
 							barrier.size = VK_WHOLE_SIZE;
 
 							barrierDescs.bufferBarriersOnce.push_back(barrier);
+							m_queueTransitionHelper.addFromBarriers(&barrier, 1, true);
 						}
 
 					}

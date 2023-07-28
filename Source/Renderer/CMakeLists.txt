@@ -87,7 +87,6 @@ set(HEADERS
 	inc/Renderer/Shared/Utility/MultipleScatterLUT.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUTUtility.h
 	inc/Renderer/Shared/Utility/DXCUtility.h
-	inc/Renderer/Shared/Utility/ResourceStateTracker.h
 
 	inc/Renderer/Shared/RenderPipeline/RenderPipeline.h
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineBase.h
@@ -304,6 +303,8 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/DescriptorSetLayoutVk.h
 		inc/Renderer/Vk/DescriptorSetPoolVk.h
 		inc/Renderer/Vk/DescriptorSetVk.h
+		inc/Renderer/Vk/QueueTransitionHelperVk.h
+	
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -329,6 +330,7 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/DescriptorSetLayoutVk.cpp
 		src/Vk/DescriptorSetPoolVk.cpp
 		src/Vk/DescriptorSetVk.cpp
+		src/Vk/QueueTransitionHelperVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

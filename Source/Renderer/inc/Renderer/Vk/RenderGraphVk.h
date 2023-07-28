@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderGraph/RenderGraph.h>
-
+#include <Renderer/Vk/QueueTransitionHelperVk.h>
 
 namespace YAPT
 {
@@ -83,6 +83,10 @@ namespace YAPT
 		virtual void executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context) final;
 		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) final;
 
+		virtual void beginExecution() final;
+		virtual void endExecution() final;
+		virtual void afterRenderGraphSubmit() final;
+
 		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound);
 
 
@@ -124,6 +128,7 @@ namespace YAPT
 		std::vector<VkRenderPass> m_renderPasses;
 
 		std::vector<uint32_t> m_queueFamilyIndexPerNode;
+		QueueTransitionHelperVk m_queueTransitionHelper;
 
 
 	};

@@ -49,7 +49,7 @@ namespace YAPT
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
 
-		CommandBufferPoolVk* createAutoResetCommandBufferPool();
+		CommandBufferPoolVk* createAutoResetCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId);
 		void destroyAutoResetCommandBufferPool(CommandBufferPoolVk* pool);
 		void resetCommandBufferPools(size_t pipelineFrameIndex);
 

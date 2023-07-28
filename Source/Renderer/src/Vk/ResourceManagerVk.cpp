@@ -225,9 +225,10 @@ namespace YAPT
 		delete m;
 	}
 
-	CommandBufferPoolVk* ResourceManagerVk::createAutoResetCommandBufferPool()
+	CommandBufferPoolVk* ResourceManagerVk::createAutoResetCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId)
 	{
 		CommandBufferPoolVk* pool = new CommandBufferPoolVk(m_device);
+		pool->initialize(m_pipelineLength, numberOfBuffersPerFrame, (uint32_t)queueId);
 		{
 			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
 			m_commandBufferPools.push_back(pool);

@@ -60,7 +60,7 @@ namespace YAPT
 		{
 			commandQueueType = iter->second.first;
 			commandQueueIndex = iter->second.second;
-			return submit(commandQueueType, queueFamilyIndex, submission);
+			return submit(commandQueueType, commandQueueIndex, submission);
 		}
 		else
 		{

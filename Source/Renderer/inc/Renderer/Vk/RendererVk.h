@@ -47,10 +47,14 @@ namespace YAPT
 		void present(SwapChainVk* swapChain);
 
 		void submitCommandLists(CommandBufferHandle* buffers, size_t numberOfBuffers);
+		void addSemaphoreToWaitBeforeCommandlistSubmit(VkSemaphore semaphore);
 
 		const QueueDefinitionVk& getGraphicsQueue() const { return m_graphicsQueue; }
 		const QueueDefinitionVk& getComputeQueue() const { return m_computeQueue; }
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
+
+		SubmissionThreadVk& getSubmissionThread() { return m_submissionThread; }
+		
 
 		size_t getFrameNumber() const { return m_syncUtility.getFrameCount(); }
 		size_t getFramePipelineIndex() const { return m_syncUtility.getFrameIndex(); }
@@ -129,7 +133,6 @@ namespace YAPT
 		uint32_t m_selectedPhysicalDeviceIndex;
 		SubmissionThreadVk m_submissionThread;
 		SubmissionThreadVk::SubmissionId m_lastSubmitId;
-
 
 		QueueDefinitionVk m_copyQueue;
 		QueueDefinitionVk m_computeQueue;

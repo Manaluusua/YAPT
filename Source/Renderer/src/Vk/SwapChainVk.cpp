@@ -168,6 +168,7 @@ namespace YAPT
 				texHandle->dimensions = ResourceDimension::TEXTURE_2D;
 				texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, 1);
 				texHandle->image = vkImage;
+				texHandle->owningQueueFamily = rendererVk->getGraphicsQueue().queueFamilyIndex;
 #ifdef VK_DEBUGNAMES_ENABLE
 				texHandle->name = "SwapChain Image " + std::to_string(i);
 #endif

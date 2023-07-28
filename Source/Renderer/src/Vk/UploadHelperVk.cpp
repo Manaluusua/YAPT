@@ -22,7 +22,7 @@ namespace YAPT
 		m_syncUtility.initialize(resourceMngr.getDevice(), numberOfPartitions, true, true);
 		m_commandBuffersPool.initialize(numberOfPartitions, 1, resourceMngr.getCopyQueue().queueFamilyIndex);
 		m_submissionIDs.resize(numberOfPartitions);
-
+		m_queueTransitionHelper.initialize(m_resMngr.getDevice(), numberOfPartitions, 2);
 	}
 
 
@@ -31,13 +31,7 @@ namespace YAPT
 		m_syncUtility.deinitialize();
 		m_commandBuffersPool.deinitialize();
 
-		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			QueueFamilyTransitionData& transitionData = iter->second;
-			transitionData.commandBuffersPool.deinitialize();
-			transitionData.preSyncUtility.deinitialize();
-			transitionData.postSyncUtility.deinitialize();
-		}
+		m_queueTransitionHelper.deinitialize();
 		
 	}
 
@@ -263,6 +257,7 @@ namespace YAPT
 		//clear all previous barriers
 		m_allImageBarriers.clear();
 		m_allBufferBarriers.clear();
+		
 
 		TextureUpload* textureUploadsList = m_pendingTextureUploads.getAll();
 		BufferUpload* bufferUploadsList = m_pendingBufferUploads.getAll();
@@ -309,8 +304,10 @@ namespace YAPT
 
 		}
 
-
-		issuePreCopyBarriers(semaphoresToWait, semaphoresToWaitCount);
+		m_queueTransitionHelper.clearBarriers();
+		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), true);
+		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), true);
+		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 0, semaphoresToWait, semaphoresToWaitCount, m_lastSignaledSemaphore);
 
 		m_commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
 
@@ -391,184 +388,15 @@ namespace YAPT
 		
 		m_lastSignaledSemaphore = signalSem;
 
-		issuePostCopyBarriers();
+		m_queueTransitionHelper.clearBarriers();
+		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), false);
+		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), false);
+		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 1, &m_lastSignaledSemaphore, 1, m_lastSignaledSemaphore);
 
 		signaledSemaphore = m_lastSignaledSemaphore;
 
 		return true;
 
-	}
-
-	void UploadHelperVk::issuePreCopyBarriers(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount)
-	{
-
-		
-		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			iter->second.bufferBarriers.clear();
-			iter->second.imageBarriers.clear();
-		}
-
-		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
-		{
-			if (m_allBufferBarriers[i].dstQueueFamilyIndex != m_allBufferBarriers[i].srcQueueFamilyIndex)
-			{
-				getQueueFamilyTransitionData(m_allBufferBarriers[i].dstQueueFamilyIndex).bufferBarriers.push_back(m_allBufferBarriers[i]);
-			}
-		}
-
-		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
-		{
-			if (m_allImageBarriers[i].dstQueueFamilyIndex != m_allImageBarriers[i].srcQueueFamilyIndex)
-			{
-				getQueueFamilyTransitionData(m_allImageBarriers[i].dstQueueFamilyIndex).imageBarriers.push_back(m_allImageBarriers[i]);
-			}
-		}
-
-		bool isFirstSubmit = true;
-		m_lastSignaledSemaphore = VK_NULL_HANDLE;
-		for(auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			QueueFamilyTransitionData& transitionData = iter->second;
-			
-			if (transitionData.imageBarriers.size() > 0 || transitionData.bufferBarriers.size() > 0)
-			{
-				transitionData.commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
-
-				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)transitionData.bufferBarriers.size(), transitionData.bufferBarriers.data(), (uint32_t)transitionData.imageBarriers.size(), transitionData.imageBarriers.data());
-				
-				transitionData.commandBuffersPool.endCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
-
-				VkSemaphore signalSemaphore = transitionData.preSyncUtility.getSemaphoreForThisFrame();
-
-				SubmissionThreadVk::Submission submission;
-
-				if (isFirstSubmit)
-				{
-					submission.semaphoresToWaitCount = semaphoresToWaitCount;
-					submission.semaphoresToWait = semaphoresToWait;
-					isFirstSubmit = false;
-				}
-				else
-				{
-					submission.semaphoresToWaitCount = 1;
-					submission.semaphoresToWait = &m_lastSignaledSemaphore;
-				}
-
-				submission.semaphoresToSignalCount = 1;
-				submission.semaphoresToSignal = &signalSemaphore;
-
-				submission.commandLists = &cmdBuff;
-				submission.commandListsCount = 1;
-
-				submission.fenceToSignal = VK_NULL_HANDLE;
-
-		
-				m_submissionThread.submit(iter->first,submission);
-
-				transitionData.preSyncUtility.markThisFrameSyncDataIssued();
-				m_lastSignaledSemaphore = signalSemaphore;
-				transitionData.preSyncUtility.nextFrame();
-
-			}
-		}
-	}
-
-	void UploadHelperVk::issuePostCopyBarriers()
-	{
-		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			iter->second.bufferBarriers.clear();
-			iter->second.imageBarriers.clear();
-		}
-
-		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
-		{
-			if (m_allBufferBarriers[i].dstQueueFamilyIndex != m_allBufferBarriers[i].srcQueueFamilyIndex)
-			{
-				getQueueFamilyTransitionData(m_allBufferBarriers[i].dstQueueFamilyIndex).bufferBarriers.push_back(m_allBufferBarriers[i]);
-			}
-		}
-
-		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
-		{
-			if (m_allImageBarriers[i].dstQueueFamilyIndex != m_allImageBarriers[i].srcQueueFamilyIndex)
-			{
-				getQueueFamilyTransitionData(m_allImageBarriers[i].dstQueueFamilyIndex).imageBarriers.push_back(m_allImageBarriers[i]);
-			}
-		}
-
-		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			QueueFamilyTransitionData& transitionData = iter->second;
-
-			if (transitionData.imageBarriers.size() > 0 || transitionData.bufferBarriers.size() > 0)
-			{
-
-				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 1);
-				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)transitionData.bufferBarriers.size(), transitionData.bufferBarriers.data(), (uint32_t)transitionData.imageBarriers.size(), transitionData.imageBarriers.data());
-
-				transitionData.commandBuffersPool.endCommandBufferRecording(m_syncUtility.getFrameIndex(), 1);
-
-				VkSemaphore signalSemaphore = transitionData.postSyncUtility.getSemaphoreForThisFrame();
-
-				SubmissionThreadVk::Submission submission;
-
-
-				submission.semaphoresToWaitCount = 1;
-				submission.semaphoresToWait = &m_lastSignaledSemaphore;
-				
-
-				submission.semaphoresToSignalCount = 1;
-				submission.semaphoresToSignal = &signalSemaphore;
-
-				submission.commandLists = &cmdBuff;
-				submission.commandListsCount = 1;
-
-				submission.fenceToSignal = VK_NULL_HANDLE;
-
-
-				m_submissionThread.submit(iter->first, submission);
-
-				transitionData.postSyncUtility.markThisFrameSyncDataIssued();
-				m_lastSignaledSemaphore = signalSemaphore;
-				transitionData.postSyncUtility.nextFrame();
-
-			}
-		}
-
-	}
-
-
-	UploadHelperVk::QueueFamilyTransitionData& UploadHelperVk::getQueueFamilyTransitionData(uint32_t queueFamily)
-	{
-		auto iter = m_queueFamilyTransitionData.find(queueFamily);
-		if (iter != m_queueFamilyTransitionData.end())
-		{
-			return iter->second;
-		}
-		else
-		{
-			m_queueFamilyTransitionData.emplace(std::piecewise_construct, std::forward_as_tuple(queueFamily), std::forward_as_tuple(m_resMngr.getDevice(), (uint32_t)m_submissionIDs.size(), queueFamily));
-			return m_queueFamilyTransitionData.at(queueFamily);
-
-		}
-	}
-
-
-	UploadHelperVk::QueueFamilyTransitionData::QueueFamilyTransitionData(VkDevice device, uint32_t numberOfPartitions, uint32_t queueFamilyIndex)
-	:commandBuffersPool(device)
-	{
-		commandBuffersPool.initialize(numberOfPartitions, 2, queueFamilyIndex);
-		preSyncUtility.initialize(device, numberOfPartitions, false, true);
-		postSyncUtility.initialize(device, numberOfPartitions, false, true);
-	}
-	UploadHelperVk::QueueFamilyTransitionData::~QueueFamilyTransitionData()
-	{
-		commandBuffersPool.deinitialize();
-		preSyncUtility.deinitialize();
-		postSyncUtility.deinitialize();
 	}
 
 }

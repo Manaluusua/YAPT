@@ -6,6 +6,7 @@
 #include <Renderer/Vk/SubmissionThreadVk.h>
 #include <Renderer/Vk/SyncUtilities.h>
 #include <Renderer/Vk/CommandBufferPoolVk.h>
+#include <Renderer/Vk/QueueTransitionHelperVk.h>
 #include <unordered_map>
 
 namespace YAPT
@@ -68,13 +69,6 @@ namespace YAPT
 		bool getHeapMemory(size_t sizeRequested, UploadHeapVk::UploadHeapAllocationInfo& info);
 		void getHeapMemoryFromTemporaryHeap(size_t sizeRequested, UploadHeapVk::UploadHeapAllocationInfo& info);
 
-		
-		void issuePreCopyBarriers(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount);
-		void issuePostCopyBarriers();
-
-		QueueFamilyTransitionData& getQueueFamilyTransitionData(uint32_t queueFamily);
-
-
 		ResourceManagerVk& m_resMngr;
 		SubmissionThreadVk& m_submissionThread;
 		
@@ -85,9 +79,10 @@ namespace YAPT
 		std::vector<SubmissionThreadVk::SubmissionId> m_submissionIDs;
 		CommandBufferPoolVk m_commandBuffersPool;
 		RingSyncUtility m_syncUtility;
+		QueueTransitionHelperVk m_queueTransitionHelper;
 		VkSemaphore m_lastSignaledSemaphore;
 
-		std::unordered_map<uint32_t, QueueFamilyTransitionData> m_queueFamilyTransitionData; //TODO: optimize not to use unordered map?
+		
 		std::vector<VkBufferMemoryBarrier> m_allBufferBarriers;
 		std::vector<VkImageMemoryBarrier> m_allImageBarriers;;
 
