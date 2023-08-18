@@ -68,7 +68,7 @@ namespace YAPT
 			std::vector<VkMemoryBarrier> wrapAroundMemoryBarriers;
 			std::vector<VkBufferMemoryBarrier> wrapAroundBufferBarriers;
 			std::vector<VkImageMemoryBarrier> wrapAroundImageBarriers;
-
+			bool useWrapAroundBarriers; //when executing the graph for the first time, we don't use wrap around barriers but the "once" barriers that transition resource to graph required layout/queue
 		};
 
 		struct BarriersPerNode
