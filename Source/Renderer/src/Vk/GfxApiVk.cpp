@@ -447,12 +447,25 @@ namespace YAPT
 
 		void setVertexBuffers(GfxApiHandle h, CommandBufferHandle buff, BufferViewHandle* vertexBuffers, size_t numberOfBuffers, size_t bindingPointOffset)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			const size_t MAX_VERTEX_BUFFERS_TO_BIND = 32;
+			VkBuffer buffers[MAX_VERTEX_BUFFERS_TO_BIND];
+			VkDeviceSize offsets[MAX_VERTEX_BUFFERS_TO_BIND];
+
+			assert(numberOfBuffers < MAX_VERTEX_BUFFERS_TO_BIND);
+
+			for (size_t i = 0; i < min(numberOfBuffers, MAX_VERTEX_BUFFERS_TO_BIND); ++i)
+			{
+				buffers[i] = vertexBuffers[i]->buffer;
+				offsets[i] = vertexBuffers[i]->bufferDesc.offsetInBytes;
+			}
+
+
+			vkCmdBindVertexBuffers(buff, (uint32_t)bindingPointOffset, (uint32_t)numberOfBuffers, buffers, offsets);
 
 		}
 		void setIndexBuffer(GfxApiHandle h, CommandBufferHandle buff, BufferViewHandle indexBuffer)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdBindIndexBuffer(buff, indexBuffer->buffer, indexBuffer->bufferDesc.offsetInBytes, indexBuffer->bufferDesc.nonStructuredFormat == ResourceFormat::R32_UINT ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16);
 		}
 
 		ShaderTableHandle createShaderTable(GfxApiHandle h, RaytracePipelineStateHandle pso, size_t numberOfRayGenShaders, size_t numberOfMissShaders, size_t numberOfHitGroups)
