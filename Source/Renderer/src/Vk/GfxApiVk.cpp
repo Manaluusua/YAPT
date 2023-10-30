@@ -495,15 +495,15 @@ namespace YAPT
 
 		void setGraphicsPipelineState(GfxApiHandle h, CommandBufferHandle buff, GraphicsPipelineStateHandle pso)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdBindPipeline(buff, VK_PIPELINE_BIND_POINT_GRAPHICS, pso);
 		}
 		void setComputePipelineState(GfxApiHandle h, CommandBufferHandle buff, ComputePipelineStateHandle pso)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdBindPipeline(buff, VK_PIPELINE_BIND_POINT_COMPUTE, pso);
 		}
 		void setRaytracePipelineState(GfxApiHandle h, CommandBufferHandle buff, RaytracePipelineStateHandle pso)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdBindPipeline(buff, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pso->getPipeline());
 		}
 
 		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, const DescriptorSetBinding* binding, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
