@@ -22,7 +22,7 @@ namespace YAPT
 		void getRootParameters(const D3D12_ROOT_PARAMETER*& rootParams) const;
 		void getStaticSamplers(const D3D12_STATIC_SAMPLER_DESC*& samplerDescs, size_t& numberOfSamplers) const;
 
-		void bindRootParameters(GraphicsCommandListDx12* cmdList, const DescriptorSetBinding* binding, size_t numberOfBindings, size_t* dynamicOffsets, size_t dynamicOffsetCount, bool isCompute) const;
+		void bindRootParameters(GraphicsCommandListDx12* cmdList, const DescriptorSetHandle* binding, size_t bindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t dynamicOffsetCount, bool isCompute) const;
 
 		size_t getNumberOfRootParams() const { return m_rootParameters.size(); };
 

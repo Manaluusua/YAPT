@@ -66,7 +66,7 @@ namespace YAPT
 	}
 
 
-	void RenderGraphDx12::issuePreBarriers(size_t nodeIndex, CommandBufferHandle buffer)
+	void RenderGraphDx12::issuePreBarriers(size_t nodeIndex, CommandBufferHandle cmdList)
 	{
 		std::array<D3D12_RESOURCE_BARRIER, 256> barriers; //TODO: better solution
 		size_t numBarriers = 0;
@@ -96,6 +96,10 @@ namespace YAPT
 			{
 				for (size_t barrierInd = 0; barrierInd < barrierSlotDesc.currentBeforeBarriers.size(); ++barrierInd)
 				{
+					//check if we are trying to transition to same state (can happen for example if this is the first usage in graph and the "wrap around" barrier has the same state.
+					if (barrierSlotDesc.currentBeforeBarriers[barrierInd].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateAfter == barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateBefore)
+						continue;
+
 					barriers[numBarriers++] = barrierSlotDesc.currentBeforeBarriers[barrierInd];
 					
 				}
@@ -105,7 +109,7 @@ namespace YAPT
 
 		if (numBarriers > 0)
 		{
-			buffer->cmdList->ResourceBarrier((UINT)numBarriers, barriers.data());
+			cmdList->cmdList->ResourceBarrier((UINT)numBarriers, barriers.data());
 		}
 		
 
@@ -450,7 +454,7 @@ break;
 				{
 					for (size_t i = 0; i < numberOfSubresources; ++i)
 					{
-						if (statesInNode == subResourceStates[i])
+						if (statesInNode != subResourceStates[i])
 						{
 							subResourceIndicesToTransition.push_back(i);
 						}

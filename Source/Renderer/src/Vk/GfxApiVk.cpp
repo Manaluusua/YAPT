@@ -519,9 +519,9 @@ namespace YAPT
 			vkCmdBindPipeline(buff, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pso->getPipeline());
 		}
 
-		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, const DescriptorSetBinding* binding, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
+		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, BindingPoint bindingPoint, const DescriptorSetHandle* bindings, size_t firstBindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			//vkCmdBindDescriptorSets(buff, yaptBindingPointToVk(bindingPoint), 
 		}
 
 		void dispatch(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z)

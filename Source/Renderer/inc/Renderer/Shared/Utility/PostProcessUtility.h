@@ -38,7 +38,7 @@ namespace YAPT
 		PipelineLayoutHelper m_layout;
 		GraphicsPipelineStateDescHelper m_psoDesc;
 		GraphicsPipelineStateHandle m_pso;
-		std::vector<DescriptorSetBinding> m_descSetHandles;
+		std::vector<DescriptorSetHandle> m_descSetHandles;
 	};
 
 	class PostProcessComputePassUtility
@@ -64,6 +64,6 @@ namespace YAPT
 		PipelineLayoutHelper m_layout;
 		ComputePipelineStateHandle m_pso;
 		ComputePipelineStateDesc m_stateDesc;
-		std::vector<DescriptorSetBinding> m_descSetHandles;
+		std::vector<DescriptorSetHandle> m_descSetHandles;
 	};
 }

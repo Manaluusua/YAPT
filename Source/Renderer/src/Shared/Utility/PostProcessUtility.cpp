@@ -45,8 +45,7 @@ namespace YAPT
 		m_descSetHandles.resize(m_layout.getDescriptorSetCount());
 		for (size_t i = 0; i < m_layout.getDescriptorSetCount(); ++i)
 		{
-			m_descSetHandles[i].descSetIndex = i;
-			m_descSetHandles[i].descSet = YAPT_NULL_HANDLE;
+			m_descSetHandles[i] = YAPT_NULL_HANDLE;
 		}
 	}
 
@@ -71,14 +70,14 @@ namespace YAPT
 
 	void PostProcessGraphicsPassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
 	{
-		if (m_descSetHandles[index].descSet != YAPT_NULL_HANDLE)
+		if (m_descSetHandles[index] != YAPT_NULL_HANDLE)
 		{
-			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index].descSet);
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
 		}
 		
 		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
 
-		m_descSetHandles[index].descSet = newDescSet;
+		m_descSetHandles[index] = newDescSet;
 
 		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
 	}
@@ -89,7 +88,7 @@ namespace YAPT
 		Gfx::setGraphicsPipelineState(gfx, commandBuffer, m_pso);
 
 		
-		Gfx::bindDescriptorSets(gfx, commandBuffer, m_descSetHandles.data(), m_descSetHandles.size(), nullptr, 0);
+		Gfx::bindDescriptorSets(gfx, commandBuffer, BindingPoint::BINDING_POINT_GRAPHICS, m_layout.getPipelineLayoutHandle(), m_descSetHandles.data(), 0, m_descSetHandles.size(), nullptr, 0);
 
 		BufferViewHandle vertexBuffers[] = { m_renderer->getCoreResources()->getDefaultBufferView(DefaultBufferType::FULLSCREEN_PRIMITIVE_POS_UV) };
 
@@ -136,8 +135,7 @@ namespace YAPT
 		m_descSetHandles.resize(m_layout.getDescriptorSetCount());
 		for (size_t i = 0; i < m_layout.getDescriptorSetCount(); ++i)
 		{
-			m_descSetHandles[i].descSetIndex = i;
-			m_descSetHandles[i].descSet = YAPT_NULL_HANDLE;
+			m_descSetHandles[i] = YAPT_NULL_HANDLE;
 		}
 		m_stateDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
 		fillShaderModuleCreateInfo(pipelineInfo->shaderModules[0], m_stateDesc.shaderStage);
@@ -164,14 +162,14 @@ namespace YAPT
 
 	void PostProcessComputePassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
 	{
-		if (m_descSetHandles[index].descSet != YAPT_NULL_HANDLE)
+		if (m_descSetHandles[index] != YAPT_NULL_HANDLE)
 		{
-			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index].descSet);
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
 		}
 
 		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
 
-		m_descSetHandles[index].descSet = newDescSet;
+		m_descSetHandles[index] = newDescSet;
 
 		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
 	}
@@ -181,7 +179,7 @@ namespace YAPT
 		GfxApiHandle gfx = m_renderer->getGfxHandle();
 		Gfx::setComputePipelineState(gfx, commandBuffer, m_pso);
 
-		Gfx::bindDescriptorSets(gfx, commandBuffer, m_descSetHandles.data(), m_descSetHandles.size(), nullptr, 0);
+		Gfx::bindDescriptorSets(gfx, commandBuffer, BindingPoint::BINDING_POINT_COMPUTE, m_layout.getPipelineLayoutHandle(), m_descSetHandles.data(), 0, m_descSetHandles.size(), nullptr, 0);
 
 		Gfx::dispatch(gfx, commandBuffer, x,y,z);
 	}

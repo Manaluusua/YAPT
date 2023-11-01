@@ -49,6 +49,13 @@ namespace YAPT
 		QUEUE_TYPE_COMPUTE
 	};
 
+	enum class BindingPoint
+	{
+		BINDING_POINT_GRAPHICS,
+		BINDING_POINT_COMPUTE,
+		BINDING_POINT_RAYTRACE
+	};
+
 	enum class ResourcePoolType
 	{
 		//common/idle

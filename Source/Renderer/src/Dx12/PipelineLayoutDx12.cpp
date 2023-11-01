@@ -249,13 +249,13 @@ namespace YAPT
 	}
 
 
-	void PipelineLayoutDx12::bindRootParameters(GraphicsCommandListDx12* cmdList, const DescriptorSetBinding* bindings, size_t numberOfBindings, size_t* dynamicOffsets, size_t dynamicOffsetCount, bool isCompute) const
+	void PipelineLayoutDx12::bindRootParameters(GraphicsCommandListDx12* cmdList, const DescriptorSetHandle* bindings, size_t bindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t dynamicOffsetCount, bool isCompute) const
 	{
 		size_t currentDynamicOffsetIndex = 0;
 		for (size_t i = 0; i < numberOfBindings; ++i)
 		{
-			DescriptorSetDx12* descSet = bindings[i].descSet;
-			const DescriptorSetToRootParametersMapping& mappings = m_descSetToRootParametersMapping[bindings[i].descSetIndex];
+			DescriptorSetDx12* descSet = bindings[i];
+			const DescriptorSetToRootParametersMapping& mappings = m_descSetToRootParametersMapping[bindingOffset + i];
 
 
 			for (size_t rootDescInd = 0; rootDescInd < descSet->rootDescriptors.size(); ++rootDescInd)

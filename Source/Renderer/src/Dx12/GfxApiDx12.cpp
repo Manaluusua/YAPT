@@ -482,9 +482,9 @@ namespace YAPT
 
 		}
 
-		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, const DescriptorSetBinding* binding, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
+		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, BindingPoint bindingPoint, PipelineLayoutHandle layout, const DescriptorSetHandle* bindings, size_t firstBindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
 		{
-			buff->boundLayout->bindRootParameters(buff->cmdList, binding, numberOfBindings, dynamicOffsets, numberOfDynamicOffsets, !(buff->boundPsoType == CommandBufferHandleDx12::Graphics));
+			buff->boundLayout->bindRootParameters(buff->cmdList, bindings, firstBindingOffset, numberOfBindings,  dynamicOffsets, numberOfDynamicOffsets, bindingPoint != BindingPoint::BINDING_POINT_GRAPHICS);
 		}
 
 		void dispatch(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z)

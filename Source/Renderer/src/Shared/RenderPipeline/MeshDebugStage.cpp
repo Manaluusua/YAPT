@@ -197,9 +197,7 @@ namespace YAPT
 		GfxApiHandle gfx = getRenderer()->getGfxHandle();
 		std::vector<BufferViewHandle> buffers;
 
-		DescriptorSetBinding descSetBind;
-		descSetBind.descSet = m_descSet;
-		descSetBind.descSetIndex = 0;
+		DescriptorSetHandle descSetBind = m_descSet;
 
 		size_t perObjectBufferEntrySize = getRenderer()->getCurrentRenderView().getMVPBufferPerEntrySize();
 
@@ -233,7 +231,7 @@ namespace YAPT
 				}
 				    
 				size_t dynBuffOffset = drawIndex * perObjectBufferEntrySize;
-				Gfx::bindDescriptorSets(gfx, execContext.cmdBuffer, &descSetBind, 1, &dynBuffOffset, 1);
+				Gfx::bindDescriptorSets(gfx, execContext.cmdBuffer,BindingPoint::BINDING_POINT_GRAPHICS, m_layout.getPipelineLayoutHandle(), &descSetBind, 0, 1, &dynBuffOffset, 1);
 
 				Gfx::draw(gfx, execContext.cmdBuffer, uint32_t(mesh->getPrimitiveCount()) * 3, 1, 0, 0, 0);
 

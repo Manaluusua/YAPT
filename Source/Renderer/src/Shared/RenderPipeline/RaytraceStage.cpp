@@ -617,12 +617,12 @@ namespace YAPT
 		GfxApiHandle gfx = getRenderer()->getGfxHandle();
 		Gfx::setRaytracePipelineState(gfx, exec.cmdBuffer, m_raytracePso);
 
-		DescriptorSetBinding bindings[] = { 
-			{0, m_rtDescSet},
-			{1, texMngr->getTextureArrayDescSet() },
-			{2, buffMngr->getBufferArrayDescSet() }
+		DescriptorSetHandle bindings[] = { 
+			 m_rtDescSet,
+			 texMngr->getTextureArrayDescSet(),
+			 buffMngr->getBufferArrayDescSet()
 		};
-		Gfx::bindDescriptorSets(gfx, exec.cmdBuffer, bindings, countOf(bindings), nullptr, 0);
+		Gfx::bindDescriptorSets(gfx, exec.cmdBuffer, BindingPoint::BINDING_POINT_RAYTRACE, m_rtLayout.getPipelineLayoutHandle(), bindings, 0, countOf(bindings), nullptr, 0);
 
 		Gfx::dispatchRays(gfx, exec.cmdBuffer, m_raysPerFrameWidth, m_raysPerFrameHeight, 1, m_shaderTableHelper.getShaderTable());
 	}

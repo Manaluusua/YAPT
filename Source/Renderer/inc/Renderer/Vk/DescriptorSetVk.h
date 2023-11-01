@@ -31,6 +31,8 @@ namespace YAPT
 
 		void updateContents(const DescriptorSetUpdate* updates, size_t updateCount);
 
+		VkDescriptorSet nativeDescriptorSet() { return m_set; }
+
 	private:
 		RendererVk* m_renderer;
 		VkDescriptorSet m_set;

@@ -769,6 +769,21 @@ namespace YAPT
 		}
 	}
 
+	inline VkPipelineBindPoint yaptBindingPointToVk(BindingPoint bind)
+	{
+		switch (bind)
+		{
+		case YAPT::BindingPoint::BINDING_POINT_GRAPHICS:
+			return VK_PIPELINE_BIND_POINT_GRAPHICS;
+		case YAPT::BindingPoint::BINDING_POINT_COMPUTE:
+			return VK_PIPELINE_BIND_POINT_COMPUTE;
+		case YAPT::BindingPoint::BINDING_POINT_RAYTRACE:
+			return VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
+		default:
+			break;
+		}
+	}
+
 	inline uint32_t getDynamicStatesCount(DynamicPipelineStates dps)
 	{
 		std::bitset<sizeof(uint32_t) * 8> bs(dps);

@@ -344,12 +344,6 @@ namespace YAPT
 		DURING_RENDER
 	};
 
-	struct DescriptorSetBinding
-	{
-		size_t descSetIndex;
-		DescriptorSetHandle descSet;
-	};
-
 	struct ShaderTableEntry
 	{
 		size_t shaderIndexInPso;
