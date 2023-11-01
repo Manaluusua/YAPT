@@ -138,12 +138,13 @@ namespace YAPT
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR:
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
 				descSetWrite.pBufferInfo = &m_descriptorBufferInfoScratch[bufferDescIndex];
+				bool isDynamic = descSetWrite.descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC || descSetWrite.descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC ? true : false;
 				for (uint32_t k = 0; k < descSetSrc.descriptorCount; ++k)
 				{
 					VkDescriptorBufferInfo info;
 					info.buffer = descSetSrc.buffHandles[k]->buffer;
 					info.offset = descSetSrc.buffHandles[k]->bufferDesc.offsetInBytes;
-					info.range = descSetSrc.buffHandles[k]->bufferDesc.sizeInBytes;
+					info.range = isDynamic ? descSetSrc.buffHandles[k]->bufferDesc.structureStrideInBytes : descSetSrc.buffHandles[k]->bufferDesc.sizeInBytes; //dynamic buffers are only bound by stride and offset when binding descset
 					m_descriptorBufferInfoScratch[bufferDescIndex++] = info;
 				}
 				break;

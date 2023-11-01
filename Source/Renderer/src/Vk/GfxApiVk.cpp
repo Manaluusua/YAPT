@@ -519,9 +519,23 @@ namespace YAPT
 			vkCmdBindPipeline(buff, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pso->getPipeline());
 		}
 
-		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, BindingPoint bindingPoint, const DescriptorSetHandle* bindings, size_t firstBindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
+		void bindDescriptorSets(GfxApiHandle h, CommandBufferHandle buff, BindingPoint bindingPoint, PipelineLayoutHandle layout, const DescriptorSetHandle* bindings, size_t firstBindingOffset, size_t numberOfBindings, size_t* dynamicOffsets, size_t numberOfDynamicOffsets)
 		{
-			//vkCmdBindDescriptorSets(buff, yaptBindingPointToVk(bindingPoint), 
+			const size_t MAX_DESC_SETS_TO_BIND = 32;
+			VkDescriptorSet descSets[MAX_DESC_SETS_TO_BIND];
+			uint32_t offsets[MAX_DESC_SETS_TO_BIND];
+
+			for (size_t i = 0; i < numberOfBindings; ++i)
+			{
+				descSets[i] = bindings[i]->nativeDescriptorSet();
+			}
+
+			for (size_t i = 0; i < numberOfDynamicOffsets; ++i)
+			{
+				offsets[i] = (uint32_t)dynamicOffsets[i];
+			}
+
+			vkCmdBindDescriptorSets(buff, yaptBindingPointToVk(bindingPoint), layout, (uint32_t)firstBindingOffset, (uint32_t)numberOfBindings, descSets, (uint32_t)numberOfDynamicOffsets, offsets);
 		}
 
 		void dispatch(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z)
@@ -533,9 +547,9 @@ namespace YAPT
 			assert(!"NOT IMPLEMENTED!");
 		
 		}
-		void draw(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+		void drawIndexed(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdDrawIndexed(buff, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
 		}
 
 	}

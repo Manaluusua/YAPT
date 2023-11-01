@@ -780,7 +780,7 @@ namespace YAPT
 		case YAPT::BindingPoint::BINDING_POINT_RAYTRACE:
 			return VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR;
 		default:
-			break;
+			return VK_PIPELINE_BIND_POINT_GRAPHICS;
 		}
 	}
 

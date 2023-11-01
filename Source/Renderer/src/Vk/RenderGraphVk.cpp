@@ -65,8 +65,8 @@ namespace YAPT
 		
 		BarriersPerNode& barriersPerNode = m_barriers[nodeIndex];
 
-		VkPipelineStageFlags srcStages;
-		VkPipelineStageFlags dstStages;
+		VkPipelineStageFlags srcStages = 0;
+		VkPipelineStageFlags dstStages = 0;
 
 		auto addBarriers = [&memBarriers, &imgBarriers, &bufBarriers, &memBarriersCount, &imgBarriersCount, &bufBarriersCount](std::vector<VkMemoryBarrier>& memoryBarriers, std::vector<VkBufferMemoryBarrier>& bufferBarriers, std::vector<VkImageMemoryBarrier>& imageBarriers)
 		{

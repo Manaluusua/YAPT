@@ -95,7 +95,7 @@ namespace YAPT
 		Gfx::setVertexBuffers(gfx, commandBuffer, vertexBuffers, 1, 0);
 		Gfx::setIndexBuffer(gfx, commandBuffer, m_renderer->getCoreResources()->getDefaultBufferView(DefaultBufferType::FULLSCREEN_PRIMITIVE_INDICES));
 
-		Gfx::draw(gfx, commandBuffer, 3, 1, 0, 0, 0);
+		Gfx::drawIndexed(gfx, commandBuffer, 3, 1, 0, 0, 0);
 	}
 
 
