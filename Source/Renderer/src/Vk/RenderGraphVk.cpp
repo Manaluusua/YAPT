@@ -54,30 +54,33 @@ namespace YAPT
 
 	void RenderGraphVk::issueBarriers(size_t nodeIndex, CommandBufferHandle buffer)
 	{
-		//TODO: proper solution 
-		std::array<VkMemoryBarrier, 256> memBarriers;
-		std::array<VkBufferMemoryBarrier, 256> bufBarriers;
-		std::array<VkImageMemoryBarrier, 256> imgBarriers;
-
-		size_t memBarriersCount = 0;
-		size_t imgBarriersCount = 0;
-		size_t bufBarriersCount = 0;
-		
 		BarriersPerNode& barriersPerNode = m_barriers[nodeIndex];
+
+		
+		std::vector<VkMemoryBarrier>& memBarriersCache = barriersPerNode.memBarriersCache;
+		std::vector<VkBufferMemoryBarrier>& bufBarriersCache = barriersPerNode.bufBarriersCache;
+		std::vector<VkImageMemoryBarrier>& imgBarriersCache = barriersPerNode.imgBarriersCache;
+		
+		memBarriersCache.clear();
+		bufBarriersCache.clear();
+		imgBarriersCache.clear();
 
 		VkPipelineStageFlags srcStages = 0;
 		VkPipelineStageFlags dstStages = 0;
 
-		auto addBarriers = [&memBarriers, &imgBarriers, &bufBarriers, &memBarriersCount, &imgBarriersCount, &bufBarriersCount](std::vector<VkMemoryBarrier>& memoryBarriers, std::vector<VkBufferMemoryBarrier>& bufferBarriers, std::vector<VkImageMemoryBarrier>& imageBarriers)
+		auto addBarriers = [&memBarriersCache, &bufBarriersCache, &imgBarriersCache](std::vector<VkMemoryBarrier>& memoryBarriers, std::vector<VkBufferMemoryBarrier>& bufferBarriers, std::vector<VkImageMemoryBarrier>& imageBarriers)
 		{
-			std::copy(memoryBarriers.data(), memoryBarriers.data() + memoryBarriers.size(), memBarriers.data() + memBarriersCount);
-			memBarriersCount += memoryBarriers.size();
+			size_t memBarrierOffset = memBarriersCache.size();
+			size_t imgBarrierOffset = imgBarriersCache.size();
+			size_t bufBarrierOffset = bufBarriersCache.size();
 
-			std::copy(imageBarriers.data(), imageBarriers.data() + imageBarriers.size(), imgBarriers.data() + imgBarriersCount);
-			imgBarriersCount += imageBarriers.size();
+			memBarriersCache.resize(memBarriersCache.size() + memoryBarriers.size());
+			bufBarriersCache.resize(bufBarriersCache.size() + bufferBarriers.size());
+			imgBarriersCache.resize(imgBarriersCache.size() + imageBarriers.size());
 
-			std::copy(bufferBarriers.data(), bufferBarriers.data() + bufferBarriers.size(), bufBarriers.data() + bufBarriersCount);
-			bufBarriersCount += bufferBarriers.size();
+			std::copy(memoryBarriers.data(), memoryBarriers.data() + memoryBarriers.size(), memBarriersCache.data() + memBarrierOffset);
+			std::copy(imageBarriers.data(), imageBarriers.data() + imageBarriers.size(), imgBarriersCache.data() + imgBarrierOffset);
+			std::copy(bufferBarriers.data(), bufferBarriers.data() + bufferBarriers.size(), bufBarriersCache.data() + bufBarrierOffset);
 		};
 
 		for (size_t i = 0; i < barriersPerNode.perSlotDesc.size(); ++i)
@@ -109,12 +112,9 @@ namespace YAPT
 
 		}
 
-		assert(imgBarriersCount < 256 && bufBarriersCount < 256 && memBarriersCount < 256);
 
 
-		
-
-		vkCmdPipelineBarrier(buffer, srcStages, dstStages, 0, (uint32_t)memBarriersCount, memBarriers.data(), (uint32_t)bufBarriersCount, bufBarriers.data(), (uint32_t)imgBarriersCount, imgBarriers.data());
+		vkCmdPipelineBarrier(buffer, srcStages, dstStages, 0, (uint32_t)memBarriersCache.size(), memBarriersCache.data(), (uint32_t)bufBarriersCache.size(), bufBarriersCache.data(), (uint32_t)imgBarriersCache.size(), imgBarriersCache.data());
 
 	}
 
@@ -122,10 +122,51 @@ namespace YAPT
 
 	void RenderGraphVk::prepareNodeExecution(RenderNodeVk* node, const RenderGraphNodeExecutionContext& context)
 	{
-		/*
-		//depth stencil update
+		bool needsNewFrameBuffer = false;
 		bool hasDepthStencil = node->hasDepthStencil();
 		size_t numberOfColorTargets = node->getNumberOfColorTargets();
+		size_t frameBufferRenderPassIndex = node->getRenderGraphInternalRenderNodeResourcesIndex();
+		VkDevice device = m_gfxHandle->getDevice();
+
+		for (size_t colorTargetIndex = 0; colorTargetIndex < numberOfColorTargets; ++colorTargetIndex)
+		{
+			size_t colorTargetSlot = node->getNodeSlotIndexForRenderTargetIndex(colorTargetIndex);
+			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(colorTargetSlot);
+			if (isResourceBoundThisFrame(resId))
+			{
+				needsNewFrameBuffer = true;
+				break;
+			}
+		}
+
+		if (hasDepthStencil && !needsNewFrameBuffer)
+		{
+			size_t depthStencilSlot = node->getNodeSlotIndexForDepthStencil();
+			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(depthStencilSlot);
+			if (isResourceBoundThisFrame(resId))
+			{
+				needsNewFrameBuffer = true;
+			}
+		}
+
+		if (needsNewFrameBuffer)
+		{
+			if (m_frameBuffers[frameBufferRenderPassIndex] != VK_NULL_HANDLE)
+			{
+				vkDestroyFramebuffer(device, m_frameBuffers[frameBufferRenderPassIndex], VK_ALLOC_CB);
+				m_frameBuffers[frameBufferRenderPassIndex] = VK_NULL_HANDLE;
+			}
+
+			m_frameBuffers[frameBufferRenderPassIndex] = createFrameBuffer(node);
+
+		}
+
+
+
+
+		/*
+		//depth stencil update
+		
 
 		size_t pipelineLength = m_gfxHandle->getResourceManager().getPipelineLength();
 
@@ -346,7 +387,7 @@ break;
 
 	}
 
-	void RenderGraphVk::fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut)
+	void RenderGraphVk::fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut) const
 	{
 		size_t nodeIndex = node->getSortedIndex();
 		size_t numberOfInputEdges = node->getNumberOfInputEdges(slot);
@@ -392,7 +433,72 @@ break;
 		descOut.finalLayout = finalLayout;
 	}
 
-	VkRenderPass RenderGraphVk::createRenderPass(RenderNode* node)
+	VkFramebuffer RenderGraphVk::createFrameBuffer(RenderNodeVk* node) const
+	{
+		const uint32_t MAX_IMAGE_VIEWS = 16;
+		std::array<VkImageView, MAX_IMAGE_VIEWS> imageViews;
+
+		bool needsNewFrameBuffer = false;
+		bool hasDepthStencil = node->hasDepthStencil();
+		size_t numberOfColorTargets = node->getNumberOfColorTargets();
+		size_t totalNumberOfAttachments = numberOfColorTargets + (hasDepthStencil ? 1 : 0);
+		size_t frameBufferRenderPassIndex = node->getRenderGraphInternalRenderNodeResourcesIndex();
+		VkDevice device = m_gfxHandle->getDevice();
+
+		uint32_t width = 0;
+		uint32_t height = 0;
+		uint32_t layers = 0;
+
+		for (size_t attInd = 0; attInd < totalNumberOfAttachments; ++attInd)
+		{
+			bool isDepthStencilAttachment = attInd >= numberOfColorTargets;
+			size_t slotIndex = isDepthStencilAttachment ? node->getNodeSlotIndexForDepthStencil() : node->getNodeSlotIndexForRenderTargetIndex(attInd);
+			const RenderGraphResourceId resId = getRenderGraphResourceIdUsedInSlot(node->getSortedIndex(), slotIndex);
+			const RenderGraphResourceView& view = m_resourceDataPerNodeSlot[node->getSortedIndex()].resourceViewPerSlot[slotIndex];
+			const RenderGraphResourceDescription& resDesc = getRenderGraphResourceDescription(resId);
+
+			assert(view.textureViews.size() == 1 && "Binding more than one resource per slot is not allowed for rendertargets!");
+			assert(m_boundRenderGraphResources[resId].textureHandles.size() == 1 && "Binding more than one resource per slot is not allowed for rendertargets!");
+
+			const TextureHandle& texHandle = m_boundRenderGraphResources[resId].textureHandles[0];
+			
+			if (attInd == 0)
+			{
+				width = texHandle->createInfo.extent.width;
+				height = texHandle->createInfo.extent.height;
+				layers = resDesc.arraySliceCount;
+			}
+			else
+			{
+				assert(texHandle->createInfo.extent.width == width && "Framebuffer attachment dimensions don't match!");
+				assert(texHandle->createInfo.extent.height == height && "Framebuffer attachment dimensions don't match!");
+				assert(resDesc.arraySliceCount == layers && "Framebuffer attachment dimensions don't match!");
+			}
+			
+			
+
+			imageViews[attInd] = view.textureViews[0];
+		}
+
+		VkFramebufferCreateInfo fbCreateInfo = {};
+		fbCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+		fbCreateInfo.pNext = nullptr;
+		fbCreateInfo.flags = 0;
+
+		fbCreateInfo.renderPass = m_renderPasses[frameBufferRenderPassIndex];
+		fbCreateInfo.attachmentCount = (uint32_t)totalNumberOfAttachments;
+		fbCreateInfo.pAttachments = imageViews.data();
+		fbCreateInfo.width = width;
+		fbCreateInfo.height = height;
+		fbCreateInfo.layers = layers;
+
+		VkFramebuffer fb;
+		checkForVkError(vkCreateFramebuffer(device, &fbCreateInfo, VK_ALLOC_CB, &fb));
+		return fb;
+
+	}
+
+	VkRenderPass RenderGraphVk::createRenderPass(RenderNode* node) const
 	{
 		VkRenderPass renderPass;
 		VkRenderPassCreateInfo createInfo{};
@@ -605,10 +711,14 @@ break;
 				VkRenderPass rp = createRenderPass(rNode);
 				size_t rpIndex = m_renderPasses.size();
 				m_renderPasses.push_back(rp);
-				rNode->setRenderPassAndIndex(rp, rpIndex);
+				rNode->setRenderGraphResourcesIndex((uint32_t)rpIndex);
+				rNode->setRenderPass(rp, 0);
 			}
 
 		}
+
+		//framebuffer per renderpass
+		m_frameBuffers.resize(m_renderPasses.size(), VK_NULL_HANDLE);
 
 		std::vector<AccessFlagsAndLayout> subResourceStates;
 		subResourceStates.reserve(512);

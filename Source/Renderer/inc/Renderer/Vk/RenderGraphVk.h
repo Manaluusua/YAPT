@@ -74,6 +74,10 @@ namespace YAPT
 		struct BarriersPerNode
 		{
 			std::vector<ResourceSlotBarrierDescription> perSlotDesc;
+
+			std::vector<VkMemoryBarrier> memBarriersCache;
+			std::vector<VkBufferMemoryBarrier> bufBarriersCache;
+			std::vector<VkImageMemoryBarrier> imgBarriersCache;
 		};
 		
 		virtual void resolveGraphDependenciesInternal() override;
@@ -101,9 +105,9 @@ namespace YAPT
 		void endNodeExecution(RaytraceNodeVk* node, const RenderGraphNodeExecutionContext& context);
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
-
-		VkRenderPass createRenderPass(RenderNode* node);
-		void fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut);
+		VkFramebuffer createFrameBuffer(RenderNodeVk* node) const;
+		VkRenderPass createRenderPass(RenderNode* node) const;
+		void fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut) const;
 
 		void generateBarriersAndRenderPasses();
 
@@ -126,6 +130,7 @@ namespace YAPT
 		std::vector<GeneralPerResourceTransitionInformation> m_perResourceBarrierInfo;
 
 		std::vector<VkRenderPass> m_renderPasses;
+		std::vector<VkFramebuffer> m_frameBuffers;
 
 		std::vector<uint32_t> m_queueFamilyIndexPerNode;
 		QueueTransitionHelperVk m_queueTransitionHelper;

@@ -34,7 +34,7 @@ namespace YAPT
 
 		bool createEdge(RenderGraphNode* fromNode, size_t fromSlot, RenderGraphNode* toNode, size_t toSlot, uint32_t toArrayOffset = 0, uint32_t toMipOffset = 0);
 
-		RenderGraphResourceId getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot);
+		RenderGraphResourceId getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot) const;
 		const RenderGraphResourceDescription& getRenderGraphResourceDescription(RenderGraphResourceId id) const;
 
 		void setRenderGraphResourceBuffer(RenderGraphResourceId id, BufferHandle handle)

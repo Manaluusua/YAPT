@@ -189,7 +189,7 @@ namespace YAPT
 	}
 
 
-	RenderGraphResourceId RenderGraph::getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot)
+	RenderGraphResourceId RenderGraph::getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot) const
 	{
 		return m_resourceRequirements.getRenderGraphResourceIndex(nodeIndex, slot);
 	}

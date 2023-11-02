@@ -10,19 +10,25 @@ namespace YAPT
 		friend class RenderGraphVk;
 	public:
 		virtual RenderPassHandle getRenderPassHandle() final;
-
+		uint32_t getRenderGraphInternalRenderNodeResourcesIndex() const { return m_renderGraphResourcesIndex; }
 		
 
 	private:
 		RenderNodeVk(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);
 		virtual ~RenderNodeVk();
 
-		void setRenderPassAndIndex(VkRenderPass renderPass, size_t renderPassIndex)
+		void setRenderPass(VkRenderPass renderPass, uint32_t subpassIndex)
 		{
-			m_renderPassHandle.index = (uint32_t)renderPassIndex;
 			m_renderPassHandle.pass = renderPass;
+			m_renderPassHandle.index = subpassIndex;
 		}
 		
+		void setRenderGraphResourcesIndex(uint32_t index)
+		{
+			m_renderGraphResourcesIndex = index;
+		}
+
 		RenderPassHandleVk m_renderPassHandle;
+		uint32_t m_renderGraphResourcesIndex;
 	};
 }
