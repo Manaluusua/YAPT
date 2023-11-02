@@ -43,6 +43,8 @@ namespace YAPT
 		QTimer* m_renderTimer;
 		GuiController* m_controller;
 
+		bool m_swapchainCreated;
+
 		std::unique_ptr<RenderVarsDialog> m_renderVarsDialog;
 		std::unique_ptr<CameraController> m_cameraController;
 		Ui::MainWindow *m_ui;

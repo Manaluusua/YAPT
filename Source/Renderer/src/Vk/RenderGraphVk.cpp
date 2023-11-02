@@ -126,28 +126,42 @@ namespace YAPT
 		bool hasDepthStencil = node->hasDepthStencil();
 		size_t numberOfColorTargets = node->getNumberOfColorTargets();
 		size_t frameBufferRenderPassIndex = node->getRenderGraphInternalRenderNodeResourcesIndex();
+		size_t totalNumberOfAttachments = numberOfColorTargets + (hasDepthStencil ? 1 : 0);
 		VkDevice device = m_gfxHandle->getDevice();
 
-		for (size_t colorTargetIndex = 0; colorTargetIndex < numberOfColorTargets; ++colorTargetIndex)
+		uint32_t width = 0;
+		uint32_t height = 0;
+
+		for (size_t attInd = 0; attInd < totalNumberOfAttachments; ++attInd)
 		{
-			size_t colorTargetSlot = node->getNodeSlotIndexForRenderTargetIndex(colorTargetIndex);
-			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(colorTargetSlot);
-			if (isResourceBoundThisFrame(resId))
+			bool isDepthStencilAttachment = attInd >= numberOfColorTargets;
+			size_t slotIndex = isDepthStencilAttachment ? node->getNodeSlotIndexForDepthStencil() : node->getNodeSlotIndexForRenderTargetIndex(attInd);
+			const RenderGraphResourceId resId = getRenderGraphResourceIdUsedInSlot(node->getSortedIndex(), slotIndex);
+			const RenderGraphResourceDescription& resDesc = getRenderGraphResourceDescription(resId);
+
+			if(isResourceBoundThisFrame(resId))
 			{
 				needsNewFrameBuffer = true;
-				break;
+			}
+
+			assert(m_boundRenderGraphResources[resId].textureHandles.size() == 1 && "Binding more than one resource per slot is not allowed for rendertargets!");
+
+			const TextureHandle& texHandle = m_boundRenderGraphResources[resId].textureHandles[0];
+
+			if (attInd == 0)
+			{
+				width = texHandle->createInfo.extent.width;
+				height = texHandle->createInfo.extent.height;
+
+			}
+			else
+			{
+				assert(texHandle->createInfo.extent.width == width && "Renderpass attachment dimensions don't match!");
+				assert(texHandle->createInfo.extent.height == height && "Renderpass attachment dimensions don't match!");
+
 			}
 		}
 
-		if (hasDepthStencil && !needsNewFrameBuffer)
-		{
-			size_t depthStencilSlot = node->getNodeSlotIndexForDepthStencil();
-			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(depthStencilSlot);
-			if (isResourceBoundThisFrame(resId))
-			{
-				needsNewFrameBuffer = true;
-			}
-		}
 
 		if (needsNewFrameBuffer)
 		{
@@ -158,104 +172,17 @@ namespace YAPT
 			}
 
 			m_frameBuffers[frameBufferRenderPassIndex] = createFrameBuffer(node);
-
 		}
 
+		VkRenderPassBeginInfo renderPassBeginInfo = {};
+		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		renderPassBeginInfo.renderPass = m_renderPasses[frameBufferRenderPassIndex];
+		renderPassBeginInfo.framebuffer = m_frameBuffers[frameBufferRenderPassIndex];
+		renderPassBeginInfo.renderArea = { {0, 0}, {width, height} };
+		renderPassBeginInfo.pClearValues = nullptr; //TODO: clear
+		renderPassBeginInfo.clearValueCount = 0;
 
-
-
-		/*
-		//depth stencil update
-		
-
-		size_t pipelineLength = m_gfxHandle->getResourceManager().getPipelineLength();
-
-		if (hasDepthStencil)
-		{
-			size_t depthStencilSlot = node->getNodeSlotIndexForDepthStencil();
-			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(depthStencilSlot);
-			if (isResourceBoundThisFrame(resId))
-			{
-				//bump the dsv to next "slot" allocated for this node
-				node->setDsvHeapSlot((node->getDsvHeapSlot() + 1) % pipelineLength);
-				size_t dsvSlot = node->getDsvHeapSlot();
-
-				size_t depthStencilHeapOffset = node->getDsvHeapDescriptorBaseOffset() + dsvSlot;
-				const RenderGraphResourceUsage& resourceDesc = m_resourceRequirements.getRenderGraphResourceUsage(node->getSortedIndex(), depthStencilSlot);
-
-				ID3D12Resource* dsvRes =  m_boundRenderGraphResources[resId].textureHandles[0]->resource.get();
-
-				D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-				fillDepthStencilViewDesc(resourceDesc.resourceDescription.resourceDimensions, resourceDesc.resourceDescription.resourceFormat, 
-					resourceDesc.resourceDescription.accessFlags, (UINT)resourceDesc.mipOffset, (UINT)resourceDesc.arraySliceOffset,
-					(UINT)resourceDesc.resourceDescription.arraySliceCount, false,  dsvDesc);
-
-				m_gfxHandle->getResourceManager().getDevice().CreateDepthStencilView(dsvRes, &dsvDesc, m_dsvHeap->getCPUDescriptorHandle(depthStencilHeapOffset));
-
-			}
-		}
-		//color targets update
-		bool needToRecreateRtvs = false;
-		for (size_t colorTargetIndex = 0; colorTargetIndex < numberOfColorTargets; ++colorTargetIndex)
-		{
-			size_t colorTargetSlot = node->getNodeSlotIndexForRenderTargetIndex(colorTargetIndex);
-			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(colorTargetSlot);
-			if (isResourceBoundThisFrame(resId))
-			{
-needToRecreateRtvs = true;
-break;
-			}
-		}
-
-		if (needToRecreateRtvs)
-		{
-			//bump the rtv to next "slot" allocated for this node
-			node->setRtvHeapSlot((node->getRtvHeapSlot() + 1) % pipelineLength);
-			size_t rtvSlot = node->getRtvHeapSlot();
-
-			for (size_t colorTargetIndex = 0; colorTargetIndex < numberOfColorTargets; ++colorTargetIndex)
-			{
-
-				size_t colorTargetSlot = node->getNodeSlotIndexForRenderTargetIndex(colorTargetIndex);
-				RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(colorTargetSlot);
-
-				size_t rtvHeapOffset = node->getRtvHeapDescriptorBaseOffset() + rtvSlot * numberOfColorTargets;
-				const RenderGraphResourceUsage& resourceDesc = m_resourceRequirements.getRenderGraphResourceUsage(node->getSortedIndex(), colorTargetSlot);
-
-				ID3D12Resource* rtvRes = m_boundRenderGraphResources[resId].textureHandles[0]->resource.get();
-
-				D3D12_RENDER_TARGET_VIEW_DESC rtvDesc;
-				fillRenderTargetViewDesc(resourceDesc.resourceDescription.resourceDimensions, resourceDesc.resourceDescription.resourceFormat,
-					resourceDesc.resourceDescription.accessFlags, (UINT)resourceDesc.mipOffset, (UINT)resourceDesc.arraySliceOffset,
-					(UINT)resourceDesc.resourceDescription.arraySliceCount, false, rtvDesc);
-
-				m_gfxHandle->getResourceManager().getDevice().CreateRenderTargetView(rtvRes, &rtvDesc, m_rtvHeap->getCPUDescriptorHandle(rtvHeapOffset + colorTargetIndex));
-
-
-			}
-		}
-
-
-
-		//bind
-		D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle;
-		D3D12_CPU_DESCRIPTOR_HANDLE dsvHeapHandle;
-		if (hasDepthStencil)
-		{
-			dsvHeapHandle = m_dsvHeap->getCPUDescriptorHandle(node->getDsvHeapDescriptorBaseOffset() + node->getDsvHeapSlot());
-		}
-
-		if (numberOfColorTargets > 0)
-		{
-			rtvHeapHandle = m_rtvHeap->getCPUDescriptorHandle(node->getRtvHeapDescriptorBaseOffset() + node->getRtvHeapSlot() * numberOfColorTargets);
-		}
-
-		if (numberOfColorTargets > 0 || hasDepthStencil)
-		{
-			context.cmdBuffer->cmdList->OMSetRenderTargets((UINT)numberOfColorTargets, numberOfColorTargets > 0 ? &rtvHeapHandle : nullptr, TRUE, hasDepthStencil ? &dsvHeapHandle : nullptr);
-		}
-
-		*/
+		vkCmdBeginRenderPass(context.cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	}
 	void RenderGraphVk::prepareNodeExecution(ComputeNodeVk* node, const RenderGraphNodeExecutionContext& context)
 	{
@@ -268,7 +195,7 @@ break;
 
 	void RenderGraphVk::endNodeExecution(RenderNodeVk* node, const RenderGraphNodeExecutionContext& context)
 	{
-
+		vkCmdEndRenderPass(context.cmdBuffer);
 	}
 	void RenderGraphVk::endNodeExecution(ComputeNodeVk* node, const RenderGraphNodeExecutionContext& context)
 	{

@@ -15,7 +15,8 @@ namespace YAPT
 	constexpr size_t renderTimerTickRate = 16;
 	MainWindow::MainWindow()
 		:m_ui(new Ui::MainWindow),
-		m_controller(nullptr)
+		m_controller(nullptr),
+		m_swapchainCreated(false)
 	{
 		
 		m_ui->setupUi(this);
@@ -54,6 +55,13 @@ namespace YAPT
 	{
 		std::lock_guard<std::mutex> lock(m_rendererAccessMutex);
 
+		if (!m_swapchainCreated)
+		{
+			m_swapchainCreated = refreshRendererSwapchain();
+		}
+
+		if (!m_swapchainCreated) return;
+
 		quint64 currentTime = QDateTime::currentMSecsSinceEpoch();
 		double fromStart = (currentTime - m_startedTime) / 1e3;
 		float fromLastFrame = (currentTime - m_lastTime) / 1e3;
@@ -79,15 +87,28 @@ namespace YAPT
 
 	bool MainWindow::refreshRendererSwapchain()
 	{
-		std::lock_guard<std::mutex> lock(m_rendererAccessMutex);
-
 		QWidget* widget = findChild<QWidget*>("renderSurface");
 		WId handle = GetHandleToRenderArea();
+		
 
 		WindowSurfaceDefinition surfaceDef;
-		surfaceDef.windowHandle = (HWND)handle;
 		surfaceDef.width = widget->width();
 		surfaceDef.height = widget->height();
+		surfaceDef.windowHandle = (HWND)handle;
+
+		//check that the surface is actually of correct size
+		RECT rect;
+		if (GetWindowRect(surfaceDef.windowHandle, &rect))
+		{
+			int width = rect.right - rect.left;
+			int height = rect.bottom - rect.top;
+
+			if (width != surfaceDef.width || height != surfaceDef.height)
+			{
+				return false;
+			}
+		}
+
 		bool success = m_controller->getRenderer()->setRenderOutputToSurface(surfaceDef);
 
 		//also change rendering resolution to match
@@ -96,6 +117,8 @@ namespace YAPT
 		m_controller->getRenderer()->getRendererConfiguration()->getRendererVariable("Generic.RenderResolution")->set(renderResolution);
 		m_controller->getScene()->getMainCamera()->setAspectRatio(float(renderResolution.x) / renderResolution.y);
 
+		m_swapchainCreated = true;
+
 		return success;
 	}
 
@@ -103,8 +126,8 @@ namespace YAPT
 	void MainWindow::resizeEvent(QResizeEvent *ev)
 	{
 		if (!m_controller) return;
-		bool swapChainOk = refreshRendererSwapchain();
-		assert(swapChainOk);
+		m_swapchainCreated = false;
+		
 	}
 
 	void MainWindow::openRenderVarsDialog()
