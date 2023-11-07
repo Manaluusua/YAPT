@@ -82,7 +82,7 @@ namespace YAPT
 
 		}
 
-		compatible = compatible && targetResource.resourceFormat == nodeslotDefinition.resourceDescription.resourceFormat;
+		compatible = compatible && (targetResource.resourceFormat == nodeslotDefinition.resourceDescription.resourceFormat || targetResource.resourceFormat == ResourceFormat::UNKNOWN || nodeslotDefinition.resourceDescription.resourceFormat == ResourceFormat::UNKNOWN);
 
 		return compatible;
 	}
@@ -119,9 +119,8 @@ namespace YAPT
 		
 		RenderGraphResourceDescription& desc = m_requiredRenderGraphResourceDescriptions[resourceIndex];
 		
-
 		//initialize resource usage with the first usage and then append/merge subsequent usages to generate full resource description
-
+		
 		{
 			size_t nodeIndex = nodeSlotIdentifiers[0].sortedNodeIndex;
 			size_t slotIndex = nodeSlotIdentifiers[0].slotIndex;
@@ -131,21 +130,41 @@ namespace YAPT
 			desc = nodeSlotDef.resourceDescription;
 		}
 
+		bool hasUnknownResourceFormats = desc.resourceFormat == ResourceFormat::UNKNOWN;
+
 		for (size_t usageIndex = 1; usageIndex < numberOfNodeSlotIdentifiers; ++usageIndex)
 		{
 			size_t nodeIndex = nodeSlotIdentifiers[usageIndex].sortedNodeIndex;
 			size_t slotIndex = nodeSlotIdentifiers[usageIndex].slotIndex;
 
-			RenderGraphNodeSlotDefinition cdef =  sortedNodes[nodeIndex]->getNodeSlotResourceDefinition(slotIndex);
+			const RenderGraphNodeSlotDefinition& cdef =  sortedNodes[nodeIndex]->getNodeSlotResourceDefinition(slotIndex);
 			//if the resource had unknown format (ie. "I don't care"), it will be assumed the same as the first usage
+
+			if (desc.resourceFormat == ResourceFormat::UNKNOWN && cdef.resourceDescription.resourceFormat != ResourceFormat::UNKNOWN)
+			{
+				desc.resourceFormat = cdef.resourceDescription.resourceFormat;
+			}
+
 			if (cdef.resourceDescription.resourceFormat == ResourceFormat::UNKNOWN)
 			{
-				cdef.resourceDescription.resourceFormat = desc.resourceFormat;
+				hasUnknownResourceFormats = true;
 			}
 
 			bool compatible = appendNodeSlotDefinitionToResourceDescription(cdef, desc);
 			assert(compatible);
 		}
+
+		if (hasUnknownResourceFormats)
+		{
+			for (size_t usageIndex = 0; usageIndex < numberOfNodeSlotIdentifiers; ++usageIndex)
+			{
+				size_t nodeIndex = nodeSlotIdentifiers[usageIndex].sortedNodeIndex;
+				size_t slotIndex = nodeSlotIdentifiers[usageIndex].slotIndex;
+
+				sortedNodes[nodeIndex]->setResolvedResourceFormat(slotIndex, desc.resourceFormat);
+			}
+		}
+
 	}
 	void RenderGraphResourceRequirements::generateRenderGraphResourceUsages(size_t resourceIndex, RenderGraphNode** sortedNodes, size_t nodeCount)
 	{

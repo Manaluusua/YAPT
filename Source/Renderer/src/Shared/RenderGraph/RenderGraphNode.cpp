@@ -76,6 +76,13 @@ namespace YAPT
 		m_callback(this, execContext, m_usrData);
 	}
 
+	void RenderGraphNode::setResolvedResourceFormat(size_t slot, ResourceFormat format)
+	{
+		assert(slot < getNumberOfSlots());
+		assert(m_slotDefinitions[slot].resourceDescription.resourceFormat == ResourceFormat::UNKNOWN || m_slotDefinitions[slot].resourceDescription.resourceFormat == format);
+		m_slotDefinitions[slot].resourceDescription.resourceFormat = format;
+	}
+
 	RenderGraphResourceId RenderGraphNode::getRenderGraphResourceIdForSlot(size_t slotIndex)
 	{
 		return m_graph->getRenderGraphResourceIdUsedInSlot(getSortedIndex(), slotIndex);

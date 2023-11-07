@@ -325,6 +325,7 @@ namespace YAPT
 		return m_lastStateInGraph[resourceId];
 	}
 
+
 	void RenderGraph::compile()
 	{
 		sortNodes(m_nodes);

@@ -34,7 +34,7 @@ namespace YAPT
 			{
 				{
 					RenderGraphTextureSlotDefinition(ResourceDimension::TEXTURE_2D,
-					ResourceFormat::RGBA8_SRGB,
+					ResourceFormat::UNKNOWN,
 					RESOURCE_USAGE_RENDER_TARGET_TEXTURE,
 					ACCESS_FLAGS_READ_WRITE,
 					SHADERSTAGE_FRAGMENT,

@@ -73,6 +73,7 @@ namespace YAPT
 	class RenderGraphNode
 	{
 		friend class RenderGraph;
+		friend class RenderGraphResourceRequirements;
 	public:
 
 		const static size_t INVALID_SORTED_INDEX = size_t(-1);
@@ -121,6 +122,7 @@ namespace YAPT
 		void invokeCallback(const RenderGraphNodeExecutionContext& execContext);
 
 		void setSortedIndex(size_t index) { m_sortedIndex = index; }
+		void setResolvedResourceFormat(size_t slot, ResourceFormat format);
 		void addEdge(const RenderGraphNodeEdge* edge);
 
 		const Type m_type;
