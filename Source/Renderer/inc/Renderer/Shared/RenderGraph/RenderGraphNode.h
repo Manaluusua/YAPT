@@ -50,8 +50,7 @@ namespace YAPT
 	struct RenderGraphBufferSlotDefinition : public RenderGraphNodeSlotDefinition
 	{
 		RenderGraphBufferSlotDefinition(ResourceUsage resourceUsage,
-			AccessFlags accessFlags, ShaderStages shaderStages, 
-			RenderNodeClearFrequency clear = RenderNodeClearFrequency::NONE, ClearValue clearValue = ClearValue(), 
+			AccessFlags accessFlags, ShaderStages shaderStages,
 			RenderGraphNodeSlotFlags flags = RGNS_FLAG_NONE)
 		{
 			resourceDescription.resourceDimensions = ResourceDimension::BUFFER;
@@ -61,8 +60,8 @@ namespace YAPT
 			resourceDescription.shaderStages = shaderStages;
 			resourceDescription.mipCount = 1;
 			resourceDescription.arraySliceCount = 1;
-			this->clearFrequency = clear;
-			this->clearValue = clearValue;
+			this->clearFrequency = RenderNodeClearFrequency::NONE;
+			this->clearValue = {};
 			this->flags = flags;
 		}
 	};

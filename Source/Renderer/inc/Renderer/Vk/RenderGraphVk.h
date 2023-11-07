@@ -60,6 +60,7 @@ namespace YAPT
 
 			bool hasUavBarrier;
 			bool isFirstUsageForResource;
+			bool hasValidBarriers;
 		};
 		
 		struct GeneralPerResourceTransitionInformation
@@ -78,6 +79,7 @@ namespace YAPT
 			std::vector<VkMemoryBarrier> memBarriersCache;
 			std::vector<VkBufferMemoryBarrier> bufBarriersCache;
 			std::vector<VkImageMemoryBarrier> imgBarriersCache;
+			
 		};
 		
 		virtual void resolveGraphDependenciesInternal() override;
@@ -104,7 +106,6 @@ namespace YAPT
 		void endNodeExecution(ComputeNodeVk* node, const RenderGraphNodeExecutionContext& context);
 		void endNodeExecution(RaytraceNodeVk* node, const RenderGraphNodeExecutionContext& context);
 
-		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 		VkFramebuffer createFrameBuffer(RenderNodeVk* node) const;
 		VkRenderPass createRenderPass(RenderNode* node) const;
 		void fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut) const;

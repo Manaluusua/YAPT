@@ -86,6 +86,7 @@ namespace YAPT
 		for (size_t i = 0; i < barriersPerNode.perSlotDesc.size(); ++i)
 		{
 			ResourceSlotBarrierDescription& barrierSlotDesc = barriersPerNode.perSlotDesc[i];
+			if (!barrierSlotDesc.hasValidBarriers) continue;
 
 			srcStages |= barrierSlotDesc.srcStages;
 			dstStages |= barrierSlotDesc.dstStages;
@@ -112,10 +113,12 @@ namespace YAPT
 
 		}
 
+		bool hasBarrierstoIssue = memBarriersCache.size() > 0 || bufBarriersCache.size() > 0 || imgBarriersCache.size() > 0;
 
-
-		vkCmdPipelineBarrier(buffer, srcStages, dstStages, 0, (uint32_t)memBarriersCache.size(), memBarriersCache.data(), (uint32_t)bufBarriersCache.size(), bufBarriersCache.data(), (uint32_t)imgBarriersCache.size(), imgBarriersCache.data());
-
+		if (hasBarrierstoIssue)
+		{
+			vkCmdPipelineBarrier(buffer, srcStages, dstStages, 0, (uint32_t)memBarriersCache.size(), memBarriersCache.data(), (uint32_t)bufBarriersCache.size(), bufBarriersCache.data(), (uint32_t)imgBarriersCache.size(), imgBarriersCache.data());
+		}
 	}
 
 
@@ -179,8 +182,8 @@ namespace YAPT
 		renderPassBeginInfo.renderPass = m_renderPasses[frameBufferRenderPassIndex];
 		renderPassBeginInfo.framebuffer = m_frameBuffers[frameBufferRenderPassIndex];
 		renderPassBeginInfo.renderArea = { {0, 0}, {width, height} };
-		renderPassBeginInfo.pClearValues = nullptr; //TODO: clear
-		renderPassBeginInfo.clearValueCount = 0;
+		renderPassBeginInfo.pClearValues = node->getClearValues();
+		renderPassBeginInfo.clearValueCount = node->getClearValueCount();
 
 		vkCmdBeginRenderPass(context.cmdBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 	}
@@ -206,55 +209,6 @@ namespace YAPT
 
 	}
 
-	void RenderGraphVk::handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context)
-	{
-		/*const ClearsPerNode& clears = m_clearsPerNode[node->getSortedIndex()];
-		GraphicsCommandListDx12* cmdList = context.cmdBuffer->cmdList;
-
-		ResourceManagerDx12& resMngr = getGfxApiHandle()->getResourceManager();
-
-		for (size_t i = 0; i < clears.slotsToClear.size(); ++i)
-		{
-			size_t slotIndex = clears.slotsToClear[i];
-			const RenderGraphNodeSlotDefinition& def = node->getNodeSlotResourceDefinition(slotIndex);
-			RenderGraphResourceId resId = getRenderGraphResourceIdUsedInSlot(node->getSortedIndex(), slotIndex);
-
-			if (def.resourceDescription.resourceUsage == RESOURCE_USAGE_RENDER_TARGET_TEXTURE)
-			{
-				RenderNodeDx12* rNode = static_cast<RenderNodeDx12*>(node);
-				size_t numberOfColorTargets = rNode->getNumberOfColorTargets();
-				D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle = m_rtvHeap->getCPUDescriptorHandle(rNode->getRtvHeapDescriptorBaseOffset() + rNode->getRtvHeapSlot() * numberOfColorTargets);
-				assert(def.clearValue.type == ClearValue::_ClearValueType::FLOAT);
-				vec4p clearValue = def.clearValue.value.fvec;
-				FLOAT clearVal[4] = { clearValue.x, clearValue.y, clearValue.z, clearValue.w };
-
-				cmdList->ClearRenderTargetView(rtvHeapHandle, clearVal, 0, nullptr);
-			}
-			else if ((def.resourceDescription.resourceUsage & RESOURCE_USAGE_DEPTH_STENCIL_TEXTURE) != 0)
-			{
-				RenderNodeDx12* rNode = static_cast<RenderNodeDx12*>(node);
-				D3D12_CPU_DESCRIPTOR_HANDLE dsvHeapHandle = m_dsvHeap->getCPUDescriptorHandle(rNode->getDsvHeapDescriptorBaseOffset() + rNode->getDsvHeapSlot());
-
-				assert(def.clearValue.type == ClearValue::_ClearValueType::DEPTH_STENCIL);
-				float d = def.clearValue.value.depthStencil.depth;
-				uint8_t s = def.clearValue.value.depthStencil.stencil;
-				D3D12_CLEAR_FLAGS flags = (D3D12_CLEAR_FLAGS)0;
-				if ((def.resourceDescription.resourceUsage & RESOURCE_USAGE_DEPTH_TEXTURE) != 0)
-				{
-					flags |= D3D12_CLEAR_FLAG_DEPTH;
-				}
-
-				if ((def.resourceDescription.resourceUsage & RESOURCE_USAGE_STENCIL_TEXTURE) != 0)
-				{
-					flags |= D3D12_CLEAR_FLAG_STENCIL;
-				}
-
-				cmdList->ClearDepthStencilView(dsvHeapHandle, flags, d, s, 0, nullptr);
-
-			}
-
-		}*/
-	}
 
 	void RenderGraphVk::beginExecution()
 	{
@@ -295,7 +249,7 @@ namespace YAPT
 					break;
 			}
 
-			handleClears(nodes[i], context);
+
 			invokeNodeCallback(nodes[i],context);
 
 			switch (nodes[i]->getType())
@@ -678,6 +632,7 @@ namespace YAPT
 
 				perSlotBarriers.srcStages = 0;
 				perSlotBarriers.dstStages = getPipelineStageFlags(usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.shaderStages);
+				perSlotBarriers.hasValidBarriers = true;
 
 				size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
 				RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
@@ -744,6 +699,7 @@ namespace YAPT
 						//if used in renderpass (or previous usage was renderpass), have renderpass define the dependencies. first usage is an exception since we don't want to create another renderpass if the previous state passed in is different than when RP was created. 
 						if (((usageInThisSlot.resourceDescription.resourceUsage | previousUsage.resourceDescription.resourceUsage) & (RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_DEPTH_TEXTURE | RESOURCE_USAGE_STENCIL_TEXTURE)) != 0)
 						{
+							perSlotBarriers.hasValidBarriers = false;
 							continue;
 						}
 

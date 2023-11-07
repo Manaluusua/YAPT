@@ -290,12 +290,13 @@ break;
 					break;
 				case RenderGraphNode::Type::RENDER:
 					prepareNodeExecution(static_cast<RenderNodeDx12*>(nodes[i]), context);
+					handleClears(nodes[i], context);
 					break;
 				case RenderGraphNode::Type::RAYTRACE:
 					prepareNodeExecution(static_cast<RaytraceNodeDx12*>(nodes[i]), context);
 					break;
 			}
-			handleClears(nodes[i], context);
+			
 			invokeNodeCallback(nodes[i],context);
 			issuePostBarriers(nodeIndex, context.cmdBuffer);
 		}
