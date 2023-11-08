@@ -8,6 +8,10 @@
 
 namespace YAPT
 {
+	static const ClearValue s_ColorClear = ClearValue::ClearValue(0.05f, 0.05f, 0.05f, 1.f);
+	static const ClearValue s_DepthClear = ClearValue::ClearValue(1.0f, 0);
+
+
 	MeshDebugStage::MeshDebugStage(bool outputDirectlyToSwapchain)
 		:m_outputToSwapchain(outputDirectlyToSwapchain),
 		m_renderMeshesNode(nullptr),
@@ -41,7 +45,7 @@ namespace YAPT
 					1,
 					1,
 					RenderNodeClearFrequency::ALWAYS,
-					ClearValue::ClearValue(0.05f, 0.05f, 0.05f, 1.f))
+					s_ColorClear)
 				},
 				{
 					RenderGraphTextureSlotDefinition(ResourceDimension::TEXTURE_2D,
@@ -52,7 +56,7 @@ namespace YAPT
 					1,
 					1,
 					RenderNodeClearFrequency::ALWAYS,
-					ClearValue::ClearValue(1.0f, 0))
+					s_DepthClear)
 				}
 			};
 
@@ -127,7 +131,7 @@ namespace YAPT
 			
 			RenderGraphResourceId renderTargetResId = m_renderMeshesNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
-			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_ColorClear, true);
 			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Mesh Debug Stage Color Target");
 			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_colorTarget);
 		}
@@ -137,7 +141,8 @@ namespace YAPT
 		{
 			RenderGraphResourceId renderTargetResId = m_renderMeshesNode->getRenderGraphResourceIdForSlot(1);
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
-			TextureDesc depthDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1);
+			TextureDesc depthDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_DepthClear, true);
+
 			m_depthTarget = data.resolutionDependantResourcesPool->requestTexture(depthDesc, "Mesh Debug Stage Depth Target");
 			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_depthTarget);
 		}

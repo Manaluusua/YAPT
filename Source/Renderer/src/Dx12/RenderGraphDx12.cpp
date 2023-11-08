@@ -274,7 +274,7 @@ namespace YAPT
 				size_t numberOfColorTargets = rNode->getNumberOfColorTargets();
 				D3D12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle = m_rtvHeap->getCPUDescriptorHandle(rNode->getRtvHeapDescriptorBaseOffset() + rNode->getRtvHeapSlot() * numberOfColorTargets);
 				assert(def.clearValue.type == ClearValue::_ClearValueType::FLOAT);
-				vec4p clearValue = def.clearValue.value.fvec;
+				vec4p clearValue = glm::make_vec4(def.clearValue.value.fvec);
 				FLOAT clearVal[4] = { clearValue.x, clearValue.y, clearValue.z, clearValue.w };
 
 				cmdList->ClearRenderTargetView(rtvHeapHandle, clearVal, 0, nullptr);

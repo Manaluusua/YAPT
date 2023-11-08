@@ -112,6 +112,26 @@ namespace YAPT
 			textureDescToDx12ResourceDesc(desc, textureHandle->textureDesc);
 			textureHandle->dimension = desc.dimension;
 			textureHandle->lastSeenState.init(yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn), desc.depthOrSlices * desc.mips);
+
+			if (desc.useOptimizedClearValue)
+			{
+				textureHandle->clearValue.Format = textureHandle->textureDesc.Format;
+				if (desc.optimizedClearValue.type == ClearValue::_ClearValueType::DEPTH_STENCIL)
+				{
+					textureHandle->clearValue.DepthStencil.Depth = desc.optimizedClearValue.value.depthStencil.depth;
+					textureHandle->clearValue.DepthStencil.Stencil = desc.optimizedClearValue.value.depthStencil.stencil;
+				}
+				else
+				{
+					memcpy(textureHandle->clearValue.Color, desc.optimizedClearValue.value.fvec, sizeof(float)*4);
+				}
+				
+			}
+			else
+			{
+				textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
+			}
+
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
 			{

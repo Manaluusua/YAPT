@@ -15,6 +15,7 @@ namespace YAPT
 	{
 		std::vector<D3D12_RESOURCE_DESC> resourceDescs;
 		std::vector<D3D12_RESOURCE_STATES> resourceInitialStates;
+		std::vector<D3D12_CLEAR_VALUE> clearValues;
 
 		D3D12_RESOURCE_STATES defaultState = D3D12_RESOURCE_STATE_COMMON;
 		if (heapType == D3D12_HEAP_TYPE_READBACK)
@@ -36,6 +37,7 @@ namespace YAPT
 
 			resourceDescs.resize(textureCount);
 			resourceInitialStates.resize(textureCount);
+			clearValues.resize(textureCount, { DXGI_FORMAT_UNKNOWN});
 
 			size_t currentRtTexCount = 0;
 			size_t currentNonRtTexCount = 0;
@@ -47,12 +49,17 @@ namespace YAPT
 					size_t index = textureCount - 1 - currentRtTexCount++;
 					resourceDescs[index] = textures[i]->textureDesc;
 					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->lastSeenState.getStateForSubResource(0) : defaultState;
+					if (textures[i]->clearValue.Format != DXGI_FORMAT_UNKNOWN)
+					{
+						clearValues[index] = textures[i]->clearValue;
+					}
 				}
 				else
 				{
 					size_t index = currentNonRtTexCount++;
 					resourceDescs[index] = textures[i]->textureDesc;
 					resourceInitialStates[index] = heapType == D3D12_HEAP_TYPE_DEFAULT ? textures[i]->lastSeenState.getStateForSubResource(0) : defaultState;
+					
 				}
 			}
 
@@ -76,7 +83,7 @@ namespace YAPT
 				currentOffset = align(currentOffset, textureAllocationInfo.Alignment);
 
 				ID3D12Resource* resource;
-				m_resourceMngr.getDevice().CreatePlacedResource(m_textureNonRtHeap.get(), currentOffset, &resourceDescs[i], resourceInitialStates[i], NULL, IID_PPV_ARGS(&resource));
+				m_resourceMngr.getDevice().CreatePlacedResource(m_textureNonRtHeap.get(), currentOffset, &resourceDescs[i], resourceInitialStates[i], clearValues[i].Format != DXGI_FORMAT_UNKNOWN ? &clearValues[i] : NULL, IID_PPV_ARGS(&resource));
 				textures[i]->resource = resource;
 				textures[i]->heapType = heapType;
 
@@ -103,8 +110,10 @@ namespace YAPT
 				D3D12_RESOURCE_ALLOCATION_INFO textureAllocationInfo = m_resourceMngr.getDevice().GetResourceAllocationInfo(0, 1, &resourceDescs[descIndex]);
 				currentOffset = align(currentOffset, textureAllocationInfo.Alignment);
 
+
+
 				ID3D12Resource* resource;
-				m_resourceMngr.getDevice().CreatePlacedResource(m_textureRtHeap.get(), currentOffset, &resourceDescs[descIndex], resourceInitialStates[descIndex], NULL, IID_PPV_ARGS(&resource));
+				m_resourceMngr.getDevice().CreatePlacedResource(m_textureRtHeap.get(), currentOffset, &resourceDescs[descIndex], resourceInitialStates[descIndex], clearValues[descIndex].Format != DXGI_FORMAT_UNKNOWN ? &clearValues[descIndex] : NULL, IID_PPV_ARGS(&resource));
 				textures[texIndex]->resource = resource;
 				textures[texIndex]->heapType = heapType;
 

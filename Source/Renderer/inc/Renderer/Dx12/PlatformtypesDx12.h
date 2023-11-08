@@ -108,6 +108,7 @@ namespace YAPT
 		RCPtr<ID3D12Resource> resource;
 		D3D12_HEAP_TYPE heapType;
 		ResourceStateTrackerDx12 lastSeenState;
+		D3D12_CLEAR_VALUE clearValue;
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;

@@ -473,6 +473,87 @@ namespace YAPT
 		uint32_t semantic;
 	};
 
+	struct ClearValue
+	{
+		ClearValue()
+		{}
+
+		ClearValue(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+			:type(_ClearValueType::UINT),
+			value(x, y, z, w)
+		{}
+		ClearValue(float x, float y, float z, float w)
+			:type(_ClearValueType::FLOAT),
+			value(x, y, z, w)
+		{}
+
+		ClearValue(float d, uint8_t s)
+			:type(_ClearValueType::DEPTH_STENCIL),
+			value(d, s)
+		{}
+
+		enum class _ClearValueType
+		{
+			FLOAT,
+			UINT,
+			DEPTH_STENCIL
+		} type;
+
+		union _ClearValue
+		{
+			_ClearValue()
+			{}
+
+			_ClearValue(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+				:uvec{ x, y, z, w }
+			{}
+			_ClearValue(float x, float y, float z, float w)
+				:fvec{x, y, z, w}
+			{}
+
+			_ClearValue(float d, uint8_t s)
+			{
+				depthStencil.depth = d;
+				depthStencil.stencil = s;
+			}
+
+			uint32_t uvec[4];
+			float fvec[4];
+			struct
+			{
+				float depth;
+				uint8_t stencil;
+			} depthStencil;
+		} value;
+
+		void set(float d, uint8_t s)
+		{
+			type = _ClearValueType::DEPTH_STENCIL;
+			value.depthStencil.depth = d;
+			value.depthStencil.stencil = s;
+		}
+
+		void set(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+		{
+			type = _ClearValueType::UINT;
+			value.uvec[0] = x;
+			value.uvec[1] = y;
+			value.uvec[2] = z;
+			value.uvec[3] = w;
+		}
+
+		void set(float x, float y, float z, float w)
+		{
+			type = _ClearValueType::FLOAT;
+			value.fvec[0] = x;
+			value.fvec[1] = y;
+			value.fvec[2] = z;
+			value.fvec[3] = w;
+		}
+
+
+	};
+
 	struct Attribute
 	{
 		ResourceFormat format;
@@ -499,14 +580,16 @@ namespace YAPT
 	struct TextureDesc
 	{
 		TextureDesc() = default;
-		TextureDesc(ResourceDimension dimensions, ResourceFormat format, ResourceUsage usage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
+		TextureDesc(ResourceDimension dimensions, ResourceFormat format, ResourceUsage usage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices, ClearValue optimizedClearValue = {}, bool useOptimizedClearValue = false)
 			:dimension(dimensions),
 			format(format),
 			resourceUsage(usage),
 			width(width),
 			height(height),
 			mips(mips),
-			depthOrSlices(depthOrSlices)
+			depthOrSlices(depthOrSlices),
+			optimizedClearValue(optimizedClearValue),
+			useOptimizedClearValue(useOptimizedClearValue)
 		{
 		}
 
@@ -517,6 +600,8 @@ namespace YAPT
 		uint32_t height;
 		uint32_t mips;
 		uint32_t depthOrSlices;
+		ClearValue optimizedClearValue;
+		bool useOptimizedClearValue;
 	};
 
 	struct ScissorRect
