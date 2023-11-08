@@ -15,7 +15,7 @@ namespace YAPT
 		
 	protected:
 
-		SwapChainNode(const char* name, RenderGraph* graph);
+		SwapChainNode(const char* name, RenderGraph* graph, RenderGraphNodeSlotDefinition* definitions, size_t definitionCount);
 		
 		virtual ~SwapChainNode() 
 		{

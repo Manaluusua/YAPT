@@ -41,6 +41,11 @@ namespace YAPT
 			return h->createSwapChain(windowSurface);
 		}
 
+		ResourceFormat getSwapChainImageFormat(SwapChainHandle swapChain)
+		{
+			return swapChain->getSelectedFormat();
+		}
+
 		void destroySwapChain(GfxApiHandle h, SwapChainHandle sw)
 		{
 			h->destroySwapChain(sw);

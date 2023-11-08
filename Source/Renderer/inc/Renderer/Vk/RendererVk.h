@@ -59,6 +59,7 @@ namespace YAPT
 		size_t getFrameNumber() const { return m_syncUtility.getFrameCount(); }
 		size_t getFramePipelineIndex() const { return m_syncUtility.getFrameIndex(); }
 		size_t getFramePipelineLength() const { return m_syncUtility.getFramesInFlight(); }
+		ResourceFormat getSwapChainFormat() const { return m_selectedSwapChainFormat;}
 
 		//extension functions. For now use expose here, could move these somewhere else or or vk loader 
 		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
@@ -140,6 +141,7 @@ namespace YAPT
 
 		ResourceManagerVk* m_resourceManager;
 		RingSyncUtility m_syncUtility;
+		ResourceFormat m_selectedSwapChainFormat;
 
 		std::vector<VkCommandBuffer> m_submittedCommandBuffers;
 		std::vector<SwapChainVk*> m_swapChainsToPresent;

@@ -13,28 +13,33 @@ namespace YAPT
 		m_rtvDescHeapSlot(0),
 		m_dsvDescHeapSlot(0)
 	{
-		m_renderPassDecl.renderTargetCount = (UINT)getNumberOfColorTargets();
-
-		for (size_t i = 0; i < m_renderPassDecl.renderTargetCount; ++i)
-		{
-			size_t slot = getNodeSlotIndexForRenderTargetIndex(i);
-			m_renderPassDecl.rtvFormats[i] = yaptToDx12Format(slotDefinitions[slot].resourceDescription.resourceFormat);
-		}
-
-		if (hasDepthStencil())
-		{
-			size_t slot = getNodeSlotIndexForDepthStencil();
-			m_renderPassDecl.dsvFormat = yaptToDx12Format(slotDefinitions[slot].resourceDescription.resourceFormat);
-		}
-		else
-		{
-			m_renderPassDecl.dsvFormat = DXGI_FORMAT_UNKNOWN;
-		}
+		
 
 	}
 	RenderNodeDx12::~RenderNodeDx12()
 	{
 
+	}
+
+	void RenderNodeDx12::renderGraphCompilationComplete()
+	{
+		m_renderPassDecl.renderTargetCount = (UINT)getNumberOfColorTargets();
+
+		for (size_t i = 0; i < m_renderPassDecl.renderTargetCount; ++i)
+		{
+			size_t slot = getNodeSlotIndexForRenderTargetIndex(i);
+			m_renderPassDecl.rtvFormats[i] = yaptToDx12Format(m_slotDefinitions[slot].resourceDescription.resourceFormat);
+		}
+
+		if (hasDepthStencil())
+		{
+			size_t slot = getNodeSlotIndexForDepthStencil();
+			m_renderPassDecl.dsvFormat = yaptToDx12Format(m_slotDefinitions[slot].resourceDescription.resourceFormat);
+		}
+		else
+		{
+			m_renderPassDecl.dsvFormat = DXGI_FORMAT_UNKNOWN;
+		}
 	}
 
 	RenderPassHandle RenderNodeDx12::getRenderPassHandle()

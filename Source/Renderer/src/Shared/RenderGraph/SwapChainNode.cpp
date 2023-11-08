@@ -5,17 +5,10 @@
 namespace YAPT
 {
 
-	static const RenderGraphNodeSlotDefinition SWAPCHAINSLOTDEF = { ResourceDimension::TEXTURE_2D,
-	ResourceFormat::RGBA8_SRGB,
-	RESOURCE_USAGE_PRESENTABLE_TEXTURE,
-	ACCESS_FLAGS_READ,
-	SHADERSTAGE_NONE,
-	1,
-	1
-	};
+	
 
-	SwapChainNode::SwapChainNode(const char* name, RenderGraph* graph)
-		:CustomNode(name, graph, 1, &SWAPCHAINSLOTDEF),
+	SwapChainNode::SwapChainNode(const char* name, RenderGraph* graph, RenderGraphNodeSlotDefinition* definitions, size_t definitionCount)
+		:CustomNode(name, graph, definitionCount, definitions),
 		m_swapChain(YAPT_NULL_HANDLE)
 
 	{

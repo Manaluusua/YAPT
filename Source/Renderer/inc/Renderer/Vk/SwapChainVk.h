@@ -11,7 +11,8 @@ namespace YAPT
 	{
 	public:
 		static VkSurfaceKHR createVkSurface(VkInstance instance, YaptRenderSurfaceHandle handle);
-		static SwapChainVk* createSwapChain(RendererVk* rendererVk, size_t width, size_t height, size_t numberOfImages, VkSurfaceKHR surface);
+		static SwapChainVk* createSwapChain(RendererVk* rendererVk, ResourceFormat format, size_t width, size_t height, size_t numberOfImages, VkSurfaceKHR surface);
+		static ResourceFormat getPreferredSurfaceFormat(RendererVk* rendererVk, VkSurfaceKHR surface);
 
 		~SwapChainVk();
 
@@ -19,11 +20,12 @@ namespace YAPT
 		VkSemaphore getBeforeUsageSemaphoreCurrentFrame() const;
 		VkSemaphore getAfterUsageSemaphoreCurrentFrame() const;
 		TextureHandle getTextureHandleCurrentFrame() const;
+		ResourceFormat getSelectedFormat() const { return m_yaptFormat; }
 
 		void present(VkQueue presentQueue);
 
 	private:
-		SwapChainVk(RendererVk* rendererVk, VkSurfaceFormatKHR surfaceFormat, VkPresentModeKHR presentMode, uint32_t width, uint32_t height, VkSwapchainKHR swapChain);
+		SwapChainVk(RendererVk* rendererVk, VkSurfaceFormatKHR surfaceFormat, ResourceFormat yaptFormat, VkPresentModeKHR presentMode, uint32_t width, uint32_t height, VkSwapchainKHR swapChain);
 
 		std::vector<VkImage> m_swapChainImages;
 		std::vector<TextureHandleVk*> m_textureHandles;
@@ -36,6 +38,7 @@ namespace YAPT
 		uint32_t m_width;
 		uint32_t m_height;
 		uint32_t m_currentImageIndex;
+		ResourceFormat m_yaptFormat;
 	};
 
 	

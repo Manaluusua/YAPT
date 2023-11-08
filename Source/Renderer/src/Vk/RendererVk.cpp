@@ -180,7 +180,7 @@ namespace YAPT
 
 	SwapChainVk* RendererVk::createSwapChain(const WindowSurfaceDefinition& windowSurface)
 	{
-		SwapChainVk* sc = SwapChainVk::createSwapChain(this, windowSurface.width, windowSurface.height, getFramePipelineLength(), m_surface);
+		SwapChainVk* sc = SwapChainVk::createSwapChain(this, m_selectedSwapChainFormat, windowSurface.width, windowSurface.height, getFramePipelineLength(), m_surface);
 		assert(sc && "Failed to create swapchain");
 		return sc;
 	}
@@ -243,6 +243,11 @@ namespace YAPT
 
 			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
 			m_syncUtility.initialize(m_device, m_gfxConfig.pipelineLength, true, true);
+		}
+
+		if (success)
+		{
+			m_selectedSwapChainFormat =  SwapChainVk::getPreferredSurfaceFormat(this, m_surface);
 		}
 
 		return success;

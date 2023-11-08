@@ -23,6 +23,8 @@ namespace YAPT
 		void setDsvHeapSlot(size_t slot);
 		size_t getDsvHeapSlot() const;
 		
+	protected:
+		virtual void renderGraphCompilationComplete() override;
 
 	private:
 		RenderNodeDx12(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);

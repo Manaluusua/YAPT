@@ -19,6 +19,23 @@
 
 namespace YAPT
 {
+	class SwapChainNodeVk : public SwapChainNode
+	{
+	public:
+
+		SwapChainNodeVk(const char* name, RenderGraph* graph, RenderGraphNodeSlotDefinition* definitions, size_t definitionCount)
+			:SwapChainNode(name, graph, definitions, definitionCount)
+		{
+
+		}
+
+		virtual ~SwapChainNodeVk()
+		{
+		}
+
+
+	};
+
 	RenderGraphVk::RenderGraphVk(GfxApiHandle h)
 		:RenderGraph(h)
 	{
@@ -50,6 +67,20 @@ namespace YAPT
 	RaytraceNode* RenderGraphVk::createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
 		return new RaytraceNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
+	}
+
+	SwapChainNode* RenderGraphVk::createSwapChainNodeInternal(const char* name)
+	{
+		RenderGraphNodeSlotDefinition slotDef = { ResourceDimension::TEXTURE_2D,
+			m_gfxHandle->getSwapChainFormat(),
+			RESOURCE_USAGE_PRESENTABLE_TEXTURE,
+			ACCESS_FLAGS_READ,
+			SHADERSTAGE_NONE,
+			1,
+			1
+		};
+
+		return new SwapChainNodeVk(name, this, &slotDef, 1);
 	}
 
 	void RenderGraphVk::issueBarriers(size_t nodeIndex, CommandBufferHandle buffer)

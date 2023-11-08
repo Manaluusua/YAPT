@@ -132,6 +132,7 @@ namespace YAPT
 		virtual RenderNode* createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) = 0;
 		virtual ComputeNode* createComputeNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) = 0;
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) = 0;
+		virtual SwapChainNode* createSwapChainNodeInternal(const char* name) = 0;
 
 
 		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) = 0;

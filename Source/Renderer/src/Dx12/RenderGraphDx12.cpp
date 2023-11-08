@@ -20,6 +20,24 @@
 
 namespace YAPT
 {
+	class SwapChainNodeDx12 : public SwapChainNode
+	{
+	public:
+
+		SwapChainNodeDx12(const char* name, RenderGraph* graph, RenderGraphNodeSlotDefinition* definitions, size_t definitionCount)
+			:SwapChainNode(name, graph, definitions, definitionCount)
+		{
+
+		}
+
+		virtual ~SwapChainNodeDx12()
+		{
+		}
+
+
+	};
+
+
 	RenderGraphDx12::RenderGraphDx12(GfxApiHandle h)
 		:RenderGraph(h),
 		m_rtvHeap(nullptr),
@@ -65,6 +83,19 @@ namespace YAPT
 		return new RaytraceNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 
+	SwapChainNode* RenderGraphDx12::createSwapChainNodeInternal(const char* name)
+	{
+		RenderGraphNodeSlotDefinition slotDef = { ResourceDimension::TEXTURE_2D,
+			ResourceFormat::RGBA8_SRGB,
+			RESOURCE_USAGE_PRESENTABLE_TEXTURE,
+			ACCESS_FLAGS_READ,
+			SHADERSTAGE_NONE,
+			1,
+			1
+		};
+
+		return new SwapChainNodeDx12(name, this, &slotDef, 1);
+	}
 
 	void RenderGraphDx12::issuePreBarriers(size_t nodeIndex, CommandBufferHandle cmdList)
 	{
@@ -160,8 +191,8 @@ namespace YAPT
 			RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(colorTargetSlot);
 			if (isResourceBoundThisFrame(resId))
 			{
-needToRecreateRtvs = true;
-break;
+				needToRecreateRtvs = true;
+				break;
 			}
 		}
 

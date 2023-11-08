@@ -1,31 +1,30 @@
 #include <Renderer/Vk/SwapChainVk.h>
 #include <Common/CommonUtilities.h>
 #include <Renderer/Vk/RendererVk.h>
+#include <Renderer/Vk/YaptToVkConversions.h>
 
 #include <assert.h>
 #include <WinUser.h>
 namespace YAPT
 {
-	VkSurfaceKHR SwapChainVk::createVkSurface(VkInstance instance, YaptRenderSurfaceHandle handle)
-	{
-		VkSurfaceKHR surface;
-		VkWin32SurfaceCreateInfoKHR info{};
-		info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-		info.hwnd = handle;
-		info.hinstance = (HINSTANCE)GetWindowLongPtr(info.hwnd, GWLP_HINSTANCE);
-		VkResult res = vkCreateWin32SurfaceKHR(instance, &info, NULL, &surface);
-		return surface;
-	}
+	
 
-	VkSurfaceFormatKHR selectSurfaceFormat(size_t supportedFormatsCount, const VkSurfaceFormatKHR* supportedFormats)
+	
+
+	VkSurfaceFormatKHR selectSurfaceFormat(size_t supportedFormatsCount, const VkSurfaceFormatKHR* supportedFormats, ResourceFormat& selectedYaptFormat)
 	{
 		//for now just hardcode formats we want
-		VkSurfaceFormatKHR formatsWanted[] = { {VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, {VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR }, {VK_FORMAT_R8G8B8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR} };
+		std::pair<VkSurfaceFormatKHR, ResourceFormat> formatsWanted[] = { 
+			{{VK_FORMAT_R8G8B8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, {ResourceFormat::RGBA8_SRGB}}, 
+			{{VK_FORMAT_B8G8R8A8_SRGB, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR}, {ResourceFormat::BGRA8_SRGB}}
+		};
 		VkSurfaceFormatKHR selectedFormat = { VK_FORMAT_UNDEFINED };
+
 		for (size_t i = 0; i < (size_t)countOf(formatsWanted); ++i)
 		{
 			if (selectedFormat.format != VK_FORMAT_UNDEFINED) break;
-			const VkSurfaceFormatKHR f = formatsWanted[i];
+			const VkSurfaceFormatKHR f = formatsWanted[i].first;
+			selectedYaptFormat = formatsWanted[i].second;
 
 			for (size_t k = 0; k < supportedFormatsCount; ++k)
 			{
@@ -56,8 +55,18 @@ namespace YAPT
 		return VK_PRESENT_MODE_FIFO_KHR; //forced to be supported
 	}
 
+	VkSurfaceKHR SwapChainVk::createVkSurface(VkInstance instance, YaptRenderSurfaceHandle handle)
+	{
+		VkSurfaceKHR surface;
+		VkWin32SurfaceCreateInfoKHR info{};
+		info.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+		info.hwnd = handle;
+		info.hinstance = (HINSTANCE)GetWindowLongPtr(info.hwnd, GWLP_HINSTANCE);
+		VkResult res = vkCreateWin32SurfaceKHR(instance, &info, NULL, &surface);
+		return surface;
+	}
 
-	SwapChainVk* SwapChainVk::createSwapChain(RendererVk* rendererVk, size_t width, size_t height, size_t numberOfImages, VkSurfaceKHR surface)
+	ResourceFormat SwapChainVk::getPreferredSurfaceFormat(RendererVk* rendererVk, VkSurfaceKHR surface)
 	{
 		std::vector<VkSurfaceFormatKHR> supportedFormats;
 		std::vector<VkPresentModeKHR> supportedPresentModes;
@@ -82,9 +91,31 @@ namespace YAPT
 		res = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &supportedPresentModeCount, supportedPresentModes.data());
 		checkForVkError(res);
 
+		ResourceFormat format;
+		VkSurfaceFormatKHR selectedFormat = selectSurfaceFormat(supportedFormats.size(), supportedFormats.data(), format);
 		
-		VkSurfaceFormatKHR selectedFormat = selectSurfaceFormat(supportedFormats.size(), supportedFormats.data());
-		assert(selectedFormat.format != VK_FORMAT_UNDEFINED);
+		return format;
+	}
+
+	SwapChainVk* SwapChainVk::createSwapChain(RendererVk* rendererVk, ResourceFormat format, size_t width, size_t height, size_t numberOfImages, VkSurfaceKHR surface)
+	{
+		
+		std::vector<VkPresentModeKHR> supportedPresentModes;
+		VkSurfaceCapabilitiesKHR surfaceCaps;
+
+		VkPhysicalDevice physicalDevice = rendererVk->getPhysicalDevice();
+		VkDevice device = rendererVk->getDevice();
+
+		VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCaps);
+		checkForVkError(res);
+
+		uint32_t supportedPresentModeCount;
+		vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &supportedPresentModeCount, nullptr);
+		supportedPresentModes.resize(supportedPresentModeCount);
+		res = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &supportedPresentModeCount, supportedPresentModes.data());
+		checkForVkError(res);
+
+		VkSurfaceFormatKHR selectedFormat = { yaptFormatToVk(format), VK_COLOR_SPACE_SRGB_NONLINEAR_KHR };
 
 		VkPresentModeKHR selectedPresentMode = selectPresentMode(supportedPresentModes.size(), supportedPresentModes.data());
 
@@ -116,19 +147,20 @@ namespace YAPT
 			return nullptr;
 		}
 
-		return new SwapChainVk(rendererVk, selectedFormat, selectedPresentMode, swapChainExtent.width, swapChainExtent.height, swapChainVk);
+		return new SwapChainVk(rendererVk, selectedFormat, format, selectedPresentMode, swapChainExtent.width, swapChainExtent.height, swapChainVk);
 	}
 
 	
 
-	SwapChainVk::SwapChainVk(RendererVk* rendererVk, VkSurfaceFormatKHR surfaceFormat, VkPresentModeKHR presentMode, uint32_t width, uint32_t height, VkSwapchainKHR swapChain)
+	SwapChainVk::SwapChainVk(RendererVk* rendererVk, VkSurfaceFormatKHR surfaceFormat, ResourceFormat yaptFormat, VkPresentModeKHR presentMode, uint32_t width, uint32_t height, VkSwapchainKHR swapChain)
 		:m_device(rendererVk->getDevice()),
 		m_surfaceFormat(surfaceFormat),
 		m_presentMode(presentMode),
 		m_swapChain(swapChain),
 		m_width(width),
 		m_height(height),
-		m_currentImageIndex(0)
+		m_currentImageIndex(0),
+		m_yaptFormat(yaptFormat)
 	{
 		uint32_t imageCount;
 		vkGetSwapchainImagesKHR(m_device, swapChain, &imageCount, nullptr);

@@ -125,6 +125,8 @@ namespace YAPT
 		void setResolvedResourceFormat(size_t slot, ResourceFormat format);
 		void addEdge(const RenderGraphNodeEdge* edge);
 
+		virtual void renderGraphCompilationComplete() {}
+
 		const Type m_type;
 		RenderGraph* m_graph;
 		

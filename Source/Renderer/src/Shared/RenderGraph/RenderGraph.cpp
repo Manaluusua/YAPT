@@ -86,7 +86,7 @@ namespace YAPT
 
 	SwapChainNode* RenderGraph::createSwapChainNode(const char* name)
 	{
-		SwapChainNode* sn = new SwapChainNode(name, this);
+		SwapChainNode* sn = createSwapChainNodeInternal(name);
 		registerCustomNode(sn);
 		return sn;
 	}
@@ -378,6 +378,11 @@ namespace YAPT
 		}
 
 		resolveGraphDependenciesInternal();
+
+		for (size_t i = 0; i < m_nodes.size(); ++i)
+		{
+			m_nodes[i]->renderGraphCompilationComplete();
+		}
 	}
 
 
