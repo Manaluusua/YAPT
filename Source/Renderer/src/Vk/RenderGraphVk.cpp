@@ -201,7 +201,7 @@ namespace YAPT
 		{
 			if (m_frameBuffers[frameBufferRenderPassIndex] != VK_NULL_HANDLE)
 			{
-				vkDestroyFramebuffer(device, m_frameBuffers[frameBufferRenderPassIndex], VK_ALLOC_CB);
+				m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_frameBuffers[frameBufferRenderPassIndex]);
 				m_frameBuffers[frameBufferRenderPassIndex] = VK_NULL_HANDLE;
 			}
 
@@ -258,6 +258,7 @@ namespace YAPT
 	}
 	void RenderGraphVk::afterRenderGraphSubmit()
 	{
+		RenderGraph::afterRenderGraphSubmit();
 		m_queueTransitionHelper.clearBarriers();
 	}
 

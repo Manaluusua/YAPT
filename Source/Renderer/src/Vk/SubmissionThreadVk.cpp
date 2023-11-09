@@ -83,10 +83,6 @@ namespace YAPT
 		t->signalSemaphoreCount = submission.semaphoresToSignalCount;
 		t->waitSemaphoreCount = submission.semaphoresToWaitCount;
 
-		if (submission.semaphoresToWaitCount > 0 && submission.semaphoresToWait[0] == nullptr)
-		{
-			assert("DAFUQ");
-		}
 
 		for (size_t i = 0; i < submission.semaphoresToWaitCount; ++i)
 		{

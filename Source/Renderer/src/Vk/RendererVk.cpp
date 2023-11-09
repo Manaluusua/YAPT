@@ -150,6 +150,7 @@ namespace YAPT
 
 		m_submittedSwapChainPresents.numberOfSwapchains = m_swapChainsToPresent.size();
 		m_submittedSwapChainPresents.swapchainsToPresent = m_swapChainsToPresent.data();
+		m_submittedSwapChainPresents.presentQueue = getGraphicsQueue().queue;
 
 		m_lastSubmitId = m_submissionThread.issueCallback(cb, &m_submittedSwapChainPresents);
 		

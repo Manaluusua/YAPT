@@ -63,6 +63,12 @@ namespace YAPT
 	{
 		vkDestroyBufferView(device, child, VK_ALLOC_CB);
 	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkFramebuffer>(VkDevice device, VkFramebuffer child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyFramebuffer(device, child, VK_ALLOC_CB);
+	}
 	
 	
 }
