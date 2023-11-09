@@ -383,7 +383,7 @@ namespace YAPT
 
 		void submitCommandBuffers(GfxApiHandle h, CommandBufferHandle* buffers, size_t numberOfBuffers)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->submitCommandLists(buffers, numberOfBuffers);
 		}
 
 		ComputePipelineStateHandle createComputePipelineState(GfxApiHandle h, const ComputePipelineStateDesc& desc)

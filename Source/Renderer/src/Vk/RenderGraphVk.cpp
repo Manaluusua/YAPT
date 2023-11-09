@@ -246,7 +246,11 @@ namespace YAPT
 		VkSemaphore waitSemaphore = m_gfxHandle->getResourceManager()->getLastSignaledSemaphore();
 		VkSemaphore semaphoreOut;
 		m_queueTransitionHelper.issueTransitionBarriers(m_gfxHandle->getSubmissionThread(), m_gfxHandle->getFramePipelineIndex(), 0, &waitSemaphore, 1, semaphoreOut);
-		m_gfxHandle->addSemaphoreToWaitBeforeCommandlistSubmit(semaphoreOut);
+		if (semaphoreOut != VK_NULL_HANDLE)
+		{
+			m_gfxHandle->addSemaphoreToWaitBeforeCommandlistSubmit(semaphoreOut);
+		}
+		
 	}
 	void RenderGraphVk::endExecution()
 	{

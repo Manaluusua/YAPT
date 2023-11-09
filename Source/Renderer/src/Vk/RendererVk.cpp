@@ -121,8 +121,6 @@ namespace YAPT
 				m_semaphoresToWait.push_back(m_swapChainsToPresent[i]->getBeforeUsageSemaphoreCurrentFrame());
 				m_semaphoresToSignal.push_back(m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
 			}
-
-			assert(!"Add swapchain semaphores to wait and also signals for presents!");
 		
 			SubmissionThreadVk::Submission submission{};
 			submission.commandLists = m_submittedCommandBuffers.data();
@@ -130,7 +128,7 @@ namespace YAPT
 			submission.semaphoresToWait = m_semaphoresToWait.data();
 			submission.semaphoresToWaitCount = m_semaphoresToWait.size();
 			submission.semaphoresToSignal = m_semaphoresToSignal.data();
-			submission.semaphoresToWaitCount = m_semaphoresToSignal.size();
+			submission.semaphoresToSignalCount = m_semaphoresToSignal.size();
 
 			m_submissionThread.submit(COMMANDQUEUETYPE_GRAPHICS, 0, submission);
 
