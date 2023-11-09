@@ -304,6 +304,7 @@ namespace YAPT
 
 		}
 
+		m_queueTransitionHelper.resetCommandBuffersForFrame(m_syncUtility.getFrameIndex());
 		m_queueTransitionHelper.clearBarriers();
 		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), true);
 		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), true);

@@ -121,7 +121,8 @@ namespace YAPT
 				m_semaphoresToWait.push_back(m_swapChainsToPresent[i]->getBeforeUsageSemaphoreCurrentFrame());
 				m_semaphoresToSignal.push_back(m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
 			}
-		
+			
+
 			SubmissionThreadVk::Submission submission{};
 			submission.commandLists = m_submittedCommandBuffers.data();
 			submission.commandListsCount = m_submittedCommandBuffers.size();
@@ -134,6 +135,7 @@ namespace YAPT
 
 			m_semaphoresToWait.clear();
 			m_semaphoresToSignal.clear();
+			m_submittedCommandBuffers.clear();
 		}
 		
 		//quick and dirty present. Should in reality handle presents just like commandbuffers: add them to some sequential commandlist and process it with submits. 

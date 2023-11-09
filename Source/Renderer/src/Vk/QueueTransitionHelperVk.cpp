@@ -70,6 +70,14 @@ namespace YAPT
 
 	}
 
+	void QueueTransitionHelperVk::resetCommandBuffersForFrame(size_t frameIndex)
+	{
+		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
+		{
+			iter->second.commandBuffersPool.resetPool(frameIndex);
+		}
+	}
+
 	void QueueTransitionHelperVk::issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled)
 	{
 		VkSemaphore latestSignalled = VK_NULL_HANDLE;
