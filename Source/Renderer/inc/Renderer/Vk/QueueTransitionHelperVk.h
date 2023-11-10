@@ -21,7 +21,7 @@ namespace YAPT
 		void clearBarriers();
 
 		void resetCommandBuffersForFrame(size_t frameIndex);
-		void issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled);
+		bool issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled);
 		void initialize(VkDevice device, size_t pipelineLength, size_t maxNumberOfTransitionsPerFrame);
 		void deinitialize();
 	private:

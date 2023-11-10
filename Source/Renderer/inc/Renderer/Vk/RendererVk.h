@@ -47,7 +47,6 @@ namespace YAPT
 		void present(SwapChainVk* swapChain);
 
 		void submitCommandLists(CommandBufferHandle* buffers, size_t numberOfBuffers);
-		void addSemaphoreToWaitBeforeCommandlistSubmit(VkSemaphore semaphore);
 
 		const QueueDefinitionVk& getGraphicsQueue() const { return m_graphicsQueue; }
 		const QueueDefinitionVk& getComputeQueue() const { return m_computeQueue; }

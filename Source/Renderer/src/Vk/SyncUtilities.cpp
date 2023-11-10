@@ -44,7 +44,7 @@ namespace YAPT
 				m_syncData[i].semaphore = VK_NULL_HANDLE;
 			}
 
-			m_syncData[i].issued = false;
+			m_syncData[i].fenceWaitPending = false;
 		}
 
 	}
@@ -68,20 +68,26 @@ namespace YAPT
 
 	void RingSyncUtility::nextFrame()
 	{
+		waitForNextFrame();
 		m_tickCount++;
 		m_entryDataIndex = m_tickCount % m_syncData.size();
+	}
 
-		if (m_syncData[m_entryDataIndex].fence != YAPT_NULL_HANDLE && m_syncData[m_entryDataIndex].issued)
+	void RingSyncUtility::waitForNextFrame()
+	{
+		size_t nextFrameIndex = (m_tickCount + 1) % m_syncData.size();
+
+		if (m_syncData[nextFrameIndex].fence != YAPT_NULL_HANDLE && m_syncData[nextFrameIndex].fenceWaitPending)
 		{
-			checkVkResult(vkWaitForFences(m_device, 1, &m_syncData[m_entryDataIndex].fence, VK_TRUE, uint64_t(-1)));
+			checkVkResult(vkWaitForFences(m_device, 1, &m_syncData[nextFrameIndex].fence, VK_TRUE, uint64_t(-1)));
+			checkVkResult(vkResetFences(m_device, 1, &m_syncData[nextFrameIndex].fence));
 		}
-		m_syncData[m_entryDataIndex].issued = false;
-
+		m_syncData[nextFrameIndex].fenceWaitPending = false;
 	}
 
 	void RingSyncUtility::markThisFrameSyncDataIssued()
 	{
-		m_syncData[m_entryDataIndex].issued = true;
+		m_syncData[m_entryDataIndex].fenceWaitPending = true;
 	}
 
 	VkFence RingSyncUtility::getFenceForThisFrame() const

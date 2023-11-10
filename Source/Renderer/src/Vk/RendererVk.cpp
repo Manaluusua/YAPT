@@ -83,18 +83,20 @@ namespace YAPT
 
 	void RendererVk::prepare()
 	{
+		
+		m_resourceManager->prepare();
+
+	}
+	void RendererVk::renderBegin()
+	{
 		VkSemaphore s = VK_NULL_HANDLE;
 		if (m_syncUtility.getFrameCount() >= m_gfxConfig.pipelineLength)
 		{
 			size_t frameToSync = m_syncUtility.getFrameCount() - m_gfxConfig.pipelineLength;
 			s = m_syncUtility.getSemaphoreForFrameNumber(frameToSync);
 		}
-		m_resourceManager->prepare(s);
 
-	}
-	void RendererVk::renderBegin()
-	{
-		m_resourceManager->flushPreFrameUploads();
+		m_resourceManager->flushPreFrameUploads(s);
 		//Since our swapchain submit is currently a bit naive, we need to wait here to make sure that the submit thread has processed the request before we might be getting new calls to present swapchain
 		while(m_submissionThread.isPending(m_lastSubmitId))
 		{
@@ -104,7 +106,7 @@ namespace YAPT
 	void RendererVk::executeBegin()
 	{
 		m_resourceManager->flushFrameUploads();
-		m_syncUtility.nextFrame();
+		m_syncUtility.waitForNextFrame();
 		m_resourceManager->resetCommandBufferPools(m_syncUtility.getFrameIndex());
 	}
 	void RendererVk::executeEnd()
@@ -112,6 +114,7 @@ namespace YAPT
 		//issue waits for uploads and swapchains before the commandlist submit
 		//TODO: here we are making all commands wait for swapchain images being free. In reality, they are usually only needed at the very end. Should make the rendergraph somehow handle/detect this and break the submission so that the swapchain waits are only for before commandbuffers that need it. Need a mechanism to communicate this tho
 		//also should maybe directly just submit to submitthread or call this differently to emphasize that these are just deferred commandlists to be submitted at the end of RG execution
+
 		{
 			
 			m_semaphoresToSignal.push_back(m_syncUtility.getSemaphoreForThisFrame());
@@ -122,6 +125,7 @@ namespace YAPT
 				m_semaphoresToSignal.push_back(m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
 			}
 			
+			m_semaphoresToWait.push_back(m_resourceManager->getLastSignaledSemaphore());
 
 			SubmissionThreadVk::Submission submission{};
 			submission.commandLists = m_submittedCommandBuffers.data();
@@ -130,6 +134,7 @@ namespace YAPT
 			submission.semaphoresToWaitCount = m_semaphoresToWait.size();
 			submission.semaphoresToSignal = m_semaphoresToSignal.data();
 			submission.semaphoresToSignalCount = m_semaphoresToSignal.size();
+			submission.fenceToSignal = m_syncUtility.getFenceForThisFrame();
 
 			m_submissionThread.submit(COMMANDQUEUETYPE_GRAPHICS, 0, submission);
 
@@ -157,12 +162,10 @@ namespace YAPT
 		m_lastSubmitId = m_submissionThread.issueCallback(cb, &m_submittedSwapChainPresents);
 		
 		m_swapChainsToPresent.clear();
+		m_syncUtility.markThisFrameSyncDataIssued();
+		m_syncUtility.nextFrame();
 	}
 
-	void RendererVk::addSemaphoreToWaitBeforeCommandlistSubmit(VkSemaphore semaphore)
-	{
-		m_semaphoresToWait.push_back(semaphore);
-	}
 
 	void RendererVk::waitForAllFramesDone()
 	{

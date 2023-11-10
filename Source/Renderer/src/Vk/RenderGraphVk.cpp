@@ -248,7 +248,7 @@ namespace YAPT
 		m_queueTransitionHelper.issueTransitionBarriers(m_gfxHandle->getSubmissionThread(), m_gfxHandle->getFramePipelineIndex(), 0, &waitSemaphore, 1, semaphoreOut);
 		if (semaphoreOut != VK_NULL_HANDLE)
 		{
-			m_gfxHandle->addSemaphoreToWaitBeforeCommandlistSubmit(semaphoreOut);
+			m_gfxHandle->getResourceManager()->overrideLastSignaledSemaphore(semaphoreOut);
 		}
 		
 	}

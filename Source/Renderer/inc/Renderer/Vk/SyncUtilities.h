@@ -16,6 +16,7 @@ namespace YAPT
 		void deinitialize();
 
 		void nextFrame();
+		void waitForNextFrame();
 
 		void markThisFrameSyncDataIssued();
 
@@ -40,7 +41,7 @@ namespace YAPT
 		{
 			VkFence fence;
 			VkSemaphore semaphore;
-			bool issued;
+			bool fenceWaitPending;
 		};
 		VkDevice m_device;
 		std::vector<EntryData> m_syncData;

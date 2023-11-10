@@ -34,13 +34,28 @@ namespace YAPT
 
 	void ResourceManagerVk::deinitialize()
 	{
+		//destroy pending list
+		{
+			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
+			for (size_t i = 0; i < m_pendingDestroyedObjects.size(); ++i)
+			{
+				std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[i];
+				for (size_t k = 0; k < destroyList.size(); ++k)
+				{
+					destroyList[k].cb(m_device, destroyList[k].data, VK_ALLOC_CB);
+				}
+				destroyList.clear();
+			}
+
+		}
+
 		delete m_preFrameUploads;
 		m_preFrameUploads = nullptr;
 		delete m_duringFrameUploads;
 		m_duringFrameUploads = nullptr;
 	}
 
-	void ResourceManagerVk::prepare(VkSemaphore semaphoreToWaitBeforeUploads)
+	void ResourceManagerVk::prepare()
 	{
 		m_preFrameUploads->prepareNextUploadBatch();
 		{
@@ -56,12 +71,11 @@ namespace YAPT
 			destroyList.clear();
 		}
 		
-		
+	}
+	void ResourceManagerVk::flushPreFrameUploads(VkSemaphore semaphoreToWaitBeforeUploads)
+	{
 
 		m_lastSignaledSemaphore = semaphoreToWaitBeforeUploads;
-	}
-	void ResourceManagerVk::flushPreFrameUploads()
-	{
 		VkSemaphore signaledSemaphore;
 		if (m_preFrameUploads->flushUploadBatch(&m_lastSignaledSemaphore, m_lastSignaledSemaphore != VK_NULL_HANDLE ? 1 : 0, signaledSemaphore))
 		{

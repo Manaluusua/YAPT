@@ -78,10 +78,11 @@ namespace YAPT
 		}
 	}
 
-	void QueueTransitionHelperVk::issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled)
+	bool QueueTransitionHelperVk::issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled)
 	{
 		VkSemaphore latestSignalled = VK_NULL_HANDLE;
 		bool isFirstSubmit = true;
+		bool transitionsIssued = false;
 		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
 		{
 			QueueFamilyTransitionData& transitionData = iter->second;
@@ -125,10 +126,14 @@ namespace YAPT
 				latestSignalled = signalSemaphore;
 				transitionData.syncUtilities[transitionIndex].nextFrame();
 
+				transitionsIssued = true;
+
 			}
 		}
 
 		lastSignalled = latestSignalled;
+
+		return transitionsIssued;
 	}
 
 

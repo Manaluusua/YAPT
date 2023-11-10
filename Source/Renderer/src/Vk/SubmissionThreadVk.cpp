@@ -86,11 +86,13 @@ namespace YAPT
 
 		for (size_t i = 0; i < submission.semaphoresToWaitCount; ++i)
 		{
+			assert(submission.semaphoresToWait[i] != VK_NULL_HANDLE);
 			t->semaphores[i] = submission.semaphoresToWait[i];
 		}
 
 		for (size_t i = 0; i < submission.semaphoresToSignalCount; ++i)
 		{
+			assert(submission.semaphoresToSignal[i] != VK_NULL_HANDLE);
 			t->semaphores[submission.semaphoresToWaitCount + i] = submission.semaphoresToSignal[i];
 		}
 

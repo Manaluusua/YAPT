@@ -32,8 +32,8 @@ namespace YAPT
 		ResourceManagerVk(VkPhysicalDevice physicalDevice, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength);
 		~ResourceManagerVk();
 
-		void prepare(VkSemaphore semaphoreToWaitBeforeUploads);
-		void flushPreFrameUploads();
+		void prepare();
+		void flushPreFrameUploads(VkSemaphore semaphoreToWaitBeforeUploads);
 		void flushFrameUploads();
 
 
@@ -55,6 +55,7 @@ namespace YAPT
 
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 
+		void overrideLastSignaledSemaphore(VkSemaphore sem) { m_lastSignaledSemaphore = sem; }
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
 		void clearLastSignaledSemaphore() { m_lastSignaledSemaphore = VK_NULL_HANDLE; }
 
