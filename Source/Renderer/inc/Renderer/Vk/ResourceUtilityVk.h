@@ -69,6 +69,19 @@ namespace YAPT
 	{
 		vkDestroyFramebuffer(device, child, VK_ALLOC_CB);
 	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkShaderModule>(VkDevice device, VkShaderModule child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyShaderModule(device, child, VK_ALLOC_CB);
+	}
+
+	template<>
+	inline void destroyVkDeviceChild<VkRenderPass>(VkDevice device, VkRenderPass child, const VkAllocationCallbacks* alloc)
+	{
+		vkDestroyRenderPass(device, child, VK_ALLOC_CB);
+	}
+
 	
 	
 }

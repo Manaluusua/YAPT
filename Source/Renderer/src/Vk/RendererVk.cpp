@@ -13,7 +13,12 @@
 #define LOAD_DEVICE_PROC_TO_VAR(var, name) var = reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(m_device, #name))
 #define LOAD_DEVICE_PROC(name) LOAD_DEVICE_PROC_TO_VAR(name, name)
 
+#ifdef ENABLE_VK_DEBUG_LAYERS
 PFN_vkCreateDebugReportCallbackEXT s_createDebugReportCallback = NULL;
+PFN_vkDestroyDebugReportCallbackEXT s_destroyDebugReportCallback = NULL;
+
+VkDebugReportCallbackEXT s_debugCallback = NULL;
+#endif
 
 VKAPI_ATTR VkBool32 VKAPI_CALL dbgCallback(
 	VkDebugReportFlagsEXT       flags,
@@ -71,6 +76,13 @@ namespace YAPT
 			vkDestroySurfaceKHR(m_instance, m_surface, nullptr);
 			m_surface = VK_NULL_HANDLE;
 		}
+
+#ifdef ENABLE_VK_DEBUG_LAYERS
+		if (s_debugCallback != VK_NULL_HANDLE)
+		{
+			s_destroyDebugReportCallback(m_instance, s_debugCallback, VK_ALLOC_CB);
+		}
+#endif
 
 		if (m_instance != VK_NULL_HANDLE)
 		{
@@ -321,7 +333,7 @@ namespace YAPT
 
 #ifdef ENABLE_VK_DEBUG_LAYERS
 		LOAD_INSTANCE_PROC_TO_VAR(s_createDebugReportCallback, vkCreateDebugReportCallbackEXT);
-		//s_createDebugReportCallback = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(m_instance, "vkCreateDebugReportCallbackEXT"));
+		LOAD_INSTANCE_PROC_TO_VAR(s_destroyDebugReportCallback, vkDestroyDebugReportCallbackEXT);
 
 		VkDebugReportCallbackCreateInfoEXT callbackCreateInfo;
 		callbackCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
@@ -330,8 +342,7 @@ namespace YAPT
 		callbackCreateInfo.pfnCallback = &dbgCallback;
 		callbackCreateInfo.pUserData = NULL;
 
-		VkDebugReportCallbackEXT callback;
-		res = s_createDebugReportCallback(m_instance, &callbackCreateInfo, NULL, &callback);
+		res = s_createDebugReportCallback(m_instance, &callbackCreateInfo, NULL, &s_debugCallback);
 		checkForVkError(res);
 #endif    
 		return true;

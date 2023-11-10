@@ -236,6 +236,7 @@ namespace YAPT
 	}
 	void ResourceManagerVk::destroyShaderModule(ShaderModuleHandle m)
 	{
+		deferredDestroyVkResource(m->m_vkShaderModule);
 		delete m;
 	}
 

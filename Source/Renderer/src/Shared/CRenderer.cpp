@@ -179,6 +179,8 @@ namespace YAPT
 		m_meshMngr = nullptr;
 		delete m_materialMngr;
 		m_materialMngr = nullptr;
+		delete m_shaderLoader;
+		m_shaderLoader = nullptr;
 		
 
 		

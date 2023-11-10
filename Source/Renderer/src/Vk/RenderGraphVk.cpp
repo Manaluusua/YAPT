@@ -44,6 +44,15 @@ namespace YAPT
 	RenderGraphVk::~RenderGraphVk()
 	{
 		m_queueTransitionHelper.deinitialize();
+		for (size_t i = 0; i < m_frameBuffers.size(); ++i)
+		{
+			m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_frameBuffers[i]);
+		}
+
+		for (size_t i = 0; i < m_renderPasses.size(); ++i)
+		{
+			m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_renderPasses[i]);
+		}
 	}
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
