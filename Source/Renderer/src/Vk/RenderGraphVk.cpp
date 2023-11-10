@@ -344,8 +344,8 @@ namespace YAPT
 		{
 			descOut.stencilLoadOp = loadOp;
 			descOut.stencilStoreOp = storeOp;
-			descOut.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-			descOut.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+			descOut.loadOp = loadOp;
+			descOut.storeOp = storeOp;
 		}
 		else
 		{
