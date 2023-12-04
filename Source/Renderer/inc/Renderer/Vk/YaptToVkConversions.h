@@ -938,7 +938,7 @@ namespace YAPT
 		infoOut.rasterizerDiscardEnable = desc.rasterizerDiscardEnable;
 		infoOut.polygonMode = yaptPolygonModeToVk(desc.polygonMode);
 		infoOut.cullMode = yaptCullModeToVk(desc.cullMode);
-		infoOut.frontFace = yaptWindingOrderToVk(desc.frontFace);
+		infoOut.frontFace = yaptWindingOrderToVk(desc.frontFace == FrontFace::COUNTER_CLOCKWISE ? FrontFace::CLOCKWISE : FrontFace::COUNTER_CLOCKWISE); //flip winding order on VK since the y points down unlike other GFX APIs (and yapt uses convention Y up)
 		infoOut.depthBiasEnable = desc.depthBiasEnable;
 		infoOut.depthBiasConstantFactor = desc.depthBiasConstantFactor;
 		infoOut.depthBiasClamp = desc.depthBiasClamp;
