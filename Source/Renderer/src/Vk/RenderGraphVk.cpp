@@ -836,7 +836,7 @@ namespace YAPT
 			}
 
 			barrierDescs.memoryBarriersEveryFrame.resize((preGeneratedMemoryBarrierCount + extraMemoryBarriersCount) * numberOfResourcesBound);
-			barrierDescs.imageBarriersEveryFrame.resize((extraImageBarriersCount + extraImageBarriersCount) * numberOfResourcesBound);
+			barrierDescs.imageBarriersEveryFrame.resize((preGeneratedImageBarrierCount + extraImageBarriersCount) * numberOfResourcesBound);
 			barrierDescs.bufferBarriersEveryFrame.resize((preGeneratedBufferBarrierCount + extraBufferBarriersCount) * numberOfResourcesBound);
 			
 
