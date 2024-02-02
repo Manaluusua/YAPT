@@ -23,6 +23,43 @@ namespace YAPT
 	{
 	public:
 
+		struct PhysicalDeviceInfo
+		{
+			PhysicalDeviceInfo()
+				:baseFeatures{},
+				descIndexingFeatures{},
+				rayTracePipelineFeatures{},
+				rayQueryFeatures{},
+				deviceProperties2{},
+				raytracePipelineProperties{}
+			{
+				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+
+				deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+				raytracePipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+
+				//features
+				baseFeatures.pNext = &descIndexingFeatures;
+				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
+				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
+
+				//properties
+				deviceProperties2.pNext = &raytracePipelineProperties;
+
+			}
+
+			VkPhysicalDeviceFeatures2 baseFeatures;
+			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
+			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
+			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
+
+			VkPhysicalDeviceProperties2 deviceProperties2;
+			VkPhysicalDeviceRayTracingPipelinePropertiesKHR  raytracePipelineProperties;
+		};
+
 		RendererVk(const GfxApiInitConfig& config);
 		~RendererVk();
 		
@@ -39,7 +76,7 @@ namespace YAPT
 
 		VkDevice getDevice() const { return m_device; }
 		VkPhysicalDevice getPhysicalDevice() const { return m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex]; }
-		const VkPhysicalDeviceProperties2& getDeviceProps() const { return m_physicalDeviceInfos.properties[m_selectedPhysicalDeviceIndex]; }
+		const PhysicalDeviceInfo& getPhysicalDeviceInfo() const { return m_physicalDeviceInfos.features[m_selectedPhysicalDeviceIndex]; }
 
 
 		SwapChainVk* createSwapChain(const WindowSurfaceDefinition& windowSurface);
@@ -68,37 +105,14 @@ namespace YAPT
 		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
 	private:
 
-		struct PhysicalDeviceFeatures
-		{
-			PhysicalDeviceFeatures()
-				:baseFeatures{},
-				descIndexingFeatures{},
-				rayTracePipelineFeatures{},
-				rayQueryFeatures{}
-			{
-				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-				baseFeatures.pNext = &descIndexingFeatures;
-				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
-				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
-				
-			}
-
-			VkPhysicalDeviceFeatures2 baseFeatures;
-			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
-			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
-			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
-		};
+		
 
 		struct PhysicalDeviceInfos
 		{
 			std::vector<VkPhysicalDevice> devices;
-			std::vector<VkPhysicalDeviceProperties2> properties;
-			std::vector<PhysicalDeviceFeatures> features;
+			std::vector<PhysicalDeviceInfo> features;
 			std::vector<std::vector<VkQueueFamilyProperties> > queueFamilyProperties;
-			std::vector< std::vector<VkBool32>> supportsPresent;
+			std::vector<std::vector<VkBool32>> supportsPresent;
 		};
 
 
@@ -120,8 +134,8 @@ namespace YAPT
 
 		bool createDevice(const SelectedDeviceConfiguration& config);
 
-		const PhysicalDeviceFeatures* getRequiredPhysicalDeviceFeatures();
-		bool hasRequiredPhysicalDeviceFeatures(const PhysicalDeviceFeatures& features);
+		const PhysicalDeviceInfo* getRequiredPhysicalDeviceFeatures();
+		bool hasRequiredPhysicalDeviceFeatures(const PhysicalDeviceInfo& features);
 
 		void deinitialize();
 

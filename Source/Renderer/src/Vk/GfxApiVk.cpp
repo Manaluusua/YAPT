@@ -14,6 +14,7 @@
 #include <Renderer/Vk/DescriptorSetPoolVk.h>
 #include <Renderer/Vk/DescriptorSetVk.h>
 #include <Renderer/Vk/SwapChainVk.h>
+#include <Renderer/Vk/ShaderTableVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -192,7 +193,7 @@ namespace YAPT
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)
 		{
 			
-			const VkPhysicalDeviceProperties2& props = h->getDeviceProps();
+			const VkPhysicalDeviceProperties2& props = h->getPhysicalDeviceInfo().deviceProperties2;
 			const VkDeviceSize minStorageAlignment = props.properties.limits.minStorageBufferOffsetAlignment;
 			const VkDeviceSize minUniformAlignment = props.properties.limits.minUniformBufferOffsetAlignment;
 
@@ -475,12 +476,11 @@ namespace YAPT
 
 		ShaderTableHandle createShaderTable(GfxApiHandle h, RaytracePipelineStateHandle pso, size_t numberOfRayGenShaders, size_t numberOfMissShaders, size_t numberOfHitGroups)
 		{
-			assert(!"NOT IMPLEMENTED!");
-			return nullptr;
+			return ShaderTableVk::createShaderTable(h, pso, numberOfRayGenShaders, numberOfMissShaders, numberOfHitGroups);
 		}
 		void destroyShaderTable(GfxApiHandle h, ShaderTableHandle shaderTable)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			delete shaderTable;
 		}
 
 

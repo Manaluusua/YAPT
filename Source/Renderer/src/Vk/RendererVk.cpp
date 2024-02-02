@@ -356,7 +356,6 @@ namespace YAPT
 		checkForVkError(res);
 
 		m_physicalDeviceInfos.devices.resize(deviceCount);
-		m_physicalDeviceInfos.properties.resize(deviceCount);
 		m_physicalDeviceInfos.features.resize(deviceCount);
 		m_physicalDeviceInfos.queueFamilyProperties.resize(deviceCount);
 		m_physicalDeviceInfos.supportsPresent.resize(deviceCount);
@@ -370,11 +369,10 @@ namespace YAPT
 
 			uint32_t queueFamilyCount;
 
-			m_physicalDeviceInfos.properties[deviceIndex].sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-
 			const VkPhysicalDevice& physicalDevice = m_physicalDeviceInfos.devices[deviceIndex];
-			vkGetPhysicalDeviceProperties2(physicalDevice, &m_physicalDeviceInfos.properties[deviceIndex]);
+			vkGetPhysicalDeviceProperties2(physicalDevice, &m_physicalDeviceInfos.features[deviceIndex].deviceProperties2);
 			vkGetPhysicalDeviceFeatures2(physicalDevice, &m_physicalDeviceInfos.features[deviceIndex].baseFeatures);
+			
 			vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, NULL);
 
 
@@ -522,7 +520,7 @@ namespace YAPT
 	{
 		for (size_t deviceIndex = 0; deviceIndex < m_physicalDeviceInfos.devices.size(); ++deviceIndex)
 		{
-			YAPT_LOG_DEBUG("Found device %s with %d queue families", m_physicalDeviceInfos.properties[deviceIndex].properties.deviceName, m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size());
+			YAPT_LOG_DEBUG("Found device %s with %d queue families", m_physicalDeviceInfos.features[deviceIndex].deviceProperties2.properties.deviceName, m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size());
 			for (size_t queueFamilyIndex = 0; queueFamilyIndex < m_physicalDeviceInfos.queueFamilyProperties[deviceIndex].size(); ++queueFamilyIndex)
 			{
 				VkQueueFamilyProperties& prop = m_physicalDeviceInfos.queueFamilyProperties[deviceIndex][queueFamilyIndex];
@@ -677,9 +675,9 @@ namespace YAPT
 		return checkForVkError(res);
 	}
 
-	const RendererVk::PhysicalDeviceFeatures* RendererVk::getRequiredPhysicalDeviceFeatures()
+	const RendererVk::PhysicalDeviceInfo* RendererVk::getRequiredPhysicalDeviceFeatures()
 	{
-		static PhysicalDeviceFeatures f;
+		static PhysicalDeviceInfo f;
 
 
 		//vanilla vulkan features
@@ -718,7 +716,7 @@ namespace YAPT
 		return &f;
 	}
 
-	bool RendererVk::hasRequiredPhysicalDeviceFeatures(const RendererVk::PhysicalDeviceFeatures& features)
+	bool RendererVk::hasRequiredPhysicalDeviceFeatures(const RendererVk::PhysicalDeviceInfo& features)
 	{
 		//TODO: actually check all the required elements
 		if (

@@ -304,7 +304,7 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/DescriptorSetPoolVk.h
 		inc/Renderer/Vk/DescriptorSetVk.h
 		inc/Renderer/Vk/QueueTransitionHelperVk.h
-	
+		inc/Renderer/Vk/ShaderTableVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -331,6 +331,7 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/DescriptorSetPoolVk.cpp
 		src/Vk/DescriptorSetVk.cpp
 		src/Vk/QueueTransitionHelperVk.cpp
+		src/Vk/ShaderTableVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

@@ -16,11 +16,13 @@ namespace YAPT
 	class SwapChainVk;
 	class RaytracePipelineStateVk;
 	class ResourceAllocationPoolVk;
+	class ShaderTableVk;
 	struct ShaderModuleVk;
 	struct TextureHandleVk;
 	struct BufferHandleVk;
 	struct BufferViewVk;
 	struct RenderPassHandleVk;
+	
 
 	typedef void* BottomLevelAccelerationStructureHandle;
 	typedef void* TopLevelAccelerationStructureHandle;
@@ -43,7 +45,7 @@ namespace YAPT
 	typedef VkSampler SamplerHandle;
 	typedef DescriptorSetPoolVk* DescriptorSetPoolHandle;
 	typedef DescriptorSetVk* DescriptorSetHandle;
-	typedef void* ShaderTableHandle;
+	typedef ShaderTableVk* ShaderTableHandle;
 
 	struct QueueDefinitionVk
 	{
