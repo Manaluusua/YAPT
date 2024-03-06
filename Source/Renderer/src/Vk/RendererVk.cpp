@@ -547,6 +547,7 @@ namespace YAPT
 		LOAD_DEVICE_PROC(vkCmdTraceRaysIndirectKHR);
 		LOAD_DEVICE_PROC(vkGetRayTracingShaderGroupStackSizeKHR);
 		LOAD_DEVICE_PROC(vkCmdSetRayTracingPipelineStackSizeKHR);
+		LOAD_DEVICE_PROC(vkGetRayTracingShaderGroupHandlesKHR);
 	}
 
 	bool RendererVk::createDevice(const SelectedDeviceConfiguration& config)
@@ -686,8 +687,8 @@ namespace YAPT
 		f.baseFeatures.features.shaderStorageImageArrayDynamicIndexing = VK_TRUE;
 		f.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
 		f.baseFeatures.features.shaderStorageImageReadWithoutFormat = VK_TRUE;
-		//descriptor indexing features
 
+		//descriptor indexing features
 		f.descIndexingFeatures.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
 		f.descIndexingFeatures.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
 		f.descIndexingFeatures.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
@@ -708,10 +709,14 @@ namespace YAPT
 		f.descIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 		f.descIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
 		f.descIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+
+		//device address
+		f.deviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
 		
 		//rt pipeline features
 		f.rayTracePipelineFeatures.rayTracingPipeline = VK_TRUE;
 		f.rayQueryFeatures.rayQuery = VK_TRUE;
+
 		
 		return &f;
 	}

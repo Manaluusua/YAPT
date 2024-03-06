@@ -30,13 +30,16 @@ namespace YAPT
 				descIndexingFeatures{},
 				rayTracePipelineFeatures{},
 				rayQueryFeatures{},
+				deviceAddressFeatures{},
 				deviceProperties2{},
 				raytracePipelineProperties{}
+				
 			{
 				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
 				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
 				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
+				deviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_ADDRESS_FEATURES_EXT;
 
 				deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 				raytracePipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
@@ -45,6 +48,7 @@ namespace YAPT
 				baseFeatures.pNext = &descIndexingFeatures;
 				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
 				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
+				rayQueryFeatures.pNext = &deviceAddressFeatures;
 
 				//properties
 				deviceProperties2.pNext = &raytracePipelineProperties;
@@ -55,6 +59,7 @@ namespace YAPT
 			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
 			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
 			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
+			VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddressFeatures;
 
 			VkPhysicalDeviceProperties2 deviceProperties2;
 			VkPhysicalDeviceRayTracingPipelinePropertiesKHR  raytracePipelineProperties;
@@ -103,6 +108,8 @@ namespace YAPT
 		PFN_vkCmdTraceRaysIndirectKHR vkCmdTraceRaysIndirectKHR;
 		PFN_vkGetRayTracingShaderGroupStackSizeKHR vkGetRayTracingShaderGroupStackSizeKHR;
 		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
+		PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+
 	private:
 
 		

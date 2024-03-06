@@ -8,6 +8,9 @@ namespace YAPT
 {
 	RaytracePipelineStateVk* RaytracePipelineStateVk::create(RendererVk* renderer, const RaytracePipelineStateDesc& desc)
 	{
+		VkDevice device = renderer->getDevice();
+		const auto& props = renderer->getPhysicalDeviceInfo().raytracePipelineProperties;
+
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkRayTracingPipelineCreateInfoKHR createInfo{};
 		createInfo.pNext = NULL;
@@ -132,8 +135,8 @@ namespace YAPT
 		createInfo.pGroups = groupsArray.data();
 
 
-		VkResult res = renderer->vkCreateRayTracingPipelinesKHR(renderer->getDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
-		assert(res == VK_SUCCESS);
+		VkResult res = renderer->vkCreateRayTracingPipelinesKHR(device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
+		checkVkResult(res);
 
 		RaytracePipelineStateVk* rtPipeline = new RaytracePipelineStateVk();
 		rtPipeline->m_pipeline = pipeline;
@@ -141,6 +144,18 @@ namespace YAPT
 		rtPipeline->m_missConstantsSizeInBytes = desc.missShaderTableConstantsSizeInBytes;
 		rtPipeline->m_rayGenConstantsSizeInBytes = desc.rayGenShaderTableConstantsSizeInBytes;
 
+
+		{
+			size_t overallHandleCount = groupsArray.size();
+			VkDeviceSize handlesBufferSize = overallHandleCount * props.shaderGroupHandleSize;
+			rtPipeline->m_handles.resize(handlesBufferSize);
+			rtPipeline->m_handleSize = props.shaderGroupHandleSize;
+
+			res = renderer->vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0u, (uint32_t)overallHandleCount, handlesBufferSize, rtPipeline->m_handles.data());
+			checkVkResult(res);
+		}
+
+		
 		return rtPipeline;
 	}
 
