@@ -71,8 +71,13 @@ namespace YAPT
 			shdInfo.flags = 0;
 		}*/
 
+		size_t hitGroupOffset;
+		size_t missGroupOffset;
+		size_t rayGenGroupOffset;
+
 		//convert groups
 		size_t groupsArrayIndex = 0;
+		hitGroupOffset = groupsArrayIndex;
 		for (size_t i = 0; i < desc.numberOfHitGroupDescription; ++i, ++groupsArrayIndex)
 		{
 			const RayHitGroupDescription& groupDescSrc = desc.hitGroupDescriptions[i];
@@ -91,6 +96,7 @@ namespace YAPT
 			groupsEntry.anyHitShader = groupDescSrc.anyHitShaderIndex == YAPT_NULL_INDEX ? VK_SHADER_UNUSED_KHR : addShaderStage(groupDescSrc.anyHitShaderIndex, ShaderStageBits::SHADERSTAGE_RT_ANY_HIT);
 		}
 
+		rayGenGroupOffset = groupsArrayIndex;
 		for (size_t i = 0; i < desc.numberOfRayGenerationDescription; ++i, ++groupsArrayIndex)
 		{
 			const RayGenerationDescription& rayGenDesc = desc.rayGenerationDescriptions[i];
@@ -111,6 +117,7 @@ namespace YAPT
 			
 		}
 
+		missGroupOffset = groupsArrayIndex;
 		for (size_t i = 0; i < desc.numberOfRayMissDescription; ++i, ++groupsArrayIndex)
 		{
 			const RayMissDescription& missDesc = desc.rayMissDescriptions[i];
@@ -143,15 +150,18 @@ namespace YAPT
 		rtPipeline->m_hitGroupConstantsSizeInBytes = desc.hitGroupShaderTableConstantsSizeInBytes;
 		rtPipeline->m_missConstantsSizeInBytes = desc.missShaderTableConstantsSizeInBytes;
 		rtPipeline->m_rayGenConstantsSizeInBytes = desc.rayGenShaderTableConstantsSizeInBytes;
+		rtPipeline->m_hitGroupIndexOffset = hitGroupOffset;
+		rtPipeline->m_rayGenIndexOffset = rayGenGroupOffset;
+		rtPipeline->m_missGroupIndexOffset = missGroupOffset;
 
 
 		{
 			size_t overallHandleCount = groupsArray.size();
 			VkDeviceSize handlesBufferSize = overallHandleCount * props.shaderGroupHandleSize;
-			rtPipeline->m_handles.resize(handlesBufferSize);
+			rtPipeline->m_shaderGroupHandles.resize(handlesBufferSize);
 			rtPipeline->m_handleSize = props.shaderGroupHandleSize;
 
-			res = renderer->vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0u, (uint32_t)overallHandleCount, handlesBufferSize, rtPipeline->m_handles.data());
+			res = renderer->vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0u, (uint32_t)overallHandleCount, handlesBufferSize, rtPipeline->m_shaderGroupHandles.data());
 			checkVkResult(res);
 		}
 

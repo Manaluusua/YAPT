@@ -112,61 +112,20 @@ namespace YAPT
 
 		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
-			TextureHandleVk* texHandle = new TextureHandleVk(*h->getResourceManager());
-			yaptTextureDescToVk(desc, texHandle->createInfo);
-			texHandle->dimensions = desc.dimension;
-			texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
-			texHandle->owningQueueFamily = h->getGraphicsQueue().queueFamilyIndex;
-#ifdef VK_DEBUGNAMES_ENABLE
-			if (name)
-			{
-				texHandle->name = std::string(name);
-			}
-#endif
-			VkResult res = vkCreateImage(h->getDevice(), &texHandle->createInfo, VK_ALLOC_CB, &texHandle->image);
-			checkVkResult(res);
-
-			if (res != VK_SUCCESS)
-			{
-				delete texHandle;
-				texHandle = nullptr;
-			}
-
-			return texHandle;
+			return h->getResourceManager()->createTexture(desc, initialState, h->getGraphicsQueue().queueFamilyIndex, name);
 		}
 		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
-			BufferHandleVk* buffHandle = new BufferHandleVk(*h->getResourceManager());
-			yaptBufferDescToVk(desc, buffHandle->createInfo);
-#ifdef VK_DEBUGNAMES_ENABLE
-			if (name)
-			{
-				buffHandle->name = std::string(name);
-			}
-#endif
-			VkResult res = vkCreateBuffer(h->getDevice(), &buffHandle->createInfo, VK_ALLOC_CB, &buffHandle->buffer);
-			checkVkResult(res);
-
-			buffHandle->owningQueueFamily = h->getGraphicsQueue().queueFamilyIndex;
-
-			if (res != VK_SUCCESS)
-			{
-				delete buffHandle;
-				buffHandle = nullptr;
-			}
-
-			return buffHandle;
+			return h->getResourceManager()->createBuffer(desc, initialState, h->getGraphicsQueue().queueFamilyIndex, name);
 		}
 
 		void destroyTexture(GfxApiHandle h, TextureHandle handle)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(handle->image);
-			delete handle;
+			h->getResourceManager()->destroyTexture(handle);
 		}
 		void destroyBuffer(GfxApiHandle h, BufferHandle handle)
 		{
-			h->getResourceManager()->deferredDestroyVkResource(handle->buffer);
-			delete handle;
+			h->getResourceManager()->destroyBuffer(handle);
 		}
 
 		void uploadBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
@@ -489,7 +448,8 @@ namespace YAPT
 			const ShaderTableEntry* missBindings, size_t numberOfMissBindings,
 			const ShaderTableEntry* hitGroupBindings, size_t numberOfHitGroupBindings)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			shaderTable->writeShaderTableEntries(rayGenBindings, numberOfRayGenBindings, missBindings, numberOfMissBindings,
+				hitGroupBindings, numberOfHitGroupBindings);
 		}
 		RenderGraph* createRenderGraph(GfxApiHandle h)
 		{

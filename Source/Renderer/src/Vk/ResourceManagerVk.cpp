@@ -3,6 +3,7 @@
 #include <Renderer/Vk/UploadHelperVk.h>
 #include <Renderer/Vk/ResourceHandlesVk.h>
 #include <Renderer/Vk/ShaderModuleVk.h>
+#include <Renderer/Vk/YaptToVkConversions.h>
 
 #include <assert.h>
 
@@ -226,6 +227,65 @@ namespace YAPT
 		}
 	}
 	 
+	BufferHandleVk* ResourceManagerVk::createBuffer(const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name)
+	{
+		BufferHandleVk* buffHandle = new BufferHandleVk(*this);
+		yaptBufferDescToVk(desc, buffHandle->createInfo);
+#ifdef VK_DEBUGNAMES_ENABLE
+		if (name)
+		{
+			buffHandle->name = std::string(name);
+		}
+#endif
+		VkResult res = vkCreateBuffer(getDevice(), &buffHandle->createInfo, VK_ALLOC_CB, &buffHandle->buffer);
+		checkVkResult(res);
+
+		buffHandle->owningQueueFamily = owningQueueFamily;
+
+		if (res != VK_SUCCESS)
+		{
+			delete buffHandle;
+			buffHandle = nullptr;
+		}
+		return buffHandle;
+	}
+
+	TextureHandleVk* ResourceManagerVk::createTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name)
+	{
+		TextureHandleVk* texHandle = new TextureHandleVk(*this);
+		yaptTextureDescToVk(desc, texHandle->createInfo);
+		texHandle->dimensions = desc.dimension;
+		texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
+		texHandle->owningQueueFamily = owningQueueFamily;
+#ifdef VK_DEBUGNAMES_ENABLE
+		if (name)
+		{
+			texHandle->name = std::string(name);
+		}
+#endif
+		VkResult res = vkCreateImage(getDevice(), &texHandle->createInfo, VK_ALLOC_CB, &texHandle->image);
+		checkVkResult(res);
+
+		if (res != VK_SUCCESS)
+		{
+			delete texHandle;
+			texHandle = nullptr;
+		}
+
+		return texHandle;
+	}
+
+	void ResourceManagerVk::destroyBuffer(BufferHandleVk* handle)
+	{
+		deferredDestroyVkResource(handle->buffer);
+		delete handle;
+	}
+
+	void ResourceManagerVk::destroyTexture(TextureHandleVk* handle)
+	{
+		deferredDestroyVkResource(handle->image);
+		delete handle;
+	}
 
 	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{

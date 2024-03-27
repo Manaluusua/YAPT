@@ -346,7 +346,7 @@ namespace YAPT
 
 	struct ShaderTableEntry
 	{
-		size_t shaderIndexInPso;
+		size_t shaderIndexInPso; //shader index in pso (for a given type, ie. raygen, miss and hit groups all start from 0)
 		size_t shaderTableIndex;
 		uint8_t* shaderTableExtraData;
 		size_t extraDataInBytes;

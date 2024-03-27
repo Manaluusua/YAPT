@@ -36,6 +36,10 @@ namespace YAPT
 		void flushPreFrameUploads(VkSemaphore semaphoreToWaitBeforeUploads);
 		void flushFrameUploads();
 
+		BufferHandleVk* createBuffer(const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name);
+		TextureHandleVk* createTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name);
+		void destroyBuffer(BufferHandleVk* handle);
+		void destroyTexture(TextureHandleVk* handle);
 
 		VkDevice getDevice() const { return m_device; }
 
