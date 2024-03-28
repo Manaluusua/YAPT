@@ -31,11 +31,14 @@ namespace YAPT
 		size_t imageViews = 0;
 		size_t texelBufferViews = 0;
 
+		size_t updatesWritten = 0;
 		for (size_t i = 0; i < updateCount; ++i)
 		{
 
-			VkWriteDescriptorSet& descSetWrite = descSetWrites[i];
+			VkWriteDescriptorSet& descSetWrite = descSetWrites[updatesWritten];
 			const DescriptorSetUpdate& descSetSrc = updates[i];
+
+			if (!m_layout->hasBindingAtIndex(descSetSrc.dstBinding)) continue; //skip if the entry is not found from layout (likely been optimized out)
 
 			descSetWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 			descSetWrite.pNext = NULL;
@@ -45,7 +48,6 @@ namespace YAPT
 			descSetWrite.dstBinding = descSetSrc.dstBinding;
 			descSetWrite.dstSet = m_set;
 
-			assert(m_layout->hasBindingAtIndex(descSetSrc.dstBinding));
 			descSetWrite.descriptorType = yaptDescriptorTypeToVk(m_layout->getDescriptorLayoutBinding(descSetSrc.dstBinding).type);
 
 			switch (descSetWrite.descriptorType)
@@ -72,6 +74,8 @@ namespace YAPT
 				break;
 
 			}
+
+			++updatesWritten;
 		}
 
 		m_descriptorBufferInfoScratch.resize(bufferViews);
@@ -82,11 +86,14 @@ namespace YAPT
 		size_t bufferDescIndex = 0;
 		size_t imageDescIndex = 0;
 		size_t texelBufferDescIndex = 0;
+		updatesWritten = 0;
 
 		for (size_t i = 0; i < updateCount; ++i)
 		{
-			VkWriteDescriptorSet& descSetWrite = descSetWrites[i];
+			VkWriteDescriptorSet& descSetWrite = descSetWrites[updatesWritten];
 			const DescriptorSetUpdate& descSetSrc = updates[i];
+
+			if (!m_layout->hasBindingAtIndex(descSetSrc.dstBinding)) continue; //skip if the entry is not found from layout (likely been optimized out)
 
 			switch (descSetWrite.descriptorType)
 			{
@@ -150,10 +157,12 @@ namespace YAPT
 				break;
 
 			}
+
+			++updatesWritten;
 		}
 
 
-		vkUpdateDescriptorSets(m_renderer->getDevice(), (uint32_t)updateCount, descSetWrites.data(), 0, NULL);
+		vkUpdateDescriptorSets(m_renderer->getDevice(), (uint32_t)updatesWritten, descSetWrites.data(), 0, NULL);
 	}
 
 }
