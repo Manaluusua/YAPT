@@ -19,6 +19,7 @@ namespace YAPT
 	class SubmissionThreadVk;
 	class UploadHelperVk;
 	class CommandBufferPoolVk;
+	class AccelerationStructureBuilder;
 
 	class ResourceManagerVk
 	{
@@ -58,6 +59,7 @@ namespace YAPT
 		void resetCommandBufferPools(size_t pipelineFrameIndex);
 
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
+		AccelerationStructureBuilder* getAccelerationStructureBuilder() { return m_accStructBuilder; }
 
 		void overrideLastSignaledSemaphore(VkSemaphore sem) { m_lastSignaledSemaphore = sem; }
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }
@@ -116,6 +118,8 @@ namespace YAPT
 
 		UploadHelperVk* m_preFrameUploads;
 		UploadHelperVk* m_duringFrameUploads;
+
+		AccelerationStructureBuilder* m_accStructBuilder;
 
 		//command buffer pools
 		std::vector<CommandBufferPoolVk*> m_commandBufferPools;

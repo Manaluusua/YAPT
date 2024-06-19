@@ -15,6 +15,7 @@
 #include <Renderer/Vk/DescriptorSetVk.h>
 #include <Renderer/Vk/SwapChainVk.h>
 #include <Renderer/Vk/ShaderTableVk.h>
+#include <Renderer/Vk/AccelerationStructureBuilderVk.h>
 #include <Math/Math.h>
 #include <unordered_map>
 
@@ -223,28 +224,28 @@ namespace YAPT
 		 
 		void allocateBottomLevelAccelerationStructures(GfxApiHandle h, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->allocateBottomLevelAccelerationStructures(definitions, numberOfDefinitions, blasArrayOut);
 		}
 		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->buildBottomLevelAccelerationStructures(buff, definitions, numberOfDefinitions, blasArray);
 		}
 		void destroyBottomLevelAccelerationStructures(GfxApiHandle h, BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->destroyBottomLevelAccelerationStructures(structures, numberOfStructures);
 		}
 
 		void allocateTopLevelAccelerationStructures(GfxApiHandle h, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->allocateTopLevelAccelerationStructures(definitions, numberOfDefinitions, tlasArray);
 		}
 		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->buildTopLevelAccelerationStructures(buff, definitions, numberOfDefinitions, tlasArray);
 		}
 		void destroyTopLevelAccelerationStructures(GfxApiHandle h, TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			h->getResourceManager()->getAccelerationStructureBuilder()->destroyTopLevelAccelerationStructures(structures, numberOfStructures);
 		}
 
 

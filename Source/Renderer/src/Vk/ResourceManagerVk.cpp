@@ -4,6 +4,7 @@
 #include <Renderer/Vk/ResourceHandlesVk.h>
 #include <Renderer/Vk/ShaderModuleVk.h>
 #include <Renderer/Vk/YaptToVkConversions.h>
+#include <Renderer/Vk/AccelerationStructureBuilderVk.h>
 
 #include <assert.h>
 
@@ -16,6 +17,7 @@ namespace YAPT
 		m_pipelineLength(pipelineLength),
 		m_device(device),
 		m_physicalDevice(physicalDevice),
+		m_accStructBuilder(nullptr),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
 		m_destroyObjectsIndex(0)
@@ -25,6 +27,7 @@ namespace YAPT
 
 		m_preFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
 		m_duringFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
+		m_accStructBuilder = new AccelerationStructureBuilder(*this);
 		m_lastSignaledSemaphore = VK_NULL_HANDLE;
 	}
 	ResourceManagerVk::~ResourceManagerVk()
