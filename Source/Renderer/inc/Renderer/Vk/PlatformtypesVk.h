@@ -22,10 +22,12 @@ namespace YAPT
 	struct BufferHandleVk;
 	struct BufferViewVk;
 	struct RenderPassHandleVk;
+	class BottomLevelAccelerationStructure;
+	class TopLevelAccelerationStructure;
 	
 
-	typedef void* BottomLevelAccelerationStructureHandle;
-	typedef void* TopLevelAccelerationStructureHandle;
+	typedef BottomLevelAccelerationStructure* BottomLevelAccelerationStructureHandle;
+	typedef TopLevelAccelerationStructure* TopLevelAccelerationStructureHandle;
 	typedef RendererVk* GfxApiHandle;
 	typedef TextureHandleVk* TextureHandle;
 	typedef BufferHandleVk* BufferHandle;

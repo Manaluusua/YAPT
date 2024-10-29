@@ -31,10 +31,22 @@ namespace YAPT
 
 	bool ResourceAllocationPoolVk::allocate(TextureHandle* textures, size_t textureCount, BufferHandle* buffers, size_t bufferCount, ResourcePoolType type)
 	{
+		struct SortedMemoryEntries
+		{
+			SortedMemoryEntries()
+				:needsDeviceAddneedsDeviceAddressMemoryressMemory(false)
+			{
+
+			}
+			std::vector<size_t> entries;
+			bool needsDeviceAddneedsDeviceAddressMemoryressMemory;
+		};
+
 		assert(type == ResourcePoolType::RESOURCEPOOL_TYPE_DEFAULT); //others not implemented
 		VkDevice device = m_resourceMngr.getDevice();
 		std::vector<VkMemoryRequirements> memReq;
-		std::unordered_map<uint32_t, std::vector<size_t>> sortedByMemoryTypeBits;
+		std::unordered_map<uint32_t, SortedMemoryEntries> sortedByMemoryTypeBits;
+
 		memReq.resize(textureCount + bufferCount);
 
 		VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
@@ -54,20 +66,20 @@ namespace YAPT
 		for (size_t i = 0; i < textureCount; ++i)
 		{
 			vkGetImageMemoryRequirements(device, textures[i]->image, &memReq[i]);
-			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].push_back(i);
+			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].entries.push_back(i);
 		}
 
 		for (size_t i = 0; i < bufferCount; ++i)
 		{
 			vkGetBufferMemoryRequirements(device, buffers[i]->buffer, &memReq[textureCount + i]);
-			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].push_back(textureCount + i);
+			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].entries.push_back(textureCount + i);
 		}
 
 		std::vector<size_t> offsets;
 		for (auto iter = sortedByMemoryTypeBits.begin(); iter != sortedByMemoryTypeBits.end(); ++iter)
 		{
 			size_t allocationSize = 0;
-			std::vector<size_t>& indices = iter->second;
+			std::vector<size_t>& indices = iter->second.entries;
 			offsets.resize(indices.size());
 			for (size_t i = 0; i < indices.size(); ++i)
 			{
@@ -77,9 +89,10 @@ namespace YAPT
 				offsets[i] = allocationSize;
 				allocationSize += memReq[index].size;
 			}
+			
 
 			ResourceManagerVk::AllocatedMemoryInfo allocation;
-			bool success = m_resourceMngr.allocateDeviceMemory(iter->first, memoryFlags, allocationSize, allocation);
+			bool success = m_resourceMngr.allocateDeviceMemory(iter->first, memoryFlags, allocationSize, iter->second.needsDeviceAddneedsDeviceAddressMemoryressMemory, allocation);
 			if (!success)
 			{
 				return false;

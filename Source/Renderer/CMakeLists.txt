@@ -306,6 +306,7 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/QueueTransitionHelperVk.h
 		inc/Renderer/Vk/ShaderTableVk.h
 		inc/Renderer/Vk/AccelerationStructureBuilderVk.h
+		inc/Renderer/Vk/AccelerationStructuresVk.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -334,6 +335,7 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/QueueTransitionHelperVk.cpp
 		src/Vk/ShaderTableVk.cpp
 		src/Vk/AccelerationStructureBuilderVk.cpp
+		src/Vk/AccelerationStructuresVk.cpp
 		)
 		
 	target_compile_definitions(Renderer 

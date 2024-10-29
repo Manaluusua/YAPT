@@ -1,6 +1,8 @@
 #include <Renderer/Vk/AccelerationStructureBuilderVk.h>
 #include <Common/CommonUtilities.h>
 #include <vector>
+#include <Renderer/Vk/AccelerationStructuresVk.h>
+#include <Renderer/Vk/ResourceManagerVk.h>
 
 namespace YAPT
 {
@@ -13,7 +15,16 @@ namespace YAPT
 
 	void AccelerationStructureBuilder::allocateBottomLevelAccelerationStructures(const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)
 	{
-		assert(!"NOT IMPLEMENTED!");
+
+		for (size_t blasInd = 0; blasInd < numberOfDefinitions; ++blasInd)
+		{
+			const BottomLevelAccelerationStructureDefinition& def = definitions[blasInd];
+			BottomLevelAccelerationStructure* blas = new BottomLevelAccelerationStructure(m_resourceMngr, def);
+			blasArrayOut[blasInd] = blas;
+			
+		}
+
+
 	}
 	void AccelerationStructureBuilder::buildBottomLevelAccelerationStructures(VkCommandBuffer cmdList, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray)
 	{

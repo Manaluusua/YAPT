@@ -272,6 +272,27 @@ namespace YAPT
 #undef FORMAT_CONV
 	}
 
+	inline VkIndexType yaptFormatToVkIndex(ResourceFormat format)
+	{
+		switch (format)
+		{
+		case ResourceFormat::R32_UINT:
+		case ResourceFormat::R32_SINT:
+			return VkIndexType::VK_INDEX_TYPE_UINT32;
+
+		case ResourceFormat::R16_UINT:
+		case ResourceFormat::R16_SINT:
+			return VkIndexType::VK_INDEX_TYPE_UINT16;
+
+		case ResourceFormat::R8_UINT:
+		case ResourceFormat::R8_SINT:
+			return VkIndexType::VK_INDEX_TYPE_UINT8_EXT;
+
+		default:
+			return VkIndexType::VK_INDEX_TYPE_NONE_KHR;
+		}
+	}
+
 	inline VkFilter yaptFilterToVk(Filter filter)
 	{
 		switch (filter)
@@ -820,6 +841,11 @@ namespace YAPT
 		infoOut.size = desc.sizeInBytes;
 		infoOut.usage = yaptUsageToVk(desc.resourceUsage);
 		infoOut.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+		if ((desc.resourceUsage & RESOURCE_USAGE_VERTEX_BUFFER) | (desc.resourceUsage & RESOURCE_USAGE_INDEX_BUFFER))
+		{
+			infoOut.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
+		}
 	}
 
 	inline void yaptTextureDescToVk(const YAPT::TextureDesc& desc, VkImageCreateInfo& infoOut, bool useLinearMemory = false)

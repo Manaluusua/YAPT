@@ -82,7 +82,7 @@ namespace YAPT
 		//memory
 		{
 			ResourceManagerVk::AllocatedMemoryInfo memInfo;
-			bool success = mngr.allocateDeviceMemory(memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryReq.size, memInfo);
+			bool success = mngr.allocateDeviceMemory(memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryReq.size, false, memInfo);
 			m_memory = memInfo.memory;
 			assert(success);
 		}

@@ -44,7 +44,7 @@ namespace YAPT
 
 		VkDevice getDevice() const { return m_device; }
 
-		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, AllocatedMemoryInfo& out);
+		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out);
 
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
@@ -60,6 +60,14 @@ namespace YAPT
 
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 		AccelerationStructureBuilder* getAccelerationStructureBuilder() { return m_accStructBuilder; }
+
+		VkDeviceAddress GetDeviceAddress(VkBuffer buff)
+		{
+			VkBufferDeviceAddressInfo info{};
+			info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+			info.buffer = buff;
+			return vkGetBufferDeviceAddress(m_device, &info);
+		}
 
 		void overrideLastSignaledSemaphore(VkSemaphore sem) { m_lastSignaledSemaphore = sem; }
 		VkSemaphore getLastSignaledSemaphore() { return m_lastSignaledSemaphore; }

@@ -98,7 +98,7 @@ namespace YAPT
 	}
 
 	
-	bool ResourceManagerVk::allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, AllocatedMemoryInfo& out)
+	bool ResourceManagerVk::allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out)
 	{
 		for (uint32_t i = 0; i < m_memoryProps.memoryTypeCount; ++i)
 		{
@@ -108,6 +108,15 @@ namespace YAPT
 				info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 				info.allocationSize = size;
 				info.memoryTypeIndex = i;
+
+				//TODO: check if actually needed
+				VkMemoryAllocateFlagsInfoKHR flags_info{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR };
+				flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+				if (requireDeviceAddress)
+				{
+					info.pNext = &flags_info;
+				}
+				
 
 				VkDeviceMemory memory;
 				VkResult res = vkAllocateMemory(m_device, &info, VK_ALLOC_CB, &memory);
