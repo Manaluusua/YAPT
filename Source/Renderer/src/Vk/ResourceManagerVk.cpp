@@ -11,13 +11,14 @@
 
 namespace YAPT
 {
-	ResourceManagerVk::ResourceManagerVk(VkPhysicalDevice physicalDevice, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength)
+	ResourceManagerVk::ResourceManagerVk(VkPhysicalDevice physicalDevice, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength)
 		:m_submissionThread(submissionThread),
 		m_copyQueue(copyQueue),
 		m_pipelineLength(pipelineLength),
 		m_device(device),
 		m_physicalDevice(physicalDevice),
 		m_accStructBuilder(nullptr),
+		m_extensionFuncs(extFuncs),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
 		m_destroyObjectsIndex(0)

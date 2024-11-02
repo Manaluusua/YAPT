@@ -23,7 +23,7 @@ namespace YAPT
 		VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_uploadBuffer);
 		
 		ResourceManagerVk::AllocatedMemoryInfo memInfo;
-		bool success = resourceMngr.allocateDeviceMemory(0xFFFFFFFF, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, heapSize, false, memInfo);
+		bool success = resourceMngr.allocateDeviceMemory(ResourceManagerVk::ALLOW_ALL_MEMORY_TYPES, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, heapSize, false, memInfo);
 		m_deviceMemory = memInfo.memory;
 
 		res = vkBindBufferMemory(m_resMngr.getDevice(), m_uploadBuffer, m_deviceMemory, 0);

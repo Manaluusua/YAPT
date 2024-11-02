@@ -307,6 +307,7 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/ShaderTableVk.h
 		inc/Renderer/Vk/AccelerationStructureBuilderVk.h
 		inc/Renderer/Vk/AccelerationStructuresVk.h
+		inc/Renderer/Vk/VkExtensions.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp

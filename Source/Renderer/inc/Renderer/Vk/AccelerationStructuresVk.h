@@ -11,13 +11,16 @@ namespace YAPT
 	{
 	public:
 		BottomLevelAccelerationStructure(ResourceManagerVk& resMngr, const BottomLevelAccelerationStructureDefinition& def);
-		void allocate();
-		void build();
+		void allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags);
+		void build(VkBuildAccelerationStructureFlagsKHR flags);
 
 	private:
 		ResourceManagerVk& m_resMngr;
 		std::vector<VkAccelerationStructureGeometryKHR> m_geometries;
 		std::vector<VkAccelerationStructureBuildRangeInfoKHR> m_buildRanges;
+		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;
+		VkBuffer m_buffer;
+		VkDeviceMemory m_deviceMemory;
 	};
 
 	class TopLevelAccelerationStructure

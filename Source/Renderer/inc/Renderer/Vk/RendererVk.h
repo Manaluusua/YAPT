@@ -2,7 +2,7 @@
 
 #include <Renderer/Renderer.h>
 #include <Renderer/Shared/GfxTypes.h>
-
+#include <Renderer/Vk/VkExtensions.h>
 
 #include <Renderer/Shared/MeshManager.h>
 #include <Renderer/Shared/MaterialManager.h>
@@ -102,13 +102,7 @@ namespace YAPT
 		size_t getFramePipelineLength() const { return m_syncUtility.getFramesInFlight(); }
 		ResourceFormat getSwapChainFormat() const { return m_selectedSwapChainFormat;}
 
-		//extension functions. For now use expose here, could move these somewhere else or or vk loader 
-		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
-		PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
-		PFN_vkCmdTraceRaysIndirectKHR vkCmdTraceRaysIndirectKHR;
-		PFN_vkGetRayTracingShaderGroupStackSizeKHR vkGetRayTracingShaderGroupStackSizeKHR;
-		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
-		PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+		VkExtensions& getVkExtFuncs() { return m_extensionFuncs; }
 
 	private:
 
@@ -154,6 +148,7 @@ namespace YAPT
 		uint32_t m_selectedPhysicalDeviceIndex;
 		SubmissionThreadVk m_submissionThread;
 		SubmissionThreadVk::SubmissionId m_lastSubmitId;
+		VkExtensions m_extensionFuncs;
 
 		QueueDefinitionVk m_copyQueue;
 		QueueDefinitionVk m_computeQueue;

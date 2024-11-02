@@ -5,7 +5,7 @@
 #include <Renderer/Shared/GfxApi.h>
 #include <Common/CommonUtilities.h>
 #include <Common/GrowingMultiProducerPendingList.h>
-
+#include <Renderer/Vk/VkExtensions.h>
 #include <Renderer/Vk/ResourceUtilityVk.h>
 
 #include <vector>
@@ -24,13 +24,14 @@ namespace YAPT
 	class ResourceManagerVk
 	{
 	public:
+		static const uint32_t ALLOW_ALL_MEMORY_TYPES = 0xFFFFFFFF;
 		struct AllocatedMemoryInfo
 		{
 			VkDeviceMemory memory;
 			VkMemoryPropertyFlags flags;
 		};
 
-		ResourceManagerVk(VkPhysicalDevice physicalDevice, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength);
+		ResourceManagerVk(VkPhysicalDevice physicalDevice, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength);
 		~ResourceManagerVk();
 
 		void prepare();
@@ -95,6 +96,7 @@ namespace YAPT
 			m_pendingDestroyedObjects[m_destroyObjectsIndex].push_back(entry);
 		}
 
+		VkExtensions& getVkExtFuncs() { return m_extensionFuncs; }
 	private:
 
 		typedef void (*DestroyVkResourceCallback)(VkDevice device, char data[32], const VkAllocationCallbacks* alloc);
@@ -128,6 +130,8 @@ namespace YAPT
 		UploadHelperVk* m_duringFrameUploads;
 
 		AccelerationStructureBuilder* m_accStructBuilder;
+
+		VkExtensions m_extensionFuncs;
 
 		//command buffer pools
 		std::vector<CommandBufferPoolVk*> m_commandBufferPools;

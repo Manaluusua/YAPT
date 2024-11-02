@@ -142,7 +142,7 @@ namespace YAPT
 		createInfo.pGroups = groupsArray.data();
 
 
-		VkResult res = renderer->vkCreateRayTracingPipelinesKHR(device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
+		VkResult res = renderer->getVkExtFuncs().vkCreateRayTracingPipelinesKHR(device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &createInfo, VK_ALLOC_CB, &pipeline);
 		checkVkResult(res);
 
 		RaytracePipelineStateVk* rtPipeline = new RaytracePipelineStateVk();
@@ -161,7 +161,7 @@ namespace YAPT
 			rtPipeline->m_shaderGroupHandles.resize(handlesBufferSize);
 			rtPipeline->m_handleSize = props.shaderGroupHandleSize;
 
-			res = renderer->vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0u, (uint32_t)overallHandleCount, handlesBufferSize, rtPipeline->m_shaderGroupHandles.data());
+			res = renderer->getVkExtFuncs().vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0u, (uint32_t)overallHandleCount, handlesBufferSize, rtPipeline->m_shaderGroupHandles.data());
 			checkVkResult(res);
 		}
 

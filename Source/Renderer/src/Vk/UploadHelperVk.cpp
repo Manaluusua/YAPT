@@ -173,7 +173,7 @@ namespace YAPT
 		buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buff);
-		bool success = m_resMngr.allocateDeviceMemory(0xFFFFFFFF, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeRequested, false, memInfo);
+		bool success = m_resMngr.allocateDeviceMemory(ResourceManagerVk::ALLOW_ALL_MEMORY_TYPES, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, sizeRequested, false, memInfo);
 
 		res = vkBindBufferMemory(m_resMngr.getDevice(), buff, memInfo.memory, 0);
 

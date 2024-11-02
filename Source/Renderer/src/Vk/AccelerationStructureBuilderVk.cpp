@@ -20,6 +20,7 @@ namespace YAPT
 		{
 			const BottomLevelAccelerationStructureDefinition& def = definitions[blasInd];
 			BottomLevelAccelerationStructure* blas = new BottomLevelAccelerationStructure(m_resourceMngr, def);
+			blas->allocate(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 			blasArrayOut[blasInd] = blas;
 			
 		}

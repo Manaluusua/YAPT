@@ -8,15 +8,9 @@
 #define PRINT_AVAILABLE_INSTANCE_EXTENSIONS
 #define PRINT_QUEUE_FAMILY_PROPERTIES
 
-#define LOAD_INSTANCE_PROC_TO_VAR(var, name) var = reinterpret_cast<PFN_##name>(vkGetInstanceProcAddr(m_instance, #name))
-#define LOAD_INSTANCE_PROC(name) LOAD_INSTANCE_PROC_TO_VAR(name, name)
-#define LOAD_DEVICE_PROC_TO_VAR(var, name) var = reinterpret_cast<PFN_##name>(vkGetDeviceProcAddr(m_device, #name))
-#define LOAD_DEVICE_PROC(name) LOAD_DEVICE_PROC_TO_VAR(name, name)
+
 
 #ifdef ENABLE_VK_DEBUG_LAYERS
-PFN_vkCreateDebugReportCallbackEXT s_createDebugReportCallback = NULL;
-PFN_vkDestroyDebugReportCallbackEXT s_destroyDebugReportCallback = NULL;
-
 VkDebugReportCallbackEXT s_debugCallback = NULL;
 #endif
 
@@ -80,7 +74,7 @@ namespace YAPT
 #ifdef ENABLE_VK_DEBUG_LAYERS
 		if (s_debugCallback != VK_NULL_HANDLE)
 		{
-			s_destroyDebugReportCallback(m_instance, s_debugCallback, VK_ALLOC_CB);
+			getVkExtFuncs().vkDestroyDebugReportCallbackEXT(m_instance, s_debugCallback, VK_ALLOC_CB);
 		}
 #endif
 
@@ -257,7 +251,7 @@ namespace YAPT
 			//TODO: fill
 			m_submissionThread.initialize(submitThreadConfig);
 
-			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
+			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], getVkExtFuncs(), m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
 			m_syncUtility.initialize(m_device, m_gfxConfig.pipelineLength, true, true);
 		}
 
@@ -332,8 +326,7 @@ namespace YAPT
 		checkForVkError(res);
 
 #ifdef ENABLE_VK_DEBUG_LAYERS
-		LOAD_INSTANCE_PROC_TO_VAR(s_createDebugReportCallback, vkCreateDebugReportCallbackEXT);
-		LOAD_INSTANCE_PROC_TO_VAR(s_destroyDebugReportCallback, vkDestroyDebugReportCallbackEXT);
+
 
 		VkDebugReportCallbackCreateInfoEXT callbackCreateInfo;
 		callbackCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
@@ -342,7 +335,7 @@ namespace YAPT
 		callbackCreateInfo.pfnCallback = &dbgCallback;
 		callbackCreateInfo.pUserData = NULL;
 
-		res = s_createDebugReportCallback(m_instance, &callbackCreateInfo, NULL, &s_debugCallback);
+		res = m_extensionFuncs.vkCreateDebugReportCallbackEXT(m_instance, &callbackCreateInfo, NULL, &s_debugCallback);
 		checkForVkError(res);
 #endif    
 		return true;
@@ -542,12 +535,7 @@ namespace YAPT
 
 	void RendererVk::loadExtensionMethods()
 	{
-		LOAD_DEVICE_PROC(vkCreateRayTracingPipelinesKHR);
-		LOAD_DEVICE_PROC(vkCmdTraceRaysKHR);
-		LOAD_DEVICE_PROC(vkCmdTraceRaysIndirectKHR);
-		LOAD_DEVICE_PROC(vkGetRayTracingShaderGroupStackSizeKHR);
-		LOAD_DEVICE_PROC(vkCmdSetRayTracingPipelineStackSizeKHR);
-		LOAD_DEVICE_PROC(vkGetRayTracingShaderGroupHandlesKHR);
+		m_extensionFuncs.loadExtensionFuncs(m_instance, m_device);
 	}
 
 	bool RendererVk::createDevice(const SelectedDeviceConfiguration& config)

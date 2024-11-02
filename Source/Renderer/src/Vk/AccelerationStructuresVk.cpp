@@ -11,8 +11,6 @@ namespace YAPT
 		:m_resMngr(resMngr)
 	{
 		
-
-
 		m_geometries.resize(def.geometryDefinitionCount);
 		m_buildRanges.resize(def.geometryDefinitionCount);
 
@@ -24,7 +22,7 @@ namespace YAPT
 			VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
 			triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
 			triangles.vertexFormat = yaptFormatToVk(geoDef.vertexFormat);
-			triangles.vertexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.vertexBuffer->buffer);
+			triangles.vertexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.vertexBuffer->buffer) + geoDef.vertexBufferOffsetInBytes;
 			triangles.vertexStride = geoDef.vertexStrideInBytes;
 			triangles.indexType = yaptFormatToVkIndex(geoDef.indexFormat);
 			triangles.indexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.indexBuffer->buffer);
@@ -54,18 +52,53 @@ namespace YAPT
 			offset.primitiveOffset = 0;
 			offset.transformOffset = 0;
 		}
-
-
-
-		
 	}
 
 
-	void BottomLevelAccelerationStructure::allocate()
+	void BottomLevelAccelerationStructure::allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags)
 	{
 
+		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+		buildInfo.mode = buildMode;
+		buildInfo.flags = flags;
+		buildInfo.geometryCount = (uint32_t)m_geometries.size();
+		buildInfo.pGeometries = m_geometries.data();
+
+		std::vector<uint32_t> primitiveCounts(m_buildRanges.size());
+		for (uint32_t i = 0; i < m_buildRanges.size(); i++)
+		{
+			primitiveCounts[i] = m_buildRanges[i].primitiveCount;
+		}
+			
+		m_resMngr.getVkExtFuncs().vkGetAccelerationStructureBuildSizesKHR(m_resMngr.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, primitiveCounts.data(), &m_sizesInfo);
+		
+
+		//memory allocation (TODO: actually pool the memory rather than allocation per structure. But should have a 'generic' memory pool, not just for BLAS/TLAS. 
+		{
+			VkBufferCreateInfo buffCreateInfo{};
+			buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+			buffCreateInfo.size = m_sizesInfo.accelerationStructureSize;
+			buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+			buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+			VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_buffer);
+
+			ResourceManagerVk::AllocatedMemoryInfo memInfo;
+			bool success = m_resMngr.allocateDeviceMemory(ResourceManagerVk::ALLOW_ALL_MEMORY_TYPES, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_sizesInfo.accelerationStructureSize, true, memInfo);
+			m_deviceMemory = memInfo.memory;
+
+			res = vkBindBufferMemory(m_resMngr.getDevice(), m_buffer, m_deviceMemory, 0);
+
+			checkVkResult(res);
+			assert(success);
+		}
+		
+
+
+
+
 	}
-	void BottomLevelAccelerationStructure::build()
+	void BottomLevelAccelerationStructure::build(VkBuildAccelerationStructureFlagsKHR flags)
 	{
 
 	}
