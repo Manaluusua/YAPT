@@ -57,6 +57,8 @@ namespace YAPT
 
 	void BottomLevelAccelerationStructure::allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags)
 	{
+		m_buildMode = buildMode;
+		m_flags = flags;
 
 		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
 		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
@@ -93,14 +95,40 @@ namespace YAPT
 			assert(success);
 		}
 		
+		
 
+		{
+			//create the acceleration structure object
+			VkAccelerationStructureCreateInfoKHR createInfo = {};
+			createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+			createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+			createInfo.size = m_sizesInfo.accelerationStructureSize;
+			createInfo.createFlags = 0;
+			createInfo.offset = 0;
+			createInfo.buffer = m_buffer;
+			createInfo.deviceAddress = 0;
 
+			VkResult res = m_resMngr.getVkExtFuncs().vkCreateAccelerationStructureKHR(m_resMngr.getDevice(), &createInfo, VK_ALLOC_CB, &m_accStruct);
+			checkVkResult(res);
+		}
+		
 
 
 	}
-	void BottomLevelAccelerationStructure::build(VkBuildAccelerationStructureFlagsKHR flags)
-	{
 
+
+	void BottomLevelAccelerationStructure::fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut)
+	{
+		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+		buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+		buildInfo.mode = m_buildMode;
+		buildInfo.flags = m_flags;
+		buildInfo.geometryCount = (uint32_t)m_geometries.size();
+		buildInfo.pGeometries = m_geometries.data();
+		buildInfo.dstAccelerationStructure = m_accStruct;
+
+		*infoOut = buildInfo;
 	}
 
 }

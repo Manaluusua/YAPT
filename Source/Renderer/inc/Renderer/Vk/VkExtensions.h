@@ -20,6 +20,9 @@ namespace YAPT
 			LOAD_DEVICE_PROC(vkCmdSetRayTracingPipelineStackSizeKHR);
 			LOAD_DEVICE_PROC(vkGetRayTracingShaderGroupHandlesKHR);
 			LOAD_DEVICE_PROC(vkGetAccelerationStructureBuildSizesKHR);
+			LOAD_DEVICE_PROC(vkCreateAccelerationStructureKHR);
+			LOAD_DEVICE_PROC(vkDestroyAccelerationStructureKHR);
+			LOAD_DEVICE_PROC(vkCmdBuildAccelerationStructuresKHR);
 			LOAD_INSTANCE_PROC_TO_VAR(vkCreateDebugReportCallbackEXT, vkCreateDebugReportCallbackEXT);
 			LOAD_INSTANCE_PROC_TO_VAR(vkDestroyDebugReportCallbackEXT, vkDestroyDebugReportCallbackEXT);
 		}
@@ -31,6 +34,9 @@ namespace YAPT
 		PFN_vkCmdSetRayTracingPipelineStackSizeKHR vkCmdSetRayTracingPipelineStackSizeKHR;
 		PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
 		PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR;
+		PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
+		PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;
+		PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR;
 
 		//dbg
 		PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT = NULL;
