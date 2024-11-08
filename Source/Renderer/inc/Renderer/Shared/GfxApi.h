@@ -49,11 +49,11 @@ namespace YAPT
 		BufferViewHandle getBufferView(GfxApiHandle h, TopLevelAccelerationStructureHandle handle);
 		
 		void allocateBottomLevelAccelerationStructures(GfxApiHandle h, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut);
-		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray);
+		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfStructures);
 		void destroyBottomLevelAccelerationStructures(GfxApiHandle h, BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 		void allocateTopLevelAccelerationStructures(GfxApiHandle h, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray);
-		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray);
+		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfStructures);
 		void destroyTopLevelAccelerationStructures(GfxApiHandle h, TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 		SamplerHandle createSampler(GfxApiHandle h, const SamplerDescription& desc);

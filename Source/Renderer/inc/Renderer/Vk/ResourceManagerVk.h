@@ -45,6 +45,8 @@ namespace YAPT
 
 		VkDevice getDevice() const { return m_device; }
 
+		VkMemoryRequirements getMemoryRequirements(VkBuffer buffer);
+		bool allocateDeviceMemory(VkBuffer buffer, VkMemoryPropertyFlags requiredFlags, bool requireDeviceAddress, AllocatedMemoryInfo& out);
 		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out);
 
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
@@ -84,12 +86,11 @@ namespace YAPT
 			assert(sizeof(T) <= sizeof(char[32]));
 
 			memcpy(entry.data, &resource, sizeof(T));
-			entry.cb = [](VkDevice device, char data[32], const VkAllocationCallbacks* alloc)
+			entry.cb = [](VkDevice device, const VkExtensions& extensions, char data[32], const VkAllocationCallbacks* alloc)
 			{
 				T t;
 				memcpy(&t, data, sizeof(T));
-
-				destroyVkDeviceChild(device, t, alloc);
+				destroyVkDeviceChild(device, extensions, t, alloc);
 			};
 
 			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
@@ -99,7 +100,7 @@ namespace YAPT
 		VkExtensions& getVkExtFuncs() { return m_extensionFuncs; }
 	private:
 
-		typedef void (*DestroyVkResourceCallback)(VkDevice device, char data[32], const VkAllocationCallbacks* alloc);
+		typedef void (*DestroyVkResourceCallback)(VkDevice device, const VkExtensions& extensions, char data[32], const VkAllocationCallbacks* alloc);
 
 		struct DestroyResourceEntry
 		{

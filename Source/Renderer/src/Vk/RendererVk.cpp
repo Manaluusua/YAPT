@@ -228,7 +228,7 @@ namespace YAPT
 
 		if (success)
 		{
-			loadExtensionMethods();
+			loadExtensionFuncsDevice();
 
 			SubmissionThreadVk::Configuration submitThreadConfig;
 			std::vector<VkQueue> queues[COMMANDQUEUETYPE_COUNT];
@@ -325,8 +325,9 @@ namespace YAPT
 		VkResult res = vkCreateInstance(&instanceInfo, NULL, &m_instance);
 		checkForVkError(res);
 
-#ifdef ENABLE_VK_DEBUG_LAYERS
+		loadExtensionFuncsInstance();
 
+#ifdef ENABLE_VK_DEBUG_LAYERS
 
 		VkDebugReportCallbackCreateInfoEXT callbackCreateInfo;
 		callbackCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT;
@@ -533,9 +534,14 @@ namespace YAPT
 		}
 	}
 
-	void RendererVk::loadExtensionMethods()
+	void RendererVk::loadExtensionFuncsInstance()
 	{
-		m_extensionFuncs.loadExtensionFuncs(m_instance, m_device);
+		m_extensionFuncs.loadExtensionFuncsInstance(m_instance);
+	}
+
+	void RendererVk::loadExtensionFuncsDevice()
+	{
+		m_extensionFuncs.loadExtensionFuncsDevice(m_device);
 	}
 
 	bool RendererVk::createDevice(const SelectedDeviceConfiguration& config)

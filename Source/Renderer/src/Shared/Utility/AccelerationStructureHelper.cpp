@@ -197,7 +197,7 @@ namespace YAPT
 
 			//for now do allocation and build at the same place
 			Gfx::allocateBottomLevelAccelerationStructures(m_renderer->getGfxHandle(), blasDefs.data(), blasDefs.size(), blasHandles.data());
-			Gfx::buildBottomLevelAccelerationStructures(m_renderer->getGfxHandle(), commandBuffer, blasDefs.data(), blasDefs.size(), blasHandles.data());
+			Gfx::buildBottomLevelAccelerationStructures(m_renderer->getGfxHandle(), commandBuffer,  blasHandles.data(), blasDefs.size());
 
 			for (size_t i = 0; i < blasHandles.size(); ++i)
 			{

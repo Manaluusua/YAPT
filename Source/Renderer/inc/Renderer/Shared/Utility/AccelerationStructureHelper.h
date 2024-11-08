@@ -112,7 +112,7 @@ namespace YAPT
 				tlasDef.instanceDefinitionCount = instanceDefs.size();
 
 				Gfx::allocateTopLevelAccelerationStructures(m_renderer->getGfxHandle(), &tlasDef, 1, &m_tlasHandle);
-				Gfx::buildTopLevelAccelerationStructures(m_renderer->getGfxHandle(), commandBuffer, &tlasDef, 1, &m_tlasHandle);
+				Gfx::buildTopLevelAccelerationStructures(m_renderer->getGfxHandle(), commandBuffer, &m_tlasHandle, 1);
 			}
 
 		}

@@ -126,21 +126,22 @@ namespace YAPT
 		{
 			const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& prebuildInfo = prebuildInfoList[blasGroupIndex];
 			RCPtr<ID3D12Resource> accStructureMemory = createCommittedBuffer(m_resourceMngr.getDevice(), prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, sDefaultHeapProps);
-
+			const BottomLevelAccelerationStructureDefinition& blasDefGroup = definitions[blasGroupIndex];
 			BottomLevelAccelerationStructureDx12* blasStruct = new BottomLevelAccelerationStructureDx12;
 			blasStruct->accelerationStructure = accStructureMemory;
+			blasStruct->definitions.assign(blasDefGroup.geometryDefinitions, blasDefGroup.geometryDefinitions + blasDefGroup.geometryDefinitionCount);
 			blasArrayOut[blasGroupIndex] = blasStruct;
 		}
 
 	}
-	void AccelerationStructureBuilder::buildBottomLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray)
+	void AccelerationStructureBuilder::buildBottomLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfDefinitions)
 	{
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS accStructureBuildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
 		size_t totalNumberOfBlasDefinitions = 0;
 		for (size_t blasGroupIndex = 0; blasGroupIndex < numberOfDefinitions; ++blasGroupIndex)
 		{
-			totalNumberOfBlasDefinitions += definitions[blasGroupIndex].geometryDefinitionCount;
+			totalNumberOfBlasDefinitions += blasArray[blasGroupIndex]->definitions.size();
 		}
 
 		std::vector<D3D12_RAYTRACING_GEOMETRY_DESC> geometryDescs;
@@ -151,9 +152,8 @@ namespace YAPT
 
 		for (size_t blasGroupIndex = 0; blasGroupIndex < numberOfDefinitions; ++blasGroupIndex)
 		{
-			const BottomLevelAccelerationStructureDefinition& blasDefGroup = definitions[blasGroupIndex];
-			size_t geomDefCount = blasDefGroup.geometryDefinitionCount;
-			const AccelerationStructureGeometryDefinition* geomDefs = blasDefGroup.geometryDefinitions;
+			const auto& geomDefs = blasArray[blasGroupIndex]->definitions;
+			size_t geomDefCount = geomDefs.size();
 
 			for (size_t geometryDefIndex = 0; geometryDefIndex < geomDefCount; ++geometryDefIndex)
 			{
@@ -408,11 +408,14 @@ namespace YAPT
 		for (size_t tlasGroupIndex = 0; tlasGroupIndex < numberOfDefinitions; ++tlasGroupIndex)
 		{
 			const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& prebuildInfo = prebuildInfoList[tlasGroupIndex];
+			const TopLevelAccelerationStructureDefinition& tlasDefGroup = definitions[tlasGroupIndex];
 			RCPtr<ID3D12Resource> accStructureMemory = createCommittedBuffer(m_resourceMngr.getDevice(), prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, sDefaultHeapProps);
 
 
 			TopLevelAccelerationStructureDx12* tlasStruct = new TopLevelAccelerationStructureDx12;
 			tlasStruct->accelerationStructure.resource = accStructureMemory;
+			tlasStruct->definitions.assign(tlasDefGroup.instanceDefinitions, tlasDefGroup.instanceDefinitions + tlasDefGroup.instanceDefinitionCount);
+
 			BufferViewDesc& bufferViewDesc = tlasStruct->accelerationStructure.desc;
 			bufferViewDesc.offsetInBytes = 0;
 			bufferViewDesc.nonStructuredFormat = ResourceFormat::UNKNOWN;
@@ -422,14 +425,14 @@ namespace YAPT
 			tlasArray[tlasGroupIndex] = tlasStruct;
 		}
 	}
-	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
+	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfDefinitions)
 	{
 		D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS accStructureBuildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
 		size_t totalNumberOfinstanceDefinitions = 0;
 		for (size_t tlasGroupIndex = 0; tlasGroupIndex < numberOfDefinitions; ++tlasGroupIndex)
 		{
-			totalNumberOfinstanceDefinitions += definitions[tlasGroupIndex].instanceDefinitionCount;
+			totalNumberOfinstanceDefinitions += tlasArray[tlasGroupIndex]->definitions.size();
 		}
 
 
@@ -449,10 +452,9 @@ namespace YAPT
 
 		for (size_t tlasGroupIndex = 0; tlasGroupIndex < numberOfDefinitions; ++tlasGroupIndex)
 		{
-
-			const TopLevelAccelerationStructureDefinition& tlasDefGroup = definitions[tlasGroupIndex];
-			size_t instanceDefCount = tlasDefGroup.instanceDefinitionCount;
-			const AccelerationStructureInstanceDefinition* instanceDefs = tlasDefGroup.instanceDefinitions;
+			const auto& instanceDefs = tlasArray[tlasGroupIndex]->definitions;
+			size_t instanceDefCount = instanceDefs.size();
+			
 
 			D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS& inputs = accStructureInputs[tlasGroupIndex];
 			inputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;

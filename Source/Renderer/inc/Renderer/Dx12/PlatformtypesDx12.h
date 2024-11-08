@@ -26,6 +26,8 @@ namespace YAPT
 	class RaytracePipelineStateDx12;
 	class DescriptorSetPoolDx12;
 	class ShaderTableDx12;
+	struct BottomLevelAccelerationStructureDx12;
+	struct TopLevelAccelerationStructureDx12;
 	struct DescriptorSetDx12;
 	typedef ResourceStateTracker<D3D12_RESOURCE_STATES> ResourceStateTrackerDx12;
 
@@ -70,15 +72,7 @@ namespace YAPT
 		RCPtr<ID3D12Resource> resource;
 	};
 
-	struct BottomLevelAccelerationStructureDx12
-	{
-		RCPtr<ID3D12Resource> accelerationStructure;
-	};
-
-	struct TopLevelAccelerationStructureDx12
-	{
-		BufferViewDx12 accelerationStructure;
-	};
+	
 
 	struct TextureHandleDx12
 	{

@@ -7,6 +7,17 @@
 namespace YAPT
 {
 	class ResourceManagerDx12;
+	struct BottomLevelAccelerationStructureDx12
+	{
+		std::vector<AccelerationStructureGeometryDefinition> definitions;
+		RCPtr<ID3D12Resource> accelerationStructure;
+	};
+
+	struct TopLevelAccelerationStructureDx12
+	{
+		std::vector<AccelerationStructureInstanceDefinition> definitions;
+		BufferViewDx12 accelerationStructure;
+	};
 	class AccelerationStructureBuilder
 	{
 	public:
@@ -16,11 +27,11 @@ namespace YAPT
 		
 
 		void allocateBottomLevelAccelerationStructures( const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut);
-		void buildBottomLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut);
+		void buildBottomLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfDefinitions);
 		void destroyBottomLevelAccelerationStructures(BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 		void allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray);
-		void buildTopLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArrayOut);
+		void buildTopLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfDefinitions);
 		void destroyTopLevelAccelerationStructures(TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 	private:

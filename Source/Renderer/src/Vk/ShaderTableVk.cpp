@@ -68,7 +68,6 @@ namespace YAPT
 	{
 		ResourceManagerVk& mngr = *m_renderer.getResourceManager();
 
-		VkMemoryRequirements memoryReq;
 
 		//create buffer
 		{
@@ -76,13 +75,12 @@ namespace YAPT
 			ResourceStateDescription stateDesc = ResourceStateDescription::default();
 
 			m_buffer = m_renderer.getResourceManager()->createBuffer(buffDesc, stateDesc, m_renderer.getGraphicsQueue().queueFamilyIndex, "ShaderTable");
-			vkGetBufferMemoryRequirements(mngr.getDevice(), m_buffer->buffer, &memoryReq);
 		}
 
 		//memory
 		{
 			ResourceManagerVk::AllocatedMemoryInfo memInfo;
-			bool success = mngr.allocateDeviceMemory(memoryReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, memoryReq.size, false, memInfo);
+			bool success = mngr.allocateDeviceMemory(m_buffer->buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false, memInfo);
 			m_memory = memInfo.memory;
 			assert(success);
 		}

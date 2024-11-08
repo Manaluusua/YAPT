@@ -6,14 +6,22 @@
 
 namespace YAPT
 {
-
+	const uint32_t DEFAULT_SCRATCH_SIZE = 1024 * 1024 * 64;
 	AccelerationStructureBuilder::AccelerationStructureBuilder(ResourceManagerVk& resMngr)
-		:m_resourceMngr(resMngr)
+		:m_resourceMngr(resMngr),
+		m_currentScratchSize(0),
+		m_scratchMemory(VK_NULL_HANDLE),
+		m_scratchBuffer(VK_NULL_HANDLE)
 	{
-
+		ensureScratch(DEFAULT_SCRATCH_SIZE);
 	}
 
-	void AccelerationStructureBuilder::allocateBottomLevelAccelerationStructures(const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)
+	AccelerationStructureBuilder::~AccelerationStructureBuilder()
+	{
+		freeScratch();
+	}
+
+	void AccelerationStructureBuilder::allocateBottomLevelAccelerationStructures(const BottomLevelAccelerationStructureDefinition* definitions, BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfDefinitions)
 	{
 
 		for (size_t blasInd = 0; blasInd < numberOfDefinitions; ++blasInd)
@@ -27,32 +35,133 @@ namespace YAPT
 
 
 	}
-	void AccelerationStructureBuilder::buildBottomLevelAccelerationStructures(VkCommandBuffer cmdList, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray)
+	void AccelerationStructureBuilder::buildBottomLevelAccelerationStructures(VkCommandBuffer cmdList, BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfStructures)
 	{
-		assert(!"NOT IMPLEMENTED!");
+		std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildInfo;
+		std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> buildRanges;
+		buildInfo.resize(numberOfStructures);
+		buildRanges.resize(numberOfStructures);
+
+		//barrier between flushes
+		VkMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+
+		auto flush = [&](size_t entryOffset, size_t count)
+		{
+			m_resourceMngr.getVkExtFuncs().vkCmdBuildAccelerationStructuresKHR(cmdList, (uint32_t)count, buildInfo.data() + entryOffset, buildRanges.data() + entryOffset);
+			vkCmdPipelineBarrier(cmdList, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+		};
+		//ensure scratch
+		for (size_t i = 0; i < numberOfStructures; ++i)
+		{
+			VkDeviceSize scratchSize = blasArray[i]->getSizesInfo().buildScratchSize;
+			ensureScratch(scratchSize);
+		}
+
+		uint64_t currentScratchAddress = m_scratchDeviceAddress;
+		VkDeviceSize usedScratchMemory = 0;
+		size_t batchOffset = 0;
+		for (size_t i = 0; i < numberOfStructures; ++i)
+		{
+			VkDeviceSize scratchSize = blasArray[i]->getSizesInfo().buildScratchSize;
+
+			if (usedScratchMemory + scratchSize > m_currentScratchSize)
+			{
+				//flush
+				flush(batchOffset, i - batchOffset);
+				batchOffset = i;
+				
+			}
+			const VkAccelerationStructureBuildRangeInfoKHR*& buildRange = *(buildRanges.data() + i);
+			blasArray[i]->fillBuildInfo(buildInfo.data() + i, buildRange);
+			buildInfo[i].scratchData.deviceAddress = m_scratchDeviceAddress + usedScratchMemory;
+			usedScratchMemory += scratchSize;
+		}
+
+		
+		flush(batchOffset, numberOfStructures - batchOffset);
+
 	}
 
 
 	void AccelerationStructureBuilder::destroyBottomLevelAccelerationStructures(BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 	{
-		assert(!"NOT IMPLEMENTED!");
+		for (size_t blasInd = 0; blasInd < numberOfStructures; ++blasInd)
+		{
+			structures[blasInd]->deallocate();
+			delete structures[blasInd];
+		}
 	}
 
 
-	void AccelerationStructureBuilder::allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
+	void AccelerationStructureBuilder::allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfDefinitions)
 	{
-		assert(!"NOT IMPLEMENTED!");
+		for (size_t blasInd = 0; blasInd < numberOfDefinitions; ++blasInd)
+		{
+			const TopLevelAccelerationStructureDefinition& def = definitions[blasInd];
+			TopLevelAccelerationStructure* tlas = new TopLevelAccelerationStructure(m_resourceMngr, def);
+			tlas->allocate(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
+			tlasArray[blasInd] = tlas;
+
+		}
 	}
 
 
-	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArrayOut)
+	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfStructures)
 	{
 		assert(!"NOT IMPLEMENTED!");
 	}
 
 	void AccelerationStructureBuilder::destroyTopLevelAccelerationStructures(TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 	{
-		assert(!"NOT IMPLEMENTED!");
+		for (size_t tlasInd = 0; tlasInd < numberOfStructures; ++tlasInd)
+		{
+			structures[tlasInd]->deallocate();
+			delete structures[tlasInd];
+		}
+	}
+
+	void AccelerationStructureBuilder::freeScratch()
+	{
+		if (m_scratchMemory != VK_NULL_HANDLE)
+		{
+			m_resourceMngr.deferredDestroyVkResource(m_scratchMemory);
+			m_resourceMngr.deferredDestroyVkResource(m_scratchBuffer);
+			m_scratchMemory = VK_NULL_HANDLE;
+			m_scratchBuffer = VK_NULL_HANDLE;
+			m_currentScratchSize = 0;
+			m_scratchDeviceAddress = 0;
+		}
+		
+	}
+	void AccelerationStructureBuilder::allocateScratch(VkDeviceSize sizeInBytes)
+	{
+
+		VkBufferCreateInfo buffCreateInfo{};
+		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffCreateInfo.size = sizeInBytes;
+		buffCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;;
+		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		VkResult res = vkCreateBuffer(m_resourceMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_scratchBuffer);
+
+		ResourceManagerVk::AllocatedMemoryInfo memInfo;
+		bool success = m_resourceMngr.allocateDeviceMemory(ResourceManagerVk::ALLOW_ALL_MEMORY_TYPES, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sizeInBytes, true, memInfo);
+		m_scratchMemory = memInfo.memory;
+		assert(success);
+
+		m_scratchDeviceAddress = m_resourceMngr.GetDeviceAddress(m_scratchBuffer);
+		
+	}
+	void AccelerationStructureBuilder::ensureScratch(VkDeviceSize sizeInBytes)
+	{
+		if (m_currentScratchSize < sizeInBytes)
+		{
+			freeScratch();
+			allocateScratch(sizeInBytes);
+		}
 	}
 
 }

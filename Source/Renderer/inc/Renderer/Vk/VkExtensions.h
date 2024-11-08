@@ -11,7 +11,13 @@ namespace YAPT
 {
 	struct VkExtensions
 	{
-		void loadExtensionFuncs(VkInstance instance, VkDevice device)
+		void loadExtensionFuncsInstance(VkInstance instance)
+		{
+			LOAD_INSTANCE_PROC_TO_VAR(vkCreateDebugReportCallbackEXT, vkCreateDebugReportCallbackEXT);
+			LOAD_INSTANCE_PROC_TO_VAR(vkDestroyDebugReportCallbackEXT, vkDestroyDebugReportCallbackEXT);
+		}
+
+		void loadExtensionFuncsDevice(VkDevice device)
 		{
 			LOAD_DEVICE_PROC(vkCreateRayTracingPipelinesKHR);
 			LOAD_DEVICE_PROC(vkCmdTraceRaysKHR);
@@ -23,9 +29,9 @@ namespace YAPT
 			LOAD_DEVICE_PROC(vkCreateAccelerationStructureKHR);
 			LOAD_DEVICE_PROC(vkDestroyAccelerationStructureKHR);
 			LOAD_DEVICE_PROC(vkCmdBuildAccelerationStructuresKHR);
-			LOAD_INSTANCE_PROC_TO_VAR(vkCreateDebugReportCallbackEXT, vkCreateDebugReportCallbackEXT);
-			LOAD_INSTANCE_PROC_TO_VAR(vkDestroyDebugReportCallbackEXT, vkDestroyDebugReportCallbackEXT);
 		}
+
+
 		//extension functions. For now use expose here, could move these somewhere else or or vk loader 
 		PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
 		PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;

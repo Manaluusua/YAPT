@@ -47,7 +47,7 @@ namespace YAPT
 				std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[i];
 				for (size_t k = 0; k < destroyList.size(); ++k)
 				{
-					destroyList[k].cb(m_device, destroyList[k].data, VK_ALLOC_CB);
+					destroyList[k].cb(m_device, m_extensionFuncs, destroyList[k].data, VK_ALLOC_CB);
 				}
 				destroyList.clear();
 			}
@@ -71,7 +71,7 @@ namespace YAPT
 			std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[m_destroyObjectsIndex];
 			for (size_t i = 0; i < destroyList.size(); ++i)
 			{
-				destroyList[i].cb(m_device, destroyList[i].data, VK_ALLOC_CB);
+				destroyList[i].cb(m_device, m_extensionFuncs, destroyList[i].data, VK_ALLOC_CB);
 			}
 			destroyList.clear();
 		}
@@ -96,6 +96,19 @@ namespace YAPT
 		{
 			m_lastSignaledSemaphore = signaledSemaphore;
 		}
+	}
+
+	VkMemoryRequirements ResourceManagerVk::getMemoryRequirements(VkBuffer buffer)
+	{
+		VkMemoryRequirements memoryReqs;
+		vkGetBufferMemoryRequirements(m_device, buffer, &memoryReqs);
+		return memoryReqs;
+	}
+	bool ResourceManagerVk::allocateDeviceMemory(VkBuffer buffer, VkMemoryPropertyFlags requiredFlags, bool requireDeviceAddress, AllocatedMemoryInfo& out)
+	{
+		VkMemoryRequirements reqs = getMemoryRequirements(buffer);
+		return allocateDeviceMemory(reqs.memoryTypeBits, requiredFlags, reqs.size, requireDeviceAddress, out);
+		
 	}
 
 	

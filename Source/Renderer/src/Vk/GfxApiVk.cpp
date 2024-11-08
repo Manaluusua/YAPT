@@ -224,11 +224,11 @@ namespace YAPT
 		 
 		void allocateBottomLevelAccelerationStructures(GfxApiHandle h, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)
 		{
-			h->getResourceManager()->getAccelerationStructureBuilder()->allocateBottomLevelAccelerationStructures(definitions, numberOfDefinitions, blasArrayOut);
+			h->getResourceManager()->getAccelerationStructureBuilder()->allocateBottomLevelAccelerationStructures(definitions, blasArrayOut, numberOfDefinitions);
 		}
-		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArray)
+		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff,  BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfStructures)
 		{
-			h->getResourceManager()->getAccelerationStructureBuilder()->buildBottomLevelAccelerationStructures(buff, definitions, numberOfDefinitions, blasArray);
+			h->getResourceManager()->getAccelerationStructureBuilder()->buildBottomLevelAccelerationStructures(buff, blasArray, numberOfStructures);
 		}
 		void destroyBottomLevelAccelerationStructures(GfxApiHandle h, BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{
@@ -237,11 +237,11 @@ namespace YAPT
 
 		void allocateTopLevelAccelerationStructures(GfxApiHandle h, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
 		{
-			h->getResourceManager()->getAccelerationStructureBuilder()->allocateTopLevelAccelerationStructures(definitions, numberOfDefinitions, tlasArray);
+			h->getResourceManager()->getAccelerationStructureBuilder()->allocateTopLevelAccelerationStructures(definitions, tlasArray, numberOfDefinitions);
 		}
-		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArray)
+		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfStructures)
 		{
-			h->getResourceManager()->getAccelerationStructureBuilder()->buildTopLevelAccelerationStructures(buff, definitions, numberOfDefinitions, tlasArray);
+			h->getResourceManager()->getAccelerationStructureBuilder()->buildTopLevelAccelerationStructures(buff, tlasArray, numberOfStructures);
 		}
 		void destroyTopLevelAccelerationStructures(GfxApiHandle h, TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{

@@ -242,9 +242,9 @@ namespace YAPT
 			h->getAccelerationStructureBuilder().allocateBottomLevelAccelerationStructures(definitions, numberOfDefinitions, blasArrayOut);
 		}
 		 
-		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)
+		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfDefinitions)
 		{
-			h->getAccelerationStructureBuilder().buildBottomLevelAccelerationStructures(buff->cmdList, definitions, numberOfDefinitions, blasArrayOut);
+			h->getAccelerationStructureBuilder().buildBottomLevelAccelerationStructures(buff->cmdList, blasArrayOut, numberOfDefinitions);
 		}
 		void destroyBottomLevelAccelerationStructures(GfxApiHandle h, BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{
@@ -258,9 +258,9 @@ namespace YAPT
 			h->getAccelerationStructureBuilder().allocateTopLevelAccelerationStructures(definitions, numberOfDefinitions, tlasArray);
 		}
 
-		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, const TopLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, TopLevelAccelerationStructureHandle* tlasArrayOut)
+		void buildTopLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfDefinitions)
 		{
-			h->getAccelerationStructureBuilder().buildTopLevelAccelerationStructures(buff->cmdList,definitions, numberOfDefinitions, tlasArrayOut);
+			h->getAccelerationStructureBuilder().buildTopLevelAccelerationStructures(buff->cmdList, tlasArrayOut, numberOfDefinitions);
 		}
 		void destroyTopLevelAccelerationStructures(GfxApiHandle h, TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures)
 		{

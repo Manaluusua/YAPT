@@ -130,7 +130,8 @@ namespace YAPT
 		void queryPhysicalDeviceInfos();
 		void queryPresentInfosForSurface(VkSurfaceKHR surface);
 		void selectPhysicalDevice(SelectedDeviceConfiguration& config);
-		void loadExtensionMethods();
+		void loadExtensionFuncsInstance();
+		void loadExtensionFuncsDevice();
 		void printQueueFamilyCapabilities();
 
 		bool createDevice(const SelectedDeviceConfiguration& config);
