@@ -706,6 +706,9 @@ namespace YAPT
 
 		//device address
 		f.deviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+
+		//accstruct
+		f.accelerationStructureFeatures.accelerationStructure = VK_TRUE;
 		
 		//rt pipeline features
 		f.rayTracePipelineFeatures.rayTracingPipeline = VK_TRUE;
@@ -725,7 +728,8 @@ namespace YAPT
 			features.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing &&
 			features.baseFeatures.features.shaderStorageImageReadWithoutFormat &&
 			features.rayQueryFeatures.rayQuery &&
-			features.rayTracePipelineFeatures.rayTracingPipeline
+			features.rayTracePipelineFeatures.rayTracingPipeline &&
+			features.deviceAddressFeatures.bufferDeviceAddress
 			)
 		{
 			return true;

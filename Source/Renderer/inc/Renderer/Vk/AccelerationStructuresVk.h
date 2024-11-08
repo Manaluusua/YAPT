@@ -7,6 +7,25 @@
 namespace YAPT
 {
 	class ResourceManagerVk;
+
+	struct SimpleBufferAllocation
+	{
+		SimpleBufferAllocation()
+			:buffer(VK_NULL_HANDLE),
+			deviceMemory(VK_NULL_HANDLE),
+			deviceAddress(NULL)
+		{
+		}
+
+		void alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryPropertyBits);
+		void dealloc(ResourceManagerVk& mngr);
+		
+
+		VkBuffer buffer;
+		VkDeviceMemory deviceMemory;
+		VkDeviceAddress deviceAddress;
+	};
+
 	class BottomLevelAccelerationStructure
 	{
 	public:
@@ -15,7 +34,7 @@ namespace YAPT
 		void deallocate();
 		void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
 		const VkAccelerationStructureBuildSizesInfoKHR& getSizesInfo() const { return m_sizesInfo; }
-		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_deviceAddress; }
+		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
 	private:
 		ResourceManagerVk& m_resMngr;
 		std::vector<VkAccelerationStructureGeometryKHR> m_geometries;
@@ -23,10 +42,9 @@ namespace YAPT
 		VkBuildAccelerationStructureModeKHR m_buildMode;
 		VkBuildAccelerationStructureFlagsKHR m_flags;
 		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;
-		VkBuffer m_buffer;
-		VkDeviceMemory m_deviceMemory;
+		SimpleBufferAllocation m_accStructBuffer;
 		VkAccelerationStructureKHR m_accStruct;
-		VkDeviceAddress m_deviceAddress;
+
 	};
 
 	class TopLevelAccelerationStructure
@@ -37,7 +55,7 @@ namespace YAPT
 		void deallocate();
 		//void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
 		const VkAccelerationStructureBuildSizesInfoKHR& getSizesInfo() const { return m_sizesInfo; }
-		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_deviceAddress; }
+		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
 
 	private:
 		ResourceManagerVk& m_resMngr;
@@ -45,10 +63,11 @@ namespace YAPT
 		VkBuildAccelerationStructureModeKHR m_buildMode;
 		VkBuildAccelerationStructureFlagsKHR m_flags;
 		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;
-		VkBuffer m_buffer;
-		VkDeviceMemory m_deviceMemory;
+		SimpleBufferAllocation m_accStructBuffer;
 		VkAccelerationStructureKHR m_accStruct;
-		VkDeviceAddress m_deviceAddress;
+
+
+		SimpleBufferAllocation m_instancesBuildDefinitionsBuffer;
 	};
 
 }

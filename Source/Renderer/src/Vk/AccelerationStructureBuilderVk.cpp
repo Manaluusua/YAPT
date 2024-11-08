@@ -9,11 +9,10 @@ namespace YAPT
 	const uint32_t DEFAULT_SCRATCH_SIZE = 1024 * 1024 * 64;
 	AccelerationStructureBuilder::AccelerationStructureBuilder(ResourceManagerVk& resMngr)
 		:m_resourceMngr(resMngr),
-		m_currentScratchSize(0),
 		m_scratchMemory(VK_NULL_HANDLE),
 		m_scratchBuffer(VK_NULL_HANDLE)
 	{
-		ensureScratch(DEFAULT_SCRATCH_SIZE);
+		allocateScratch(DEFAULT_SCRATCH_SIZE);
 	}
 
 	AccelerationStructureBuilder::~AccelerationStructureBuilder()
@@ -57,7 +56,7 @@ namespace YAPT
 		//ensure scratch
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = blasArray[i]->getSizesInfo().buildScratchSize;
+			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
 			ensureScratch(scratchSize);
 		}
 
@@ -66,9 +65,9 @@ namespace YAPT
 		size_t batchOffset = 0;
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = blasArray[i]->getSizesInfo().buildScratchSize;
+			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
 
-			if (usedScratchMemory + scratchSize > m_currentScratchSize)
+			if (usedScratchMemory + scratchSize >= m_scratchMemoryReqs.size)
 			{
 				//flush
 				flush(batchOffset, i - batchOffset);
@@ -132,8 +131,8 @@ namespace YAPT
 			m_resourceMngr.deferredDestroyVkResource(m_scratchBuffer);
 			m_scratchMemory = VK_NULL_HANDLE;
 			m_scratchBuffer = VK_NULL_HANDLE;
-			m_currentScratchSize = 0;
 			m_scratchDeviceAddress = 0;
+			m_scratchMemoryReqs.size = 0;
 		}
 		
 	}
@@ -153,11 +152,12 @@ namespace YAPT
 		assert(success);
 
 		m_scratchDeviceAddress = m_resourceMngr.GetDeviceAddress(m_scratchBuffer);
+		m_resourceMngr.getMemoryRequirements(m_scratchBuffer);
 		
 	}
 	void AccelerationStructureBuilder::ensureScratch(VkDeviceSize sizeInBytes)
 	{
-		if (m_currentScratchSize < sizeInBytes)
+		if (m_scratchMemoryReqs.size < sizeInBytes)
 		{
 			freeScratch();
 			allocateScratch(sizeInBytes);

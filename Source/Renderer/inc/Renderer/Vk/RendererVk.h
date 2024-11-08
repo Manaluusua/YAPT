@@ -31,6 +31,7 @@ namespace YAPT
 				rayTracePipelineFeatures{},
 				rayQueryFeatures{},
 				deviceAddressFeatures{},
+				accelerationStructureFeatures{},
 				deviceProperties2{},
 				raytracePipelineProperties{}
 				
@@ -40,6 +41,7 @@ namespace YAPT
 				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
 				deviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_ADDRESS_FEATURES_EXT;
+				accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
 
 				deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 				raytracePipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
@@ -49,6 +51,7 @@ namespace YAPT
 				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
 				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
 				rayQueryFeatures.pNext = &deviceAddressFeatures;
+				deviceAddressFeatures.pNext = &accelerationStructureFeatures;
 
 				//properties
 				deviceProperties2.pNext = &raytracePipelineProperties;
@@ -60,6 +63,7 @@ namespace YAPT
 			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
 			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
 			VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddressFeatures;
+			VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures;
 
 			VkPhysicalDeviceProperties2 deviceProperties2;
 			VkPhysicalDeviceRayTracingPipelinePropertiesKHR  raytracePipelineProperties;

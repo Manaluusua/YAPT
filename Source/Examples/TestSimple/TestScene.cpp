@@ -641,12 +641,12 @@ YAPT::RCObjectPtr<YAPT::Mesh> TestScene::loadMesh(const char* path)
 			size_t bufferIndex = info.vertexBufferIndices[i];
 			const YAPT::BufferLoadInfo& buffInfo = modelLoader->getBufferLoadInfo(bufferIndex);
 
-			vertexBuffers[i] = resChunk->addBuffer("Model VertexBuffer", YAPT::RESOURCE_USAGE_VERTEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION, buffInfo.sizeInBytes);
+			vertexBuffers[i] = resChunk->addBuffer("Model VertexBuffer", YAPT::RESOURCE_USAGE_VERTEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
 			vertexBuffers[i]->Release();
 		}
 		{
 			const YAPT::BufferLoadInfo& buffInfo = modelLoader->getBufferLoadInfo(info.indexBufferIndex);
-			indexBuffer = resChunk->addBuffer("Model IndexBuffer", YAPT::RESOURCE_USAGE_INDEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION, buffInfo.sizeInBytes);
+			indexBuffer = resChunk->addBuffer("Model IndexBuffer", YAPT::RESOURCE_USAGE_INDEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
 			indexBuffer->Release();
 		}
 		

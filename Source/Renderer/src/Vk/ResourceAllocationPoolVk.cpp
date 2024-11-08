@@ -34,12 +34,12 @@ namespace YAPT
 		struct SortedMemoryEntries
 		{
 			SortedMemoryEntries()
-				:needsDeviceAddneedsDeviceAddressMemoryressMemory(false)
+				:needsDeviceAddressMemory(false)
 			{
 
 			}
 			std::vector<size_t> entries;
-			bool needsDeviceAddneedsDeviceAddressMemoryressMemory;
+			bool needsDeviceAddressMemory;
 		};
 
 		assert(type == ResourcePoolType::RESOURCEPOOL_TYPE_DEFAULT); //others not implemented
@@ -72,7 +72,12 @@ namespace YAPT
 		for (size_t i = 0; i < bufferCount; ++i)
 		{
 			vkGetBufferMemoryRequirements(device, buffers[i]->buffer, &memReq[textureCount + i]);
-			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].entries.push_back(textureCount + i);
+			SortedMemoryEntries& entries = sortedByMemoryTypeBits[memReq[i].memoryTypeBits];
+			entries.entries.push_back(textureCount + i);
+			if (buffers[i]->createInfo.usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR)
+			{
+				entries.needsDeviceAddressMemory = true;
+			}
 		}
 
 		std::vector<size_t> offsets;
@@ -92,7 +97,7 @@ namespace YAPT
 			
 
 			ResourceManagerVk::AllocatedMemoryInfo allocation;
-			bool success = m_resourceMngr.allocateDeviceMemory(iter->first, memoryFlags, allocationSize, iter->second.needsDeviceAddneedsDeviceAddressMemoryressMemory, allocation);
+			bool success = m_resourceMngr.allocateDeviceMemory(iter->first, memoryFlags, allocationSize, iter->second.needsDeviceAddressMemory, allocation);
 			if (!success)
 			{
 				return false;

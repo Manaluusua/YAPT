@@ -32,7 +32,7 @@ namespace YAPT
 		VkDeviceMemory m_scratchMemory;
 		VkBuffer m_scratchBuffer;
 		uint64_t m_scratchDeviceAddress;
-		uint32_t m_currentScratchSize;
+		VkMemoryRequirements m_scratchMemoryReqs;
 	};
 }
 

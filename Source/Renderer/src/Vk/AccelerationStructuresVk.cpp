@@ -12,11 +12,47 @@ namespace YAPT
 
 	}
 
+	//Simple Buffer Allocation Utility
+	void SimpleBufferAllocation::alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryPropertyBits)
+	{
+		assert(buffer == VK_NULL_HANDLE);
+		assert(deviceMemory == VK_NULL_HANDLE);
+
+		VkBufferCreateInfo buffCreateInfo{};
+		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffCreateInfo.size = size;
+		buffCreateInfo.usage = usage;
+		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		VkResult res = vkCreateBuffer(mngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buffer);
+
+		ResourceManagerVk::AllocatedMemoryInfo memInfo;
+		bool success = mngr.allocateDeviceMemory(buffer, memoryPropertyBits, true, memInfo);
+		deviceMemory = memInfo.memory;
+
+		res = vkBindBufferMemory(mngr.getDevice(), buffer, deviceMemory, 0);
+
+		checkVkResult(res);
+		assert(success);
+
+		deviceAddress = mngr.GetDeviceAddress(buffer);
+	}
+	void SimpleBufferAllocation::dealloc(ResourceManagerVk& mngr)
+	{
+		assert(buffer != VK_NULL_HANDLE);
+		assert(deviceMemory != VK_NULL_HANDLE);
+
+		mngr.deferredDestroyVkResource(buffer);
+		mngr.deferredDestroyVkResource(deviceMemory);
+
+		buffer = VK_NULL_HANDLE;
+		deviceMemory = VK_NULL_HANDLE;
+		deviceAddress = NULL;
+
+	}
+
 	//Bottom level acceleration structure
 	BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(ResourceManagerVk& resMngr, const BottomLevelAccelerationStructureDefinition& def)
 		:m_resMngr(resMngr),
-		m_buffer(VK_NULL_HANDLE),
-		m_deviceMemory(VK_NULL_HANDLE),
 		m_accStruct(VK_NULL_HANDLE)
 	{
 		
@@ -67,15 +103,13 @@ namespace YAPT
 
 	void BottomLevelAccelerationStructure::allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags)
 	{
-
-		assert(m_buffer == VK_NULL_HANDLE);
-		assert(m_deviceMemory == VK_NULL_HANDLE);
 		assert(m_accStruct == VK_NULL_HANDLE);
 
 		m_buildMode = buildMode;
 		m_flags = flags;
 
 		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+		buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 		buildInfo.mode = buildMode;
 		buildInfo.flags = flags;
@@ -88,31 +122,12 @@ namespace YAPT
 			primitiveCounts[i] = m_buildRanges[i].primitiveCount;
 		}
 			
+		m_sizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		m_sizesInfo.pNext = NULL;
+
 		m_resMngr.getVkExtFuncs().vkGetAccelerationStructureBuildSizesKHR(m_resMngr.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, primitiveCounts.data(), &m_sizesInfo);
-		
 
-		//memory allocation (TODO: actually pool the memory rather than allocation per structure. But should have a 'generic' memory pool, not just for BLAS/TLAS. 
-		{
-			VkBufferCreateInfo buffCreateInfo{};
-			buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-			buffCreateInfo.size = m_sizesInfo.accelerationStructureSize;
-			buffCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-			buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-			VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_buffer);
-
-			ResourceManagerVk::AllocatedMemoryInfo memInfo;
-			bool success = m_resMngr.allocateDeviceMemory(m_buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, memInfo);
-			m_deviceMemory = memInfo.memory;
-
-			res = vkBindBufferMemory(m_resMngr.getDevice(), m_buffer, m_deviceMemory, 0);
-
-			checkVkResult(res);
-			assert(success);
-
-			m_deviceAddress = m_resMngr.GetDeviceAddress(m_buffer);
-		}
-		
-		
+		m_accStructBuffer.alloc(m_resMngr, m_sizesInfo.accelerationStructureSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 		{
 			//create the acceleration structure object
@@ -122,7 +137,7 @@ namespace YAPT
 			createInfo.size = m_sizesInfo.accelerationStructureSize;
 			createInfo.createFlags = 0;
 			createInfo.offset = 0;
-			createInfo.buffer = m_buffer;
+			createInfo.buffer = m_accStructBuffer.buffer;
 			createInfo.deviceAddress = 0;
 
 			VkResult res = m_resMngr.getVkExtFuncs().vkCreateAccelerationStructureKHR(m_resMngr.getDevice(), &createInfo, VK_ALLOC_CB, &m_accStruct);
@@ -132,17 +147,9 @@ namespace YAPT
 
 	void BottomLevelAccelerationStructure::deallocate()
 	{
-		assert(m_buffer != VK_NULL_HANDLE);
-		assert(m_deviceMemory != VK_NULL_HANDLE);
 		assert(m_accStruct != VK_NULL_HANDLE);
-
-		m_resMngr.deferredDestroyVkResource(m_buffer);
-		m_resMngr.deferredDestroyVkResource(m_deviceMemory);
+		m_accStructBuffer.dealloc(m_resMngr);
 		m_resMngr.deferredDestroyVkResource(m_accStruct);
-
-
-		m_buffer = VK_NULL_HANDLE;
-		m_deviceMemory = VK_NULL_HANDLE;
 		m_accStruct = VK_NULL_HANDLE;
 	}
 
@@ -168,8 +175,6 @@ namespace YAPT
 
 	TopLevelAccelerationStructure::TopLevelAccelerationStructure(ResourceManagerVk& resMngr, const TopLevelAccelerationStructureDefinition& def)
 		:m_resMngr(resMngr),
-		m_buffer(VK_NULL_HANDLE),
-		m_deviceMemory(VK_NULL_HANDLE),
 		m_accStruct(VK_NULL_HANDLE)
 	{
 		m_instances.resize(def.instanceDefinitionCount);
@@ -178,8 +183,6 @@ namespace YAPT
 		for (size_t i = 0; i < def.instanceDefinitionCount; ++i)
 		{
 			const AccelerationStructureInstanceDefinition& instancesDef = def.instanceDefinitions[i];
-
-
 			VkAccelerationStructureInstanceKHR& asInst = m_instances[i];
 			asInst.mask = instancesDef.instanceMask;
 			asInst.instanceShaderBindingTableRecordOffset = instancesDef.hitGroupShaderTableOffset;
@@ -194,17 +197,26 @@ namespace YAPT
 	void TopLevelAccelerationStructure::allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags)
 	{
 
-		assert(m_buffer == VK_NULL_HANDLE);
-		assert(m_deviceMemory == VK_NULL_HANDLE);
 		assert(m_accStruct == VK_NULL_HANDLE);
 
 		m_buildMode = buildMode;
 		m_flags = flags;
 
+		//allocate & upload the instances struct data
+		{
+			uint32_t bufferSize = (uint32_t)m_instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
+			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+			void* mappedPtr;
+			VkResult res = vkMapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory, 0, bufferSize, 0, &mappedPtr);
+			checkVkResult(res);
+			memcpy(mappedPtr, m_instances.data(), bufferSize);
+			vkUnmapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory);
+		}
+
 		VkAccelerationStructureGeometryInstancesDataKHR instancesStruct = {};
 		instancesStruct.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-		instancesStruct.data.hostAddress = NULL; //<< upload instance data
-		assert(false && "NOT IMPLEMENTED!");
+		instancesStruct.data.deviceAddress = m_instancesBuildDefinitionsBuffer.deviceAddress;
 		instancesStruct.arrayOfPointers = VK_FALSE;
 
 		VkAccelerationStructureGeometryKHR topAccStruct = {};
@@ -213,40 +225,21 @@ namespace YAPT
 		topAccStruct.geometry.instances = instancesStruct;
 
 		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+		buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
 		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		buildInfo.mode = buildMode;
 		buildInfo.flags = flags;
 		buildInfo.geometryCount = 1;
 		buildInfo.pGeometries = &topAccStruct;
 
+		m_sizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+		m_sizesInfo.pNext = NULL;
+
 		uint32_t instanceCount = (uint32_t)m_instances.size();
 
 		m_resMngr.getVkExtFuncs().vkGetAccelerationStructureBuildSizesKHR(m_resMngr.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &instanceCount, &m_sizesInfo);
 
-
-		//memory allocation (TODO: actually pool the memory rather than allocation per structure. But should have a 'generic' memory pool, not just for BLAS/TLAS. 
-		{
-			VkBufferCreateInfo buffCreateInfo{};
-			buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-			buffCreateInfo.size = m_sizesInfo.accelerationStructureSize;
-			buffCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-			buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-			VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_buffer);
-
-			ResourceManagerVk::AllocatedMemoryInfo memInfo;
-			bool success = m_resMngr.allocateDeviceMemory(m_buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, memInfo);
-			m_deviceMemory = memInfo.memory;
-
-			res = vkBindBufferMemory(m_resMngr.getDevice(), m_buffer, m_deviceMemory, 0);
-
-			checkVkResult(res);
-			assert(success);
-
-			m_deviceAddress = m_resMngr.GetDeviceAddress(m_buffer);
-		}
-
-
-
+		m_accStructBuffer.alloc(m_resMngr, m_sizesInfo.accelerationStructureSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		{
 			//create the acceleration structure object
 			VkAccelerationStructureCreateInfoKHR createInfo = {};
@@ -255,7 +248,7 @@ namespace YAPT
 			createInfo.size = m_sizesInfo.accelerationStructureSize;
 			createInfo.createFlags = 0;
 			createInfo.offset = 0;
-			createInfo.buffer = m_buffer;
+			createInfo.buffer = m_accStructBuffer.buffer;
 			createInfo.deviceAddress = 0;
 
 			VkResult res = m_resMngr.getVkExtFuncs().vkCreateAccelerationStructureKHR(m_resMngr.getDevice(), &createInfo, VK_ALLOC_CB, &m_accStruct);
@@ -265,17 +258,12 @@ namespace YAPT
 
 	void TopLevelAccelerationStructure::deallocate()
 	{
-		assert(m_buffer != VK_NULL_HANDLE);
-		assert(m_deviceMemory != VK_NULL_HANDLE);
 		assert(m_accStruct != VK_NULL_HANDLE);
 
-		m_resMngr.deferredDestroyVkResource(m_buffer);
-		m_resMngr.deferredDestroyVkResource(m_deviceMemory);
+		m_accStructBuffer.dealloc(m_resMngr);
+		m_instancesBuildDefinitionsBuffer.dealloc(m_resMngr);
+
 		m_resMngr.deferredDestroyVkResource(m_accStruct);
-
-
-		m_buffer = VK_NULL_HANDLE;
-		m_deviceMemory = VK_NULL_HANDLE;
 		m_accStruct = VK_NULL_HANDLE;
 	}
 
