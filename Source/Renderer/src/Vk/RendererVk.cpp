@@ -612,12 +612,9 @@ namespace YAPT
 
 		std::vector<const char*> extensions
 		{
-			VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
 			VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
 			VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 			VK_KHR_RAY_QUERY_EXTENSION_NAME, //need this because DXC handles acceleration structures as needing rayquery instead of raytracing pipeline like before (and this extension is not present with emulation).
-
-			VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
 			VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
 			VK_KHR_SPIRV_1_4_EXTENSION_NAME,
 			VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME
@@ -682,30 +679,28 @@ namespace YAPT
 		f.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
 		f.baseFeatures.features.shaderStorageImageReadWithoutFormat = VK_TRUE;
 
-		//descriptor indexing features
-		f.descIndexingFeatures.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderInputAttachmentArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderUniformTexelBufferArrayNonUniformIndexing = VK_TRUE;
-		f.descIndexingFeatures.shaderStorageTexelBufferArrayNonUniformIndexing = VK_TRUE;
+		//Vk 1.2 features
+		f.physicalDeviceVk12Features.bufferDeviceAddress = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderUniformBufferArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderStorageBufferArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderStorageImageArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderInputAttachmentArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderUniformTexelBufferArrayNonUniformIndexing = VK_TRUE;
+		f.physicalDeviceVk12Features.shaderStorageTexelBufferArrayNonUniformIndexing = VK_TRUE;
 		//f.descIndexingFeatures.descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-		f.descIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
-		f.descIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-
-		//device address
-		f.deviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingStorageImageUpdateAfterBind = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingUniformTexelBufferUpdateAfterBind = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingStorageTexelBufferUpdateAfterBind = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingUpdateUnusedWhilePending = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingPartiallyBound = VK_TRUE;
+		f.physicalDeviceVk12Features.descriptorBindingVariableDescriptorCount = VK_TRUE;
+		f.physicalDeviceVk12Features.runtimeDescriptorArray = VK_TRUE;
 
 		//accstruct
 		f.accelerationStructureFeatures.accelerationStructure = VK_TRUE;
@@ -729,7 +724,7 @@ namespace YAPT
 			features.baseFeatures.features.shaderStorageImageReadWithoutFormat &&
 			features.rayQueryFeatures.rayQuery &&
 			features.rayTracePipelineFeatures.rayTracingPipeline &&
-			features.deviceAddressFeatures.bufferDeviceAddress
+			features.physicalDeviceVk12Features.bufferDeviceAddress
 			)
 		{
 			return true;

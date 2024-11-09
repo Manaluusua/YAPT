@@ -27,31 +27,28 @@ namespace YAPT
 		{
 			PhysicalDeviceInfo()
 				:baseFeatures{},
-				descIndexingFeatures{},
 				rayTracePipelineFeatures{},
 				rayQueryFeatures{},
-				deviceAddressFeatures{},
+				physicalDeviceVk12Features{},
 				accelerationStructureFeatures{},
 				deviceProperties2{},
 				raytracePipelineProperties{}
 				
 			{
 				baseFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-				descIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
 				rayTracePipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 				rayQueryFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR;
-				deviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_ADDRESS_FEATURES_EXT;
+				physicalDeviceVk12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 				accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
 
 				deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
 				raytracePipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
 
 				//features
-				baseFeatures.pNext = &descIndexingFeatures;
-				descIndexingFeatures.pNext = &rayTracePipelineFeatures;
+				baseFeatures.pNext = &rayTracePipelineFeatures;
 				rayTracePipelineFeatures.pNext = &rayQueryFeatures;
-				rayQueryFeatures.pNext = &deviceAddressFeatures;
-				deviceAddressFeatures.pNext = &accelerationStructureFeatures;
+				rayQueryFeatures.pNext = &physicalDeviceVk12Features;
+				physicalDeviceVk12Features.pNext = &accelerationStructureFeatures;
 
 				//properties
 				deviceProperties2.pNext = &raytracePipelineProperties;
@@ -59,10 +56,9 @@ namespace YAPT
 			}
 
 			VkPhysicalDeviceFeatures2 baseFeatures;
-			VkPhysicalDeviceDescriptorIndexingFeatures descIndexingFeatures;
+			VkPhysicalDeviceVulkan12Features  physicalDeviceVk12Features;
 			VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayTracePipelineFeatures;
 			VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures;
-			VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddressFeatures;
 			VkPhysicalDeviceAccelerationStructureFeaturesKHR accelerationStructureFeatures;
 
 			VkPhysicalDeviceProperties2 deviceProperties2;
