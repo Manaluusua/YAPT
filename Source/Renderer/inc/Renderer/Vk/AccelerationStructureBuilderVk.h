@@ -3,6 +3,7 @@
 
 #include <Renderer/Dx12/Dx12CommonIncludes.h>
 #include <Renderer/Shared/GfxTypes.h>
+#include <Renderer/Vk/SimpleBufferAllocationUtility.h>
 
 namespace YAPT
 {
@@ -29,9 +30,7 @@ namespace YAPT
 		void ensureScratch(VkDeviceSize sizeInBytes);
 
 		ResourceManagerVk& m_resourceMngr;
-		VkDeviceMemory m_scratchMemory;
-		VkBuffer m_scratchBuffer;
-		uint64_t m_scratchDeviceAddress;
+		SimpleBufferAllocationUtility m_scratchBuffer;
 		VkMemoryRequirements m_scratchMemoryReqs;
 	};
 }

@@ -1,8 +1,9 @@
 #pragma once
 
-
 #include <Renderer/Vk/CommonVk.h>
 #include <Renderer/Shared/GfxTypes.h>
+#include <Renderer/Vk/SimpleBufferAllocationUtility.h>
+
 namespace YAPT
 {
 	class RendererVk;
@@ -42,8 +43,7 @@ namespace YAPT
 		VkStridedDeviceAddressRegionKHR m_hitRegion;
 		uint32_t m_shaderGroupHandleSize;
 
-		BufferHandleVk* m_buffer;
-		VkDeviceMemory m_memory;
+		SimpleBufferAllocationUtility m_buffer;
 
 		std::vector<uint8_t> m_shadowBuffer;
 		size_t m_shadowBufferUploadRangeMin;

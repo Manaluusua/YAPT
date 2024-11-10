@@ -1,31 +1,14 @@
 #ifndef YAPT_DX12_ACCELERATIONSTRUCTURES_H
 #define YAPT_DX12_ACCELERATIONSTRUCTURES_H
 
-#include <Renderer/Dx12/Dx12CommonIncludes.h>
 #include <Renderer/Shared/GfxTypes.h>
+#include <Renderer/Vk/SimpleBufferAllocationUtility.h>
 
 namespace YAPT
 {
 	class ResourceManagerVk;
 
-	struct SimpleBufferAllocation
-	{
-		SimpleBufferAllocation()
-			:buffer(VK_NULL_HANDLE),
-			deviceMemory(VK_NULL_HANDLE),
-			deviceAddress(NULL)
-		{
-		}
-
-		void alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryPropertyBits);
-		void dealloc(ResourceManagerVk& mngr);
-		
-
-		VkBuffer buffer;
-		VkDeviceMemory deviceMemory;
-		VkDeviceAddress deviceAddress;
-	};
-
+	
 	class BottomLevelAccelerationStructure
 	{
 	public:
@@ -42,7 +25,7 @@ namespace YAPT
 		VkBuildAccelerationStructureModeKHR m_buildMode;
 		VkBuildAccelerationStructureFlagsKHR m_flags;
 		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;
-		SimpleBufferAllocation m_accStructBuffer;
+		SimpleBufferAllocationUtility m_accStructBuffer;
 		VkAccelerationStructureKHR m_accStruct;
 
 	};
@@ -63,11 +46,11 @@ namespace YAPT
 		VkBuildAccelerationStructureModeKHR m_buildMode;
 		VkBuildAccelerationStructureFlagsKHR m_flags;
 		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;
-		SimpleBufferAllocation m_accStructBuffer;
+		SimpleBufferAllocationUtility m_accStructBuffer;
 		VkAccelerationStructureKHR m_accStruct;
 
 
-		SimpleBufferAllocation m_instancesBuildDefinitionsBuffer;
+		SimpleBufferAllocationUtility m_instancesBuildDefinitionsBuffer;
 	};
 
 }

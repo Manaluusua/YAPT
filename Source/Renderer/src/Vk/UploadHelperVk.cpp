@@ -35,9 +35,8 @@ namespace YAPT
 		
 	}
 
-	void* UploadHelperVk::mapCopyRangeForBufferData(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes)
+	void* UploadHelperVk::mapCopyRangeForBufferData(VkBuffer buffer, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes)
 	{
-
 		BufferUpload* info = m_pendingBufferUploads.add(1);
 
 		UploadHeapVk::UploadHeapAllocationInfo uploadInfo;
@@ -52,21 +51,26 @@ namespace YAPT
 		info->copyDesc.srcOffset = uploadInfo.offsetToHeap;
 		info->copyDesc.dstOffset = offsetInBytes;
 		info->copyDesc.size = sizeInBytes;
-		info->dstBufferQueueFamilyIndex = buffer->owningQueueFamily;
+		info->dstBufferQueueFamilyIndex = owningQueueFamilyIndex;
 		info->srcBuffer = uploadInfo.uploadBuffer;
-		info->dstBuffer = buffer->buffer;
+		info->dstBuffer = buffer;
 
 		return uploadInfo.mappedPtr;
 	}
-	void UploadHelperVk::uploadDataForBuffer(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data)
+
+	void UploadHelperVk::uploadDataForBuffer(VkBuffer buffer, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data)
 	{
-		void* ptr = mapCopyRangeForBufferData(buffer, offsetInBytes, sizeInBytes);
+		void* ptr = mapCopyRangeForBufferData(buffer, owningQueueFamilyIndex,  offsetInBytes, sizeInBytes);
 		assert(ptr != nullptr);
 		if (ptr)
 		{
 			memcpy(ptr, data, sizeInBytes);
 		}
-		
+	}
+
+	void UploadHelperVk::uploadDataForBuffer(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data)
+	{
+		uploadDataForBuffer(buffer->buffer, buffer->owningQueueFamily, offsetInBytes, sizeInBytes, data);
 	}
 	
 	void UploadHelperVk::uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions)

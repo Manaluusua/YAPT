@@ -34,18 +34,17 @@ namespace YAPT
 		struct SortedMemoryEntries
 		{
 			SortedMemoryEntries()
-				:needsDeviceAddressMemory(false)
 			{
 
 			}
 			std::vector<size_t> entries;
-			bool needsDeviceAddressMemory;
 		};
 
 		assert(type == ResourcePoolType::RESOURCEPOOL_TYPE_DEFAULT); //others not implemented
 		VkDevice device = m_resourceMngr.getDevice();
 		std::vector<VkMemoryRequirements> memReq;
-		std::unordered_map<uint32_t, SortedMemoryEntries> sortedByMemoryTypeBits;
+		std::unordered_map<uint64_t, SortedMemoryEntries> sortedByMemoryType;
+		const uint64_t MEMORY_EXTRA_REQ_DEVICE_ADDRESS = static_cast<uint64_t>(1) << 32;
 
 		memReq.resize(textureCount + bufferCount);
 
@@ -66,24 +65,26 @@ namespace YAPT
 		for (size_t i = 0; i < textureCount; ++i)
 		{
 			vkGetImageMemoryRequirements(device, textures[i]->image, &memReq[i]);
-			sortedByMemoryTypeBits[memReq[i].memoryTypeBits].entries.push_back(i);
+			uint64_t key = memReq[i].memoryTypeBits;
+			sortedByMemoryType[key].entries.push_back(i);
 		}
 
 		for (size_t i = 0; i < bufferCount; ++i)
 		{
 			vkGetBufferMemoryRequirements(device, buffers[i]->buffer, &memReq[textureCount + i]);
-			SortedMemoryEntries& entries = sortedByMemoryTypeBits[memReq[i].memoryTypeBits];
+			bool needsDeviceAddressMemory = buffers[i]->createInfo.usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+			uint64_t key = (uint64_t)memReq[i].memoryTypeBits | MEMORY_EXTRA_REQ_DEVICE_ADDRESS;
+			SortedMemoryEntries& entries = sortedByMemoryType[key];
 			entries.entries.push_back(textureCount + i);
-			if (buffers[i]->createInfo.usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR)
-			{
-				entries.needsDeviceAddressMemory = true;
-			}
 		}
 
 		std::vector<size_t> offsets;
-		for (auto iter = sortedByMemoryTypeBits.begin(); iter != sortedByMemoryTypeBits.end(); ++iter)
+		for (auto iter = sortedByMemoryType.begin(); iter != sortedByMemoryType.end(); ++iter)
 		{
 			size_t allocationSize = 0;
+			uint64_t key = iter->first;
+			uint32_t memoryTypeBits = key & 0xFFFFFFFF;
+			bool needsDeviceAddressMemory = key & MEMORY_EXTRA_REQ_DEVICE_ADDRESS;
 			std::vector<size_t>& indices = iter->second.entries;
 			offsets.resize(indices.size());
 			for (size_t i = 0; i < indices.size(); ++i)
@@ -97,7 +98,7 @@ namespace YAPT
 			
 
 			ResourceManagerVk::AllocatedMemoryInfo allocation;
-			bool success = m_resourceMngr.allocateDeviceMemory(iter->first, memoryFlags, allocationSize, iter->second.needsDeviceAddressMemory, allocation);
+			bool success = m_resourceMngr.allocateDeviceMemory(memoryTypeBits, memoryFlags, allocationSize, needsDeviceAddressMemory, allocation);
 			if (!success)
 			{
 				return false;

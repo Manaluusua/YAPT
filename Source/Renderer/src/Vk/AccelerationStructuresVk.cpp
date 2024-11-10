@@ -12,43 +12,7 @@ namespace YAPT
 
 	}
 
-	//Simple Buffer Allocation Utility
-	void SimpleBufferAllocation::alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryPropertyBits)
-	{
-		assert(buffer == VK_NULL_HANDLE);
-		assert(deviceMemory == VK_NULL_HANDLE);
-
-		VkBufferCreateInfo buffCreateInfo{};
-		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffCreateInfo.size = size;
-		buffCreateInfo.usage = usage;
-		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VkResult res = vkCreateBuffer(mngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buffer);
-
-		ResourceManagerVk::AllocatedMemoryInfo memInfo;
-		bool success = mngr.allocateDeviceMemory(buffer, memoryPropertyBits, true, memInfo);
-		deviceMemory = memInfo.memory;
-
-		res = vkBindBufferMemory(mngr.getDevice(), buffer, deviceMemory, 0);
-
-		checkVkResult(res);
-		assert(success);
-
-		deviceAddress = mngr.GetDeviceAddress(buffer);
-	}
-	void SimpleBufferAllocation::dealloc(ResourceManagerVk& mngr)
-	{
-		assert(buffer != VK_NULL_HANDLE);
-		assert(deviceMemory != VK_NULL_HANDLE);
-
-		mngr.deferredDestroyVkResource(buffer);
-		mngr.deferredDestroyVkResource(deviceMemory);
-
-		buffer = VK_NULL_HANDLE;
-		deviceMemory = VK_NULL_HANDLE;
-		deviceAddress = NULL;
-
-	}
+	
 
 	//Bottom level acceleration structure
 	BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(ResourceManagerVk& resMngr, const BottomLevelAccelerationStructureDefinition& def)
@@ -205,7 +169,7 @@ namespace YAPT
 		//allocate & upload the instances struct data
 		{
 			uint32_t bufferSize = (uint32_t)m_instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
-			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 			void* mappedPtr;
 			VkResult res = vkMapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory, 0, bufferSize, 0, &mappedPtr);

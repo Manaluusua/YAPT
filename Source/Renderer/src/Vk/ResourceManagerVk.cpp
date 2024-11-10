@@ -146,6 +146,11 @@ namespace YAPT
 		return false;
 	}
 
+	void ResourceManagerVk::upload(VkBuffer handle, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
+	{
+		copyViaUploadHeap(handle, owningQueueFamilyIndex, offsetInBytes, sizeInBytes, data, heapType);
+	}
+
 
 	void ResourceManagerVk::upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 	{
@@ -196,12 +201,12 @@ namespace YAPT
 		{
 		case YAPT::GpuUploadStage::BEFORE_RENDER:
 		{
-			return m_preFrameUploads->mapCopyRangeForBufferData(buffer, offsetInBytes, sizeInBytes);
+			return m_preFrameUploads->mapCopyRangeForBufferData(buffer->buffer, buffer->owningQueueFamily, offsetInBytes, sizeInBytes);
 			break;
 		}
 		case YAPT::GpuUploadStage::DURING_RENDER:
 		{
-			return m_duringFrameUploads->mapCopyRangeForBufferData(buffer, offsetInBytes, sizeInBytes);
+			return m_duringFrameUploads->mapCopyRangeForBufferData(buffer->buffer, buffer->owningQueueFamily, offsetInBytes, sizeInBytes);
 			break;
 		}
 		default:
@@ -209,6 +214,26 @@ namespace YAPT
 			break;
 		}
 		return nullptr;
+	}
+
+	void ResourceManagerVk::copyViaUploadHeap(VkBuffer handle, uint32_t owningFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
+	{
+		switch (heapType)
+		{
+		case YAPT::GpuUploadStage::BEFORE_RENDER:
+		{
+			m_preFrameUploads->uploadDataForBuffer(handle, owningFamilyIndex, offsetInBytes, sizeInBytes, data);
+			break;
+		}
+		case YAPT::GpuUploadStage::DURING_RENDER:
+		{
+			m_duringFrameUploads->uploadDataForBuffer(handle, owningFamilyIndex, offsetInBytes, sizeInBytes, data);
+			break;
+		}
+		default:
+			assert(!"unknown upload stage");
+			break;
+		}
 	}
 
 	void ResourceManagerVk::copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)

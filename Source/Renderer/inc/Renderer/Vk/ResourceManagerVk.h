@@ -49,6 +49,8 @@ namespace YAPT
 		bool allocateDeviceMemory(VkBuffer buffer, VkMemoryPropertyFlags requiredFlags, bool requireDeviceAddress, AllocatedMemoryInfo& out);
 		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out);
 
+
+		void upload(VkBuffer handle, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 		void unmap(BufferHandleVk* handle);
@@ -108,6 +110,7 @@ namespace YAPT
 			char data[32];
 		};
 
+		void copyViaUploadHeap(VkBuffer handle, uint32_t owningFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount,
 			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);

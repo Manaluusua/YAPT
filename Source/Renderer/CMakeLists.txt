@@ -308,6 +308,7 @@ if(${BUILD_VK_BACKEND})
 		inc/Renderer/Vk/AccelerationStructureBuilderVk.h
 		inc/Renderer/Vk/AccelerationStructuresVk.h
 		inc/Renderer/Vk/VkExtensions.h
+		inc/Renderer/Vk/SimpleBufferAllocationUtility.h
 		)
 	list(APPEND SOURCE
 		src/Vk/RendererVk.cpp
@@ -337,6 +338,7 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/ShaderTableVk.cpp
 		src/Vk/AccelerationStructureBuilderVk.cpp
 		src/Vk/AccelerationStructuresVk.cpp
+		src/Vk/SimpleBufferAllocationUtility.cpp
 		)
 		
 	target_compile_definitions(Renderer 

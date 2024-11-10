@@ -8,9 +8,7 @@ namespace YAPT
 {
 	const uint32_t DEFAULT_SCRATCH_SIZE = 1024 * 1024 * 64;
 	AccelerationStructureBuilder::AccelerationStructureBuilder(ResourceManagerVk& resMngr)
-		:m_resourceMngr(resMngr),
-		m_scratchMemory(VK_NULL_HANDLE),
-		m_scratchBuffer(VK_NULL_HANDLE)
+		:m_resourceMngr(resMngr)
 	{
 		allocateScratch(DEFAULT_SCRATCH_SIZE);
 	}
@@ -60,7 +58,7 @@ namespace YAPT
 			ensureScratch(scratchSize);
 		}
 
-		uint64_t currentScratchAddress = m_scratchDeviceAddress;
+		uint64_t currentScratchAddress = m_scratchBuffer.deviceAddress;
 		VkDeviceSize usedScratchMemory = 0;
 		size_t batchOffset = 0;
 		for (size_t i = 0; i < numberOfStructures; ++i)
@@ -76,7 +74,7 @@ namespace YAPT
 			}
 			const VkAccelerationStructureBuildRangeInfoKHR*& buildRange = *(buildRanges.data() + i);
 			blasArray[i]->fillBuildInfo(buildInfo.data() + i, buildRange);
-			buildInfo[i].scratchData.deviceAddress = m_scratchDeviceAddress + usedScratchMemory;
+			buildInfo[i].scratchData.deviceAddress = currentScratchAddress + usedScratchMemory;
 			usedScratchMemory += scratchSize;
 		}
 
@@ -125,13 +123,9 @@ namespace YAPT
 
 	void AccelerationStructureBuilder::freeScratch()
 	{
-		if (m_scratchMemory != VK_NULL_HANDLE)
+		if (m_scratchBuffer.buffer != VK_NULL_HANDLE)
 		{
-			m_resourceMngr.deferredDestroyVkResource(m_scratchMemory);
-			m_resourceMngr.deferredDestroyVkResource(m_scratchBuffer);
-			m_scratchMemory = VK_NULL_HANDLE;
-			m_scratchBuffer = VK_NULL_HANDLE;
-			m_scratchDeviceAddress = 0;
+			m_scratchBuffer.dealloc(m_resourceMngr);
 			m_scratchMemoryReqs.size = 0;
 		}
 		
@@ -139,20 +133,8 @@ namespace YAPT
 	void AccelerationStructureBuilder::allocateScratch(VkDeviceSize sizeInBytes)
 	{
 
-		VkBufferCreateInfo buffCreateInfo{};
-		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffCreateInfo.size = sizeInBytes;
-		buffCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;;
-		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VkResult res = vkCreateBuffer(m_resourceMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_scratchBuffer);
-
-		ResourceManagerVk::AllocatedMemoryInfo memInfo;
-		bool success = m_resourceMngr.allocateDeviceMemory(ResourceManagerVk::ALLOW_ALL_MEMORY_TYPES, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, sizeInBytes, true, memInfo);
-		m_scratchMemory = memInfo.memory;
-		assert(success);
-
-		m_scratchDeviceAddress = m_resourceMngr.GetDeviceAddress(m_scratchBuffer);
-		m_resourceMngr.getMemoryRequirements(m_scratchBuffer);
+		m_scratchBuffer.alloc(m_resourceMngr, sizeInBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+		m_resourceMngr.getMemoryRequirements(m_scratchBuffer.buffer);
 		
 	}
 	void AccelerationStructureBuilder::ensureScratch(VkDeviceSize sizeInBytes)

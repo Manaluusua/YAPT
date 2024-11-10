@@ -842,11 +842,6 @@ namespace YAPT
 		infoOut.size = desc.sizeInBytes;
 		infoOut.usage = yaptUsageToVk(desc.resourceUsage);
 		infoOut.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-		if ((desc.resourceUsage & RESOURCE_USAGE_VERTEX_BUFFER) | (desc.resourceUsage & RESOURCE_USAGE_INDEX_BUFFER))
-		{
-			infoOut.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT_KHR;
-		}
 	}
 
 	inline void yaptTextureDescToVk(const YAPT::TextureDesc& desc, VkImageCreateInfo& infoOut, bool useLinearMemory = false)

@@ -21,9 +21,7 @@ namespace YAPT
 
 	ShaderTableVk::ShaderTableVk(RendererVk* renderer, RaytracePipelineStateHandle pso, size_t numberOfRayGenShaders, size_t numberOfMissShaders, size_t numberOfHitGroups)
 		:m_renderer(*renderer),
-		m_pso(*pso),
-		m_buffer(VK_NULL_HANDLE),
-		m_memory(VK_NULL_HANDLE)
+		m_pso(*pso)
 	{
 		VkDevice device = m_renderer.getDevice();
 		const auto& props = m_renderer.getPhysicalDeviceInfo().raytracePipelineProperties;
@@ -53,10 +51,8 @@ namespace YAPT
 		//allocate buffer and fill buffer addresses to regions
 		{
 			createBuffer(sizeSum);
-			VkBufferDeviceAddressInfo info{ VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, nullptr, m_buffer->buffer };
-			VkDeviceAddress bufferAddress = vkGetBufferDeviceAddress(device, &info);
-			m_rayGenRegion.deviceAddress = bufferAddress;
-			m_missRegion.deviceAddress = bufferAddress + m_rayGenRegion.size;
+			m_rayGenRegion.deviceAddress = m_buffer.deviceAddress;
+			m_missRegion.deviceAddress = m_rayGenRegion.deviceAddress + m_rayGenRegion.size;
 			m_hitRegion.deviceAddress = m_missRegion.deviceAddress + m_missRegion.size;
 		}
 		m_shadowBuffer.resize(sizeSum);
@@ -67,38 +63,12 @@ namespace YAPT
 	void ShaderTableVk::createBuffer(VkDeviceSize bufferSize)
 	{
 		ResourceManagerVk& mngr = *m_renderer.getResourceManager();
-
-
-		//create buffer
-		{
-			BufferDesc buffDesc(RESOURCE_USAGE_SHADERTABLE_BUFFER | RESOURCE_USAGE_COPY_DESTINATION, bufferSize);
-			ResourceStateDescription stateDesc = ResourceStateDescription::default();
-
-			m_buffer = m_renderer.getResourceManager()->createBuffer(buffDesc, stateDesc, m_renderer.getGraphicsQueue().queueFamilyIndex, "ShaderTable");
-		}
-
-		//memory
-		{
-			ResourceManagerVk::AllocatedMemoryInfo memInfo;
-			bool success = mngr.allocateDeviceMemory(m_buffer->buffer, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, false, memInfo);
-			m_memory = memInfo.memory;
-			assert(success);
-		}
-		
-		{
-
-			VkResult res = vkBindBufferMemory(mngr.getDevice(), m_buffer->buffer, m_memory, 0);
-			checkVkResult(res);
-		}
-
+		m_buffer.alloc(mngr, bufferSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
 	}
+
 	void ShaderTableVk::releaseBuffer()
 	{
-		m_renderer.getResourceManager()->destroyBuffer(m_buffer);
-		m_renderer.getResourceManager()->deferredDestroyVkResource(m_memory);
-
-		m_buffer = nullptr;
-		m_memory = VK_NULL_HANDLE;
+		m_buffer.dealloc(*m_renderer.getResourceManager());
 	}
 
 	void ShaderTableVk::writeShaderTableEntries(const ShaderTableEntry* rayGenBindings, size_t numberOfRayGenBindings,
@@ -136,7 +106,7 @@ namespace YAPT
 
 	void ShaderTableVk::uploadShadowBufferData()
 	{
-		m_renderer.getResourceManager()->upload(m_buffer, m_shadowBufferUploadRangeMin, m_shadowBufferUploadRangeMax - m_shadowBufferUploadRangeMin, m_shadowBuffer.data(), GpuUploadStage::DURING_RENDER);
+		m_renderer.getResourceManager()->upload(m_buffer.buffer, m_renderer.getGraphicsQueue().queueFamilyIndex, m_shadowBufferUploadRangeMin, m_shadowBufferUploadRangeMax - m_shadowBufferUploadRangeMin, m_shadowBuffer.data(), GpuUploadStage::DURING_RENDER);
 	}
 	void ShaderTableVk::clearShadowBufferRange()
 	{
