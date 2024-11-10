@@ -67,7 +67,7 @@ namespace YAPT
 
 			BufferViewDesc buffViewDesc;
 			buffViewDesc.offsetInBytes = 0;
-			buffViewDesc.sizeInBytes = align((size_t)BufferSize, alignment);
+			buffViewDesc.sizeInBytes = BufferSize;//align((size_t)BufferSize, alignment);
 			buffViewDesc.structureStrideInBytes = EntrySize;
 			m_bufferView = Gfx::getBufferView(m_gfxHandle, m_bufferHandle, buffViewDesc);
 		}
