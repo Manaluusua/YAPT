@@ -73,7 +73,7 @@ namespace YAPT
 		{
 			vkGetBufferMemoryRequirements(device, buffers[i]->buffer, &memReq[textureCount + i]);
 			bool needsDeviceAddressMemory = buffers[i]->createInfo.usage & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-			uint64_t key = (uint64_t)memReq[i].memoryTypeBits | MEMORY_EXTRA_REQ_DEVICE_ADDRESS;
+			uint64_t key = (uint64_t)memReq[i].memoryTypeBits | (needsDeviceAddressMemory ? MEMORY_EXTRA_REQ_DEVICE_ADDRESS : 0);
 			SortedMemoryEntries& entries = sortedByMemoryType[key];
 			entries.entries.push_back(textureCount + i);
 		}
