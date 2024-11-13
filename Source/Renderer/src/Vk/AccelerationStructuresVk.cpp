@@ -169,7 +169,7 @@ namespace YAPT
 		//allocate & upload the instances struct data
 		{
 			uint32_t bufferSize = (uint32_t)m_instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
-			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 			void* mappedPtr;
 			VkResult res = vkMapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory, 0, bufferSize, 0, &mappedPtr);
@@ -178,15 +178,15 @@ namespace YAPT
 			vkUnmapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory);
 		}
 
-		VkAccelerationStructureGeometryInstancesDataKHR instancesStruct = {};
-		instancesStruct.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-		instancesStruct.data.deviceAddress = m_instancesBuildDefinitionsBuffer.deviceAddress;
-		instancesStruct.arrayOfPointers = VK_FALSE;
+		m_instanceStructsDef = {};
+		m_instanceStructsDef.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+		m_instanceStructsDef.data.deviceAddress = m_instancesBuildDefinitionsBuffer.deviceAddress;
+		m_instanceStructsDef.arrayOfPointers = VK_FALSE;
 
-		VkAccelerationStructureGeometryKHR topAccStruct = {};
-		topAccStruct.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-		topAccStruct.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-		topAccStruct.geometry.instances = instancesStruct;
+		m_accStructGeometry = {};
+		m_accStructGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+		m_accStructGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+		m_accStructGeometry.geometry.instances = m_instanceStructsDef;
 
 		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
 		buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -194,12 +194,17 @@ namespace YAPT
 		buildInfo.mode = buildMode;
 		buildInfo.flags = flags;
 		buildInfo.geometryCount = 1;
-		buildInfo.pGeometries = &topAccStruct;
+		buildInfo.pGeometries = &m_accStructGeometry;
 
 		m_sizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 		m_sizesInfo.pNext = NULL;
 
 		uint32_t instanceCount = (uint32_t)m_instances.size();
+
+		m_buildRange.firstVertex = 0;
+		m_buildRange.primitiveCount = instanceCount;
+		m_buildRange.primitiveOffset = 0;
+		m_buildRange.transformOffset = 0;
 
 		m_resMngr.getVkExtFuncs().vkGetAccelerationStructureBuildSizesKHR(m_resMngr.getDevice(), VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, &instanceCount, &m_sizesInfo);
 
@@ -231,18 +236,20 @@ namespace YAPT
 		m_accStruct = VK_NULL_HANDLE;
 	}
 
-	/*void BottomLevelAccelerationStructure::fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges)
+	void TopLevelAccelerationStructure::fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges)
 	{
+
+
 		VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
 		buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+		buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
 		buildInfo.mode = m_buildMode;
 		buildInfo.flags = m_flags;
-		buildInfo.geometryCount = (uint32_t)m_geometries.size();
-		buildInfo.pGeometries = m_geometries.data();
+		buildInfo.geometryCount = 1;
+		buildInfo.pGeometries = &m_accStructGeometry;
 		buildInfo.dstAccelerationStructure = m_accStruct;
 
 		*infoOut = buildInfo;
-		buildRanges = m_buildRanges.data();
-	}*/
+		buildRanges = &m_buildRange;
+	}
 }

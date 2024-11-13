@@ -36,13 +36,18 @@ namespace YAPT
 		TopLevelAccelerationStructure(ResourceManagerVk& resMngr, const TopLevelAccelerationStructureDefinition& def);
 		void allocate(VkBuildAccelerationStructureModeKHR buildMode, VkBuildAccelerationStructureFlagsKHR flags);
 		void deallocate();
-		//void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
+		void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
 		const VkAccelerationStructureBuildSizesInfoKHR& getSizesInfo() const { return m_sizesInfo; }
 		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
 
 	private:
 		ResourceManagerVk& m_resMngr;
 		std::vector<VkAccelerationStructureInstanceKHR> m_instances;
+		VkAccelerationStructureGeometryInstancesDataKHR m_instanceStructsDef;
+		VkAccelerationStructureGeometryKHR m_accStructGeometry;
+		VkAccelerationStructureBuildRangeInfoKHR m_buildRange;
+
+
 		VkBuildAccelerationStructureModeKHR m_buildMode;
 		VkBuildAccelerationStructureFlagsKHR m_flags;
 		VkAccelerationStructureBuildSizesInfoKHR m_sizesInfo;

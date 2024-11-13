@@ -94,22 +94,67 @@ namespace YAPT
 	}
 
 
-	void AccelerationStructureBuilder::allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfDefinitions)
+	void AccelerationStructureBuilder::allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfDefinitions)
 	{
 		for (size_t blasInd = 0; blasInd < numberOfDefinitions; ++blasInd)
 		{
 			const TopLevelAccelerationStructureDefinition& def = definitions[blasInd];
 			TopLevelAccelerationStructure* tlas = new TopLevelAccelerationStructure(m_resourceMngr, def);
 			tlas->allocate(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
-			tlasArray[blasInd] = tlas;
+			tlasArrayOut[blasInd] = tlas;
 
 		}
 	}
 
 
-	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfStructures)
+	void AccelerationStructureBuilder::buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfStructures)
 	{
-		assert(!"NOT IMPLEMENTED!");
+		std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildInfo;
+		std::vector<const VkAccelerationStructureBuildRangeInfoKHR*> buildRanges;
+		buildInfo.resize(numberOfStructures);
+		buildRanges.resize(numberOfStructures);
+
+		//barrier between flushes
+		VkMemoryBarrier barrier = {};
+		barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+		barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+		barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+
+		auto flush = [&](size_t entryOffset, size_t count)
+		{
+			m_resourceMngr.getVkExtFuncs().vkCmdBuildAccelerationStructuresKHR(cmdList, (uint32_t)count, buildInfo.data() + entryOffset, buildRanges.data() + entryOffset);
+			vkCmdPipelineBarrier(cmdList, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 1, &barrier, 0, nullptr, 0, nullptr);
+		};
+		//ensure scratch
+		for (size_t i = 0; i < numberOfStructures; ++i)
+		{
+			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+			ensureScratch(scratchSize);
+		}
+
+		uint64_t currentScratchAddress = m_scratchBuffer.deviceAddress;
+		VkDeviceSize usedScratchMemory = 0;
+		size_t batchOffset = 0;
+		for (size_t i = 0; i < numberOfStructures; ++i)
+		{
+			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+
+			if (usedScratchMemory + scratchSize >= m_scratchMemoryReqs.size)
+			{
+				//flush
+				flush(batchOffset, i - batchOffset);
+				batchOffset = i;
+
+			}
+			const VkAccelerationStructureBuildRangeInfoKHR*& buildRange = *(buildRanges.data() + i);
+			tlasArray[i]->fillBuildInfo(buildInfo.data() + i, buildRange);
+			buildInfo[i].scratchData.deviceAddress = currentScratchAddress + usedScratchMemory;
+			usedScratchMemory += scratchSize;
+		}
+
+
+		flush(batchOffset, numberOfStructures - batchOffset);
 	}
 
 	void AccelerationStructureBuilder::destroyTopLevelAccelerationStructures(TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures)

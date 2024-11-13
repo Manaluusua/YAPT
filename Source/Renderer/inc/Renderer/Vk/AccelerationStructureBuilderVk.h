@@ -16,11 +16,11 @@ namespace YAPT
 		~AccelerationStructureBuilder();
 
 		void allocateBottomLevelAccelerationStructures( const BottomLevelAccelerationStructureDefinition* definitions,  BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfDefinitions);
-		void buildBottomLevelAccelerationStructures(VkCommandBuffer cmdList,  BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfStructures);
+		void buildBottomLevelAccelerationStructures(VkCommandBuffer cmdList,  BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfStructures);
 		void destroyBottomLevelAccelerationStructures(BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 		void allocateTopLevelAccelerationStructures(const TopLevelAccelerationStructureDefinition* definitions, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfDefinitions);
-		void buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, TopLevelAccelerationStructureHandle* tlasArrayOut, size_t numberOfStructures);
+		void buildTopLevelAccelerationStructures(VkCommandBuffer cmdList, TopLevelAccelerationStructureHandle* tlasArray, size_t numberOfStructures);
 		void destroyTopLevelAccelerationStructures(TopLevelAccelerationStructureHandle* structures, size_t numberOfStructures);
 
 	private:
