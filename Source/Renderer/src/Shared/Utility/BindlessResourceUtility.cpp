@@ -45,7 +45,7 @@ namespace YAPT
 		TextureViewHandle h = handle;
 
 		DescriptorSetUpdate update;
-		update.texHandles = &h;
+		update.descriptor = DescriptorPtr(&h);
 		update.descriptorCount = 1;
 		update.dstArrayElement = index;
 		update.dstBinding = m_bindingDef.bindingIndex;
@@ -56,7 +56,7 @@ namespace YAPT
 		BufferViewHandle h = handle;
 
 		DescriptorSetUpdate update;
-		update.buffHandles = &h;
+		update.descriptor = DescriptorPtr(&h);
 		update.descriptorCount = 1;
 		update.dstArrayElement = index;
 		update.dstBinding = m_bindingDef.bindingIndex;

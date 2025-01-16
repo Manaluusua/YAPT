@@ -3,6 +3,7 @@
 #include <Renderer/Dx12/ResourceManagerDx12.h>
 #include <Renderer/Dx12/DescriptorHeapDx12.h>
 #include <Renderer/Dx12/YaptToDx12Conversions.h>
+#include <Renderer/Dx12/AccelerationStructureBuilderDx12.h>
 
 
 
@@ -133,7 +134,8 @@ namespace YAPT
 			{
 				for (size_t i = 0; i < update.descriptorCount; ++i)
 				{
-					const BufferViewHandle& buffHandle = update.buffHandles[i];
+					
+					const BufferViewHandle& buffHandle = update.descriptor.asBufferViewPtr()[i];
 					DescriptorSetDx12::RootDescriptor& rootDesc = set->rootDescriptors[descriptorOffsetFromDescSetStart + update.dstArrayElement + i];
 					rootDesc.resourceAddress = buffHandle->resource->GetGPUVirtualAddress() + buffHandle->desc.offsetInBytes;
 					rootDesc.consumesDynamicOffset = true;
@@ -169,22 +171,29 @@ namespace YAPT
 						ID3D12Resource* res;
 						if (useBufferView)
 						{
-							res = update.buffHandles[i]->resource.get();
-							fillShaderResourceView(update.buffHandles[i]->desc, def, res, srvDesc);
+							if (def.type == DescriptorType::ACCELERATION_STRUCTURE)
+							{
+								TopLevelAccelerationStructureHandle accStruct = update.descriptor.asAccelerationStructurePtr()[i];
+								BufferViewDx12* bufferView = &accStruct->accelerationStructure;
+								res = bufferView->resource;
+								fillShaderResourceView(bufferView->desc, def, res, srvDesc);
+								res = nullptr;
+							}
+							else
+							{
+								res = update.descriptor.asBufferViewPtr()[i]->resource.get();
+								fillShaderResourceView(update.descriptor.asBufferViewPtr()[i]->desc, def, res, srvDesc);
+							}
+							
 						}
 						else
 						{
-							res = update.texHandles[i]->resource.get();
-							fillShaderResourceView(update.texHandles[i]->desc, def, srvDesc);
+							res = update.descriptor.asTextureViewPtr()[i]->resource.get();
+							fillShaderResourceView(update.descriptor.asTextureViewPtr()[i]->desc, def, srvDesc);
 						}
 						
 						CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(set->nonSamplerHeapDescSetBaseCPU);
 						heapAddress.Offset((INT)(descriptorOffsetFromDescSetStart + update.dstArrayElement + i), (UINT)set->nonSamplerHeapIncrementSize);
-
-						if (def.type == DescriptorType::ACCELERATION_STRUCTURE)
-						{
-							res = nullptr;
-						}
 
 						m_resMngr.getDevice().CreateShaderResourceView(res, &srvDesc, heapAddress);
 					}
@@ -201,13 +210,13 @@ namespace YAPT
 						ID3D12Resource* res;
 						if (useBufferView)
 						{
-							res = update.buffHandles[i]->resource.get();
-							fillUnorderedAccessView(update.buffHandles[i]->desc, def, uavDesc);
+							res = update.descriptor.asBufferViewPtr()[i]->resource.get();
+							fillUnorderedAccessView(update.descriptor.asBufferViewPtr()[i]->desc, def, uavDesc);
 						}
 						else
 						{
-							res = update.texHandles[i]->resource.get();
-							fillUnorderedAccessView(update.texHandles[i]->desc, def, uavDesc);
+							res = update.descriptor.asTextureViewPtr()[i]->resource.get();
+							fillUnorderedAccessView(update.descriptor.asTextureViewPtr()[i]->desc, def, uavDesc);
 						}
 
 						m_resMngr.getDevice().CreateUnorderedAccessView(res, nullptr, &uavDesc, heapAddress);
@@ -222,7 +231,7 @@ namespace YAPT
 						CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(set->nonSamplerHeapDescSetBaseCPU);
 						heapAddress.Offset((INT)(descriptorOffsetFromDescSetStart + update.dstArrayElement + i), (UINT)set->nonSamplerHeapIncrementSize);
 						D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
-						fillConstantBufferView(update.buffHandles[i]->desc, def, update.buffHandles[i]->resource.get(), cbvDesc);
+						fillConstantBufferView(update.descriptor.asBufferViewPtr()[i]->desc, def, update.descriptor.asBufferViewPtr()[i]->resource.get(), cbvDesc);
 						m_resMngr.getDevice().CreateConstantBufferView(&cbvDesc, heapAddress);
 					}
 					break;
@@ -231,7 +240,7 @@ namespace YAPT
 					{
 						for (size_t i = 0; i < update.descriptorCount; ++i)
 						{
-							const SamplerHandle& samplerHandle = update.samplerHandles[i];
+							const SamplerHandle& samplerHandle = update.descriptor.asSamplerPtr()[i];
 							CD3DX12_CPU_DESCRIPTOR_HANDLE heapAddress(set->samplerHeapDescSetBaseCPU);
 							heapAddress.Offset((INT)(descriptorOffsetFromDescSetStart + update.dstArrayElement + i), (UINT)set->samplerHeapIncrementSize);
 							m_resMngr.getDevice().CreateSampler(&samplerHandle->samplerDesc, heapAddress);

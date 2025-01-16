@@ -467,8 +467,8 @@ namespace YAPT
 				TextureViewHandle mergeTarget = getGraph()->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
 
 				DescriptorSetUpdate updates[] = {
-					{0, 0, 1, nullptr, m_clearMergeBufferConstants.getViewPtr(), nullptr},
-					{1, 0, 1, &mergeTarget, nullptr, nullptr},
+					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
+					{1, 0, 1, DescriptorPtr(&mergeTarget)},
 				};
 				m_clearMergeBufferPass.updateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -479,9 +479,9 @@ namespace YAPT
 				TextureViewHandle mergeSource = getGraph()->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
 
 				DescriptorSetUpdate updates[] = {
-					{0, 0, 1, nullptr, m_mergeSamplesConstants.getViewPtr(), nullptr},
-					{1, 0, 1, &mergeSource, nullptr, nullptr},
-					{2, 0, 1, &mergeTarget, nullptr, nullptr}
+					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
+					{1, 0, 1, DescriptorPtr(&mergeSource)},
+					{2, 0, 1, DescriptorPtr(&mergeTarget)}
 				};
 				m_mergePass.updateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -576,7 +576,7 @@ namespace YAPT
 
 			m_rtDescSet = m_rtLayout.getDescriptorSetUtility(0).getNewDescriptorSet();
 			TextureViewHandle rtOutputUav = getGraph()->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
-			BufferViewHandle accStructView = Gfx::getBufferView(getRenderer()->getGfxHandle(), m_accStructureHelper.getTopLevelAccelerationStructure());
+			TopLevelAccelerationStructureHandle accStruct = m_accStructureHelper.getTopLevelAccelerationStructure();
 
 			TextureViewHandle singleScatterAlbedoNoFresnel = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoNoFresnel();
 			TextureViewHandle singleScatterAverageAlbedoNoFresnel = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getSingleScatterAverageDirectionalAlbedoNoFresnel();
@@ -594,20 +594,20 @@ namespace YAPT
 			
 
 			DescriptorSetUpdate updates[] = {
-				{1, 0, 1, nullptr, m_rayTraceConstants.getViewPtr(), nullptr},
-				{2, 0, 1, nullptr, m_randomSamples.getViewPtr(), nullptr},
-				{3, 0, 1, nullptr, &accStructView, nullptr },
-				{4, 0, 1, &rtOutputUav, nullptr, nullptr},
-				{10, 0, 1, &singleScatterAlbedoNoFresnel, nullptr, nullptr},
-				{11, 0, 1, &singleScatterAverageAlbedoNoFresnel, nullptr, nullptr},
-				{12, 0, 1, &singleAndMultiScatterAlbedo, nullptr, nullptr},
-				{13, 0, 1, &singleAndMultiScatterAverageAlbedo, nullptr, nullptr},
-				{14, 0, 1, &singleScatterAlbedoTranslucentDenser, nullptr, nullptr},
-				{15, 0, 1, &singleScatterAverageAlbedoTranslucentLighter, nullptr, nullptr},
-				{16, 0, 1, &singleScatterAvgAlbedoTranslucentDenser, nullptr, nullptr},
-				{17, 0, 1, &singleScatterAvgAverageAlbedoTranslucentLighter, nullptr, nullptr},
-				{18, 0, 1, &sheenDirectionalAlbedo, nullptr, nullptr},
-				{20, 0, 1, &noiseTex, nullptr, nullptr}
+				{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
+				{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
+				{3, 0, 1, DescriptorPtr(&accStruct) },
+				{4, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{10, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
+				{11, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
+				{12, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
+				{13, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
+				{14, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
+				{15, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
+				{16, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
+				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
+				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
+				{20, 0, 1, DescriptorPtr(&noiseTex)}
 			};
 			Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_rtDescSet, updates, countOf(updates));
 		}

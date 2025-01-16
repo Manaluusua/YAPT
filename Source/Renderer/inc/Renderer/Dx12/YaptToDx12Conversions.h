@@ -15,7 +15,27 @@
 
 namespace YAPT
 {
-	
+	inline uint32_t getMinimumAlignmentForBufferUsage(ResourceUsage resourceUsage)
+	{
+		int maxAlignment = D3D12_RAW_UAV_SRV_BYTE_ALIGNMENT;
+		if ((resourceUsage & (RESOURCE_USAGE_UNIFORM_BUFFER)) != 0)
+		{
+			maxAlignment = max(maxAlignment, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
+		}
+		if ((resourceUsage & RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUFFER) != 0)
+		{
+			maxAlignment = max(maxAlignment, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
+		}
+		if ((resourceUsage & RESOURCE_USAGE_SHADERTABLE_BUFFER) != 0)
+		{
+			maxAlignment = max(maxAlignment, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+
+		}
+
+
+		return maxAlignment;
+
+	}
 
 	inline D3D12_RESOURCE_DIMENSION yaptToDx12ResourceDimensions(ResourceDimension dim)
 	{
@@ -1140,6 +1160,8 @@ namespace YAPT
 		}
 	}
 
+	
+
 	inline void fillUnorderedAccessView(const BufferViewDesc& bufViewDesc, const DescriptorSetLayoutBinding& bindingDef, D3D12_UNORDERED_ACCESS_VIEW_DESC& uavOut)
 	{
 		uavOut.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -1171,7 +1193,7 @@ namespace YAPT
 	inline void fillConstantBufferView(const BufferViewDesc& bufViewDesc, const DescriptorSetLayoutBinding& bindingDef, ID3D12Resource* res, D3D12_CONSTANT_BUFFER_VIEW_DESC& cbvOut)
 	{
 		cbvOut.BufferLocation = res->GetGPUVirtualAddress() + bufViewDesc.offsetInBytes;
-		cbvOut.SizeInBytes = (UINT)bufViewDesc.sizeInBytes;
+		cbvOut.SizeInBytes = (UINT)align(bufViewDesc.sizeInBytes, getMinimumAlignmentForBufferUsage(RESOURCE_USAGE_UNIFORM_BUFFER));
 
 	}
 

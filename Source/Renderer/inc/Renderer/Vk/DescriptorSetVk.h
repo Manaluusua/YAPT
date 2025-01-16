@@ -37,9 +37,14 @@ namespace YAPT
 		RendererVk* m_renderer;
 		VkDescriptorSet m_set;
 		DescriptorSetLayoutVk* m_layout;
+
+		std::vector<VkWriteDescriptorSet> m_descSetWritesCache;
+		std::vector<VkWriteDescriptorSetAccelerationStructureKHR> m_accStructWriteCache;
 		std::vector<VkDescriptorBufferInfo> m_descriptorBufferInfoScratch;
 		std::vector<VkDescriptorImageInfo> m_descriptoImageInfoScratch;
 		std::vector<VkBufferView> m_descriptorTexelBufferScratch;
+		std::vector<VkAccelerationStructureKHR> m_accelerationStructureRefScratch;
+
 		size_t m_frameLastUsed;
 		bool m_inUse;
 	};

@@ -262,27 +262,7 @@ namespace YAPT
 		return m_samplerDescHeapAllocator->getHeap();
 	}
 
-	uint32_t ResourceManagerDx12::getBufferMinimumAlignment(ResourceUsage resourceUsage)
-	{
-		int maxAlignment = D3D12_RAW_UAV_SRV_BYTE_ALIGNMENT;
-		if ((resourceUsage & (RESOURCE_USAGE_UNIFORM_BUFFER)) != 0)
-		{
-			maxAlignment = max(maxAlignment, D3D12_CONSTANT_BUFFER_DATA_PLACEMENT_ALIGNMENT);
-		}
-		if ((resourceUsage & RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUFFER) != 0)
-		{
-			maxAlignment = max(maxAlignment, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
-		}
-		if ((resourceUsage & RESOURCE_USAGE_SHADERTABLE_BUFFER) != 0)
-		{
-			maxAlignment = max(maxAlignment, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
-
-		}
-
-
-		return maxAlignment;
-
-	}
+	
 
 
 	void ResourceManagerDx12::prepare()

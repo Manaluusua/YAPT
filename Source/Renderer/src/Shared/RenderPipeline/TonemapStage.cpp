@@ -295,7 +295,7 @@ namespace YAPT
 			BufferViewHandle generateHistogramBufferView = Gfx::getBufferView(getRenderer()->getGfxHandle(), generateHistogramBuffer, bv);
 
 			DescriptorSetUpdate updates[] = {
-				{2, 0, 1, nullptr, &generateHistogramBufferView, nullptr}
+				{2, 0, 1, DescriptorPtr(&generateHistogramBufferView)}
 			};
 			m_clearHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
 
@@ -311,9 +311,9 @@ namespace YAPT
 			BufferViewHandle generateHistogramBufferView = Gfx::getBufferView(getRenderer()->getGfxHandle(), generateHistogramBuffer, bv);
 
 			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, &colorSource, nullptr, nullptr},
-				{1, 0, 1, nullptr, m_tonemapConstants.getViewPtr(), nullptr},
-				{2, 0, 1, nullptr, &generateHistogramBufferView, nullptr}
+				{0, 0, 1, DescriptorPtr(&colorSource)},
+				{1, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
+				{2, 0, 1, DescriptorPtr(&generateHistogramBufferView)}
 			};
 			m_generateHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
 
@@ -339,9 +339,9 @@ namespace YAPT
 			
 			
 			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, nullptr, &histogramBufferView, nullptr},
-				{1, 0, 1, nullptr, m_tonemapConstants.getViewPtr(), nullptr},
-				{2, 0, 1, nullptr, &analyzeResultsBufferView, nullptr}
+				{0, 0, 1,DescriptorPtr(&histogramBufferView)},
+				{1, 0, 1,DescriptorPtr(m_tonemapConstants.getViewPtr())},
+				{2, 0, 1,DescriptorPtr(&analyzeResultsBufferView)}
 			};
 			m_analyzeHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
 		}
@@ -358,9 +358,9 @@ namespace YAPT
 			BufferViewHandle histogramResultsBufferView = Gfx::getBufferView(getRenderer()->getGfxHandle(), histogramResultsBuffer, bv);
 
 			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, nullptr, &histogramResultsBufferView, nullptr},
-				{1, 0, 1, nullptr, m_tonemapConstants.getViewPtr(), nullptr},
-				{2, 0, 1, nullptr, &exposureInfoBufferView, nullptr}
+				{0, 0, 1, DescriptorPtr(&histogramResultsBufferView)},
+				{1, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
+				{2, 0, 1, DescriptorPtr(&exposureInfoBufferView)}
 			};
 			m_preparetonemapDataPass.updateDescriptorSet(0, updates, countOf(updates));
 		}
@@ -377,9 +377,9 @@ namespace YAPT
 			BufferViewHandle exposureBufferViewHandle = Gfx::getBufferView(getRenderer()->getGfxHandle(), exposureInfoSource, bv);
 
 			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, &colorSource, nullptr, nullptr},
-				{2, 0, 1, nullptr, m_tonemapConstants.getViewPtr(), nullptr},
-				{3, 0, 1, nullptr, &exposureBufferViewHandle, nullptr}
+				{0, 0, 1, DescriptorPtr(&colorSource)},
+				{2, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
+				{3, 0, 1, DescriptorPtr(&exposureBufferViewHandle)}
 			};
 			m_tonemapPass.updateDescriptorSet(0, updates, countOf(updates));
 		}

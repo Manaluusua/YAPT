@@ -190,7 +190,7 @@ namespace YAPT
 
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)
 		{
-			return h->getResourceManager().getBufferMinimumAlignment(resourceUsage);
+			return getMinimumAlignmentForBufferUsage(resourceUsage);
 			
 		}
 
@@ -229,12 +229,6 @@ namespace YAPT
 				d.structureStrideInBytes = d.sizeInBytes;
 			}
 			return bufHandle->views.get(d);
-		}
-
-
-		BufferViewHandle getBufferView(GfxApiHandle h, TopLevelAccelerationStructureHandle handle)
-		{
-			return &handle->accelerationStructure;
 		}
 
 		void allocateBottomLevelAccelerationStructures(GfxApiHandle h, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut)

@@ -17,7 +17,7 @@ namespace YAPT
 		void deallocate();
 		void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
 		const VkAccelerationStructureBuildSizesInfoKHR& getSizesInfo() const { return m_sizesInfo; }
-		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
+		VkDeviceAddress getAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
 	private:
 		ResourceManagerVk& m_resMngr;
 		std::vector<VkAccelerationStructureGeometryKHR> m_geometries;
@@ -38,7 +38,9 @@ namespace YAPT
 		void deallocate();
 		void fillBuildInfo(VkAccelerationStructureBuildGeometryInfoKHR* infoOut, const VkAccelerationStructureBuildRangeInfoKHR*& buildRanges);
 		const VkAccelerationStructureBuildSizesInfoKHR& getSizesInfo() const { return m_sizesInfo; }
-		VkDeviceAddress GetAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
+		VkDeviceAddress getAccelerationStructureDeviceAddress() const { return m_accStructBuffer.deviceAddress; }
+		VkAccelerationStructureKHR GetAccelerationStructure() const { return m_accStruct; }
+		
 
 	private:
 		ResourceManagerVk& m_resMngr;

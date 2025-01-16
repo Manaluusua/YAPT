@@ -71,8 +71,7 @@ namespace YAPT
 
 		DescriptorHeapAllocatorDx12* getNonSamplerDescHeapAllocator() const { return m_nonSamplerDescHeapAllocator; }
 		DescriptorHeapAllocatorDx12* getSamplerDescHeapAllocator() const { return m_samplerDescHeapAllocator; }
-		
-		uint32_t getBufferMinimumAlignment(ResourceUsage resourceUsage);
+
 	private:
 
 		void copyViaUploadHeap(ID3D12Resource* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);

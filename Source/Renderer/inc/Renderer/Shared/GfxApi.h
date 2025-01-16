@@ -46,7 +46,6 @@ namespace YAPT
 
 		TextureViewHandle getTextureView(GfxApiHandle h, TextureHandle texHandle, const TextureViewDesc& desc);
 		BufferViewHandle getBufferView(GfxApiHandle h, BufferHandle bufHandle, const BufferViewDesc& desc);
-		BufferViewHandle getBufferView(GfxApiHandle h, TopLevelAccelerationStructureHandle handle);
 		
 		void allocateBottomLevelAccelerationStructures(GfxApiHandle h, const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut);
 		void buildBottomLevelAccelerationStructures(GfxApiHandle h, CommandBufferHandle buff, BottomLevelAccelerationStructureHandle* blasArray, size_t numberOfStructures);

@@ -150,7 +150,7 @@ namespace YAPT
 			VkAccelerationStructureInstanceKHR& asInst = m_instances[i];
 			asInst.mask = instancesDef.instanceMask;
 			asInst.instanceShaderBindingTableRecordOffset = instancesDef.hitGroupShaderTableOffset;
-			asInst.accelerationStructureReference = instancesDef.blas->GetAccelerationStructureDeviceAddress();
+			asInst.accelerationStructureReference = instancesDef.blas->getAccelerationStructureDeviceAddress();
 			asInst.instanceCustomIndex = instancesDef.instanceID;
 			copyTransform(instancesDef.instanceToWorld, asInst.transform);
 		}

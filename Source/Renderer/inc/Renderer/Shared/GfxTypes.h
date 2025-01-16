@@ -4,7 +4,7 @@
 #include <Renderer/RendererCommonTypes.h>
 
 #include <Renderer/WindowSurfaceDefinition.h>
-
+#include <assert.h>
 #ifdef RENDERER_DX12
 #include <Renderer/Dx12/PlatformtypesDx12.h>
 #elif RENDERER_VK
@@ -235,14 +235,76 @@ namespace YAPT
 		size_t numberOfBindings;
 	};
 
+	struct DescriptorPtr
+	{
+		DescriptorPtr()
+			:descriptorType(UNKNOWN),
+			descriptorPtr(nullptr)
+		{}
+
+		DescriptorPtr(TextureViewHandle* h)
+			:descriptorType(TEXTURE),
+			descriptorPtr(h)
+		{}
+
+		DescriptorPtr(BufferViewHandle* h)
+			:descriptorType(BUFFER),
+			descriptorPtr(h)
+		{}
+
+		DescriptorPtr(SamplerHandle* h)
+			:descriptorType(SAMPLER),
+			descriptorPtr(h)
+		{}
+
+		DescriptorPtr(TopLevelAccelerationStructureHandle* h)
+			:descriptorType(ACCELERATION_STRUCTURE),
+			descriptorPtr(h)
+		{}
+
+		TextureViewHandle* asTextureViewPtr() const
+		{
+			assert(descriptorType == TEXTURE);
+			return (TextureViewHandle*)descriptorPtr;
+		}
+
+		BufferViewHandle* asBufferViewPtr() const
+		{
+			assert(descriptorType == BUFFER);
+			return (BufferViewHandle*)descriptorPtr;
+		}
+
+		SamplerHandle* asSamplerPtr() const
+		{
+			assert(descriptorType == SAMPLER);
+			return (SamplerHandle*)descriptorPtr;
+		}
+
+		TopLevelAccelerationStructureHandle* asAccelerationStructurePtr() const
+		{
+			assert(descriptorType == ACCELERATION_STRUCTURE);
+			return (TopLevelAccelerationStructureHandle*)descriptorPtr;
+		}
+
+
+
+		enum
+		{
+			UNKNOWN,
+			TEXTURE,
+			BUFFER,
+			SAMPLER,
+			ACCELERATION_STRUCTURE
+		} descriptorType;
+		void* descriptorPtr;
+	};
+
 	struct DescriptorSetUpdate
 	{
 		uint32_t dstBinding;
 		uint32_t dstArrayElement;
 		uint32_t descriptorCount;
-		TextureViewHandle* texHandles;
-		BufferViewHandle* buffHandles;
-		SamplerHandle* samplerHandles;
+		DescriptorPtr descriptor;
 	};
 
 	struct PipelineLayoutDescription
