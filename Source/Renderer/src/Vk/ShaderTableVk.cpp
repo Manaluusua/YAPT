@@ -90,6 +90,9 @@ namespace YAPT
 			writeShaderTableEntry(getHitSectionBufferOffset(), m_hitRegion.stride, m_pso.getHitShaderRecordHandle(hitGroupBindings[i].shaderIndexInPso), hitGroupBindings[i]);
 		}
 
+		uploadShadowBufferData();
+		clearShadowBufferRange();
+
 	}
 
 	void ShaderTableVk::writeShaderTableEntry(size_t offsetToBufferStart, size_t alignedEntrySize, uint8_t* record, const ShaderTableEntry& entry)

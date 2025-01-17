@@ -1106,7 +1106,7 @@ namespace YAPT
 				bufferBarrierOut.dstAccessMask = toAccess;
 
 				bufferBarrierOut.offset = 0;
-				bufferBarrierOut.size = 0;
+				bufferBarrierOut.size = VK_WHOLE_SIZE;
 				bufferBarrierOut.buffer = VK_NULL_HANDLE;
 
 				mask |= GENERATED_BARRIER_TYPE_BUFFER;

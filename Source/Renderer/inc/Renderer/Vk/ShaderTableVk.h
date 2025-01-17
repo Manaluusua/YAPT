@@ -19,6 +19,10 @@ namespace YAPT
 			const ShaderTableEntry* missBindings, size_t numberOfMissBindings,
 			const ShaderTableEntry* hitGroupBindings, size_t numberOfHitGroupBindings);
 
+		inline VkStridedDeviceAddressRegionKHR getRayGenShaderTableRange() const { return m_rayGenRegion; }
+		inline VkStridedDeviceAddressRegionKHR getRayHitShaderTableRange() const { return m_hitRegion; }
+		inline VkStridedDeviceAddressRegionKHR getRayMissShaderTableRange() const { return m_missRegion; }
+
 		~ShaderTableVk();
 
 	private:

@@ -500,11 +500,16 @@ namespace YAPT
 
 		void dispatch(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			vkCmdDispatch(buff, x, y, z);
 		}
 		void dispatchRays(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z, ShaderTableHandle shaderTable)
 		{
-			assert(!"NOT IMPLEMENTED!");
+			VkStridedDeviceAddressRegionKHR raygen = shaderTable->getRayGenShaderTableRange();
+			VkStridedDeviceAddressRegionKHR miss = shaderTable->getRayMissShaderTableRange();
+			VkStridedDeviceAddressRegionKHR hit = shaderTable->getRayHitShaderTableRange();
+			VkStridedDeviceAddressRegionKHR callable = { 0, 0, 0 };
+
+			h->getResourceManager()->getVkExtFuncs().vkCmdTraceRaysKHR(buff, &raygen, &miss, &hit, &callable, x, y, z);
 		
 		}
 		void drawIndexed(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
