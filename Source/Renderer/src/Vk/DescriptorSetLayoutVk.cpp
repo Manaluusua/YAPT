@@ -11,16 +11,37 @@ namespace YAPT
 	{
 		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
 		VkDescriptorSetLayoutCreateInfo info;
+		VkDescriptorSetLayoutBindingFlagsCreateInfo extraCreateInfo;
 		std::vector<VkDescriptorSetLayoutBinding> vkBindings;
+		std::vector<VkDescriptorBindingFlags> extraFlags;
 
 		std::unordered_map<VkDescriptorType, uint32_t> countPerType;
 
+		const VkDescriptorBindingFlagsEXT extraBindingFlags =
+			VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+			VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT |
+			VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+		
+
+		bool updateAfterBind = (flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0;
+
 		vkBindings.resize(numberOfBindings);
+
 		info.pNext = nullptr;
 		info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		info.flags = (flags & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT : 0;
+		info.flags = updateAfterBind ? VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT : 0;
 		info.bindingCount = (uint32_t)vkBindings.size();
 		info.pBindings = vkBindings.data();
+
+		if (updateAfterBind)
+		{
+			extraFlags.resize(numberOfBindings);
+			extraCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+			extraCreateInfo.pNext = NULL;
+			extraCreateInfo.bindingCount = (uint32_t)numberOfBindings;
+			extraCreateInfo.pBindingFlags = extraFlags.data();
+			info.pNext = &extraCreateInfo;
+		}
 
 		uint32_t largestBindingIndex = 0;
 
@@ -37,6 +58,10 @@ namespace YAPT
 
 			countPerType[vkBinding.descriptorType] += vkBinding.descriptorCount;
 			largestBindingIndex = std::max(largestBindingIndex, binding.bindingIndex);
+			if (updateAfterBind)
+			{
+				extraFlags[i] = extraBindingFlags;
+			}
 		}
 
 
