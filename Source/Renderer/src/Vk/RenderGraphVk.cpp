@@ -727,7 +727,7 @@ namespace YAPT
 					lastState.layout = yaptUsageToVkImageLayout(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags);
 					resourceTransitionInfo.lastStateInGraph = lastState;
 
-					perSlotBarriers.srcStages |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+					perSlotBarriers.srcStages |= getPipelineStageFlags(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags, lastUsage.resourceDescription.shaderStages);//VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 				}
 				else
 				{
