@@ -23,6 +23,7 @@ namespace YAPT
 	{
 		RendererCacheProvider* cache = nullptr;
 		YaptRenderSurfaceHandle renderSurfaceHandle;
+		bool enableGPUDebugCapture;
 	};
 
 	struct RenderParameters

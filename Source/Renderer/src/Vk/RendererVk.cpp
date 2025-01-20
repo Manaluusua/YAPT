@@ -704,9 +704,11 @@ namespace YAPT
 
 		//accstruct
 		f.accelerationStructureFeatures.accelerationStructure = VK_TRUE;
+		f.accelerationStructureFeatures.accelerationStructureCaptureReplay = m_gfxConfig.enableGPUDebugCapture ? VK_TRUE : VK_FALSE;
 		
 		//rt pipeline features
 		f.rayTracePipelineFeatures.rayTracingPipeline = VK_TRUE;
+		f.rayTracePipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay = m_gfxConfig.enableGPUDebugCapture ? VK_TRUE : VK_FALSE;
 		f.rayQueryFeatures.rayQuery = VK_TRUE;
 
 		

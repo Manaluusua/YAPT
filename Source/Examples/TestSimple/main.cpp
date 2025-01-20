@@ -10,6 +10,7 @@
 
 int main(int argc, char **argv)
 {
+	bool enableGPUCapture = false;
 #if defined(_DEBUG)
 	for (int i = 0; i < argc; ++i)
 	{
@@ -19,6 +20,10 @@ int main(int argc, char **argv)
 			{
 				::Sleep(100);
 			}
+		}
+		else if (strcmp(argv[i], "-debugEnableGPUCapture") == 0)
+		{
+			enableGPUCapture = true;
 		}
 	}
 #endif
@@ -33,6 +38,8 @@ int main(int argc, char **argv)
 	YAPT::RendererInitializeConfig rendererConfig;
 	rendererConfig.cache = YAPT::getDefaultRendererCacheProvider();
 	rendererConfig.renderSurfaceHandle = gui->getRenderSurfaceHandle();
+	rendererConfig.enableGPUDebugCapture = enableGPUCapture;
+
 	success = renderer->initialize(rendererConfig);
 	assert(success);
 	success = scene->initialize(renderer);

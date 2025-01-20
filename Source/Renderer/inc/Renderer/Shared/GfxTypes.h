@@ -27,7 +27,8 @@ namespace YAPT
 	struct GfxApiInitConfig
 	{
 		size_t pipelineLength;
-		YaptRenderSurfaceHandle renderSurfaceHandle; 
+		YaptRenderSurfaceHandle renderSurfaceHandle;
+		bool enableGPUDebugCapture;
 	};
 
 	struct AccelerationStructureGeometryDefinition

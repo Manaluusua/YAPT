@@ -104,6 +104,7 @@ namespace YAPT
 		GfxApiInitConfig init;
 		init.pipelineLength = getPipelineLength();
 		init.renderSurfaceHandle = config.renderSurfaceHandle;
+		init.pipelineLength = config.enableGPUDebugCapture;
 
 		m_gfxHandle = Gfx::createGfxApiHandle(init);
 
