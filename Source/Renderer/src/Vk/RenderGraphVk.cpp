@@ -646,12 +646,8 @@ namespace YAPT
 		//framebuffer per renderpass
 		m_frameBuffers.resize(m_renderPasses.size(), VK_NULL_HANDLE);
 
-		std::vector<AccessFlagsAndLayout> subResourceStates;
-		subResourceStates.reserve(512);
-		std::vector<size_t> subResourceIndices;
-		subResourceIndices.reserve(512);
-		std::vector<size_t> subResourceIndicesToTransition;
-		subResourceIndicesToTransition.reserve(512);
+		std::vector<VkImageLayout> imageLayouts;
+		imageLayouts.reserve(512);
 
 		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
@@ -661,17 +657,28 @@ namespace YAPT
 
 		m_perResourceBarrierInfo.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());
 
-
-		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
+		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
 		{
-			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
-			RenderGraphNode* node = getNodes()[nodeIndex];
-			size_t numberOfSlots = node->getNumberOfSlots();
+			const RenderGraphResourceDescription& resourceDesc = m_resourceRequirements.getRenderGraphResourceDescription(resourceIndex);
 
-			uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
+			imageLayouts.assign(size_t(resourceDesc.mipCount * resourceDesc.arraySliceCount), VK_IMAGE_LAYOUT_UNDEFINED);
+			
 
-			for (size_t slotIndex = 0; slotIndex != numberOfSlots; ++slotIndex)
+			const NodeSlotIdentifier* nodeSlotIdentifiers;
+			size_t numberOfNodeSlotIdentifiers;
+			m_resourceRequirements.getNodeSlotsUsingResource(resourceIndex, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
+
+			for (size_t resourceUsageIndex = 0; resourceUsageIndex < numberOfNodeSlotIdentifiers; ++resourceUsageIndex)
 			{
+				size_t nodeIndex = nodeSlotIdentifiers[resourceUsageIndex].sortedNodeIndex;
+				size_t slotIndex = nodeSlotIdentifiers[resourceUsageIndex].slotIndex;
+
+				BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
+				RenderGraphNode* node = getNodes()[nodeIndex];
+
+				uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[node->getSortedIndex()];
+
+
 				ResourceSlotBarrierDescription& perSlotBarriers = perNodeBarriers.perSlotDesc[slotIndex];
 				const RenderGraphResourceUsage& usageInThisSlot = m_resourceRequirements.getRenderGraphResourceUsage(nodeIndex, slotIndex);
 
@@ -680,12 +687,6 @@ namespace YAPT
 				perSlotBarriers.hasValidBarriers = true;
 
 				size_t numberOfInputEdges = node->getNumberOfInputEdges(slotIndex);
-				RenderGraphResourceId resID = getRenderGraphResourceIdUsedInSlot(nodeIndex, slotIndex);
-
-				const NodeSlotIdentifier* nodeSlotIds;
-				size_t numberOfNodeSlotIds;
-
-				m_resourceRequirements.getNodeSlotsUsingResource(resID, nodeSlotIds, numberOfNodeSlotIds);
 
 				bool isFirstUsage = numberOfInputEdges == 0;
 				perSlotBarriers.isFirstUsageForResource = isFirstUsage;
@@ -696,8 +697,8 @@ namespace YAPT
 
 				if (isFirstUsage)
 				{
-					size_t lastUsedNode = nodeSlotIds[numberOfNodeSlotIds - 1].sortedNodeIndex;
-					size_t lastUsedSlot = nodeSlotIds[numberOfNodeSlotIds - 1].slotIndex;
+					size_t lastUsedNode = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].sortedNodeIndex;
+					size_t lastUsedSlot = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].slotIndex;
 
 					const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
 					uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
@@ -706,11 +707,20 @@ namespace YAPT
 						lastUsage.arraySliceOffset, lastUsage.mipOffset, lastUsage.resourceDescription.arraySliceCount, lastUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
 						imgBarrier, bufferBarrier, memoryBarrier);
 
-					GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[resID];
+					GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[resourceIndex];
 
 					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_IMAGE)
 					{
 						resourceTransitionInfo.wrapAroundImageBarriers.push_back(imgBarrier);
+
+						for (uint32_t arraySlice = 0; arraySlice < usageInThisSlot.resourceDescription.arraySliceCount; ++arraySlice)
+						{
+							for (uint32_t mipIndex = 0; mipIndex < usageInThisSlot.resourceDescription.mipCount; ++mipIndex)
+							{
+								uint32_t subResourceIndex = calculateSubresourceIndex(mipIndex + usageInThisSlot.mipOffset, arraySlice + usageInThisSlot.arraySliceOffset, resourceDesc.mipCount, resourceDesc.arraySliceCount);
+								imageLayouts[subResourceIndex] = imgBarrier.newLayout;
+							}
+						}
 					}
 
 					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_BUFFER)
@@ -752,9 +762,28 @@ namespace YAPT
 							previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
 							previousUsage.arraySliceOffset, previousUsage.mipOffset, previousUsage.resourceDescription.arraySliceCount, previousUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
 							imgBarrier, bufferBarrier, memoryBarrier);
-						
+
 						if (generatedBarriersMask & GENERATED_BARRIER_TYPE_IMAGE)
 						{
+							//because different nodes can use same resource as readonly without having dependency, need to track the actual layout (we might have already transitioned to the correct layout in some previous node which also used this resource as readonly)
+							VkImageLayout previousLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+							for (uint32_t arraySlice = 0; arraySlice < previousUsage.resourceDescription.arraySliceCount; ++arraySlice)
+							{
+								for (uint32_t mipIndex = 0; mipIndex < previousUsage.resourceDescription.mipCount; ++mipIndex)
+								{
+									uint32_t subResourceIndex = calculateSubresourceIndex(mipIndex + previousUsage.mipOffset, arraySlice + previousUsage.arraySliceOffset, resourceDesc.mipCount, resourceDesc.arraySliceCount);
+									if (previousLayout == VK_IMAGE_LAYOUT_UNDEFINED)
+									{
+										previousLayout = imageLayouts[subResourceIndex];
+									}
+									else
+									{
+										assert(previousLayout == imageLayouts[subResourceIndex]); //all the subresources from previous stage should be in the same layout
+									}
+									imageLayouts[subResourceIndex] = imgBarrier.newLayout;
+								}
+							}
+							imgBarrier.oldLayout = previousLayout;
 							perSlotBarriers.preGeneratedImageBarriers.push_back(imgBarrier);
 						}
 
@@ -772,13 +801,11 @@ namespace YAPT
 						assert(fromQueueFamilyIndex == toQueueFamilyIndex);
 
 						perSlotBarriers.srcStages |= getPipelineStageFlags(previousUsage.resourceDescription.resourceUsage, previousUsage.resourceDescription.accessFlags, previousUsage.resourceDescription.shaderStages);
-						
+
 					}
 				}
 			}
 		}
-
-		
 	}
 
 
