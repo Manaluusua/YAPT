@@ -10,6 +10,19 @@
 
 int main(int argc, char **argv)
 {
+#if defined(_DEBUG)
+	for (int i = 0; i < argc; ++i)
+	{
+		if (strcmp(argv[i], "-debugHaltOnStartup") == 0)
+		{
+			while (!::IsDebuggerPresent())
+			{
+				::Sleep(100);
+			}
+		}
+	}
+#endif
+
 	YAPT::Renderer* renderer = YAPT::createRenderer();
 	YAPT::Gui* gui = YAPT::createGui();
 	YAPT::Scene* scene = YAPT::createScene();
