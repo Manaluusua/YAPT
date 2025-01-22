@@ -65,7 +65,7 @@ namespace YAPT
 #elif RENDERER_VK
         static const vec3p p[] = { vec3p(-1.f, -1.f, 1.f), vec3p(3.f, -1.f, 1.f), vec3p(-1.f, 3.f, 1.f) };
         static const vec2p uv[] = { vec2p(0.f, 0.f), vec2p(2.f, 0.f), vec2p(0.f, 2.f) };
-        static const uint32_t indices[] = { 0, 1, 2 };
+        static const uint32_t indices[] = { 0, 2, 1 };
 #else
 #error "NOT IMPLEMENTED"
 #endif
