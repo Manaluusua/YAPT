@@ -144,9 +144,13 @@ namespace YAPT
 				imageCopyStruct.imageSubresource.baseArrayLayer = (uint32_t)(arraySlice + arraySliceOffset);
 				imageCopyStruct.imageSubresource.mipLevel = (uint32_t)(mipLevel + mipOffset);
 
+				size_t copySize = texData.rowPitchInBytes * height;
+				memcpy(uploadBufferPtr + currentUploadBufferOffset, texData.data, copySize);
+
 				width = max(1u, width >> 1);
 				height = max(1u, height >> 1);
 				depth = max(1u, depth >> 1);
+				currentUploadBufferOffset += copySize;
 			}
 		}
 

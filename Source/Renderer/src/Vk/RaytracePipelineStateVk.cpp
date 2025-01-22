@@ -15,7 +15,7 @@ namespace YAPT
 		VkRayTracingPipelineCreateInfoKHR createInfo{};
 		createInfo.pNext = NULL;
 		createInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-		createInfo.flags = 0; //VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_ANY_HIT_SHADERS_BIT_KHR 
+		createInfo.flags = renderer->isGPUCaptureEnabled() ? VK_PIPELINE_CREATE_RAY_TRACING_SHADER_GROUP_HANDLE_CAPTURE_REPLAY_BIT_KHR : 0; //VK_PIPELINE_CREATE_RAY_TRACING_NO_NULL_ANY_HIT_SHADERS_BIT_KHR 
 
 		createInfo.layout = desc.layout;
 

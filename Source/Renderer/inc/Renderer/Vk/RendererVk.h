@@ -103,6 +103,7 @@ namespace YAPT
 		ResourceFormat getSwapChainFormat() const { return m_selectedSwapChainFormat;}
 
 		VkExtensions& getVkExtFuncs() { return m_extensionFuncs; }
+		bool isGPUCaptureEnabled() const { return m_gfxConfig.enableGPUDebugCapture; }
 
 	private:
 
@@ -126,6 +127,7 @@ namespace YAPT
 		};
 
 		void fetchInstanceExtensions(std::vector<VkExtensionProperties>& extensions);
+		void fetchInstanceLayers(std::vector<VkLayerProperties>& layers);
 		bool createInstance();
 		void queryPhysicalDeviceInfos();
 		void queryPresentInfosForSurface(VkSurfaceKHR surface);

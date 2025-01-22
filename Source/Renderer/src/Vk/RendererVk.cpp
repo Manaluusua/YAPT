@@ -6,6 +6,7 @@
 
 #define ENABLE_VK_DEBUG_LAYERS
 #define PRINT_AVAILABLE_INSTANCE_EXTENSIONS
+#define PRINT_AVAILABLE_INSTANCE_LAYERS
 #define PRINT_QUEUE_FAMILY_PROPERTIES
 
 
@@ -266,7 +267,6 @@ namespace YAPT
 
 	void RendererVk::fetchInstanceExtensions(std::vector<VkExtensionProperties>& extensions)
 	{
-
 		uint32_t extCount = 0;
 		VkResult res = vkEnumerateInstanceExtensionProperties(NULL, &extCount, NULL);
 		checkForVkError(res);
@@ -277,18 +277,43 @@ namespace YAPT
 		checkForVkError(res);
 	}
 
+	void RendererVk::fetchInstanceLayers(std::vector<VkLayerProperties>& layers)
+	{
+		uint32_t layerCount = 0;
+		VkResult res = vkEnumerateInstanceLayerProperties(&layerCount, NULL);
+		checkForVkError(res);
+
+		layers.resize(layerCount);
+
+		res = vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+		checkForVkError(res);
+	}
+
 	bool RendererVk::createInstance()
 	{
 		std::vector<VkExtensionProperties> availableExtensions;
 		fetchInstanceExtensions(availableExtensions);
+
+		std::vector<VkLayerProperties> availableLayers;
+		fetchInstanceLayers(availableLayers);
+
 #ifdef PRINT_AVAILABLE_INSTANCE_EXTENSIONS
 		{
-			for (size_t i = 0; i < availableExtensions.size(); i++) {
+			for (size_t i = 0; i < availableExtensions.size(); i++) 
+			{
 				YAPT_LOG_DEBUG("Instance extension %s found", availableExtensions[i].extensionName);
 			}
 		}
 #endif
 
+#ifdef PRINT_AVAILABLE_INSTANCE_LAYERS
+		{
+			for (size_t i = 0; i < availableLayers.size(); i++)
+			{
+				YAPT_LOG_DEBUG("Instance layer %s found", availableLayers[i].layerName);
+			}
+		}
+#endif
 
 		VkApplicationInfo appInfo = {};
 		appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -296,7 +321,8 @@ namespace YAPT
 		appInfo.engineVersion = 1;
 		appInfo.apiVersion = VK_API_VERSION_1_2;
 
-		std::vector<const char*> instanceExtensions = {
+		std::vector<const char*> instanceExtensions = 
+		{
 	#ifdef ENABLE_VK_DEBUG_LAYERS
 			VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
 	#endif        
@@ -305,12 +331,12 @@ namespace YAPT
 		};
 
 
-		std::vector <const char*>instanceLayers = {
+		std::vector <const char*>instanceLayers =
+		{
 #ifdef ENABLE_VK_DEBUG_LAYERS    
 			"VK_LAYER_KHRONOS_validation"
 #endif
 		};
-    
 
 		VkInstanceCreateInfo instanceInfo = {};
 		instanceInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -718,6 +744,7 @@ namespace YAPT
 	bool RendererVk::hasRequiredPhysicalDeviceFeatures(const RendererVk::PhysicalDeviceInfo& features)
 	{
 		//TODO: actually check all the required elements
+		bool gpuCaptureEnabled = m_gfxConfig.enableGPUDebugCapture;
 		if (
 			features.baseFeatures.features.shaderSampledImageArrayDynamicIndexing &&
 			features.baseFeatures.features.shaderStorageBufferArrayDynamicIndexing &&
@@ -726,7 +753,8 @@ namespace YAPT
 			features.baseFeatures.features.shaderStorageImageReadWithoutFormat &&
 			features.rayQueryFeatures.rayQuery &&
 			features.rayTracePipelineFeatures.rayTracingPipeline &&
-			features.physicalDeviceVk12Features.bufferDeviceAddress
+			features.physicalDeviceVk12Features.bufferDeviceAddress &&
+			(features.rayTracePipelineFeatures.rayTracingPipelineShaderGroupHandleCaptureReplay || !gpuCaptureEnabled)
 			)
 		{
 			return true;

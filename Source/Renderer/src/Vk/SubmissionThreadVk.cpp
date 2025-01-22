@@ -48,7 +48,11 @@ namespace YAPT
 	void SubmissionThreadVk::stopSubmitThread()
 	{
 		m_submitThreadActive.store(false);
-		m_submissionThread.join();
+		if (m_submissionThread.joinable())
+		{
+			m_submissionThread.join();
+		}
+		
 	}
 
 	SubmissionThreadVk::SubmissionId SubmissionThreadVk::submit(uint32_t queueFamilyIndex, const Submission& submission)

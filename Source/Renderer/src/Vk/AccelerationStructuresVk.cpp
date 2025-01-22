@@ -9,7 +9,7 @@ namespace YAPT
 {
 	void copyTransform(const float src[12], VkTransformMatrixKHR& target)
 	{
-
+		memcpy(target.matrix, src, 12 * 4);
 	}
 
 	
@@ -41,7 +41,7 @@ namespace YAPT
 			if (geoDef.worldMatrixBuffer)
 			{
 				triangles.transformData.hostAddress = NULL;
-				triangles.transformData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.worldMatrixBuffer->buffer);
+				triangles.transformData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.worldMatrixBuffer->buffer) + geoDef.worldMatrixBufferOffsetInBytes;
 			}
 			else
 			{
