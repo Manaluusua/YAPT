@@ -25,47 +25,47 @@ namespace YAPT
 		m_renderer = renderer;
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_LUT_DIM, SS_ALBEDO_LUT_DIM, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssDirAlbedoNoFresnelLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterDirectionalAlbedo");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_1D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_LUT_DIM, 1, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssAvgDirAlbedoNoFresnelLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterAverageDirectionalAlbedo");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SSMS_ALBEDO_LUT_DIM, SSMS_ALBEDO_LUT_DIM, 1, SSMS_ALBEDO_LUT_DIM);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssmsDirAlbedoLUT.texture = pool.requestTexture(texDesc, resState, "SingleAndMultiScatterDirectionalAlbedo");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SSMS_ALBEDO_LUT_DIM, SSMS_ALBEDO_LUT_DIM, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssmsAvgDirAlbedoLUT.texture = pool.requestTexture(texDesc, resState, "SingleAndMultiScatterAverageDirectionalAlbedo");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM, 1, SS_ALBEDO_TRANSLUCENT_LUT_DIM);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssDirAlbedoTranslucentToDenserLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterDirectionalAlbedoTranslucentDenser");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM, 1, SS_ALBEDO_TRANSLUCENT_LUT_DIM);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssDirAlbedoTranslucentToLighterLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterDirectionalAlbedoTranslucentLighter");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssAvgAlbedoTranslucentToDenserLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterAverageAlbedoTranslucentDenser");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_ssAvgAlbedoTranslucentToLighterLUT.texture = pool.requestTexture(texDesc, resState, "SingleScatterAverageAlbedoTranslucentLighter");
 		}
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, MS_LUT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SS_ALBEDO_SHEEN_LUT_DIM, SS_ALBEDO_SHEEN_LUT_DIM, 1, 1);
-			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_dirAlbedoSheen.texture = pool.requestTexture(texDesc, resState, "DirectionalAlbedoSheen");
 		}
 		 

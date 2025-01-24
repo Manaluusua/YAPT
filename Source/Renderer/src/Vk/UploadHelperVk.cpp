@@ -118,6 +118,7 @@ namespace YAPT
 		info->srcBuffer = uploadInfo.uploadBuffer;
 		info->copyDescs.resize(arraySliceCount * mipCount);
 		size_t currentUploadBufferOffset = uploadInfo.offsetToHeap;
+		size_t mappedBufferOffset = 0;
 
 		for (size_t arraySlice = 0; arraySlice < arraySliceCount; ++arraySlice)
 		{
@@ -144,13 +145,14 @@ namespace YAPT
 				imageCopyStruct.imageSubresource.baseArrayLayer = (uint32_t)(arraySlice + arraySliceOffset);
 				imageCopyStruct.imageSubresource.mipLevel = (uint32_t)(mipLevel + mipOffset);
 
-				size_t copySize = texData.rowPitchInBytes * height;
-				memcpy(uploadBufferPtr + currentUploadBufferOffset, texData.data, copySize);
+				size_t copySize = texData.rowPitchInBytes * height * depth;
+				memcpy(uploadBufferPtr + mappedBufferOffset, texData.data, copySize);
 
 				width = max(1u, width >> 1);
 				height = max(1u, height >> 1);
 				depth = max(1u, depth >> 1);
 				currentUploadBufferOffset += copySize;
+				mappedBufferOffset += copySize;
 			}
 		}
 
