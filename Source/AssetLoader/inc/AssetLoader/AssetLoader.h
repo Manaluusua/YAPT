@@ -1,7 +1,7 @@
 #pragma once
 #include"CommonDefines.h"
 #include <Common/RCObject.h>
-#include <Renderer/RendererCommonTypes.h>
+#include <Gfx/GfxBasicTypes.h>
 #include <Renderer/Mesh.h>
 
 namespace YAPT

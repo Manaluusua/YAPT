@@ -2,8 +2,8 @@
 #define YAPT_SHARED_TONEMAPSTAGE_H
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
-#include <Renderer/Shared/RenderGraph/RenderNode.h>
-#include <Renderer/Shared/RenderGraph/ComputeNode.h>
+#include <Gfx/RenderGraph/RenderNode.h>
+#include <Gfx/RenderGraph/ComputeNode.h>
 #include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 

@@ -1,7 +1,7 @@
 #ifndef YAPT_SHARED_RENDERRESOURCESPOOL_H
 #define YAPT_SHARED_RENDERRESOURCESPOOL_H
 
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Common/CommonUtilities.h>
 #include <vector>
 

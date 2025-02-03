@@ -1,5 +1,5 @@
 #pragma once
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 namespace YAPT
 {
 	class BindlessResourceUtility

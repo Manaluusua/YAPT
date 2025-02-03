@@ -1,7 +1,7 @@
 #ifndef YAPT_BUFFER_H
 #define YAPT_BUFFER_H
 
-#include "RendererCommonTypes.h"
+#include <Gfx/GfxBasicTypes.h>
 #include <Common/RCObject.h>
 
 namespace YAPT

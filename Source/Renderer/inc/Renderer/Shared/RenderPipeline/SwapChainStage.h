@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
-#include <Renderer/Shared/RenderGraph/RenderNode.h>
+#include <Gfx/RenderGraph/RenderNode.h>
 
 
 namespace YAPT

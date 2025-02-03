@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Common/CommonUtilities.h>
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/GfxTypes.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <assert.h>
 namespace YAPT

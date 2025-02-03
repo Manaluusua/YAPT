@@ -2,7 +2,7 @@
 
 #include <Renderer/RenderObject.h>
 #include <Renderer/Shared/RenderObjectManager.h>
-#include <Renderer/RendererCommonTypes.h>
+#include <Gfx/GfxBasicTypes.h>
 
 namespace YAPT
 {

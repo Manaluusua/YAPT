@@ -2,9 +2,9 @@
 #define YAPT_SHARED_RAYTRACESTAGE_H
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
-#include <Renderer/Shared/RenderGraph/RaytraceNode.h>
-#include <Renderer/Shared/RenderGraph/RenderNode.h>
-#include <Renderer/Shared/RenderGraph/GenericExecuteNode.h>
+#include <Gfx/RenderGraph/RaytraceNode.h>
+#include <Gfx/RenderGraph/RenderNode.h>
+#include <Gfx/RenderGraph/GenericExecuteNode.h>
 #include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/AccelerationStructureHelper.h>

@@ -5,7 +5,7 @@
 #include <Renderer/Shared/MeshManager.h>
 #include <Renderer/Shared/MaterialManager.h>
 #include <Renderer/Shared/RenderObjectManager.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/ShaderLoader.h>
 #include <Renderer/Shared/CRendererConfiguration.h>
 #include <Renderer/Shared/RenderView.h>

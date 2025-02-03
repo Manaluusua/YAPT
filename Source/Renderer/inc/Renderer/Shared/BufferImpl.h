@@ -2,7 +2,7 @@
 #define YAPT_SHARED_BUFFERIMPL_H
 
 #include <Renderer/Buffer.h>
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/GfxTypes.h>
 
 namespace YAPT
 {

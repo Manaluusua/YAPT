@@ -1,8 +1,8 @@
 #ifndef YAPT_SHARED_RENDERSTAGE_H
 #define YAPT_SHARED_RENDERSTAGE_H
 
-#include <Renderer/Shared/GfxApi.h>
-#include <Renderer/Shared/RenderGraph/RenderGraphCommon.h>
+#include <Gfx/GfxApi.h>
+#include <Gfx/RenderGraph/RenderGraphCommon.h>
 
 namespace YAPT
 {

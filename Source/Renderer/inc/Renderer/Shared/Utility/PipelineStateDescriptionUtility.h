@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/GfxTypes.h>
 #include <Renderer/Shared/Utility/ShaderLoader.h>
 
 namespace YAPT

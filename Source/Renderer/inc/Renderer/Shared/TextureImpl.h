@@ -2,7 +2,7 @@
 #define YAPT_SHARED_TEXTUREIMPL_H
 
 #include <Renderer/Texture.h>
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/GfxTypes.h>
 namespace YAPT
 {
 	class ResourceAllocationPoolImpl;

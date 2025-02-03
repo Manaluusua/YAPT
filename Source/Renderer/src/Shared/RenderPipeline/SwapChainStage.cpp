@@ -1,5 +1,5 @@
 #include <Renderer/Shared/RenderPipeline/SwapChainStage.h>
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 namespace YAPT
 {
 	SwapChainStage::SwapChainStage()

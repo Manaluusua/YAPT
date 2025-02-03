@@ -1,5 +1,5 @@
 #include <Renderer/Shared/Utility/ShaderLoader.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <nlohmann/json.hpp>
 #include <unordered_map>
 #include <fstream>

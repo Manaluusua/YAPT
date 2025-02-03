@@ -1,5 +1,5 @@
 #include <AssetLoader/Impl/CSceneLoader.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 #include <string>
 #include <string_view>
 #include <unordered_map>

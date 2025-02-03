@@ -1,6 +1,6 @@
 #include <AssetLoader/Impl/CDefaultRendererCacheProvider.h>
 #include <AssetLoader/Impl/CAssetLoader.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 #include <string>
 namespace YAPT
 {

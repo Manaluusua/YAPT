@@ -1,7 +1,7 @@
 #ifndef YAPT_SHARED_RENDERPIPELINE_H
 #define YAPT_SHARED_RENDERPIPELINE_H
 
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 
 namespace YAPT
 {

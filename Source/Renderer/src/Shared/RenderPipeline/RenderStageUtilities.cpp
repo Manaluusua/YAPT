@@ -1,5 +1,5 @@
 #include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 namespace YAPT
 {
 	void DeferredRenderGraphBindingUtility::setDeferredRenderGraphResourceBinding(RenderGraphResourceId id, TextureHandle handle)

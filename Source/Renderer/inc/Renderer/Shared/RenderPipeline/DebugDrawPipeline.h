@@ -2,7 +2,7 @@
 #define YAPT_SHARED_DEBUGDRAWPIPELINE_H
 
 #include "RenderPipelineBase.h"
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 
 namespace YAPT
 {

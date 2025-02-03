@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Renderer/Shared/GfxApi.h>
-#include <Renderer/Shared/RenderGraph/RenderGraphCommon.h>
+#include <Gfx/GfxApi.h>
+#include <Gfx/RenderGraph/RenderGraphCommon.h>
 
 namespace YAPT
 {

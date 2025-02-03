@@ -3,7 +3,7 @@
 
 #include <Common/TightlyPackedArray.h>
 #include <Math/Math.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 
 namespace YAPT

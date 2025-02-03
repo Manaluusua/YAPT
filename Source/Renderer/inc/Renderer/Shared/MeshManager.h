@@ -5,7 +5,7 @@
 #include <Renderer/Buffer.h>
 #include <Common/RCObjectPtr.h>
 #include <Renderer/Shared/MeshInternal.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 
 namespace YAPT
 {

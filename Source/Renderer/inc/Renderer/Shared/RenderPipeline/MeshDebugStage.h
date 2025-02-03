@@ -2,7 +2,7 @@
 #define YAPT_SHARED_MESHDEBUGSTAGE_H
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
-#include <Renderer/Shared/RenderGraph/RenderNode.h>
+#include <Gfx/RenderGraph/RenderNode.h>
 #include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/MeshInternal.h>

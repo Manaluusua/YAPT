@@ -1,5 +1,5 @@
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Common/FileSystemPath.h>
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>

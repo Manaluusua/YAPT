@@ -2,7 +2,7 @@
 #define YAPT_SHARED_RENDERPIPELINEBASE_H
 
 #include <Renderer/Shared/RenderPipeline/RenderPipeline.h>
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 #include <vector>
 
 namespace YAPT

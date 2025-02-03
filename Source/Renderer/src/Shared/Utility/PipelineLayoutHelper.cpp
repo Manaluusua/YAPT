@@ -1,5 +1,5 @@
 #include <Renderer/Shared/Utility/PipelineLayoutHelper.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Common/CommonUtilities.h>
 #include <algorithm>
 #include <Common/Logger.h>

@@ -1,5 +1,5 @@
 #pragma once
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/GfxTypes.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <Math/Math.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <vector>
 #include <Renderer/Shared/RenderObjectManager.h>
 

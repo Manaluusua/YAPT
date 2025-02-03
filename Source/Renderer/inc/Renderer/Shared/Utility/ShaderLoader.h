@@ -1,7 +1,7 @@
 #pragma once
 
-#include <Renderer/Shared/GfxTypes.h>
-#include <Renderer/Shared/ShaderPipelineReflection.h>
+#include <Gfx/GfxTypes.h>
+#include <Gfx/ShaderPipelineReflection.h>
 #include <unordered_map>
 namespace YAPT
 {

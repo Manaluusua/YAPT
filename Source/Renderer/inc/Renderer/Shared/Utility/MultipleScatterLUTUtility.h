@@ -3,7 +3,7 @@
 #include <Math/RandUtility.h>
 #include <Math/GGX.h>
 #include <Math/MiscBrdf.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 
 #define SS_ALBEDO_LUT_DIM 32
 #define SSMS_ALBEDO_LUT_DIM 16

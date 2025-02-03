@@ -1,6 +1,6 @@
 #pragma once
-#include <Renderer/Shared/ShaderPipelineReflection.h>
-#include <Renderer/Shared/GfxTypes.h>
+#include <Gfx/ShaderPipelineReflection.h>
+#include <Gfx/GfxTypes.h>
 #include <Renderer/Shared/Utility/DescriptorSetUtility.h>
 #include <vector>
 #include <unordered_map>

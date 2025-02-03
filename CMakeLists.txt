@@ -43,6 +43,7 @@ endif(WIN32)
 
 ##add modules
 add_subdirectory(${YAPT_SRC_DIR}/Common)
+add_subdirectory(${YAPT_SRC_DIR}/Gfx)
 add_subdirectory(${YAPT_SRC_DIR}/Renderer)
 add_subdirectory(${YAPT_SRC_DIR}/Scene)
 add_subdirectory(${YAPT_SRC_DIR}/Gui)

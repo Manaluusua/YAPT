@@ -1,6 +1,6 @@
 #include <Renderer/Shared/Utility/DescriptorSetUtility.h>
 
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Renderer/Shared/CRenderer.h>
 
 namespace YAPT

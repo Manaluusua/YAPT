@@ -3,7 +3,7 @@
 #include <Renderer/Material.h>
 #include <Renderer/Shared/MaterialManager.h>
 #include <Renderer/Shared/MaterialInternal.h>
-#include <Renderer/RendererCommonTypes.h>
+#include <Gfx/GfxBasicTypes.h>
 
 namespace YAPT
 {

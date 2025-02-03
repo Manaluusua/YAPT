@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 #include <Math/Math.h>
 

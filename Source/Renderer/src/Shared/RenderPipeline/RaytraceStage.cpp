@@ -1,5 +1,5 @@
 #include <Renderer/Shared/RenderPipeline/RaytraceStage.h>
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
 #include <Renderer/Shared/CRenderer.h>

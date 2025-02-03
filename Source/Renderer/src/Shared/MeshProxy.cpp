@@ -1,6 +1,6 @@
 #include <Renderer/Shared/MeshProxy.h>
 #include <Renderer/Shared/MeshManager.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 
 
 namespace YAPT

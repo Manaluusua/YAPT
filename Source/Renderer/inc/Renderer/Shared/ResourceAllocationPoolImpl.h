@@ -2,7 +2,7 @@
 #define YAPT_SHARED_RESOURCECHUNKIMPL_H
 
 #include <Renderer/ResourceAllocationPool.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <vector>
 
 namespace YAPT

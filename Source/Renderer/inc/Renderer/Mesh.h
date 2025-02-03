@@ -2,7 +2,7 @@
 #define YAPT_MESH_H
 
 #include <Common/RCObject.h>
-#include <Renderer/RendererCommonTypes.h>
+#include <Gfx/GfxBasicTypes.h>
 
 namespace YAPT
 {

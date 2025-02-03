@@ -1,7 +1,7 @@
 #include <Renderer/Shared/RenderPipeline/TonemapStage.h>
-#include <Renderer/Shared/RenderGraph/RenderGraph.h>
+#include <Gfx/RenderGraph/RenderGraph.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
-#include <Renderer/Shared/GfxApi.h>
+#include <Gfx/GfxApi.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>

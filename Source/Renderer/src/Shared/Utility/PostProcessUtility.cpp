@@ -1,6 +1,6 @@
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/CRenderer.h>
-#include <Renderer/Shared/RenderGraph/RenderNode.h>
+#include <Gfx/RenderGraph/RenderNode.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
 namespace YAPT
 {

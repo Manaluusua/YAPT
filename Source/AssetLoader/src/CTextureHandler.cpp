@@ -1,7 +1,7 @@
 #include <AssetLoader/Impl/CTextureHandler.h>
 #include <Common/Logger.h>
 #include <Common/CommonUtilities.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 #include <assert.h>
 
 

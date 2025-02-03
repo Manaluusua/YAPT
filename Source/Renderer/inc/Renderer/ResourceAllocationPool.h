@@ -1,7 +1,7 @@
 #ifndef YAPT_RESOURCECHUNK_H
 #define YAPT_RESOURCECHUNK_H
 
-#include "RendererCommonTypes.h"
+#include <Gfx/GfxBasicTypes.h>
 #include <Common/RCObject.h>
 #include <Renderer/Texture.h>
 #include <Renderer/Buffer.h>

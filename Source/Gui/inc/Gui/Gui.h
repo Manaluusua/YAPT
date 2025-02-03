@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CommonDefines.h"
-#include <Renderer/WindowSurfaceDefinition.h>
+#include <Gfx/WindowSurfaceDefinition.h>
 
 namespace YAPT
 {

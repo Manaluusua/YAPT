@@ -1,5 +1,5 @@
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
-#include <Renderer/RendererCommonTypesUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 namespace YAPT
 {
 	

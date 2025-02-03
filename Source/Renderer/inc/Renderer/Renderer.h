@@ -1,6 +1,6 @@
 #pragma once
 #include"CommonDefines.h"
-#include "WindowSurfaceDefinition.h"
+#include <Gfx/WindowSurfaceDefinition.h>
 
 
 #include <Renderer/ResourceAllocationPool.h>

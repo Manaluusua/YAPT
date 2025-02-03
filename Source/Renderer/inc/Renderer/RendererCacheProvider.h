@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Renderer/RendererCommonTypes.h>
+#include <Gfx/GfxBasicTypes.h>
 #include <Math/Math.h>
 namespace YAPT
 {
