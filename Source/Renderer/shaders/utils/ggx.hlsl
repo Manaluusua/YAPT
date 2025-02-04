@@ -88,13 +88,20 @@ float DVGGX(float3 wo, float3 wm, float ax, float ay)
 {
 	float D = DGGX(wm, ax, ay);
 	float G1 = G1GGX(wo, wm, ax, ay);
-	return (G1 *  abs(dot(wo, wm))*D) / SAFE_DIVISOR(wo.y); 
+	return (G1 *  abs(dot(wo, wm))*D) / SAFE_DIVISOR(abs(wo.y)); 
 }
 
 float3 sampleWMGGX(float3 wo, float ax, float ay, float u1, float u2)
 {
-	//return sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+	bool flipWo = wo.y < 0;
+	wo.y = abs(wo.y);
+	//float3 wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
 	float3 wh = sampleNormalsGGX(ax, ay, u1, u2);
+	if(flipWo)
+	{
+		wo.y = -wo.y;
+		wh.y = -wh.y;
+	}
 	return forceSameHemisphere(wo, wh);
 
 }
