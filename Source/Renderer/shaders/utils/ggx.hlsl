@@ -91,14 +91,15 @@ float DVGGX(float3 wo, float3 wm, float ax, float ay)
 	return (G1 *  abs(dot(wo, wm))*D) / SAFE_DIVISOR(wo.y); 
 }
 
-float3 sampleWM(float3 wo, float ax, float ay, float u1, float u2)
+float3 sampleWMGGX(float3 wo, float ax, float ay, float u1, float u2)
 {
 	//return sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
-	return sampleNormalsGGX(ax, ay, u1, u2);
+	float3 wh = sampleNormalsGGX(ax, ay, u1, u2);
+	return forceSameHemisphere(wo, wh);
 
 }
 
-float pdfWM(float3 wo, float3 wm, float ax, float ay)
+float pdfWMGGX(float3 wo, float3 wm, float ax, float ay)
 {
 	//return DVGGX(wo, wm, ax, ay);
 	return DGGX(wm, ax, ay) * abs(wm.y);

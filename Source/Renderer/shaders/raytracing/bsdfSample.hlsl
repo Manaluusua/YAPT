@@ -11,7 +11,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float3 sample)
 {
-	float3 wm = sampleWM(wo, ax, ay, sample.x, sample.y);
+	float3 wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
 	float3 wi = reflect(-wo, wm);
 	if(wi.y < 0.f)
 	{
@@ -27,7 +27,7 @@ float pdfGGXReflectionConductor(in float3 wo, in float3 wi, in float ax, in floa
 	{
 		return 0.f;
 	}
-	return pdfWM(wo, wm, ax, ay) * jReflection(wo, wm);
+	return pdfWMGGX(wo, wm, ax, ay) * jReflection(wo, wm);
 }
 
 float3 evaluateGGXReflectionConductor(in float3 etaR, in float3 etaK,in float ax ,in float ay, in float3 wo, in float3 wi)
@@ -48,7 +48,7 @@ float3 evaluateGGXReflectionConductor(in float3 etaR, in float3 etaK,in float ax
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float3 sample)
 {
-	float3 wm = sampleWM(wo, ax, ay, sample.x, sample.y);
+	float3 wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
 	float3 wi = reflect(-wo, wm);
 	if(wi.y < 0.f)
 	{
@@ -65,7 +65,7 @@ float pdfGGXReflectionDielectric(in float3 wo, in float3 wi, in float ax, in flo
 	}
 	
     float3 wm = normalize(wo + wi);	
-	float pdf = pdfWM(wo, wm, ax, ay) * jReflection(wo, wm);
+	float pdf = pdfWMGGX(wo, wm, ax, ay) * jReflection(wo, wm);
 	return pdf;
 }
 
@@ -98,7 +98,7 @@ float3 evaluateGGXReflectionDielectric(in float etaR,in float ax ,in float ay, i
 float3 getWMTranslucent(in float3 wo,in float3 wi, in float etaR)
 {
 	float3 wm;
-	bool isReflected = wi.y >= 0.f;
+	bool isReflected = onSameHemisphere(wo, wi);
 	if(isReflected)
 	{
 		wm = normalize(wo + wi); 
@@ -111,10 +111,7 @@ float3 getWMTranslucent(in float3 wo,in float3 wi, in float etaR)
 		}
 		
 		wm = normalize(wo + wi * etaR);
-		if(etaR > 1.f)
-		{
-			wm *= -1.f;
-		}
+		wm = forceSameHemisphere(wo, wm);
 	}
 	
 	return wm;
@@ -125,7 +122,7 @@ float3 sampleGGXTransmitted(in float etaR, in float ax ,in float ay, in float3 w
 	float3 wm;
 	float3 wi;
 
-	wm = sampleWM(wo, ax, ay, sample.x, sample.y);
+	wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
 	
 	if(dot(wo, wm) < 0.f)
 	{
@@ -154,19 +151,14 @@ float pdfGGXTransmitted(in float etaR, in float3 wo, in float3 wi, in float ax, 
 	
 	wm = getWMTranslucent(wo, wi, etaR);
 	
-	if(dot(wo, wm) < 0.f)
-	{
-		return 0.f;
-	}
-	
-	bool isReflected = wi.y >= 0.f;
+	bool isReflected = onSameHemisphere(wo, wi);
 	
 	if(isReflected)
 	{
 		return 0.f;
 	}
 
-	float pdf = pdfWM(wo, wm, ax, ay);
+	float pdf = pdfWMGGX(wo, wm, ax, ay);
 
 	if (dot(wi, wm) > 0) return 0.f;
 	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
@@ -186,9 +178,9 @@ float3 evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3
 	
 	float3 wm = getWMTranslucent(wo, wi, etaR);
 	
-	bool isReflected = wi.y >= 0.f;
+	bool isReflected = onSameHemisphere(wo, wi);
 	
-	if(dot(wo, wm) < 0.f || isReflected)
+	if(isReflected)
 	{
 		return 0.f;
 	}

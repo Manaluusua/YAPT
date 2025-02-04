@@ -17,15 +17,12 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	in float3 woBase,in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, in float4 rand, 
 	out float samplingProbabilities[LAYER_COUNT])
 {
-	if(woBase.y < 0)
-	{
-		woBase.y = -woBase.y;
-	}
-
 	//decide here if we will sample reflections or transmission
-	float3 wm = sampleWM(woBase, a2.x, a2.y, rand.x, rand.y);
+	float3 wm = sampleWMGGX(woBase, a2.x, a2.y, rand.x, rand.y);
 	float F = fresnelDielectricDielectric2(toIOR/fromIOR, dot(woBase, wm));
 	
+	bool comingFromInside = woBase.y < 0;
+	float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
 	float refrProb = (1.f - F) * surfaceDef.transparency;
 	float reflProb = 1.f - refrProb;
 	
@@ -38,13 +35,13 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	}*/
 
 	float sampleSum = 0.f;
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * reflProb);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * reflProb);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * reflProb);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * reflProb * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * reflProb * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * reflProb * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, ((1.f - surfaceDef.metalness) * surfaceDef.specularAmount) * reflProb);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, (1.f - surfaceDef.transparency) * reflProb);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, (1.f - surfaceDef.transparency) * reflProb * fromInsideMultiplier);
 	
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_TRANSMITTED, surfaceDef.transparency * refrProb);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_TRANSMITTED, refrProb);
 	
 	sampleSum = max(0.000001f, sampleSum);
 	
@@ -57,14 +54,6 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 
 float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, in float3 woBase, in float3 woCoating, in float2 a2, in float4 rand, in float samplingProbabilities[LAYER_COUNT])
 {	
-
-	bool flippedWOBase = false;
-	if(woBase.y < 0)
-	{
-		flippedWOBase = true;
-		woBase.y = -woBase.y;
-	}
-	
 	float materialTypeRand = max(0, rand.w + 0.00001f);
 	float3 randSampleBrdf = rand.xyz;
 	
@@ -74,7 +63,7 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 	uint sampleLayer;
 	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
 	{
-		if(materialTypeRand < samplingProbabilities[sampleLayer])
+		if(materialTypeRand < samplingProbabilities[sampleLayer] && samplingProbabilities[sampleLayer] > 0)
 		{
 			break;
 		}
@@ -92,7 +81,7 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 	}
 	else if(sampleLayer == LAYERIND_COATING_SHEEN)
 	{
-		if(!flippedWOBase)
+		if(woBase.y > 0)
 		{
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
 			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
@@ -100,7 +89,7 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 	} 
 	else if(sampleLayer == LAYERIND_SPEC_CONDUCTOR)
 	{
-		if(!flippedWOBase)
+		if(woBase.y > 0)
 		{
 			
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
@@ -110,19 +99,14 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 	}
 	else if(sampleLayer == LAYERIND_SPEC_DIELECTRIC)
 	{
-		//if(!flippedWOBase)
-		{
-			wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
-			if(flippedWOBase)
-			{
-				wi.y = -wi.y;
-			}
-			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
-		}
+
+		wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
+		wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
+		
 	} 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
 	{
-		if(!flippedWOBase)
+		if(woBase.y > 0)
 		{
 			wi = sampleDiffuseLambertian(a2.x, a2.y, woBase, randSampleBrdf);
 			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
@@ -147,10 +131,6 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 		float etaR = toIOR/fromIOR;
 		
 		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
-		if(flippedWOBase)
-		{
-			wi.y = -wi.y;
-		}
 		wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
 		
 	} 
@@ -215,7 +195,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	if(samplingProbabilities[LAYERIND_COATING_GGX] > 0)
 	{
-		if(woCoating.y > 0 && wiCoating.y > 0)
+		if(onSameHemisphere(woCoating, wiCoating))
 		{
 			float etaR = surfaceDef.clearCoatIOR / fromIOR;
 
@@ -246,7 +226,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	if(samplingProbabilities[LAYERIND_COATING_SHEEN] > 0)
 	{
-		if(woBase.y > 0 && wiBase.y > 0)
+		if(onSameHemisphere(woBase, wiBase))
 		{
 			//singleScatter
 			float pdf = pdfSheen(woBase, wiBase, surfaceDef.sheenRoughness);
@@ -265,7 +245,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	if(samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0)
 	{
-		if(woBase.y > 0 && wiBase.y > 0)
+		if(onSameHemisphere(woBase, wiBase))
 		{
 			float2 r = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo.r, surfaceDef.specular.r);
 			float2 g = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo.g, surfaceDef.specular.g);
@@ -303,7 +283,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	if(samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0)
 	{
 		//the ray could also be coming from inside the object, need to take reflection into account in that case (translucent)
-		if(woBase.y * wiBase.y > 0.f)
+		if(onSameHemisphere(woBase, wiBase))
 		{
 			bool flippedWOBase = false;
 			if(woBase.y < 0)
@@ -346,7 +326,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	if(samplingProbabilities[LAYERIND_DIFFUSE_REFL] > 0)
 	{
-		if(woBase.y > 0 && wiBase.y > 0)
+		if(onSameHemisphere(woBase, wiBase))
 		{
 			float diffuseAmount = 1.f - surfaceDef.transparency; 
 			
@@ -368,15 +348,8 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 
 	if(samplingProbabilities[LAYERIND_TRANSMITTED] > 0)
 	{
-		if(woBase.y * wiBase.y < 0.f)
+		if(!onSameHemisphere(woBase, wiBase))
 		{
-			bool flippedWOBase = false;
-			if(woBase.y < 0)
-			{
-				flippedWOBase = true;
-				woBase.y = -woBase.y;
-				wiBase.y = -wiBase.y;
-			}
 			float etaR = toIOR/fromIOR;
 	
 			float pdf = pdfGGXTransmitted(etaR, woBase, wiBase, a2.x, a2.y);
@@ -404,14 +377,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 					payload.absorption = surfaceDef.absorption;
 				}
 			}
-			
-			if(flippedWOBase)
-			{
-				woBase.y = -woBase.y;
-				wiBase.y = -wiBase.y;
-			}
-			
-			
+
 			if(pdf > 0.f)
 			{
 				weightSum += weight * energyLeft * abs(wiBase.y) * surfaceDef.transparency;

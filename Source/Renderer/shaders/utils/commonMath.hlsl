@@ -43,5 +43,14 @@ float3 calculatTransmittance(float distance, float3 absorption)
 	return exp(-absorption * distance);
 }
 
+bool onSameHemisphere(float3 referenceDir, float3 dir)
+{
+	return referenceDir.y * dir.y >= 0;
+}
+
+float3 forceSameHemisphere(float3 referenceDir, float3 dir)
+{
+	return onSameHemisphere(referenceDir, dir) ? dir : -dir;
+}
 
 #endif
