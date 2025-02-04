@@ -33,7 +33,7 @@ float pdfGGXReflectionConductor(in float3 wo, in float3 wi, in float ax, in floa
 float3 evaluateGGXReflectionConductor(in float3 etaR, in float3 etaK,in float ax ,in float ay, in float3 wo, in float3 wi)
 {
 	float3 wm = normalize(wo + wi);
-	if(wi.y < 0.0f || dot(wi, wm) < 0.f)
+	if(!onSameHemisphere(wo, wi))
 	{
 		return 0.f;
 	}
@@ -50,7 +50,7 @@ float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in 
 {
 	float3 wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
 	float3 wi = reflect(-wo, wm);
-	if(wi.y < 0.f)
+	if(!onSameHemisphere(wo, wi))
 	{
 		return 0.f;
 	}
@@ -59,7 +59,7 @@ float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in 
 
 float pdfGGXReflectionDielectric(in float3 wo, in float3 wi, in float ax, in float ay)
 {
-	if(wi.y < 0.0f)
+	if(!onSameHemisphere(wo, wi))
 	{
 		return 0.f;
 	}
@@ -72,7 +72,7 @@ float pdfGGXReflectionDielectric(in float3 wo, in float3 wi, in float ax, in flo
 float3 evaluateGGXReflectionDielectric(in float etaR,in float ax ,in float ay, in float3 wo, in float3 wi)
 {
 	float3 wm = normalize(wo + wi);
-	if(wi.y < 0.0f)
+	if(!onSameHemisphere(wo, wi))
 	{
 		return 0.f;
 	}
