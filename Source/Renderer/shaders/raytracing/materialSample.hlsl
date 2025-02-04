@@ -285,14 +285,6 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 		//the ray could also be coming from inside the object, need to take reflection into account in that case (translucent)
 		if(onSameHemisphere(woBase, wiBase))
 		{
-			bool flippedWOBase = false;
-			if(woBase.y < 0)
-			{
-				flippedWOBase = true;
-				woBase.y = -woBase.y;
-				wiBase.y = -wiBase.y;
-			}
-			
 			float etaR = toIOR/fromIOR;
 
 			float pdf = pdfGGXReflectionDielectric(woBase, wiBase, a2.x, a2.y);
@@ -301,8 +293,8 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 			//multiscatter
 			float3 wm = normalize(woBase + wiBase);
-			float3 fms = getFmsDielectric(etaR, dot(woBase, wm));
-			float3 msbrdf = getEnergyCompensation(fms, woBase.y, wiBase.y, surfaceDef.roughness, weight);
+			float3 fms = getFmsDielectric(etaR, abs(dot(woBase, wm)));
+			float3 msbrdf = getEnergyCompensation(fms, abs(woBase.y), abs(wiBase.y), surfaceDef.roughness, weight);
 			weight += msbrdf;
 			weight *= surfaceDef.specularAmount * (1.f - surfaceDef.metalness);
 			
@@ -315,11 +307,6 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 			float amountOfEnergyAfterSpecular = getEnergyRemainingAfterSpecular(etaR, woBase.y, wiBase.y, surfaceDef.roughness, surfaceDef.specularAmount);
 			energyLeft *= amountOfEnergyAfterSpecular;
 			
-			if(flippedWOBase)
-			{
-				woBase.y = -woBase.y;
-				wiBase.y = -wiBase.y;
-			}
 		}
 		
 	}
