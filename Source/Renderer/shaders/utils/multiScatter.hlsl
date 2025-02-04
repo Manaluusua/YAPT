@@ -85,8 +85,8 @@ float getFmsDielectric(float etaR, float cosTheta)
 //--------------------------------------Energy compensation -----------------------------------------------------//
 float3 getEnergyCompensationKulla(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScattering)
 { 
-	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(dotWo, linearRoughness);
-	float dirAlbedoWi = getSSDirectionalAlbedoNoFresnel(dotWi, linearRoughness);
+	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(abs(dotWo), linearRoughness);
+	float dirAlbedoWi = getSSDirectionalAlbedoNoFresnel(abs(dotWi), linearRoughness);
 	float eAvg = getAverageSSDirectionalAlbedoNoFresnel(linearRoughness);
 	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
 	return  fms * ems;
@@ -96,21 +96,21 @@ float3 getEnergyCompensationKulla(in float3 fms, in float dotWo, in float dotWi,
 
 float3 getEnergyCompensationTurquin(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
 {
-	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(dotWo, linearRoughness);
+	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(abs(dotWo), linearRoughness);
 	float3 energyCompensation = fms * ( 1.f - dirAlbedoWo) / dirAlbedoWo;
 	return  energyCompensation * singleScatter;
 }
 
 float3 getEnergyCompensation(in float3 fms, in float dotWo, in float dotWi, in float linearRoughness, in float3 singleScatter)
 {
-	//return getEnergyCompensationKulla(fms, dotWo, dotWi, linearRoughness, singleScatter);
-	return getEnergyCompensationTurquin(fms, dotWo, dotWi, linearRoughness, singleScatter);
+	//return getEnergyCompensationKulla(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
+	return getEnergyCompensationTurquin(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
 }
 
 float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float specularAmount)
 {
-	float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, dotWo, linearRoughness) * specularAmount;
-	float dirAlbedoWi = getSSMSDirectionalAlbedo(etaR, dotWi, linearRoughness) * specularAmount;
+	float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, abs(dotWo), linearRoughness) * specularAmount;
+	float dirAlbedoWi = getSSMSDirectionalAlbedo(etaR, abs(dotWi), linearRoughness) * specularAmount;
 	float eAvg = getSSMSAverageDirectionalAlbedo(etaR, linearRoughness) * specularAmount;
 	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
 	
@@ -119,8 +119,8 @@ float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float do
 
 float getEnergyRemainingAfterSheen(in float dotWo, in float dotWi, in float linearRoughness, in float sheenAmount)
 {
-	float dirAlbedoWo = getSheenDirectionalAlbedo(dotWo, linearRoughness) * sheenAmount;
-	float dirAlbedoWi = getSheenDirectionalAlbedo(dotWi, linearRoughness) * sheenAmount;
+	float dirAlbedoWo = getSheenDirectionalAlbedo(abs(dotWo), linearRoughness) * sheenAmount;
+	float dirAlbedoWi = getSheenDirectionalAlbedo(abs(dotWi), linearRoughness) * sheenAmount;
 	float energyLeft = min(1.f - dirAlbedoWo, 1.f - dirAlbedoWi);
 	
 	return energyLeft;
@@ -131,10 +131,10 @@ float3 getEnergyCompensationTranslucent(in float etaR, in float dotWo, in float 
 	float dirAlbedoWo;
 	if(etaR < 1.f)
 	{
-		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, dotWo, linearRoughness);
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, abs(dotWo), linearRoughness);
 	} else
 	{
-		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, dotWo, linearRoughness);
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, abs(dotWo), linearRoughness);
 	}
 
 	float3 ems =  (singleScatter / dirAlbedoWo) - singleScatter;
