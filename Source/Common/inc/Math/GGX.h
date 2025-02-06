@@ -122,14 +122,20 @@ namespace YAPT
           
 	vec3p sampleWM(const vec3p& wo, float ax, float ay, float u1, float u2)
 	{
-		//return sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
-		return sampleNormalsGGX(ax, ay, u1, u2);
+		//float3 wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+		vec3p wh = sampleNormalsGGX(ax, ay, u1, u2);
+		if (wo.y * wh.y < 0)
+		{
+			wh = -wh;
+		}
+		return wh;
+
 	}
 	  
 	float pdfWM(const vec3p& wo, const vec3p& wm, float ax, float ay)
 	{ 
 		//return DVGGX(wo, wm, ax, ay);
-		return DGGX(wm, ax, ay) * MathUtils::saturate(wm.y);
+		return DGGX(wm, ax, ay) * glm::abs(wm.y);
 	}
 	            
 	 
@@ -166,7 +172,7 @@ namespace YAPT
 			}
 
 			wm = normalize(wo + wi * etaR);
-			if (etaR > 1.f)
+			if(wo.y * wm.y < 0)
 			{
 				wm *= -1.f;
 			}
@@ -207,8 +213,12 @@ namespace YAPT
 			}
 		}
 		else
-		{    
+		{      
 			wi = glm::refract(-wo, wm, invEta);
+			if (wi.y > 0)
+			{
+				wi = vec3p(0.f);
+			}
 		}
      
 		sampleDirOut = wi;

@@ -186,10 +186,10 @@ float3 getEnergyCompensationTranslucent(in float etaR, in float dotWo, in float 
 
 	if(etaR < 1.f)
 	{
-		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, dotWo, linearRoughness);
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, abs(dotWo), linearRoughness);
 	} else
 	{
-		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, dotWo, linearRoughness);
+		dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, abs(dotWo), linearRoughness);
 	}
 
 	float eta2 = dotWi < 0.f ? 1.f/etaR : etaR;

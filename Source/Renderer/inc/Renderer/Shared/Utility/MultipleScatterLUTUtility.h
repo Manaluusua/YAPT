@@ -244,14 +244,14 @@ namespace YAPT
 			{
 				accum += weight * abs(wi.y) / pdf;
 			}
-		}
+		} 
 
 		return accum / numberOfSamples;
 	}
 
 	float integrateDirectionalSingleScatterGGXAlbedoTranslucent(float etaR, float roughness, float cosTheta)
 	{
-		constexpr uint32_t numberOfSamples = 300;
+		constexpr uint32_t numberOfSamples = 1024;
 		vec3p samples[numberOfSamples];
 		MathUtils::generateHaltonSequence(numberOfSamples, samples, 0);
 		float accum = 0;
