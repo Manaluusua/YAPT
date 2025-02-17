@@ -120,6 +120,7 @@ namespace YAPT
 	{
 		const size_t GROW_STEP = 128;
 
+		if (m_renderObjectMVPs.size() == 0) return;
 		if (m_gpuData.getAllocatedEntryCount() < m_renderObjectMVPs.size())
 		{
 			size_t newEntries = align(m_renderObjectMVPs.size(), GROW_STEP);

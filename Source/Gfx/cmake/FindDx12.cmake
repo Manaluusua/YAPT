@@ -31,7 +31,7 @@ mark_as_advanced (
 
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (
-    Dx12Deps 
+    Dx12
         REQUIRED_VARS 
 			DX_INCLUDE_PATH
 		
@@ -43,7 +43,7 @@ find_package_handle_standard_args (
 			DX_RUNTIME_DXIL
 )
 
-if (Dx12Deps_FOUND)
+if (Dx12_FOUND)
 
     add_library (d3d12::d3d12 SHARED IMPORTED)
     set_target_properties (d3d12::d3d12

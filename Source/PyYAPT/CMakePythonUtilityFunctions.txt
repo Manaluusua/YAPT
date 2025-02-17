@@ -1,0 +1,49 @@
+function(ensure_pip)
+	execute_process(
+		COMMAND ${Python3_EXECUTABLE} -m ensurepip
+		RESULT_VARIABLE INSTALL_RESULT
+		OUTPUT_QUIET
+		ERROR_QUIET
+	)
+
+	if(NOT INSTALL_RESULT EQUAL 0)
+		message(FATAL_ERROR "Failed to ensure pip")
+	else()
+		message(STATUS "pip found")
+	endif()
+endfunction()
+
+function(find_pip_package_folder PACKAGE_NAME)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -m pip show ${PACKAGE_NAME}
+        OUTPUT_VARIABLE PACKAGE_INFO
+        ERROR_QUIET
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+	
+    # Extract the location
+    string(REGEX MATCH "Location: (.*)\nRequires:" _match ${PACKAGE_INFO})
+    if (CMAKE_MATCH_1)
+        set(${PACKAGE_NAME}_DIR "${CMAKE_MATCH_1}/${PACKAGE_NAME}" PARENT_SCOPE)
+    else()
+        message(FATAL_ERROR "Package ${PACKAGE_NAME} not found via pip.")
+    endif()
+endfunction()
+
+
+function(install_with_pip PACKAGE_NAME)
+
+	# Now, use pip to install a Python package (for example, requests)
+	execute_process(
+		COMMAND ${Python3_EXECUTABLE} -m pip install ${PACKAGE_NAME}
+		RESULT_VARIABLE INSTALL_RESULT
+		OUTPUT_QUIET
+		ERROR_QUIET
+	)
+	
+	if(INSTALL_RESULT EQUAL 0)
+		message(STATUS "Python package ${PACKAGE_NAME} installed successfully.")
+	else()
+		message(FATAL_ERROR "Failed to install the required Python package ${PACKAGE_NAME}!")
+	endif()
+endfunction()

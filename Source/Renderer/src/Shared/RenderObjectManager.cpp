@@ -254,6 +254,7 @@ namespace YAPT
 
 	void RenderObjectManager::updatePerObjectGPUData()
 	{
+		if (getNumberOfObjects() == 0) return;
 		if (m_gpuData.getAllocatedEntryCount() < getNumberOfObjects())
 		{
 			size_t newEntries = align(getNumberOfObjects(), PEROBJECTDATA_GROW_COUNT);

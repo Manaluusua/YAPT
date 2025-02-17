@@ -274,8 +274,12 @@ namespace YAPT
 
 	bool  RaytraceStage::doesShaderTableNeedUpdate()
 	{
-		if (m_shaderTableHelper.getShaderTable() == YAPT_NULL_HANDLE) return true;
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
+		if (m_shaderTableHelper.getShaderTable() == YAPT_NULL_HANDLE)
+		{
+			return roMngr.getNumberOfObjects() != 0;
+		}
+		
 		const RenderObjectId* ids;
 		size_t idCount;
 
@@ -555,9 +559,9 @@ namespace YAPT
 	 
 	void RaytraceStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
 	{
+		if (getRenderer()->getRenderObjectManager().getNumberOfObjects() == 0) return;
+
 		m_accStructureHelper.updateBottomLevelStructures(exec.cmdBuffer);
-
-
 
 		auto assignPerInstanceParams = [](size_t arrayIndex, RenderObjectId id, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
 		{

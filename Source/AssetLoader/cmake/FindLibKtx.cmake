@@ -22,7 +22,7 @@ mark_as_advanced (
 
 include (FindPackageHandleStandardArgs)
 find_package_handle_standard_args (
-    ktxDeps 
+    LibKtx 
         REQUIRED_VARS 
 			LibKtx_HEADERS
 		
@@ -30,7 +30,7 @@ find_package_handle_standard_args (
             LibKtx_Dll 
 )
 
-if (ktxDeps_FOUND)
+if (LibKtx_FOUND)
 
     add_library (LibKtx::libKtx SHARED IMPORTED)
     set_target_properties (LibKtx::libKtx

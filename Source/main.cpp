@@ -5,7 +5,11 @@
 #include <Scene/Scene.h>
 #include <AssetLoader/AssetLoader.h>
 #include <assert.h>
+#include <PyYAPT/PyYAPT.h>
 
+
+
+/*
 int main(int argc, char **argv)
 {
 	YAPT::Renderer* renderer = YAPT::createRenderer();
@@ -29,5 +33,34 @@ int main(int argc, char **argv)
 	YAPT::destroyGui(gui);
 	YAPT::destroyScene(scene);
 	YAPT::destroyRenderer(renderer);
+	return 0;
+}*/
+
+
+int main(int argc, char** argv) 
+{
+	bool enableGPUCapture = false;
+#if defined(_DEBUG)
+	for (int i = 0; i < argc; ++i)
+	{
+		if (strcmp(argv[i], "-debugHaltOnStartup") == 0)
+		{
+			while (!::IsDebuggerPresent())
+			{
+				::Sleep(100);
+			}
+		}
+		else if (strcmp(argv[i], "-debugEnableGPUCapture") == 0)
+		{
+			enableGPUCapture = true;
+		}
+	}
+#endif
+
+	const char* pythonEntryFile = "python/defaultBootstrap.py";
+	YAPT::PyYAPT* pythonModule = YAPT::createPythonModule();
+	pythonModule->executeFile(pythonEntryFile);
+	YAPT::destroyPythonModule(pythonModule);
+
 	return 0;
 }

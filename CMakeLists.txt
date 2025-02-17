@@ -48,9 +48,9 @@ add_subdirectory(${YAPT_SRC_DIR}/Renderer)
 add_subdirectory(${YAPT_SRC_DIR}/Scene)
 add_subdirectory(${YAPT_SRC_DIR}/Gui)
 add_subdirectory(${YAPT_SRC_DIR}/AssetLoader)
+add_subdirectory(${YAPT_SRC_DIR}/PyYAPT)
 
-
-target_link_libraries(YAPT PUBLIC Renderer Gui Scene AssetLoader)
+target_link_libraries(YAPT PUBLIC Renderer Gui Scene AssetLoader PyYAPT)
 
 if(YAPT_BUILD_EXAMPLES)
 	add_subdirectory(${YAPT_SRC_DIR}/Examples)
