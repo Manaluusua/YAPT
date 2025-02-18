@@ -1,17 +1,17 @@
 #pragma once
 
-#include <PyYAPT/PyYAPT.h>
+#include <Python/Python.h>
 
 namespace YAPT
 {
 
-	class CPyYAPT : public PyYAPT
+	class CPython : public Python
 	{
 	public:
-		CPyYAPT();
+		CPython();
 		virtual void executeFile(const char* filePath) override;
 	protected:
 
-		virtual ~CPyYAPT() final;
+		virtual ~CPython() final;
 	};
 }

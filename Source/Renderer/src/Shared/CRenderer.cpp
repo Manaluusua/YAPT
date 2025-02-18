@@ -149,6 +149,8 @@ namespace YAPT
 
 	void CRenderer::deinit()
 	{
+		if (m_gfxHandle == YAPT_NULL_HANDLE) return;
+
 		m_threadPool.deinit();
 		//First shutdown the (highlevel) renderthread
 		{

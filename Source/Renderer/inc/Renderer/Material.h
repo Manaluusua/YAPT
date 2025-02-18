@@ -27,7 +27,7 @@ namespace YAPT
 		virtual void setFromMaterialPreset(MaterialPreset preset) = 0;
 
 		virtual void setTransparency(float transparency) = 0;
-		virtual float getTranspacenry() const = 0;
+		virtual float getTransparency() const = 0;
 
 		virtual void setMetalness(float metalness) = 0;;
 		virtual float getMetalness() const = 0;

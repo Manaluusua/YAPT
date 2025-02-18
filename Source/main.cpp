@@ -1,13 +1,16 @@
 //Entry point
 
-#include <Renderer/Renderer.h>
-#include <Gui/Gui.h>
-#include <Scene/Scene.h>
-#include <AssetLoader/AssetLoader.h>
+//#include <Renderer/Renderer.h>
+//#include <Gui/Gui.h>
+//#include <Scene/Scene.h>
+//#include <AssetLoader/AssetLoader.h>
 #include <assert.h>
-#include <PyYAPT/PyYAPT.h>
-
-
+#include <Python/Python.h>
+#include <string>
+#include <windows.h>
+#if defined(_DEBUG)
+#include <debugapi.h>
+#endif
 
 /*
 int main(int argc, char **argv)
@@ -56,9 +59,8 @@ int main(int argc, char** argv)
 		}
 	}
 #endif
-
-	const char* pythonEntryFile = "python/defaultBootstrap.py";
-	YAPT::PyYAPT* pythonModule = YAPT::createPythonModule();
+	const char* pythonEntryFile = "pythonScripts/default_bootstrap.py";
+	YAPT::Python* pythonModule = YAPT::createPythonModule();
 	pythonModule->executeFile(pythonEntryFile);
 	YAPT::destroyPythonModule(pythonModule);
 

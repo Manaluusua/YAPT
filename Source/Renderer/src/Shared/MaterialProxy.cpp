@@ -64,7 +64,7 @@ namespace YAPT
 		m_materialParams.transparency = transparency;
 		setDirty();
 	}
-	float MaterialProxy::getTranspacenry() const
+	float MaterialProxy::getTransparency() const
 	{
 		return m_materialParams.transparency;
 	}

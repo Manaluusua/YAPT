@@ -8,9 +8,9 @@ namespace YAPT
 {
 	namespace MeshUtility
 	{
-		RENDERER_MODULE_INTERFACE size_t getRequiredVertexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth);
-		RENDERER_MODULE_INTERFACE size_t getRequiredIndexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool makeLineListInsteadOfTriangles);
-		RENDERER_MODULE_INTERFACE void generateUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles,
+		size_t getRequiredVertexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth);
+		size_t getRequiredIndexCountForUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool makeLineListInsteadOfTriangles);
+		void generateUnitSphere(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles,
 			vec3p* positions, uint32_t* indices, vec3p* normals, vec4p* tangents, vec2p* uvs);
 
 

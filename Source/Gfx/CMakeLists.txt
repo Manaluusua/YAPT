@@ -1,5 +1,3 @@
-cmake_minimum_required(VERSION 3.7.2)
-
 
 include("../../CMakeCommon.txt")
 
@@ -141,8 +139,11 @@ if(${BUILD_DX12_BACKEND})
 	target_link_libraries(Gfx PRIVATE d3d12::d3d12 d3d12::dxgi d3d12::dxc)
 	
 	#copy dxil and dxcompiler
-	copy_if_different(Gfx $<TARGET_FILE:d3d12::dxc> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
-	copy_if_different(Gfx $<TARGET_PROPERTY:d3d12::dxc,DXIL_RUNTIME> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+	add_custom_command(TARGET Gfx POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        $<TARGET_FILE:d3d12::dxc> "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/dxcompiler.dll"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        $<TARGET_PROPERTY:d3d12::dxc,DXIL_RUNTIME> "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/dxil.dll")
 	
 	target_compile_definitions(Gfx 
 		PUBLIC
@@ -157,7 +158,9 @@ if(${BUILD_VK_BACKEND})
 	find_package(DxCompiler REQUIRED)
 	target_link_libraries(Gfx PUBLIC Vulkan::Vulkan Dxc::Dxc) #for now linked as public since we expose all the internal types where some need these includes. Change to private when the actual types are encapsulated
 	
-	copy_if_different(Gfx $<TARGET_FILE:Dxc::Dxc> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+	add_custom_command(TARGET Gfx POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        $<TARGET_FILE:Dxc::Dxc> "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/dxcompiler.dll")
 	
 	#spirv-reflect
 	target_include_directories(Gfx PRIVATE "${YAPT_EXTERNALS_PATH}/SPIRV-Reflect/")

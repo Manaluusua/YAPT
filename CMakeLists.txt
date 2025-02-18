@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7.2)
+cmake_minimum_required(VERSION 3.30.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -48,9 +48,9 @@ add_subdirectory(${YAPT_SRC_DIR}/Renderer)
 add_subdirectory(${YAPT_SRC_DIR}/Scene)
 add_subdirectory(${YAPT_SRC_DIR}/Gui)
 add_subdirectory(${YAPT_SRC_DIR}/AssetLoader)
-add_subdirectory(${YAPT_SRC_DIR}/PyYAPT)
+add_subdirectory(${YAPT_SRC_DIR}/Python)
 
-target_link_libraries(YAPT PUBLIC Renderer Gui Scene AssetLoader PyYAPT)
+target_link_libraries(YAPT PUBLIC Common Python)
 
 if(YAPT_BUILD_EXAMPLES)
 	add_subdirectory(${YAPT_SRC_DIR}/Examples)

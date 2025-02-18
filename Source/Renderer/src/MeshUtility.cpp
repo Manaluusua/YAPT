@@ -192,22 +192,4 @@ namespace YAPT
 
 	}
 
-	RENDERER_MODULE_INTERFACE size_t getRequiredVertexCountForUnitPlane(size_t tesselationZenith, size_t tesselationAzimuth)
-	{
-		tesselationZenith = std::max(tesselationZenith, size_t(2));
-		tesselationAzimuth = std::max(tesselationAzimuth, size_t(2));
-
-		return tesselationZenith * tesselationAzimuth;
-	}
-	RENDERER_MODULE_INTERFACE size_t getRequiredIndexCountForUnitPlane(size_t tesselationZenith, size_t tesselationAzimuth, bool makeLineListInsteadOfTriangles)
-	{
-		tesselationZenith = std::max(tesselationZenith, size_t(2));
-		tesselationAzimuth = std::max(tesselationAzimuth, size_t(2));
-		return makeLineListInsteadOfTriangles ? ((1 + tesselationZenith) * tesselationAzimuth + tesselationZenith * tesselationAzimuth) * 2
-			: ((tesselationZenith - 1) * 2 * tesselationAzimuth) * 3;
-	}
-	RENDERER_MODULE_INTERFACE void generateUnitPlane(size_t tesselationZenith, size_t tesselationAzimuth, bool generateNormals, bool generateTangents, bool generateUVs, bool makeLineListInsteadOfTriangles,
-		vec3p* positions, uint32_t* indices, vec3p* normals, vec4p* tangents, vec2p* uvs);
-
-
 }

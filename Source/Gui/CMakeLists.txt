@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 3.7.2)
 
 #utility to copy runtime deps
 function(copy_if_different _target _source _destination)
