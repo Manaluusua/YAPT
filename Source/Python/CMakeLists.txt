@@ -65,7 +65,7 @@ endif()
 project(py_yapt)
 pybind11_add_module(py_yapt MODULE ${HEADERS_BINDINGS} ${SOURCE_BINDINGS})
 target_include_directories(py_yapt PRIVATE incBindings)
-target_link_libraries(py_yapt PUBLIC Renderer Scene)
+target_link_libraries(py_yapt PUBLIC Common Renderer Scene AssetLoader)
 install(TARGETS Python py_yapt DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
 set_target_properties(py_yapt PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY_DEBUG ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>

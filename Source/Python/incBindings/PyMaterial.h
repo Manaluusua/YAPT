@@ -1,7 +1,7 @@
 #pragma once
 #include <PyBindingsCommon.h>
 #include <Renderer/Material.h>
-
+#include <memory>
 namespace YAPT
 {
 	class PyRenderer;
