@@ -40,6 +40,39 @@ if(WIN32)
 	add_definitions(-DYAPT_WINDOWS)
 endif(WIN32)
 
+#make sure vcpkg is installed & bootstrapped
+find_program(VCPKG_EXECUTABLE vcpkg)
+if(NOT ${VCPKG_EXECUTABLE})
+    include(FetchContent)
+	FetchContent_Declare(
+		vcpkg
+		GIT_REPOSITORY https://github.com/microsoft/vcpkg.git
+		GIT_TAG master
+		GIT_PROGRESS TRUE
+	)
+	FetchContent_MakeAvailable(vcpkg)
+	if(EXISTS ${vcpkg_SOURCE_DIR})
+		execute_process(
+			COMMAND cmd /c ${vcpkg_SOURCE_DIR}/bootstrap-vcpkg.bat
+			WORKING_DIRECTORY ${vcpkg_SOURCE_DIR}
+			RESULT_VARIABLE result
+		)
+		
+		execute_process(
+			COMMAND ${vcpkg_SOURCE_DIR}/./vcpkg integrate install
+			WORKING_DIRECTORY ${vcpkg_SOURCE_DIR}
+			RESULT_VARIABLE result
+		)
+		
+		
+	endif()
+	
+	#set(CMAKE_TOOLCHAIN_FILE "${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+	include(${vcpkg_SOURCE_DIR}/scripts/buildsystems/vcpkg.cmake)
+else()
+    message(STATUS "vcpkg found: ${VCPKG_EXECUTABLE}")
+endif()
+
 
 ##add modules
 add_subdirectory(${YAPT_SRC_DIR}/Common)

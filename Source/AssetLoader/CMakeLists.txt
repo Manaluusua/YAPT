@@ -1,10 +1,5 @@
 include("../../CMakeCommon.txt")
 
-list(APPEND CMAKE_MODULE_PATH 
-	"${CMAKE_CURRENT_LIST_DIR}/cmake/"
-)
-
-
 project(AssetLoader)
 
 
@@ -31,10 +26,10 @@ target_include_directories(AssetLoader PUBLIC inc)
 target_link_libraries(AssetLoader PUBLIC Common Renderer)
 target_sources(AssetLoader PRIVATE ${SOURCE} ${HEADERS})
 
-#libktx
-find_package(LibKtx REQUIRED)
-target_link_libraries(AssetLoader PRIVATE LibKtx::libKtx )
-copy_if_different(AssetLoader $<TARGET_PROPERTY:LibKtx::libKtx,libKtx_RUNTIME> ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>)
+#ktx
+install_with_vcpkg(Ktx)
+find_package(Ktx CONFIG REQUIRED)
+target_link_libraries(AssetLoader PRIVATE KTX::ktx)
 
 #tinyGLTF
 target_include_directories(AssetLoader PRIVATE "${YAPT_EXTERNALS_PATH}/tinygltf/")

@@ -29,3 +29,12 @@ function(copy_folder _target _source _destination)
 				${_destination})
 
 endfunction()
+
+
+function(install_with_vcpkg _libraryName)
+	execute_process(
+			COMMAND ./vcpkg install ${_libraryName}
+			WORKING_DIRECTORY ${vcpkg_SOURCE_DIR}
+			RESULT_VARIABLE result
+		)
+endfunction()
