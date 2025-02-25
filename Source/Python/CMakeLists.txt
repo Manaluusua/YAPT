@@ -23,7 +23,7 @@ ensure_pip()
 install_with_pip(pybind11)
 install_with_pip(pyside6)
 install_with_pip(pygltflib)
-#install_with_pip(pyktx)
+
 
 #pybind11
 find_pip_package_folder(pybind11)

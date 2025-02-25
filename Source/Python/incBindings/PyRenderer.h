@@ -8,6 +8,23 @@ namespace YAPT
 	class Renderer;
 	class PyRendererVar;
 	class PyRendererCache;
+	class ResourceAllocationPool;
+	class PyTexture;
+	class PyBuffer;
+
+
+	class PyAllocationPool
+	{
+	public:
+		PyAllocationPool(ResourceAllocationPool* pool);
+
+		PyTexture* addTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices);
+		PyBuffer* addBuffer(const char* name, ResourceUsage resourceUsage, size_t size);
+
+		void allocateAndConsume();
+	private:
+		ResourceAllocationPool* m_allocPool;
+	};
 
 	class PyRenderer
 	{
@@ -20,6 +37,8 @@ namespace YAPT
 		void init(PyRendererCache* cache, uintptr_t windowHandle, bool enableGPUTrace);
 		void release();
 		
+		PyAllocationPool* createAllocationPool();
+
 		PyRendererVar getRendererVariable(const char* varName);
 		std::vector<const char*> getAllRendererVariableNames();
 
