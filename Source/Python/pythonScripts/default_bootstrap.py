@@ -21,6 +21,7 @@ append_from_path_to_syspath()
 
 from yapt.yapt_app import Application
 
+
 def main():
     
     app = Application()

@@ -43,7 +43,9 @@ class Application:
                 color: {baseColor.name()};
             }}
         """)
-    
+    def closeEvent(self, event):
+        self.shutdown()
+        super().closeEvent(event)
   def execute(self):
     self._app.exec()
     

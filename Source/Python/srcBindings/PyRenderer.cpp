@@ -94,7 +94,6 @@ namespace YAPT
 
 	BINDING_FUNC(PyRenderer, m)
 	{
-
 		pybind11::class_<PyRenderer>(m, "Renderer")
 			.def(pybind11::init<>())
 			.def("init", &PyRenderer::init)

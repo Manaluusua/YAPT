@@ -1,6 +1,8 @@
-from PySide6.QtWidgets import QMainWindow, QMessageBox
+from PySide6.QtWidgets import QMainWindow, QMessageBox, QFileDialog
 from PySide6.QtGui import QAction
 from yapt.yapt_renderer_vars_window import RendererVarsWindow
+import os
+from pathlib import Path
 
 class MainWindow(QMainWindow):
     def __init__(self, app):
@@ -32,7 +34,19 @@ class MainWindow(QMainWindow):
         options_menu.addAction(rvars_action)
     
     def run_script(self):
-        QMessageBox.information(self, "Run Script", "Running script...")
+        openPath = Path(os.path.abspath(__file__)).parent
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Python Script", str(openPath), "All Files (*);;Text Files (*.py)")
+        if(file_name):
+            try:
+                with open(file_name, 'r') as f:
+                        script_content = f.read()
+                locals_ = locals()
+                locals_["yapt_instance"] = self._app
+                exec(script_content, globals(), locals_)
+            except FileNotFoundError:
+                print("The script file was not found.")
+            except Exception as e:
+                print(f"An error occurred: {e}")
     
     def show_rvars(self):
         rvars_window = RendererVarsWindow(self, self._app.get_renderer())
