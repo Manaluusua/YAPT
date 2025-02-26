@@ -24,6 +24,8 @@ namespace YAPT
 		void allocateAndConsume();
 	private:
 		ResourceAllocationPool* m_allocPool;
+		std::vector<PyTexture*> m_createdTextures;
+		std::vector<PyBuffer*> m_createdBuffers;
 	};
 
 	class PyRenderer
@@ -35,7 +37,7 @@ namespace YAPT
 		~PyRenderer();
 
 		void init(PyRendererCache* cache, uintptr_t windowHandle, bool enableGPUTrace);
-		void release();
+		void shutdown();
 		
 		PyAllocationPool* createAllocationPool();
 

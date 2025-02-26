@@ -1,5 +1,5 @@
-from PySide6.QtWidgets import QMainWindow, QMessageBox, QFileDialog
-from PySide6.QtGui import QAction
+from PySide6.QtWidgets import QMainWindow, QWidget, QFileDialog, QVBoxLayout
+from PySide6.QtGui import QAction, QPalette, QColor
 from yapt.yapt_renderer_vars_window import RendererVarsWindow
 import os
 from pathlib import Path
@@ -10,10 +10,42 @@ class MainWindow(QMainWindow):
         self._app = app
         self.setWindowTitle("YAPT")
         self.setGeometry(100, 100, 1920, 1080)
-        
         self.setWindowTitle("YAPT")
+        self.set_dark_theme()
         self.create_menu()
+        self.setup_render_area()
         self.show()
+        self.sizeChanged = True
+    #UI
+    def set_dark_theme(self):
+        lightColor = "#a2ff00"
+        backgroundColor = QColor(30, 30, 30)
+        baseColor = QColor(40, 40, 40)
+        alternateBase = QColor(50, 50, 50)
+
+        palette = QPalette()
+        palette.setColor(QPalette.Window,backgroundColor)  
+        palette.setColor(QPalette.WindowText, lightColor)  
+        palette.setColor(QPalette.Base, QColor(40, 40, 40))  
+        palette.setColor(QPalette.AlternateBase, alternateBase)
+        palette.setColor(QPalette.ToolTipBase, lightColor)
+        palette.setColor(QPalette.ToolTipText, backgroundColor)
+        palette.setColor(QPalette.Text, lightColor)
+        palette.setColor(QPalette.Button, alternateBase)
+        palette.setColor(QPalette.ButtonText, lightColor)
+        palette.setColor(QPalette.Highlight, lightColor) 
+        palette.setColor(QPalette.HighlightedText, backgroundColor)
+        self._app.get_qt_app().setPalette(palette)
+        self._app.get_qt_app().setStyleSheet(f"""
+                QMenu {{
+                    background-color: {baseColor.name()}; 
+                    color: {lightColor}; 
+                }}
+                QMenu::item:selected {{
+                    background-color: {lightColor}; 
+                    color: {baseColor.name()};
+                }}
+            """)
 
     def create_menu(self):
         menu_bar = self.menuBar()
@@ -33,6 +65,13 @@ class MainWindow(QMainWindow):
         rvars_action.triggered.connect(self.show_rvars)
         options_menu.addAction(rvars_action)
     
+    def setup_render_area(self):
+        self._renderAreaWidget = QWidget()
+        self.layout().addWidget(self._renderAreaWidget)
+
+    def get_render_area_widget(self):
+        return self._renderAreaWidget
+
     def run_script(self):
         openPath = Path(os.path.abspath(__file__)).parent
         file_name, _ = QFileDialog.getOpenFileName(self, "Open Python Script", str(openPath), "All Files (*);;Text Files (*.py)")
@@ -52,4 +91,6 @@ class MainWindow(QMainWindow):
         rvars_window = RendererVarsWindow(self, self._app.get_renderer())
         rvars_window.show()
 
-   
+    #events
+    def resizeEvent(self, event):
+        self.sizeChanged = True

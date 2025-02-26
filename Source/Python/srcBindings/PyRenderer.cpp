@@ -20,18 +20,34 @@ namespace YAPT
 	PyTexture* PyAllocationPool::addTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1)
 	{
 		Texture* tex = m_allocPool->addTexture(name, dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
-		return new PyTexture(tex);
+		PyTexture* pyTex = new PyTexture(tex);
+		m_createdTextures.push_back(pyTex);
+		return pyTex;
 	}
 
 	PyBuffer* PyAllocationPool::addBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
 	{
 		Buffer* b = m_allocPool->addBuffer(name, resourceUsage, size);
-		return new PyBuffer(b);
+		PyBuffer* pyBuf = new PyBuffer(b);
+		m_createdBuffers.push_back(pyBuf);
+		return pyBuf;
 	}
 
 	void PyAllocationPool::allocateAndConsume()
 	{
 		m_allocPool->allocateAndConsume();
+
+		for (PyTexture* tex : m_createdTextures)
+		{
+			tex->memoryAllocated();
+		}
+		for (PyBuffer* b : m_createdBuffers)
+		{
+			b->memoryAllocated();
+		}
+
+		m_createdTextures.clear();
+		m_createdTextures.clear();
 		m_allocPool = nullptr;
 	}
 
@@ -50,7 +66,10 @@ namespace YAPT
 
 	void PyRenderer::init(PyRendererCache* cache, uintptr_t windowHandle, bool enableGPUTrace)
 	{
-		assert(m_renderer == nullptr);
+		if (m_renderer)
+		{
+			shutdown();
+		}
 		m_renderer = YAPT::createRenderer();
 
 		RendererInitializeConfig config;
@@ -60,7 +79,7 @@ namespace YAPT
 
 		m_renderer->initialize(config);
 	}
-	void PyRenderer::release()
+	void PyRenderer::shutdown()
 	{
 		if (m_renderer)
 		{
@@ -97,7 +116,7 @@ namespace YAPT
 		pybind11::class_<PyRenderer>(m, "Renderer")
 			.def(pybind11::init<>())
 			.def("init", &PyRenderer::init)
-			.def("release", &PyRenderer::release)
+			.def("shutdown", &PyRenderer::shutdown)
 			.def("getRendererVariable", &PyRenderer::getRendererVariable)
 			.def("getAllRendererVariableNames", &PyRenderer::getAllRendererVariableNames)
 			.def("createAllocationPool", &PyRenderer::createAllocationPool);
