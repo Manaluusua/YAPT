@@ -180,6 +180,8 @@ namespace YAPT
 
 		BufferViewHandle viewHandle = getRenderer()->getCurrentRenderView().getMVPBufferView();
 
+		if (viewHandle == YAPT_NULL_HANDLE) return;
+
 		DescriptorSetUpdate update;
 		update.descriptor = DescriptorPtr(&viewHandle);
 		update.descriptorCount = 1;

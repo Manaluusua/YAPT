@@ -10,7 +10,7 @@ namespace YAPT
 
 		m_renderer = cntx.renderer;
 
-		m_activePipeline = m_pipelines[0];
+		m_activePipeline = m_pipelines[1];
 		activatePipeline(m_activePipeline);
 
 

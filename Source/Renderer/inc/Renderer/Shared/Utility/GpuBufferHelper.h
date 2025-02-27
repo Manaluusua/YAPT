@@ -89,6 +89,7 @@ namespace YAPT
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
 			m_allocPool(YAPT_NULL_HANDLE),
+			m_bufferView(YAPT_NULL_HANDLE),
 			m_gfxHandle(handle),
 			m_allocatedEntryCount(0)
 		{
@@ -99,6 +100,7 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper(ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
+			m_bufferView(YAPT_NULL_HANDLE),
 			m_allocPool(YAPT_NULL_HANDLE),
 			m_gfxHandle(YAPT_NULL_HANDLE),
 			m_allocatedEntryCount(0)

@@ -123,16 +123,24 @@ namespace YAPT
 		//also should maybe directly just submit to submitthread or call this differently to emphasize that these are just deferred commandlists to be submitted at the end of RG execution
 
 		{
+			auto addSemaphoreIfNotNull = [](std::vector<VkSemaphore>& l, VkSemaphore sem)
+			{
+				if (sem != VK_NULL_HANDLE)
+				{
+					l.push_back(sem);
+				}
+			};
+
+			addSemaphoreIfNotNull(m_semaphoresToSignal, m_syncUtility.getSemaphoreForThisFrame());
 			
-			m_semaphoresToSignal.push_back(m_syncUtility.getSemaphoreForThisFrame());
 
 			for (size_t i = 0; i < m_swapChainsToPresent.size(); ++i)
 			{
-				m_semaphoresToWait.push_back(m_swapChainsToPresent[i]->getBeforeUsageSemaphoreCurrentFrame());
-				m_semaphoresToSignal.push_back(m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
+				addSemaphoreIfNotNull(m_semaphoresToWait, m_swapChainsToPresent[i]->getBeforeUsageSemaphoreCurrentFrame());
+				addSemaphoreIfNotNull(m_semaphoresToSignal, m_swapChainsToPresent[i]->getAfterUsageSemaphoreCurrentFrame());
 			}
 			
-			m_semaphoresToWait.push_back(m_resourceManager->getLastSignaledSemaphore());
+			addSemaphoreIfNotNull(m_semaphoresToWait, m_resourceManager->getLastSignaledSemaphore());
 
 			SubmissionThreadVk::Submission submission{};
 			submission.commandLists = m_submittedCommandBuffers.data();
