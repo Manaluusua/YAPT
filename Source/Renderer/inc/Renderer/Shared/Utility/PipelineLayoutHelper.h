@@ -50,6 +50,7 @@ namespace YAPT
 		std::vector<DescriptorSetLayoutDef> m_descriptorSetLayoutDefinitions;
 		std::vector<DescriptorSetLayoutHandle> m_descriptorSetLayouts;
 		std::vector<DescriptorSetUtility> m_descriptorSetUtilities;
+		std::vector<size_t> m_externalDescSetLayouts;
 
 		std::unordered_map<uint64_t, size_t> m_bindingPointToDescriptorSetLayoutDefIndex;
 

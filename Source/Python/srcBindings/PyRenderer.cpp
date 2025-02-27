@@ -110,6 +110,19 @@ namespace YAPT
 		return rendererVars;
 	}
 
+	void PyRenderer::setRenderOutputToSurface(size_t width, size_t height, uintptr_t windowHandle)
+	{
+		WindowSurfaceDefinition def;
+		def.width = width;
+		def.height = height;
+		def.windowHandle = (HWND)windowHandle;
+		m_renderer->setRenderOutputToSurface(def);
+	}
+	void PyRenderer::resetRenderOutput()
+	{
+		m_renderer->resetRenderOutput();
+	}
+
 
 	BINDING_FUNC(PyRenderer, m)
 	{
@@ -119,7 +132,9 @@ namespace YAPT
 			.def("shutdown", &PyRenderer::shutdown)
 			.def("getRendererVariable", &PyRenderer::getRendererVariable)
 			.def("getAllRendererVariableNames", &PyRenderer::getAllRendererVariableNames)
-			.def("createAllocationPool", &PyRenderer::createAllocationPool);
+			.def("createAllocationPool", &PyRenderer::createAllocationPool)
+			.def("setRenderOutputToSurface", &PyRenderer::setRenderOutputToSurface)
+			.def("resetRenderOutput", &PyRenderer::resetRenderOutput);
 	
 		pybind11::class_<PyAllocationPool>(m, "AllocationPool")
 			.def("addTexture", &PyAllocationPool::addTexture)

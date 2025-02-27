@@ -87,6 +87,7 @@ namespace YAPT
 	void AccelerationStructureHelper::init(CRenderer* renderer)
 	{
 		m_renderer = renderer;
+		m_tlasHandle = YAPT_NULL_HANDLE;
 	}
 
 	void AccelerationStructureHelper::updateBottomLevelStructures(CommandBufferHandle commandBuffer)
@@ -216,6 +217,7 @@ namespace YAPT
 
 	bool AccelerationStructureHelper::doesTopLevelAccelerationStructureNeedRebuild()
 	{
+		if (m_tlasHandle == YAPT_NULL_HANDLE) return true;
 		RenderObjectManager& mngr = m_renderer->getRenderObjectManager();
 		bool renderObjectsHaveChanges = false;
 

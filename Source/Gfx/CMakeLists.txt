@@ -154,13 +154,15 @@ endif()
 
 if(${BUILD_VK_BACKEND})
 	
-	find_package(Vulkan REQUIRED)
-	find_package(DxCompiler REQUIRED)
-	target_link_libraries(Gfx PUBLIC Vulkan::Vulkan Dxc::Dxc) #for now linked as public since we expose all the internal types where some need these includes. Change to private when the actual types are encapsulated
+	find_package(Vulkan REQUIRED COMPONENTS dxc)
+	target_link_libraries(Gfx PUBLIC Vulkan::Vulkan Vulkan::dxc_lib) #for now linked as public since we expose all the internal types where some need these includes. Change to private when the actual types are encapsulated
+	
+	get_filename_component(DXC_BIN_DIR "${Vulkan_dxc_EXECUTABLE}" DIRECTORY)
+
 	
 	add_custom_command(TARGET Gfx POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different 
-        $<TARGET_FILE:Dxc::Dxc> "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/dxcompiler.dll")
+        ${DXC_BIN_DIR}/dxcompiler.dll "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/dxcompiler.dll")
 	
 	#spirv-reflect
 	target_include_directories(Gfx PRIVATE "${YAPT_EXTERNALS_PATH}/SPIRV-Reflect/")

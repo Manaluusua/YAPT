@@ -13,6 +13,56 @@ namespace YAPT
 	DEFINE_BINDING_CLASS(PyGLMTypes);
 	namespace py = pybind11;
 
+	template<typename VecType, int N>
+	struct BindComponentsHelper
+	{
+		void bind(py::class_<typename VecType>& c)
+		{
+
+		}
+	};
+
+	template<typename VecType>
+	struct BindComponentsHelper<VecType, 4>
+	{
+		void bind(py::class_<typename VecType>& c)
+		{
+			c.def_readwrite("w", &VecType::w);
+			BindComponentsHelper<typename VecType, 3>().bind(c);
+		}
+	};
+
+	template<typename VecType>
+	struct BindComponentsHelper<VecType, 3>
+	{
+		void bind(py::class_<typename VecType>& c)
+		{
+			c.def_readwrite("z", &VecType::z);
+			BindComponentsHelper<typename VecType, 2>().bind(c);
+		}
+	};
+
+	template<typename VecType>
+	struct BindComponentsHelper<VecType, 2>
+	{
+		void bind(py::class_<typename VecType>& c)
+		{
+			c.def_readwrite("y", &VecType::y);
+			BindComponentsHelper<typename VecType, 1>().bind(c);
+		}
+	};
+
+	template<typename VecType>
+	struct BindComponentsHelper<VecType, 1>
+	{
+		void bind(py::class_<typename VecType>& c)
+		{
+			c.def_readwrite("x", &VecType::x);
+		}
+	};
+
+
+
 	// Helper function to bind glm::vec types
 	template <typename VecType, size_t N>
 	void bind_vec(py::module& m, const char* name)
@@ -26,6 +76,9 @@ namespace YAPT
 			for (size_t i = 0; i < N; ++i) glm::value_ptr(v)[i] = values[i];
 			return v;
 		}));
+
+		BindComponentsHelper<typename VecType, N>().bind(c);
+
 		c.def(py::self + py::self);
 		c.def(py::self - py::self);
 		c.def(py::self * py::self);

@@ -5,6 +5,7 @@ namespace YAPT
 	DEFINE_BINDING_CLASS(PyRendererVar);
 
 	PyRendererVar::PyRendererVar(RendererVariable* var)
+        :m_rendererVar(var)
 	{
 
 	}

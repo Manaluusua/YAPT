@@ -176,6 +176,8 @@ namespace YAPT
 
 	void RendererVk::waitForAllFramesDone()
 	{
+		auto lastSubmit = m_submissionThread.getLastSubmittedWorkId();
+		while (m_submissionThread.isPending(lastSubmit)); 
 		vkDeviceWaitIdle(getDevice());
 	}
 

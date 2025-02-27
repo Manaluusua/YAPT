@@ -1,4 +1,4 @@
-from py_yapt import Renderer, Scene, RendererCache
+from py_yapt import Renderer, Scene, RendererCache, ivec2
 from yapt.main_window import MainWindow
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QDateTime
@@ -37,6 +37,7 @@ class Application:
 
     def shutdown(self):
         self._timer.stop() #hammertime
+        self._renderer.resetRenderOutput()
         self._scene.shutdown()
         self._renderer.shutdown()
 
@@ -44,9 +45,15 @@ class Application:
         return self._renderer
 
     def refresh_swapchain(self):
-        print("swapchain refresh")
-        self._sc_ready = False
+        print("swapchain refresh TODO")
+        
+        render_widget = self._main_window.get_render_area_widget()
+        render_res = ivec2([render_widget.width(), render_widget.height()]);
 
+        self._renderer.setRenderOutputToSurface(render_res.x, render_res.y, render_widget.winId())
+        self._renderer.getRendererVariable("Generic.RenderResolution").set(render_res)
+        #TODO: set camera aspect ratio
+        self._sc_ready = True
 
 
     def update(self):
@@ -61,8 +68,5 @@ class Application:
         dt = (current_time - self._last_update_ms);
 
         #m_cameraController->update(fromLastFrame);
-        
         self._scene.update(dt);
-        
-        
         self._last_update_ms = current_time;

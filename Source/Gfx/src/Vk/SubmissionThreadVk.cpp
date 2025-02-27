@@ -28,7 +28,7 @@ namespace YAPT
 			}
 		}
 
-		m_processed = m_submitted = 1;
+		m_processed = m_submitted = 0;
 
 		startSubmitThread();
 	}
@@ -105,7 +105,7 @@ namespace YAPT
 
 		m_taskQueue.commit();
 
-		return SubmissionThreadVk::SubmissionId{ m_submitted.fetch_add(1, std::memory_order_relaxed) };
+		return getNextSubmissionId();
 
 	}
 
@@ -118,12 +118,22 @@ namespace YAPT
 
 		m_taskQueue.commit();
 
-		return SubmissionThreadVk::SubmissionId{ m_submitted.fetch_add(1, std::memory_order_relaxed) };
+		return getNextSubmissionId();
+	}
+
+	SubmissionThreadVk::SubmissionId SubmissionThreadVk::getLastSubmittedWorkId()
+	{
+		return SubmissionThreadVk::SubmissionId{ m_submitted.load(std::memory_order_relaxed) };
+	}
+
+	SubmissionThreadVk::SubmissionId SubmissionThreadVk::getNextSubmissionId()
+	{
+		return SubmissionThreadVk::SubmissionId{ m_submitted.fetch_add(1, std::memory_order_relaxed) + 1 };
 	}
 
 	bool SubmissionThreadVk::isPending(SubmissionId id)
 	{
-		return id.val >= m_processed.load();
+		return id.val > m_processed.load();
 	}
 
 	void SubmissionThreadVk::submitLoop()

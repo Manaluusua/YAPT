@@ -67,7 +67,7 @@ class MainWindow(QMainWindow):
     
     def setup_render_area(self):
         self._renderAreaWidget = QWidget()
-        self.layout().addWidget(self._renderAreaWidget)
+        self.setCentralWidget(self._renderAreaWidget)
 
     def get_render_area_widget(self):
         return self._renderAreaWidget

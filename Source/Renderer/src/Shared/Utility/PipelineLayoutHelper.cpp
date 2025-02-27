@@ -26,9 +26,22 @@ namespace YAPT
 			Gfx::destroyPipelineLayout(m_gfx, m_pipelineLayout);
 		}
 
+		//when layout explicitly given from outside, its assumed to be owned by something else
+		for (size_t i = 0; i < m_externalDescSetLayouts.size(); ++i)
+		{
+			size_t externalDescSetIndex = m_externalDescSetLayouts[i];
+			m_descriptorSetLayouts[externalDescSetIndex] = YAPT_NULL_HANDLE;
+		}
+
+		
+
 		for (size_t i = 0; i < m_descriptorSetLayouts.size(); ++i)
 		{
-			Gfx::destroyDescriptorSetLayout(m_gfx, m_descriptorSetLayouts[i]);
+			if (m_descriptorSetLayouts[i] != YAPT_NULL_HANDLE)
+			{
+				Gfx::destroyDescriptorSetLayout(m_gfx, m_descriptorSetLayouts[i]);
+			}
+			
 		}
 	}
 
@@ -67,6 +80,7 @@ namespace YAPT
 	{
 		m_descriptorSetLayoutDefinitions[descSetIndex].bindings.assign(bindings, bindings + bindingCount);
 		m_descriptorSetLayouts[descSetIndex] = layoutHandle;
+		m_externalDescSetLayouts.push_back(descSetIndex);
 	}
 
 	void PipelineLayoutHelper::initRaytraceLayoutFromShaderReflections(GfxApiHandle gfx, ShaderPipelineReflection** reflections, size_t numberOfReflectionData)

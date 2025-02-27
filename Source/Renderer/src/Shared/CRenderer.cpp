@@ -161,6 +161,11 @@ namespace YAPT
 		
 		m_renderWorkerThread.join();
 
+		if (m_gfxHandle != YAPT_NULL_HANDLE)
+		{
+			Gfx::waitForDeviceIdle(m_gfxHandle);
+		}
+
 		if (m_renderPipelineMngr)
 		{
 			m_renderPipelineMngr->shutdown();

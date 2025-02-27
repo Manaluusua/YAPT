@@ -63,6 +63,8 @@ namespace YAPT
 
 		bool isPending(SubmissionId id);
 
+		SubmissionId getLastSubmittedWorkId();
+
 	private:
 		enum class TaskType
 		{
@@ -91,6 +93,8 @@ namespace YAPT
 		void stopSubmitThread();
 		void submitLoop();
 		static void threadEntry(SubmissionThreadVk* submission);
+
+		SubmissionId getNextSubmissionId();
 
 		std::vector<VkQueue> m_queues[COMMANDQUEUETYPE_COUNT];
 		size_t m_numberOfQueues[COMMANDQUEUETYPE_COUNT];

@@ -15,6 +15,7 @@ namespace YAPT
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
+	class Texture;
 	class RaytraceStage final : public RenderStage
 	{
 	public:
@@ -107,7 +108,8 @@ namespace YAPT
 
 		struct RayMissShaderTableConstantData
 		{
-			uint32_t cubeMapIndex;
+			uint32_t envTextureIndex;
+			uint32_t envType;
 		};
 
 		bool hasCameraMoved();
@@ -155,8 +157,8 @@ namespace YAPT
 		ComputeNode* m_mergeNode;
 		PostProcessComputePassUtility m_clearMergeBufferPass;
 		PostProcessComputePassUtility m_mergePass;
-		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;;
-		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;;
+		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
+		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
 
 		uint32_t m_raysPerFrameWidth;
 		uint32_t m_raysPerFrameHeight;
@@ -168,6 +170,8 @@ namespace YAPT
 		uint32_t m_raysPerFrameDivisor;
 
 		DeferredRenderGraphBindingUtility m_bindingsUtility;
+
+		Texture* m_lastEnvMap;
 
 		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 

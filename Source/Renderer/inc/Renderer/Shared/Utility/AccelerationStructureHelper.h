@@ -100,7 +100,7 @@ namespace YAPT
 
 			}
 
-			if (instanceDefs.size() > 0)
+			//if (instanceDefs.size() > 0)
 			{
 				if (m_tlasHandle != YAPT_NULL_HANDLE)
 				{

@@ -39,6 +39,9 @@ namespace YAPT
 		void init(PyRendererCache* cache, uintptr_t windowHandle, bool enableGPUTrace);
 		void shutdown();
 		
+		void setRenderOutputToSurface(size_t width, size_t height, uintptr_t windowHandle);
+		void resetRenderOutput();
+
 		PyAllocationPool* createAllocationPool();
 
 		PyRendererVar getRendererVariable(const char* varName);

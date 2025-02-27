@@ -4,8 +4,11 @@ namespace YAPT
 {
 	void SimpleBufferAllocationUtility::alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool needsDeviceAddress)
 	{
-		assert(buffer == VK_NULL_HANDLE);
-		assert(deviceMemory == VK_NULL_HANDLE);
+
+		if (buffer != VK_NULL_HANDLE || deviceMemory != VK_NULL_HANDLE)
+		{
+			dealloc(mngr);
+		}
 
 		VkBufferCreateInfo buffCreateInfo{};
 		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -27,11 +30,16 @@ namespace YAPT
 	}
 	void SimpleBufferAllocationUtility::dealloc(ResourceManagerVk& mngr)
 	{
-		assert(buffer != VK_NULL_HANDLE);
-		assert(deviceMemory != VK_NULL_HANDLE);
+		
+		if (buffer != VK_NULL_HANDLE)
+		{
+			mngr.deferredDestroyVkResource(buffer);
+		}
 
-		mngr.deferredDestroyVkResource(buffer);
-		mngr.deferredDestroyVkResource(deviceMemory);
+		if (deviceMemory != VK_NULL_HANDLE)
+		{
+			mngr.deferredDestroyVkResource(deviceMemory);
+		}
 
 		buffer = VK_NULL_HANDLE;
 		deviceMemory = VK_NULL_HANDLE;

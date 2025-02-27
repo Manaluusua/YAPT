@@ -20,13 +20,18 @@ using namespace YAPT::MathUtils;
 namespace YAPT
 {
 	const size_t SHADERTABLE_EXTRA_GROW_AMOUNT = 100;
+	const size_t ENVIRONMENT_TYPE_NONE = 0;
+	const size_t ENVIRONMENT_TYPE_CUBE = 1;
+	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
+
 	RaytraceStage::RaytraceStage()
 		:m_raytracePso(YAPT_NULL_HANDLE),
 		m_rtDescSet(YAPT_NULL_HANDLE),
 		m_resolveTargetWidth(0),
 		m_resolveTargetHeight(0),
 		m_raysPerFrameDivisor(1),
-		m_applySubpixelJitter(true)
+		m_applySubpixelJitter(true),
+		m_lastEnvMap(nullptr)
 	{
 		initSubpixelJitterSamples();
 	}
@@ -277,8 +282,9 @@ namespace YAPT
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 		if (m_shaderTableHelper.getShaderTable() == YAPT_NULL_HANDLE)
 		{
-			return roMngr.getNumberOfObjects() != 0;
+			return true;
 		}
+
 		
 		const RenderObjectId* ids;
 		size_t idCount;
@@ -291,7 +297,12 @@ namespace YAPT
 		  
 		roMngr.getModifiedEntries(ids, idCount);
 		if (idCount > 0) return true;  
+		
+		RCPtr<Texture> skymap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX);
+		if (skymap.get() != m_lastEnvMap) return true;
+
 		return false;
+
 	}
 	//stride and offset are assumed in dwords (uint32/float32) in the shader
 	uvec2p RaytraceStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
@@ -423,13 +434,41 @@ namespace YAPT
 			{
 				RCPtr<Texture> skymap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX);
 				RayMissShaderTableConstantData missConstantData;
-				missConstantData.cubeMapIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
+
+				bool hasValidEnvtex = false;
+
+				if (skymap != nullptr)
+				{
+					if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_CUBEMAP)
+					{
+						hasValidEnvtex = true;
+						missConstantData.envType = ENVIRONMENT_TYPE_CUBE;
+						
+					}
+					else if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_2D)
+					{
+						hasValidEnvtex = true;
+						missConstantData.envType = ENVIRONMENT_TYPE_LONGLAT;
+					}
+				}
+
+				if (hasValidEnvtex)
+				{
+					missConstantData.envTextureIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
+				}
+				else
+				{
+					missConstantData.envType = ENVIRONMENT_TYPE_NONE;
+					missConstantData.envTextureIndex = uint32_t(-1);
+				}
 
 				ShaderTableEntry* entry = m_shaderTableHelper.appendMissShaderUpdate();
 				entry->shaderIndexInPso = 0;
 				entry->shaderTableIndex = 0;
 				entry->extraDataInBytes = sizeof(RayMissShaderTableConstantData);
 				memcpy(entry->shaderTableExtraData, &missConstantData, sizeof(RayMissShaderTableConstantData));
+
+				m_lastEnvMap = skymap.get();
 			}
 			
 
@@ -559,8 +598,6 @@ namespace YAPT
 	 
 	void RaytraceStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
 	{
-		if (getRenderer()->getRenderObjectManager().getNumberOfObjects() == 0) return;
-
 		m_accStructureHelper.updateBottomLevelStructures(exec.cmdBuffer);
 
 		auto assignPerInstanceParams = [](size_t arrayIndex, RenderObjectId id, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)

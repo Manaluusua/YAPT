@@ -167,8 +167,9 @@ namespace YAPT
 		m_flags = flags;
 
 		//allocate & upload the instances struct data
+		uint32_t bufferSize = (uint32_t)m_instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
+		if(bufferSize > 0)
 		{
-			uint32_t bufferSize = (uint32_t)m_instances.size() * sizeof(VkAccelerationStructureInstanceKHR);
 			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
 			void* mappedPtr;
