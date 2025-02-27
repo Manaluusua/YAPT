@@ -39,6 +39,13 @@ namespace YAPT
 
 	void ResourceManagerVk::deinitialize()
 	{
+		delete m_preFrameUploads;
+		m_preFrameUploads = nullptr;
+		delete m_duringFrameUploads;
+		m_duringFrameUploads = nullptr;
+		delete m_accStructBuilder;
+		m_accStructBuilder = nullptr;
+
 		//destroy pending list
 		{
 			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
@@ -53,11 +60,6 @@ namespace YAPT
 			}
 
 		}
-
-		delete m_preFrameUploads;
-		m_preFrameUploads = nullptr;
-		delete m_duringFrameUploads;
-		m_duringFrameUploads = nullptr;
 	}
 
 	void ResourceManagerVk::prepare()
