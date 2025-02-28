@@ -55,7 +55,7 @@ class MainWindow(QMainWindow):
         run_script_action = QAction("Run Script", self)
         run_script_action.triggered.connect(self.run_script)
         exit_action = QAction("Exit", self)
-        exit_action.triggered.connect(self.close)
+        exit_action.triggered.connect(self.exit)
         file_menu.addAction(run_script_action)
         file_menu.addAction(exit_action)
         
@@ -91,6 +91,28 @@ class MainWindow(QMainWindow):
         rvars_window = RendererVarsWindow(self, self._app.get_renderer())
         rvars_window.show()
 
+    def closeEvent(self, event):
+        self._app.shutdown()
+        super().closeEvent(event)
+
+    def exit(self):
+        self.close()
+
     #events
     def resizeEvent(self, event):
         self.sizeChanged = True
+
+    def mousePressEvent(self, event):
+        self._app.get_camera_controller().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        self._app.get_camera_controller().mouseReleaseEvent(event)
+
+    def mouseMoveEvent(self, event):
+        self._app.get_camera_controller().mouseMoveEvent(event)
+
+    def keyPressEvent(self, event):
+        self._app.get_camera_controller().keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        self._app.get_camera_controller().keyReleaseEvent(event)

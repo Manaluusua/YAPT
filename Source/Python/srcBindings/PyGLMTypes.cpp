@@ -110,6 +110,61 @@ namespace YAPT
 			});
 	}
 
+	template <typename MatType, size_t Rows, size_t Cols>
+	void bind_mat(py::module& m, const char* name) {
+		auto c = py::class_<MatType>(m, name);
+		c.def(py::init<>()); 
+		c.def(py::init([](std::array<std::array<MatType::value_type, Cols>, Rows> values)
+			{
+				MatType mat(1.0f); // Identity matrix
+				for (size_t r = 0; r < Rows; ++r)
+				{
+					for (size_t c = 0; c < Cols; ++c)
+					{
+						mat[r][c] = values[r][c];
+					}
+				}
+				return mat;
+			}
+		));
+		c.def("__repr__", [](const MatType& m)
+			{
+				std::string repr = "<mat" + " [";
+				for (size_t r = 0; r < Rows; ++r)
+				{
+					repr += "[";
+					for (size_t c = 0; c < Cols; ++c)
+					{
+						repr += std::to_string(m[r][c]) + (c < Cols - 1 ? ", " : "");
+					}
+					repr += "]" + (r < Rows - 1 ? ", " : "");
+				}
+				return repr + "]>";
+			});
+		c.def("__getitem__", [](const MatType& m, size_t row)
+			{
+				if (row >= Rows) throw py::index_error();
+				return py::array_t<typename MatType::value_type()>({ Cols }, { sizeof(typename MatType::value_type) }, glm::value_ptr(m[row]));
+			});
+		c.def("__setitem__", [](MatType& m, size_t row, py::array_t<typename MatType::value_type> values)
+			{
+				if (row >= Rows) throw py::index_error();
+				auto buf = values.request();
+				if (buf.size != Cols) throw py::value_error();
+				typename MatType::value_type* ptr = static_cast<typename MatType::value_type*>(buf.ptr);
+				for (size_t c = 0; c < Cols; ++c)
+				{
+					m[row][c] = ptr[c];
+				}
+				
+			});
+		c.def(py::self + py::self);
+		c.def(py::self - py::self);
+		c.def(py::self * py::self);
+		c.def(py::self * typename MatType::value_type);
+		c.def(py::self / typename MatType::value_type);
+	}
+
 
 	BINDING_FUNC(PyGLMTypes, m)
 	{

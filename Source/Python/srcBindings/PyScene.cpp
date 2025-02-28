@@ -2,6 +2,8 @@
 #include <PyScene.h>
 #include <Scene/Scene.h>
 #include <PyRenderer.h>
+#include <PyCamera.h>
+
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyScene)
@@ -45,12 +47,18 @@ namespace YAPT
 		m_scene->update(params);
 	}
 
+	PyCamera* PyScene::getMainCamera()
+	{
+		return new PyCamera(m_scene->getMainCamera());
+	}
+
 	BINDING_FUNC(PyScene, m)
 	{
 		pybind11::class_<PyScene>(m, "Scene")
 			.def(pybind11::init<>())
 			.def("init", &PyScene::init)
 			.def("shutdown", &PyScene::shutdown)
-			.def("update", &PyScene::update);
+			.def("update", &PyScene::update)
+			.def("getMainCamera", &PyScene::getMainCamera);
 	}
 }

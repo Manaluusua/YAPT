@@ -24,11 +24,6 @@ namespace YAPT
 		const mat4& getProjectionMatrix() const;
 		const mat4& getViewMatrix() const;
 
-		void moveCameraViewRelative(const vec3& v);
-		void rotateCameraViewRelative(const vec3& v);
-
-		void lookAt(const vec3& eye, const vec3& at);
-
 		void setFOVY(float y);
 		void setAspectRatio(float ar);
 		void setNearPlane(float nearPlane);

@@ -1,5 +1,7 @@
 from py_yapt import Renderer, Scene, RendererCache, ivec2
 from yapt.main_window import MainWindow
+from yapt.resources import Resources
+from yapt.camera_controller import CameraController
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QDateTime
 import sys
@@ -7,7 +9,7 @@ import sys
 
 class Application:
     def __init__(self):
-        self._app = QApplication(sys.argv)
+        self._qapp = QApplication(sys.argv)
         self._main_window = MainWindow(self)
         renderer_cache = RendererCache.getDefaultRendererCache()
         self._renderer = Renderer()
@@ -16,6 +18,10 @@ class Application:
         )
         self._scene = Scene()
         self._scene.init(self._renderer)
+
+        self._resources = Resources(self._renderer)
+        self._cam = CameraController(self._scene.getMainCamera())
+
 
         DEFAULT_TICK_RATE = 1000.0 / 60;
         self._timer = QTimer(self._main_window)
@@ -26,37 +32,44 @@ class Application:
         self._sc_ready = False
 
     def get_qt_app(self):
-        return self._app
-
-    def closeEvent(self, event):
-        self.shutdown()
-        super().closeEvent(event)
+        return self._qapp
 
     def execute(self):
-        self._app.exec()
+        self._qapp.exec()
 
     def shutdown(self):
+        if(self._renderer == None):
+            return
+
         self._timer.stop() #hammertime
         self._renderer.resetRenderOutput()
         self._scene.shutdown()
         self._renderer.shutdown()
+        self._renderer = None
+        
 
     def get_renderer(self):
         return self._renderer
 
+    def get_resources(self):
+        return self._resources
+
+    def get_camera_controller(self):
+        return self._cam
+
     def refresh_swapchain(self):
-        print("swapchain refresh TODO")
         
         render_widget = self._main_window.get_render_area_widget()
         render_res = ivec2([render_widget.width(), render_widget.height()]);
 
         self._renderer.setRenderOutputToSurface(render_res.x, render_res.y, render_widget.winId())
         self._renderer.getRendererVariable("Generic.RenderResolution").set(render_res)
-        #TODO: set camera aspect ratio
+        self._cam.set_aspect(float(render_res.x) / render_res.y);
         self._sc_ready = True
 
 
     def update(self):
+
         if self._main_window.sizeChanged == True:
             self.refresh_swapchain()
             self._main_window.sizeChanged = False
@@ -65,8 +78,8 @@ class Application:
             return
 
         current_time = QDateTime.currentMSecsSinceEpoch()
-        dt = (current_time - self._last_update_ms);
+        dt = (current_time - self._last_update_ms) * 1e-3;
 
-        #m_cameraController->update(fromLastFrame);
+        self._cam.update(dt);
         self._scene.update(dt);
         self._last_update_ms = current_time;
