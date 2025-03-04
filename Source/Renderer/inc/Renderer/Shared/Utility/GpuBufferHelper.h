@@ -88,7 +88,6 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper(GfxApiHandle handle, ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
-			m_allocPool(YAPT_NULL_HANDLE),
 			m_bufferView(YAPT_NULL_HANDLE),
 			m_gfxHandle(handle),
 			m_allocatedEntryCount(0)
@@ -101,7 +100,6 @@ namespace YAPT
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
 			m_bufferView(YAPT_NULL_HANDLE),
-			m_allocPool(YAPT_NULL_HANDLE),
 			m_gfxHandle(YAPT_NULL_HANDLE),
 			m_allocatedEntryCount(0)
 		{
@@ -132,7 +130,6 @@ namespace YAPT
 			desc.sizeInBytes = numberOfEntries * m_alignedEntrySize;
 			ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
 			m_bufferHandle = Gfx::createBuffer(m_gfxHandle, desc, state, "PerObjectData");
-			m_allocPool = Gfx::createResourcePool(m_gfxHandle, YAPT_NULL_HANDLE, 0, &m_bufferHandle, 1, ResourcePoolType::RESOURCEPOOL_TYPE_DEFAULT);
 			m_allocatedEntryCount = numberOfEntries;
 
 
@@ -149,7 +146,6 @@ namespace YAPT
 			if (m_allocatedEntryCount > 0)
 			{
 				Gfx::destroyBuffer(m_gfxHandle, m_bufferHandle);
-				Gfx::destroyResourcePool(m_gfxHandle, m_allocPool);
 				m_bufferView = YAPT_NULL_HANDLE;
 			}
 
@@ -175,7 +171,6 @@ namespace YAPT
 		
 
 		ResourceUsage m_usage;
-		ResourceAllocationPoolHandle m_allocPool;
 		BufferHandle m_bufferHandle;
 		GfxApiHandle m_gfxHandle;
 		BufferViewHandle m_bufferView;

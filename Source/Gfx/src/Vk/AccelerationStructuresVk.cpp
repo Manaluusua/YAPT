@@ -172,11 +172,9 @@ namespace YAPT
 		{
 			m_instancesBuildDefinitionsBuffer.alloc(m_resMngr, bufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-			void* mappedPtr;
-			VkResult res = vkMapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory, 0, bufferSize, 0, &mappedPtr);
-			checkVkResult(res);
+			void* mappedPtr = m_resMngr.map(m_instancesBuildDefinitionsBuffer.deviceMemory);
 			memcpy(mappedPtr, m_instances.data(), bufferSize);
-			vkUnmapMemory(m_resMngr.getDevice(), m_instancesBuildDefinitionsBuffer.deviceMemory);
+			m_resMngr.unmap(m_instancesBuildDefinitionsBuffer.deviceMemory);
 		}
 
 		m_instanceStructsDef = {};

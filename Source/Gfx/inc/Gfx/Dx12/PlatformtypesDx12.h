@@ -7,17 +7,19 @@
 #include <dxcapi.h>
 #include <vector>
 #include <string>
+#include <D3D12MemAlloc.h>
 
 #ifdef ENABLE_DEBUG_UTILITIES_DX12
 #define DX12_DEBUGNAMES_ENABLE
 #endif
+
+
 
 namespace YAPT
 {
 
 	class RendererDx12;
 	class SwapChainDx12;
-	class ResourceAllocationPoolDx12;
 	class DescriptorSetLayoutDx12;
 	class PipelineLayoutDx12;
 	class CommandListPoolerDx12;
@@ -30,7 +32,8 @@ namespace YAPT
 	struct TopLevelAccelerationStructureDx12;
 	struct DescriptorSetDx12;
 	typedef ResourceStateTracker<D3D12_RESOURCE_STATES> ResourceStateTrackerDx12;
-
+	using Allocation = D3D12MA::Allocation;
+	
 	struct ShaderReflectionDataBindingDx12
 	{
 		std::string name;
@@ -100,6 +103,7 @@ namespace YAPT
 		D3D12_RESOURCE_DESC textureDesc;
 		ResourceDimension dimension;
 		RCPtr<ID3D12Resource> resource;
+		Allocation* allocBlock;
 		D3D12_HEAP_TYPE heapType;
 		ResourceStateTrackerDx12 lastSeenState;
 		D3D12_CLEAR_VALUE clearValue;
@@ -165,9 +169,10 @@ namespace YAPT
 		BufferViews views;
 		D3D12_RESOURCE_DESC bufferDesc;
 		RCPtr<ID3D12Resource> resource;
+		Allocation* allocBlock;
 		D3D12_HEAP_TYPE heapType;
 		ResourceStateTrackerDx12 lastSeenState;
-
+		
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;
@@ -212,7 +217,6 @@ namespace YAPT
 	typedef BufferHandleDx12* BufferHandle;
 	typedef TextureViewDx12* TextureViewHandle;
 	typedef BufferViewDx12* BufferViewHandle;
-	typedef ResourceAllocationPoolDx12* ResourceAllocationPoolHandle;
 	typedef SwapChainDx12* SwapChainHandle;
 	typedef CommandListPoolerDx12* CommandBufferPoolHandle;
 	typedef CommandBufferHandleDx12* CommandBufferHandle;

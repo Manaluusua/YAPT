@@ -25,6 +25,7 @@ namespace YAPT
 		ResourceManagerVk& resMngr;
 		BufferViews views;
 		VkBuffer buffer;
+		Allocation alloc;
 		VkBufferCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;
 		uint32_t owningQueueFamily;
@@ -44,6 +45,7 @@ namespace YAPT
 		ResourceManagerVk& resMngr;
 		TextureViews views;
 		VkImage image;
+		Allocation alloc;
 		ResourceDimension dimensions;
 		VkImageCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;

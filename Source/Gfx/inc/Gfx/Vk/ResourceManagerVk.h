@@ -7,12 +7,10 @@
 #include <Common/GrowingMultiProducerPendingList.h>
 #include <Gfx/Vk/VkExtensions.h>
 #include <Gfx/Vk/ResourceUtilityVk.h>
-
 #include <vector>
 #include <assert.h>
 
 #define DEFAULT_UPLOAD_HEAP_SIZE 128 * 1e6 //128mb
-
 
 namespace YAPT
 {
@@ -25,13 +23,8 @@ namespace YAPT
 	{
 	public:
 		static const uint32_t ALLOW_ALL_MEMORY_TYPES = 0xFFFFFFFF;
-		struct AllocatedMemoryInfo
-		{
-			VkDeviceMemory memory;
-			VkMemoryPropertyFlags flags;
-		};
 
-		ResourceManagerVk(VkPhysicalDevice physicalDevice, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength);
+		ResourceManagerVk(VkPhysicalDevice physicalDevice, VkInstance instance, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength);
 		~ResourceManagerVk();
 
 		void prepare();
@@ -43,12 +36,17 @@ namespace YAPT
 		void destroyBuffer(BufferHandleVk* handle);
 		void destroyTexture(TextureHandleVk* handle);
 
+		bool createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut);
+		bool createBufferVk(const VkBufferCreateInfo& desc, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut);
+		bool createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut);
+		bool createTextureVk(const VkImageCreateInfo& desc, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut);
+		void destroyBufferVk(VkBuffer buff, Allocation alloc);
+		void destroyTextureVk(VkImage image, Allocation alloc);
+
+		void* map(Allocation alloc);
+		void unmap(Allocation alloc);
+
 		VkDevice getDevice() const { return m_device; }
-
-		VkMemoryRequirements getMemoryRequirements(VkBuffer buffer);
-		bool allocateDeviceMemory(VkBuffer buffer, VkMemoryPropertyFlags requiredFlags, bool requireDeviceAddress, AllocatedMemoryInfo& out);
-		bool allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out);
-
 
 		void upload(VkBuffer handle, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
@@ -99,6 +97,12 @@ namespace YAPT
 			m_pendingDestroyedObjects[m_destroyObjectsIndex].push_back(entry);
 		}
 
+		inline void deferredFreeAlloc(Allocation alloc)
+		{
+			std::unique_lock<std::mutex> lock(m_pendingFreeLock);
+			m_pendingFreeAlloc[m_destroyObjectsIndex].push_back(alloc);
+		}
+
 		VkExtensions& getVkExtFuncs() { return m_extensionFuncs; }
 	private:
 
@@ -137,13 +141,18 @@ namespace YAPT
 
 		VkExtensions m_extensionFuncs;
 
+
+		VmaAllocator m_allocator;
+
 		//command buffer pools
 		std::vector<CommandBufferPoolVk*> m_commandBufferPools;
 		std::mutex m_commandBufferPoolsMutex;
 
 		//pending destruction lists
 		std::vector<std::vector<DestroyResourceEntry>> m_pendingDestroyedObjects;
+		std::vector<std::vector<Allocation>> m_pendingFreeAlloc;
 		std::mutex m_destroyObjectsLock;
+		std::mutex m_pendingFreeLock;
 		size_t m_destroyObjectsIndex;
 
 	};

@@ -1,7 +1,6 @@
 #include <Gfx/Dx12/ShaderTableDx12.h>
 #include <Gfx/Dx12/PipelineLayoutDx12.h>
 #include <Gfx/Dx12/ResourceManagerDx12.h>
-#include <Gfx/Dx12/ResourceAllocationPoolDx12.h>
 #include <Gfx/GfxApi.h>
 #include <Gfx/Dx12/YaptToDx12Conversions.h>
 #include <Gfx/Dx12/DescriptorSetPoolDx12.h>
@@ -55,14 +54,12 @@ namespace YAPT
 			{
 				continue;
 			}
+			m_bufferHandles[i]->heapType = D3D12_HEAP_TYPE_UPLOAD;
+			m_bufferHandles[i]->allocBlock = m_resMngr.allocate(resourceDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_bufferHandles[i]->resource));
 
 			bufferHandlesToAllocate[numberOfBufferHandlesToAllocate] = m_bufferHandles[i];
 			++numberOfBufferHandlesToAllocate;
 		}
-
-		
-
-		m_resourceAllocationPool = new ResourceAllocationPoolDx12(resMngr, nullptr, 0, bufferHandlesToAllocate, numberOfBufferHandlesToAllocate);
 
 		m_shadowBuffer.resize(overallSizeInBytes);
 
@@ -71,9 +68,10 @@ namespace YAPT
 
 	ShaderTableDx12::~ShaderTableDx12()
 	{
-		delete m_resourceAllocationPool;
 		for (size_t i = 0; i < getActualBufferCount(); ++i)
 		{
+			m_resMngr.deallocate(m_bufferHandles[i]->allocBlock);
+			m_resMngr.addToPendingDestructionList(m_bufferHandles[i]->resource);
 			delete m_bufferHandles[i];
 		}
 	}
@@ -256,46 +254,5 @@ namespace YAPT
 		memcpy(ptr, entry.shaderTableExtraData, entry.extraDataInBytes);
 
 	}
-
-	/*
-	void ShaderTableDx12::writeShaderEntry(void* dst, const RaytracePipelineStateDx12::ShaderRecordInfo& shaderRecordInfo, DescriptorSetBinding* bindings, size_t bindingsCount)
-	{
-		
-		char* ptr = static_cast<char*>(dst);
-		memcpy(ptr, &shaderRecordInfo.shaderId, D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		ptr += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-
-		const PipelineLayoutDx12* layout = m_pso->getLocalPipelineLayout(shaderRecordInfo.localRootSigIndex);
-
-
-		for (size_t i = 0; i < bindingsCount; ++i)
-		{
-			size_t descSetIndex = bindings[i].descSetIndex;
-			DescriptorSetDx12* descSet = bindings[i].descSet;
-
-			const PipelineLayoutDx12::DescriptorSetToRootParametersMapping& mapping = layout->getDescSetToRootParametersMapping(descSetIndex);
-
-			for (size_t i = 0; i < descSet->rootDescriptors.size(); ++i)
-			{
-				size_t ptrOffset = (mapping.rootDescriptorsRootParameterOffset + i) * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
-				memcpy(ptr + ptrOffset, &descSet->rootDescriptors[i].resourceAddress, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-			}
-
-			if (descSet->nonSamplerHeapIncrementSize > 0)
-			{
-				size_t ptrOffset = mapping.descriptorTableRootParameterOffsetNonSampler * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
-				memcpy(ptr + ptrOffset, &descSet->nonSamplerHeapDescSetBaseGPU, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-			}
-
-			if (descSet->samplerHeapIncrementSize > 0)
-			{
-				size_t ptrOffset = mapping.descriptorTableRootParameterOffsetSampler * sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
-				memcpy(ptr + ptrOffset, &descSet->samplerHeapDescSetBaseCPU, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-			}
-		}
-
-		
-
-	}*/
 
 }		

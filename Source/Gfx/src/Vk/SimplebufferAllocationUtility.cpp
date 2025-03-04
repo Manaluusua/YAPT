@@ -2,10 +2,10 @@
 #include <Gfx/Vk/ResourceManagerVk.h>
 namespace YAPT
 {
-	void SimpleBufferAllocationUtility::alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags, bool needsDeviceAddress)
+	void SimpleBufferAllocationUtility::alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyFlags)
 	{
 
-		if (buffer != VK_NULL_HANDLE || deviceMemory != VK_NULL_HANDLE)
+		if (buffer != VK_NULL_HANDLE)
 		{
 			dealloc(mngr);
 		}
@@ -15,30 +15,23 @@ namespace YAPT
 		buffCreateInfo.size = size;
 		buffCreateInfo.usage = usage;
 		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VkResult res = vkCreateBuffer(mngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buffer);
 
-		ResourceManagerVk::AllocatedMemoryInfo memInfo;
-		bool success = mngr.allocateDeviceMemory(buffer, memoryPropertyFlags, needsDeviceAddress, memInfo);
-		deviceMemory = memInfo.memory;
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocInfo.requiredFlags = memoryPropertyFlags;
 
-		res = vkBindBufferMemory(mngr.getDevice(), buffer, deviceMemory, 0);
+		bool success = mngr.createBufferVk(buffCreateInfo, 0, &buffer, &deviceMemory);
 
-		checkVkResult(res);
 		assert(success);
 
 		deviceAddress = mngr.GetDeviceAddress(buffer);
 	}
 	void SimpleBufferAllocationUtility::dealloc(ResourceManagerVk& mngr)
 	{
-		
+
 		if (buffer != VK_NULL_HANDLE)
 		{
-			mngr.deferredDestroyVkResource(buffer);
-		}
-
-		if (deviceMemory != VK_NULL_HANDLE)
-		{
-			mngr.deferredDestroyVkResource(deviceMemory);
+			mngr.destroyBufferVk(buffer, deviceMemory);
 		}
 
 		buffer = VK_NULL_HANDLE;

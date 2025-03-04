@@ -34,7 +34,7 @@ namespace YAPT
 		//upload heap stuff
 		ResourceManagerVk& m_resMngr;
 		VkBuffer m_uploadBuffer;
-		VkDeviceMemory m_deviceMemory;
+		Allocation m_alloc;
 		char* m_mappedUploadBufferPtr;
 		size_t m_heapSize;
 		size_t m_numberOfPartitions;

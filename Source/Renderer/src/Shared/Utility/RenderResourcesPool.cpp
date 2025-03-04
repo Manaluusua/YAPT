@@ -3,8 +3,7 @@
 namespace YAPT
 {
 	RenderResourcesPool::RenderResourcesPool(GfxApiHandle apiHandle)
-		:m_apiHandle(apiHandle),
-		m_resourceChunkHandle(YAPT_NULL_HANDLE)
+		:m_apiHandle(apiHandle)
 	{
 
 	}
@@ -35,10 +34,6 @@ namespace YAPT
 		return buffHandle;
 	}
 
-	void RenderResourcesPool::allocate()
-	{
-		m_resourceChunkHandle = Gfx::createResourcePool(m_apiHandle, m_textures.data(), m_textures.size(), m_buffers.data(), m_buffers.size(), ResourcePoolType::RESOURCEPOOL_TYPE_DEFAULT);
-	}
 	void RenderResourcesPool::deallocate()
 	{
 		for (size_t i = 0; i < m_textures.size(); ++i)
@@ -51,8 +46,6 @@ namespace YAPT
 			Gfx::destroyBuffer(m_apiHandle, m_buffers[i]);
 		}
 
-		Gfx::destroyResourcePool(m_apiHandle, m_resourceChunkHandle);
-		m_resourceChunkHandle = YAPT_NULL_HANDLE;
 		m_textures.clear();
 		m_buffers.clear();
 	}

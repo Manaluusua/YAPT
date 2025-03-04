@@ -2,7 +2,6 @@
 #include <Gfx/Dx12/RendererDx12.h>
 #include <Gfx/Dx12/ResourceManagerDx12.h>
 #include <Gfx/Dx12/YaptToDx12Conversions.h>
-#include <Gfx/Dx12/ResourceAllocationPoolDx12.h>
 #include <Gfx/Dx12/AccelerationStructureBuilderDx12.h>
 #include <Gfx/Dx12/CommandListPoolerDx12.h>
 #include <Gfx/Dx12/RenderGraphDx12.h>
@@ -85,33 +84,13 @@ namespace YAPT
 
 		//Resources
 
-
-		ResourceAllocationPoolHandle createResourcePool(GfxApiHandle h, TextureHandle* textures, size_t textureCount, BufferHandle* buffers, size_t bufferCount, ResourcePoolType type)
-		{
-			D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT;
-			if (type == ResourcePoolType::RESOURCEPOOL_TYPE_CPU_MAPPABLE_UPLOAD)
-			{
-				heapType = D3D12_HEAP_TYPE_UPLOAD;
-			}
-			else if (type == ResourcePoolType::RESOURCEPOOL_TYPE_CPU_MAPPABLE_READBACK)
-			{
-				heapType = D3D12_HEAP_TYPE_READBACK;
-			}
-			ResourceAllocationPoolDx12* rc = new ResourceAllocationPoolDx12(h->getResourceManager(), textures, textureCount, buffers, bufferCount, heapType);
-			return rc;
-
-		}
-		void destroyResourcePool(GfxApiHandle h, ResourceAllocationPoolHandle handle)
-		{
-			delete handle;
-		}
-
 		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
 			TextureHandleDx12* textureHandle = new TextureHandleDx12;
 			textureDescToDx12ResourceDesc(desc, textureHandle->textureDesc);
+			D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
 			textureHandle->dimension = desc.dimension;
-			textureHandle->lastSeenState.init(yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn), desc.depthOrSlices * desc.mips);
+			textureHandle->lastSeenState.init(state, desc.depthOrSlices * desc.mips);
 
 			if (desc.useOptimizedClearValue)
 			{
@@ -138,13 +117,17 @@ namespace YAPT
 				textureHandle->name = std::string(name);
 			}
 #endif
+			textureHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
+			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, D3D12_HEAP_TYPE_DEFAULT, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
+
 			return textureHandle;
 		}
 		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
 			BufferHandleDx12* bufferHandle = new BufferHandleDx12;
 			bufferDescToDx12ResourceDesc(desc, bufferHandle->bufferDesc);
-			bufferHandle->lastSeenState.init(yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn), 1);
+			D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			bufferHandle->lastSeenState.init(state, 1);
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
 			{
@@ -152,18 +135,27 @@ namespace YAPT
 			}
 			
 #endif
+			bufferHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
 
+
+			D3D12_RESOURCE_DESC resDesc = bufferHandle->bufferDesc;
+			resDesc.Width = (UINT)align(resDesc.Width, getMinimumAlignmentForBufferUsage(RESOURCE_USAGE_UNIFORM_BUFFER));
+			bufferHandle->allocBlock = h->getResourceManager().allocate(resDesc, D3D12_HEAP_TYPE_DEFAULT, state, nullptr, IID_PPV_ARGS(&bufferHandle->resource));
 			return bufferHandle;
 		}
 
 		void destroyTexture(GfxApiHandle h, TextureHandle handle)
 		{
-			h->getResourceManager().addToPendingDestructionList(handle->resource);
+			ResourceManagerDx12& mngr = h->getResourceManager();
+			mngr.deallocate(handle->allocBlock);
+			mngr.addToPendingDestructionList(handle->resource);
 			delete handle;
 		}
 		void destroyBuffer(GfxApiHandle h, BufferHandle handle)
 		{
-			h->getResourceManager().addToPendingDestructionList(handle->resource);
+			ResourceManagerDx12& mngr = h->getResourceManager();
+			mngr.deallocate(handle->allocBlock);
+			mngr.addToPendingDestructionList(handle->resource);
 			delete handle;
 		}
 

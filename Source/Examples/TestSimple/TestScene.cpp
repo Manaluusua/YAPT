@@ -1,6 +1,5 @@
 #include "TestScene.h"
 #include <Renderer/MeshUtility.h>
-#include <Renderer/ResourceAllocationPool.h>
 #include <Renderer/Mesh.h>
 #include <Renderer/RenderObject.h>
 #include <Common/CommonUtilities.h>
@@ -590,15 +589,13 @@ void TestScene::loadEnvMap()
 		YAPT::TextureLoadingContext* texLoader = YAPT::getAssetLoader()->loadTexture(ENVMAP_PATH);
 		const YAPT::TextureLoadInfo& info = texLoader->getTextureInfo();
 
-		YAPT::ResourceAllocationPool* resChunk = m_renderer->createResourceAllocationPool();
 		uint32_t w = texLoader->getSubTextureInfo(0, 0).width;
 		uint32_t h = texLoader->getSubTextureInfo(0, 0).height;
 
-		m_skyCube = resChunk->addTexture("skycube", info.dimension, info.format, YAPT::ResourceUsageBits::RESOURCE_USAGE_SAMPLED_TEXTURE | YAPT::ResourceUsageBits::RESOURCE_USAGE_COPY_DESTINATION,
+		m_skyCube = m_renderer->createTexture("skycube", info.dimension, info.format, YAPT::ResourceUsageBits::RESOURCE_USAGE_SAMPLED_TEXTURE | YAPT::ResourceUsageBits::RESOURCE_USAGE_COPY_DESTINATION,
 			w, h, info.numberOfMips, info.numberOfSlices);
 
 		m_skyCube->Release();
-		resChunk->allocateAndConsume();
 
 		//upload
 		std::vector<YAPT::TextureDataDefinition> uploadData;
@@ -624,7 +621,6 @@ YAPT::RCObjectPtr<YAPT::Mesh> TestScene::loadMesh(const char* path)
 	YAPT::RCObjectPtr<YAPT::Mesh> mesh;
 	{
 		YAPT::SceneLoadingContext* modelLoader = YAPT::getAssetLoader()->loadScene(path);
-		YAPT::ResourceAllocationPool* resChunk = m_renderer->createResourceAllocationPool();
 
 		std::vector< YAPT::RCObjectPtr<YAPT::Buffer>> vertexBuffers;
 		YAPT::RCObjectPtr<YAPT::Buffer> indexBuffer;
@@ -641,16 +637,15 @@ YAPT::RCObjectPtr<YAPT::Mesh> TestScene::loadMesh(const char* path)
 			size_t bufferIndex = info.vertexBufferIndices[i];
 			const YAPT::BufferLoadInfo& buffInfo = modelLoader->getBufferLoadInfo(bufferIndex);
 
-			vertexBuffers[i] = resChunk->addBuffer("Model VertexBuffer", YAPT::RESOURCE_USAGE_VERTEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
+			vertexBuffers[i] = m_renderer->createBuffer("Model VertexBuffer", YAPT::RESOURCE_USAGE_VERTEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
 			vertexBuffers[i]->Release();
 		}
 		{
 			const YAPT::BufferLoadInfo& buffInfo = modelLoader->getBufferLoadInfo(info.indexBufferIndex);
-			indexBuffer = resChunk->addBuffer("Model IndexBuffer", YAPT::RESOURCE_USAGE_INDEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
+			indexBuffer = m_renderer->createBuffer("Model IndexBuffer", YAPT::RESOURCE_USAGE_INDEX_BUFFER | YAPT::RESOURCE_USAGE_COPY_DESTINATION | YAPT::RESOURCE_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT, buffInfo.sizeInBytes);
 			indexBuffer->Release();
 		}
 		
-		resChunk->allocateAndConsume();
 
 		//upload buffers
 		for (size_t i = 0; i < info.numberOfVertexBuffers; ++i)

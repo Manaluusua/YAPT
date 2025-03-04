@@ -11,12 +11,14 @@ namespace YAPT
 	{
 		std::vector<AccelerationStructureGeometryDefinition> definitions;
 		RCPtr<ID3D12Resource> accelerationStructure;
+		Allocation* allocation;
 	};
 
 	struct TopLevelAccelerationStructureDx12
 	{
 		std::vector<AccelerationStructureInstanceDefinition> definitions;
 		BufferViewDx12 accelerationStructure;
+		Allocation* allocation;
 	};
 	class AccelerationStructureBuilder
 	{

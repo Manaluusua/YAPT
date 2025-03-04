@@ -1,7 +1,6 @@
 #include <Gfx/GfxApi.h>
 #include <Gfx/Vk/RendererVk.h>
 #include <Gfx/VK/ResourceManagerVk.h>
-#include <Gfx/Vk/ResourceAllocationPoolVk.h>
 #include <Gfx/Vk/YaptToVkConversions.h>
 #include <Gfx/Vk/ResourceHandlesVk.h>
 #include <Gfx/Vk/ShaderPipelineReflectionVk.h>
@@ -91,25 +90,6 @@ namespace YAPT
 		}
 
 		//Resources
-
-
-		ResourceAllocationPoolHandle createResourcePool(GfxApiHandle h, TextureHandle* textures, size_t textureCount, BufferHandle* buffers, size_t bufferCount, ResourcePoolType type)
-		{
-			ResourceAllocationPoolVk* pool = new ResourceAllocationPoolVk(*h->getResourceManager());
-			if (!pool->allocate(textures, textureCount, buffers, bufferCount, type))
-			{
-				assert(!"failed to allocate memory.");
-				delete pool;
-				pool = nullptr;
-			}
-
-			return pool;
-
-		}
-		void destroyResourcePool(GfxApiHandle h, ResourceAllocationPoolHandle handle)
-		{
-			delete handle;
-		}
 
 		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{

@@ -64,6 +64,7 @@ namespace YAPT
 			return false;
 		}
 
+
 		if (FAILED(D3D12CreateDevice(
 			adapter.Get(),
 			D3D_FEATURE_LEVEL_12_0,
@@ -72,6 +73,10 @@ namespace YAPT
 		{
 			return false;
 		}
+
+		m_adapter = adapter.Get();
+
+		
 
 		return true;
 
@@ -147,7 +152,7 @@ namespace YAPT
 
 		m_submitThread.initialize(submissionConfig);
 
-		m_resourceManager = std::make_unique<ResourceManagerDx12>(*m_device.get(), m_config.pipelineLength);
+		m_resourceManager = std::make_unique<ResourceManagerDx12>(*m_device.get(), *m_adapter.get(), m_config.pipelineLength);
 		bool success = m_resourceManager->initialize(&m_submitThread);
 		m_accStructureBuilder = std::make_unique<AccelerationStructureBuilder>(*m_resourceManager);
 

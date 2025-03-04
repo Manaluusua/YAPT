@@ -45,7 +45,6 @@ namespace YAPT
 			m_stages[i]->onRenderGraphCompiled(data);
 		}
 		 
-		m_renderGraphLifetimeResources->allocate();
 	}
 
 	void RenderPipelineBase::shutdown()
@@ -94,8 +93,6 @@ namespace YAPT
 			{
 				m_stages[i]->onRenderResolutionChanged(resolutionChangedData);
 			}
-
-			m_renderResolutionDependantResources->allocate();
 		}
 
 

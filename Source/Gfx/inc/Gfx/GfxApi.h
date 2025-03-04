@@ -27,9 +27,6 @@ namespace YAPT
 		TextureHandle getTextureHandleToNextBackbuffer(SwapChainHandle swapChain);
 		void present(GfxApiHandle h, SwapChainHandle swapChain);
 
-		//Resources
-		ResourceAllocationPoolHandle createResourcePool(GfxApiHandle h, TextureHandle* textures, size_t textureCount, BufferHandle* buffers, size_t bufferCount, ResourcePoolType type);
-		void destroyResourcePool(GfxApiHandle h, ResourceAllocationPoolHandle handle);
 
 		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name);
 		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name);

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Gfx/Vk/CommonVk.h>
+#include <Gfx/GfxApi.h>
 #include <assert.h>
 
 namespace YAPT
@@ -16,12 +16,12 @@ namespace YAPT
 		}
 
 		//Simple Buffer Allocation Utility
-		void alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyBits, bool needsDeviceAddress = true);
+		void alloc(ResourceManagerVk& mngr, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryPropertyBits);
 		void dealloc(ResourceManagerVk& mngr);
 
 
 		VkBuffer buffer;
-		VkDeviceMemory deviceMemory;
+		Allocation deviceMemory;
 		VkDeviceAddress deviceAddress;
 	};
 

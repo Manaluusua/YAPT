@@ -16,7 +16,6 @@ set(HEADERS
 	inc/Renderer/Buffer.h
 	inc/Renderer/Texture.h
 	inc/Renderer/Material.h
-	inc/Renderer/ResourceAllocationPool.h
 	inc/Renderer/RenderObject.h
 	inc/Renderer/MeshUtility.h
 	inc/Renderer/RendererConfiguration.h
@@ -37,7 +36,6 @@ set(HEADERS
 	
 	inc/Renderer/Shared/BufferImpl.h
 	inc/Renderer/Shared/TextureImpl.h
-	inc/Renderer/Shared/ResourceAllocationPoolImpl.h
 	inc/Renderer/Shared/CRenderer.h
 	inc/Renderer/Shared/BindlessTextureManager.h
 	inc/Renderer/Shared/BindlessBufferManager.h
@@ -98,7 +96,6 @@ set(SOURCE
 	
 	src/Shared/BufferImpl.cpp
 	src/Shared/TextureImpl.cpp
-	src/Shared/ResourceAllocationPoolImpl.cpp
 	src/Shared/CRenderer.cpp
 	src/Shared/BindlessTextureManager.cpp
 	src/Shared/BindlessBufferManager.cpp

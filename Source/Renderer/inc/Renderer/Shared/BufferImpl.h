@@ -6,11 +6,11 @@
 
 namespace YAPT
 {
-	class ResourceAllocationPoolImpl;
+	class CRenderer;
 	class BufferImpl : public Buffer
 	{
 	public:
-		BufferImpl(const BufferDesc& desc, ResourceAllocationPoolImpl* pool);
+		BufferImpl(const BufferDesc& desc, CRenderer* p);
 		virtual ~BufferImpl();
 
 		//Buffer
@@ -24,7 +24,7 @@ namespace YAPT
 		uint32_t getBindlessResourceArrayIndex() const { return m_bindlessArrayIndex; }
 
 	protected:
-		ResourceAllocationPoolImpl* m_resourceAllocationPool;
+		CRenderer* m_renderer;
 		BufferDesc m_desc;
 		BufferHandle m_bufferHandle;
 		uint32_t m_bindlessArrayIndex;

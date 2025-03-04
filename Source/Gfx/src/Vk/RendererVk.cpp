@@ -262,7 +262,7 @@ namespace YAPT
 			//TODO: fill
 			m_submissionThread.initialize(submitThreadConfig);
 
-			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], getVkExtFuncs(), m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
+			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], m_instance, getVkExtFuncs(), m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
 			m_syncUtility.initialize(m_device, m_gfxConfig.pipelineLength, true, true);
 		}
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Gfx/Vk/CommonVk.h>
+#include <vk_mem_alloc.h>
 
 #include <vector>
 #include <string>
@@ -24,7 +25,7 @@ namespace YAPT
 	struct RenderPassHandleVk;
 	class BottomLevelAccelerationStructure;
 	class TopLevelAccelerationStructure;
-	
+	typedef VmaAllocation Allocation;
 
 	typedef BottomLevelAccelerationStructure* BottomLevelAccelerationStructureHandle;
 	typedef TopLevelAccelerationStructure* TopLevelAccelerationStructureHandle;

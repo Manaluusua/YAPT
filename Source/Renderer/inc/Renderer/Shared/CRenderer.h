@@ -46,7 +46,9 @@ namespace YAPT
 		virtual bool initialize(const RendererInitializeConfig& config) final;
 		virtual bool setRenderOutputToSurface(const WindowSurfaceDefinition& windowSurface) final;
 		virtual void resetRenderOutput() final;
-		virtual ResourceAllocationPool* createResourceAllocationPool() final;
+		
+		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1) final;
+		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size) final;
 
 		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount) final;
 		virtual Material* createMaterial() final;

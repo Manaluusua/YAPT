@@ -21,7 +21,6 @@ namespace YAPT
 		TextureHandle requestTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name = "unnamed texture");
 		BufferHandle requestBuffer(const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name = "unnamed buffer");
 
-		void allocate();
 		void deallocate();
 
 		GfxApiHandle getGfxHandle() const { return m_apiHandle; }
@@ -32,7 +31,6 @@ namespace YAPT
 		std::vector<TextureHandle> m_textures;
 		std::vector<BufferHandle> m_buffers;
 
-		ResourceAllocationPoolHandle m_resourceChunkHandle;
 	};
 }
 #endif

@@ -63,7 +63,7 @@ namespace YAPT
 	void ShaderTableVk::createBuffer(VkDeviceSize bufferSize)
 	{
 		ResourceManagerVk& mngr = *m_renderer.getResourceManager();
-		m_buffer.alloc(mngr, bufferSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true);
+		m_buffer.alloc(mngr, bufferSize, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 	}
 
 	void ShaderTableVk::releaseBuffer()

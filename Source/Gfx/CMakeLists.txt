@@ -76,7 +76,6 @@ if(${BUILD_DX12_BACKEND})
 		inc/Gfx/Dx12/DescriptorSetPoolDx12.h
 		inc/Gfx/Dx12/SwapChainDx12.h
 		inc/Gfx/Dx12/ShaderUtilityDx12.h
-		inc/Gfx/Dx12/ResourceAllocationPoolDx12.h
 		inc/Gfx/Dx12/YaptToDx12Conversions.h
 		inc/Gfx/Dx12/FenceHelperDx12.h
 		inc/Gfx/Dx12/PlatformTypesDx12.h
@@ -109,7 +108,6 @@ if(${BUILD_DX12_BACKEND})
 		src/Dx12/DescriptorSetPoolDx12.cpp
 		src/Dx12/SwapChainDx12.cpp
 		src/Dx12/ShaderUtilityDx12.cpp
-		src/Dx12/ResourceAllocationPoolDx12.cpp
 		src/Dx12/FenceHelperDx12.cpp
 		src/Dx12/AccelerationStructureBuilderDx12.cpp
 		src/Dx12/GfxApiDx12.cpp
@@ -137,6 +135,13 @@ if(${BUILD_DX12_BACKEND})
 	find_package(Dx12 REQUIRED)
 	
 	target_link_libraries(Gfx PRIVATE d3d12::d3d12 d3d12::dxgi d3d12::dxc)
+	
+	#dx12 memory allocator
+	add_library(Dx12MemoryAllocator STATIC)
+	target_sources(Dx12MemoryAllocator PUBLIC "${YAPT_EXTERNALS_PATH}/D3D12MemoryAllocator/src/D3D12MemAlloc.cpp" "${YAPT_EXTERNALS_PATH}/D3D12MemoryAllocator/include/D3D12MemAlloc.h")
+	target_include_directories(Dx12MemoryAllocator PUBLIC "${YAPT_EXTERNALS_PATH}/D3D12MemoryAllocator/include/")
+	target_link_libraries(Gfx PUBLIC Dx12MemoryAllocator)
+	
 	
 	#copy dxil and dxcompiler
 	add_custom_command(TARGET Gfx POST_BUILD
@@ -169,13 +174,14 @@ if(${BUILD_VK_BACKEND})
 	target_sources(Gfx PRIVATE "${YAPT_EXTERNALS_PATH}/SPIRV-Reflect/spirv_reflect.c")
 
 	
+
+	
 	list(APPEND HEADERS 
 		inc/Gfx/Vk/RendererVk.h
 		inc/Gfx/Vk/PlatformTypesVk.h
 		inc/Gfx/Vk/CommonVk.h
 		inc/Gfx/Vk/SwapChainVk.h
 		inc/Gfx/Vk/ResourceManagerVk.h
-		inc/Gfx/Vk/ResourceAllocationPoolVk.h
 		inc/Gfx/Vk/ResourceUtilityVk.h
 		inc/Gfx/Vk/YaptToVkConversions.h
 		inc/Gfx/Vk/ResourceHandlesVk.h
@@ -208,7 +214,6 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/GfxApiVk.cpp
 		src/Vk/SwapChainVk.cpp
 		src/Vk/ResourceManagerVk.cpp
-		src/Vk/ResourceAllocationPoolVk.cpp
 		src/Vk/ResourceHandlesVk.cpp
 		src/Vk/UploadHeapVk.cpp
 		src/Vk/UploadHelperVk.cpp
@@ -233,6 +238,10 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/AccelerationStructuresVk.cpp
 		src/Vk/SimpleBufferAllocationUtility.cpp
 		)
+		
+	#VMA
+	target_include_directories(Gfx PUBLIC "${YAPT_EXTERNALS_PATH}/VulkanMemoryAllocator/include/")
+	target_sources(Gfx PRIVATE "${YAPT_EXTERNALS_PATH}/VulkanMemoryAllocator/include/vk_mem_alloc.h")
 		
 	target_compile_definitions(Gfx 
 		PUBLIC

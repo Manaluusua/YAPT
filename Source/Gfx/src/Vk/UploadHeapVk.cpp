@@ -7,48 +7,38 @@ namespace YAPT
 	UploadHeapVk::UploadHeapVk(ResourceManagerVk& resourceMngr, size_t heapSize, size_t numberOfPartitions)
 		:m_resMngr(resourceMngr),
 		m_uploadBuffer(VK_NULL_HANDLE),
-		m_deviceMemory(VK_NULL_HANDLE),
+		m_alloc(nullptr),
 		m_heapSize(heapSize),
 		m_numberOfPartitions(numberOfPartitions),
 		m_currentlyUsedPartitionSize(0),
 		m_sizePerPartition(heapSize / numberOfPartitions),
 		m_currentPartitionIndex(0)
 	{
-		//create upload heap and required resources
+
 		VkBufferCreateInfo buffCreateInfo{};
 		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffCreateInfo.size = heapSize;
 		buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &m_uploadBuffer);
-		
-		ResourceManagerVk::AllocatedMemoryInfo memInfo;
-		bool success = resourceMngr.allocateDeviceMemory(m_uploadBuffer, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false, memInfo);
-		m_deviceMemory = memInfo.memory;
 
-		res = vkBindBufferMemory(m_resMngr.getDevice(), m_uploadBuffer, m_deviceMemory, 0);
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;// VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
-		checkVkResult(res);
+
+		bool success = m_resMngr.createBufferVk(buffCreateInfo, allocInfo, 0, &m_uploadBuffer, &m_alloc);
+
 		assert(success);
 
-		void* ptr = (void*)m_mappedUploadBufferPtr;
-
-		vkMapMemory(m_resMngr.getDevice(), m_deviceMemory, 0, heapSize, 0, &ptr);
-
-		m_mappedUploadBufferPtr = (char*)ptr;
-
+		m_mappedUploadBufferPtr = (char*)m_resMngr.map(m_alloc);
 
 	}
 	UploadHeapVk::~UploadHeapVk()
 	{
-		vkUnmapMemory(m_resMngr.getDevice(), m_deviceMemory);
-
-		vkDestroyBuffer(m_resMngr.getDevice(), m_uploadBuffer, VK_ALLOC_CB);
-		vkFreeMemory(m_resMngr.getDevice(), m_deviceMemory, VK_ALLOC_CB);
+		m_resMngr.unmap(m_alloc);
+		m_resMngr.destroyBufferVk(m_uploadBuffer, m_alloc);
 	}
 
-
-	
 
 	bool UploadHeapVk::allocate(size_t size, UploadHeapVk::UploadHeapAllocationInfo& heapAllocation)
 	{

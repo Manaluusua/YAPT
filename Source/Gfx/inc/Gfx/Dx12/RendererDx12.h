@@ -12,9 +12,10 @@
 #include <vector>
 #include <memory>
 
+
 struct IDXGIFactory4;
 struct IDXGISwapChain3;
-
+struct IDXGIAdapter;
 
 namespace YAPT
 {
@@ -62,11 +63,14 @@ namespace YAPT
 
 		RCPtr<IDXGIFactory4> m_factory;
 		RCPtr<ID3D12Device5> m_device;
+		RCPtr<IDXGIAdapter> m_adapter;
 		RCPtr<ID3D12CommandQueue> m_mainGraphicsQueue;
 		RCPtr<ID3D12CommandQueue> m_copyQueue;
+		
 
 		std::unique_ptr<ResourceManagerDx12> m_resourceManager;
 		std::unique_ptr<AccelerationStructureBuilder> m_accStructureBuilder;
+		
 
 		std::vector<CommandListPoolerDx12*> m_commandListPoolers;
 		std::vector<ID3D12CommandList*> m_submittedCommandLists;

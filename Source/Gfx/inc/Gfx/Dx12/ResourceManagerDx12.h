@@ -13,9 +13,17 @@
 
 #include <vector>
 
+
 #define DEFAULT_UPLOAD_HEAP_SIZE 256 * 1e6
 #define DEFAULT_DESCRIPTORHEAP_SIZE_NONSAMPLER 64000
 #define DEFAULT_DESCRIPTORHEAP_SIZE_SAMPLER 1024
+
+namespace D3D12MA
+{
+	class Allocator;
+}
+
+struct IDXGIAdapter;
 
 namespace YAPT
 {
@@ -32,7 +40,7 @@ namespace YAPT
 		friend class DescriptorHeapDx12;
 		friend class RendererDx12;
 	public:
-		ResourceManagerDx12(ID3D12Device5& device, size_t pipelineLength);
+		ResourceManagerDx12(ID3D12Device5& device, IDXGIAdapter& adapter, size_t pipelineLength);
 		~ResourceManagerDx12();
 
 		YAPT_NOCOPY(ResourceManagerDx12);
@@ -40,7 +48,9 @@ namespace YAPT
 		bool initialize(SubmissionThreadDx12* submissionThread, size_t assetUploadHeapSize = DEFAULT_UPLOAD_HEAP_SIZE, size_t renderUploadHeapSize = DEFAULT_UPLOAD_HEAP_SIZE);
 
 		DescriptorHeapDx12* createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t descriptorCount);
-		RCPtr<ID3D12Heap> createResourceHeap(D3D12_HEAP_TYPE type, size_t sizeInBytes, D3D12_HEAP_FLAGS flags, size_t alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
+		
+		Allocation* allocate(const D3D12_RESOURCE_DESC& resourceDesc, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riidResource, void** ppvResource);
+		void deallocate(Allocation* a);
 
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
@@ -57,11 +67,15 @@ namespace YAPT
 
 		ID3D12Device5& getDevice() { return m_device; };
 
-		//convinience for now.
+		void addToPendingDestructionList(Allocation* alloc)
+		{
+			addToPendingDestructionList(&alloc, 1);
+		}
 		void addToPendingDestructionList(ID3D12Object* objects)
 		{
 			addToPendingDestructionList(&objects, 1);
 		}
+		void addToPendingDestructionList(Allocation** allocs, size_t allocCount);
 		void addToPendingDestructionList(ID3D12Object** objects, size_t objCount);
 
 		size_t getFrameNumber() const;
@@ -91,6 +105,8 @@ namespace YAPT
 
 		
 		ID3D12Device5& m_device;
+		IDXGIAdapter& m_adapter;
+		RCPtr<D3D12MA::Allocator> m_memoryAllocator;
 
 		UploadHelperDx12* m_preFrameUploads;
 		UploadHelperDx12* m_duringFrameUploads;
@@ -102,8 +118,10 @@ namespace YAPT
 
 		//pending destruction lists
 		std::vector<std::vector<RCPtr<ID3D12Object>>> m_pendingDestroyedObjects;
+		std::vector<std::vector<Allocation*>> m_pendingFreedAllocations;
 		std::mutex m_destroyObjectsMutex;
-		size_t m_destroyObjectsIndex;
+		std::mutex m_freeAllocationsMutex;
+		size_t m_destroyPendingListIndex;
 
 		size_t m_pipelineLength;
 		size_t m_frameNumber;

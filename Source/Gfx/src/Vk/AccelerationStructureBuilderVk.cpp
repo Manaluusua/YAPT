@@ -179,7 +179,6 @@ namespace YAPT
 	{
 
 		m_scratchBuffer.alloc(m_resourceMngr, sizeInBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		m_resourceMngr.getMemoryRequirements(m_scratchBuffer.buffer);
 		
 	}
 	void AccelerationStructureBuilder::ensureScratch(VkDeviceSize sizeInBytes)

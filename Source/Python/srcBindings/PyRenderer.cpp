@@ -9,47 +9,6 @@
 
 namespace YAPT
 {
-	/////////////////////// PyAllocationPool ///////////////////////
-
-	PyAllocationPool::PyAllocationPool(ResourceAllocationPool* pool)
-		:m_allocPool(pool)
-	{
-
-	}
-
-	PyTexture* PyAllocationPool::addTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1)
-	{
-		Texture* tex = m_allocPool->addTexture(name, dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
-		PyTexture* pyTex = new PyTexture(tex);
-		m_createdTextures.push_back(pyTex);
-		return pyTex;
-	}
-
-	PyBuffer* PyAllocationPool::addBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
-	{
-		Buffer* b = m_allocPool->addBuffer(name, resourceUsage, size);
-		PyBuffer* pyBuf = new PyBuffer(b);
-		m_createdBuffers.push_back(pyBuf);
-		return pyBuf;
-	}
-
-	void PyAllocationPool::allocateAndConsume()
-	{
-		m_allocPool->allocateAndConsume();
-
-		for (PyTexture* tex : m_createdTextures)
-		{
-			tex->memoryAllocated();
-		}
-		for (PyBuffer* b : m_createdBuffers)
-		{
-			b->memoryAllocated();
-		}
-
-		m_createdTextures.clear();
-		m_createdTextures.clear();
-		m_allocPool = nullptr;
-	}
 
 	/////////////////////// PyRenderer ///////////////////////
 
@@ -88,11 +47,7 @@ namespace YAPT
 		}
 	}
 
-	PyAllocationPool* PyRenderer::createAllocationPool()
-	{
-		ResourceAllocationPool* pool = m_renderer->createResourceAllocationPool();
-		return new PyAllocationPool(pool);
-	}
+
 
 	PyRendererVar PyRenderer::getRendererVariable(const char* varName)
 	{
@@ -132,13 +87,8 @@ namespace YAPT
 			.def("shutdown", &PyRenderer::shutdown)
 			.def("getRendererVariable", &PyRenderer::getRendererVariable)
 			.def("getAllRendererVariableNames", &PyRenderer::getAllRendererVariableNames)
-			.def("createAllocationPool", &PyRenderer::createAllocationPool)
 			.def("setRenderOutputToSurface", &PyRenderer::setRenderOutputToSurface)
 			.def("resetRenderOutput", &PyRenderer::resetRenderOutput);
 	
-		pybind11::class_<PyAllocationPool>(m, "AllocationPool")
-			.def("addTexture", &PyAllocationPool::addTexture)
-			.def("addBuffer", &PyAllocationPool::addBuffer)
-			.def("allocate", &PyAllocationPool::allocateAndConsume);
 	}
 }

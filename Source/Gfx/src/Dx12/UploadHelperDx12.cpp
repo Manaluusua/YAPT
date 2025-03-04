@@ -92,19 +92,12 @@ namespace YAPT
 
 	void UploadHelperDx12::getHeapMemoryFromTemporaryHeap(size_t sizeRequested, UploadUtility::UploadHeapAllocationInfo& info)
 	{
-		RCPtr<ID3D12Heap> heap = m_resMngr.createResourceHeap(D3D12_HEAP_TYPE_UPLOAD, sizeRequested, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
 		ID3D12Resource* buffer;
 		void* mappedPtr;
 
 		CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeRequested);
-		checkForDxError(m_resMngr.getDevice().CreatePlacedResource(
-			heap.get(),
-			0,
-			&bufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&buffer))
-		);
+		Allocation* alloc = m_resMngr.allocate(bufferDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&buffer));
+		
 		checkForDxError(buffer->Map(0, nullptr, reinterpret_cast<void**>(&mappedPtr)));
 
 		info.mappedUploadBufferPtr = (char*)mappedPtr;
@@ -115,7 +108,7 @@ namespace YAPT
 
 
 		m_resMngr.addToPendingDestructionList(buffer);
-		m_resMngr.addToPendingDestructionList(heap.get());
+		m_resMngr.addToPendingDestructionList(alloc);
 		buffer->Release();
 	}
 

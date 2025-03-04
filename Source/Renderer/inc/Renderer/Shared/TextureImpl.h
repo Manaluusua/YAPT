@@ -5,11 +5,11 @@
 #include <Gfx/GfxTypes.h>
 namespace YAPT
 {
-	class ResourceAllocationPoolImpl;
+	class CRenderer;
 	class TextureImpl : public Texture
 	{
 	public:
-		TextureImpl(const TextureDesc texDesc, ResourceAllocationPoolImpl* p);
+		TextureImpl(const TextureDesc texDesc, CRenderer* p);
 		virtual ~TextureImpl();
 
 		//Texture
@@ -23,7 +23,7 @@ namespace YAPT
 		uint32_t getBindlessResourceArrayIndex() const { return m_bindlessArrayIndex; }
 
 	protected:
-		ResourceAllocationPoolImpl* m_resourceAllocationPool;
+		CRenderer* m_renderer;
 		TextureDesc m_desc;
 		TextureHandle m_texHandle;
 		uint32_t m_bindlessArrayIndex;

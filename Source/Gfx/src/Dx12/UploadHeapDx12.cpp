@@ -14,24 +14,16 @@ namespace YAPT
 		m_currentPartitionIndex(0)
 	{
 		//create upload heap and required resources
-		m_uploadHeap = m_resMngr.createResourceHeap(D3D12_HEAP_TYPE_UPLOAD, m_heapSize, D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
 		CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(heapSize);
-		checkForDxError(m_resMngr.getDevice().CreatePlacedResource(
-			m_uploadHeap.get(),
-			0,
-			&bufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_uploadBuffer))
-		);
+		m_alloc = m_resMngr.allocate(bufferDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_COMMON, nullptr, IID_PPV_ARGS(&m_uploadBuffer));
 		checkForDxError(m_uploadBuffer->Map(0, nullptr, reinterpret_cast<void**>(&m_mappedUploadBufferPtr)));
 
 	}
 	UploadHeapDx12::~UploadHeapDx12()
 	{
 		m_uploadBuffer->Unmap(0, nullptr);
-		ID3D12Object* o[] = { m_uploadBuffer.get(), m_uploadHeap.get() };
-		m_resMngr.addToPendingDestructionList(o, countOf(o));
+		m_resMngr.addToPendingDestructionList(m_alloc);
+		m_resMngr.addToPendingDestructionList(m_uploadBuffer.get());
 	}
 
 

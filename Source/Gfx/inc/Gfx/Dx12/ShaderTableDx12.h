@@ -6,7 +6,6 @@
 namespace YAPT
 {
 	class ResourceManagerDx12;
-	class ResourceAllocationPoolDx12;
 	struct BufferHandleDx12;
 	struct ShaderTableBinding;
 
@@ -61,7 +60,6 @@ namespace YAPT
 		RaytracePipelineStateDx12* m_pso;
 
 		BufferHandleDx12* m_bufferHandles[3];
-		ResourceAllocationPoolDx12* m_resourceAllocationPool;
 
 		std::vector<uint8_t> m_shadowBuffer;
 

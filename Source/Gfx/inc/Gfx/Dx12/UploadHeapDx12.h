@@ -28,7 +28,7 @@ namespace YAPT
 
 		//upload heap stuff
 		ResourceManagerDx12& m_resMngr;
-		RCPtr<ID3D12Heap> m_uploadHeap;
+		Allocation* m_alloc;
 		RCPtr<ID3D12Resource> m_uploadBuffer;
 		char* m_mappedUploadBufferPtr;
 		size_t m_heapSize;

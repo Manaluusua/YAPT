@@ -1,6 +1,5 @@
 #include <Gfx/Dx12/ResourceManagerDx12.h>
 #include <Gfx/Dx12/DescriptorHeapDx12.h>
-#include <Gfx/Dx12/ResourceAllocationPoolDx12.h>
 #include <Gfx/Dx12/ShaderUtilityDx12.h>
 #include <Gfx/Dx12/Dx12MiscUtils.h>
 #include <Gfx/Dx12/d3dx12.h>
@@ -10,12 +9,15 @@
 #include <Common/CommonWindowsUtility.h>
 #include <Gfx/Utility/DXCUtility.h>
 #include <assert.h>
-
+#include <D3D12MemAlloc.h>
 
 namespace YAPT
 {
-	ResourceManagerDx12::ResourceManagerDx12(ID3D12Device5& device, size_t pipelineLength)
+	
+
+	ResourceManagerDx12::ResourceManagerDx12(ID3D12Device5& device, IDXGIAdapter& adapter, size_t pipelineLength)
 		:m_device(device),
+		m_adapter(adapter),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
 		m_pipelineLength(pipelineLength)
@@ -32,8 +34,22 @@ namespace YAPT
 	{
 		m_submissionThread = submissionThread;
 
+		{
+			D3D12MA::ALLOCATOR_DESC desc = {};
+			desc.Flags = D3D12MA::ALLOCATOR_FLAG_DEFAULT_POOLS_NOT_ZEROED;
+			desc.pDevice = &m_device;
+			desc.pAdapter = &m_adapter;
+
+
+			if (FAILED(D3D12MA::CreateAllocator(&desc, &m_memoryAllocator)))
+			{
+				return false;
+			}
+		}
+
 		m_pendingDestroyedObjects.resize(m_pipelineLength + 1);
-		m_destroyObjectsIndex = 0;
+		m_pendingFreedAllocations.resize(m_pipelineLength + 1);
+		m_destroyPendingListIndex = 0;
 
 		m_preFrameUploads = new UploadHelperDx12(*this, submissionThread, assetUploadHeapSize, m_pipelineLength);
 		m_duringFrameUploads = new UploadHelperDx12(*this, submissionThread, renderUploadHeapSize, m_pipelineLength);
@@ -70,6 +86,14 @@ namespace YAPT
 		}
 
 		m_pendingDestroyedObjects.clear();
+		for (size_t i = 0; i < m_pendingFreedAllocations.size(); ++i)
+		{
+			for (size_t k = 0; k < m_pendingFreedAllocations[i].size(); ++k)
+			{
+				deallocate(m_pendingFreedAllocations[i][k]);
+			}
+		}
+		m_pendingFreedAllocations.clear();
 	}
 
 	DescriptorHeapDx12* ResourceManagerDx12::createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE type, size_t descriptorCount)
@@ -83,21 +107,25 @@ namespace YAPT
 		return new DescriptorHeapDx12(*this, type, descriptorCount, flags);
 	}
 
-	RCPtr<ID3D12Heap> ResourceManagerDx12::createResourceHeap(D3D12_HEAP_TYPE type, size_t sizeInBytes, D3D12_HEAP_FLAGS flags, size_t alignment)
+	Allocation* ResourceManagerDx12::allocate(const D3D12_RESOURCE_DESC& resourceDesc, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_STATES initialState, const D3D12_CLEAR_VALUE* pOptimizedClearValue, REFIID riidResource, void** ppvResource)
 	{
-		D3D12_HEAP_DESC heapDesc;
-		heapDesc.Properties.Type = type;
-		heapDesc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		heapDesc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		heapDesc.Properties.CreationNodeMask = 0;
-		heapDesc.Properties.VisibleNodeMask = 0;
-		heapDesc.SizeInBytes = (UINT64)sizeInBytes;
-		heapDesc.Flags = flags;
-		heapDesc.Alignment = (UINT64)alignment;
-		
-		RCPtr<ID3D12Heap> heap;
-		m_device.CreateHeap(&heapDesc, IID_PPV_ARGS(&heap));
-		return heap;
+		D3D12MA::ALLOCATION_DESC allocdesc = D3D12MA::CALLOCATION_DESC{ heapType };
+		D3D12MA::Allocation* allocation = nullptr;
+		checkHResult(m_memoryAllocator->CreateResource(
+			&allocdesc,
+			&resourceDesc,
+			initialState,
+			pOptimizedClearValue,
+			&allocation,
+			riidResource,
+			ppvResource
+		));
+		return allocation;
+	}
+
+	void ResourceManagerDx12::deallocate(Allocation* a)
+	{
+		a->Release();
 	}
 
 
@@ -242,9 +270,18 @@ namespace YAPT
 		std::unique_lock<std::mutex> lock(m_destroyObjectsMutex);
 		for (size_t i = 0; i < objCount; ++i)
 		{
-			m_pendingDestroyedObjects[m_destroyObjectsIndex].push_back(objects[i]);
+			m_pendingDestroyedObjects[m_destroyPendingListIndex].push_back(objects[i]);
 		}
 		
+	}
+
+	void ResourceManagerDx12::addToPendingDestructionList(Allocation** allocs, size_t allocCount)
+	{
+		std::unique_lock<std::mutex> lock(m_freeAllocationsMutex);
+		for (size_t i = 0; i < allocCount; ++i)
+		{
+			m_pendingFreedAllocations[m_destroyPendingListIndex].push_back(allocs[i]);
+		}
 	}
 
 	size_t ResourceManagerDx12::getFrameNumber() const
@@ -272,8 +309,14 @@ namespace YAPT
 		
 		{
 			std::unique_lock<std::mutex> lock(m_destroyObjectsMutex);
-			m_destroyObjectsIndex = (m_destroyObjectsIndex + 1) % m_pendingDestroyedObjects.size();;
-			m_pendingDestroyedObjects[m_destroyObjectsIndex].clear();
+			m_destroyPendingListIndex = (m_destroyPendingListIndex + 1) % m_pendingDestroyedObjects.size();;
+			m_pendingDestroyedObjects[m_destroyPendingListIndex].clear();
+
+			for (size_t i = 0; i < m_pendingFreedAllocations[m_destroyPendingListIndex].size(); ++i)
+			{
+				deallocate(m_pendingFreedAllocations[m_destroyPendingListIndex][i]);
+			}
+			m_pendingFreedAllocations[m_destroyPendingListIndex].clear();
 		}
 
 		

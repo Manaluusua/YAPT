@@ -276,7 +276,6 @@ namespace YAPT
 		createBuffers();
 		createTextures();
 		createSamplers();
-		m_postProcessPool.allocate();
 		createBufferViews();
 		createTextureViews();
 		uploadBuffers();

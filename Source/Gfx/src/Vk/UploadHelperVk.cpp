@@ -174,31 +174,28 @@ namespace YAPT
 	void UploadHelperVk::getHeapMemoryFromTemporaryHeap(size_t sizeRequested, UploadHeapVk::UploadHeapAllocationInfo& info)
 	{
 		VkBuffer buff;
-		void* ptr;
-		ResourceManagerVk::AllocatedMemoryInfo memInfo;
+		Allocation alloc;
 
 		VkBufferCreateInfo buffCreateInfo{};
 		buffCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		buffCreateInfo.size = sizeRequested;
 		buffCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 		buffCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		VkResult res = vkCreateBuffer(m_resMngr.getDevice(), &buffCreateInfo, VK_ALLOC_CB, &buff);
-		bool success = m_resMngr.allocateDeviceMemory(buff, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, false, memInfo);
 
-		res = vkBindBufferMemory(m_resMngr.getDevice(), buff, memInfo.memory, 0);
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		bool success = m_resMngr.createBufferVk(buffCreateInfo, allocInfo, 0, &buff, &alloc);
 
-		checkVkResult(res);
 		assert(success);
 
-		vkMapMemory(m_resMngr.getDevice(), memInfo.memory, 0, sizeRequested, 0, &ptr);
-
-		info.mappedPtr = (char*)ptr;
+		info.mappedPtr = (char*)m_resMngr.map(alloc);
 		info.offsetToHeap = 0;
 		info.uploadBuffer = buff;
 
 		m_resMngr.deferredDestroyVkResource(buff);
-		m_resMngr.deferredDestroyVkResource(memInfo.memory);
-		*m_pendingUnmaps.add(1) = memInfo.memory;
+		m_resMngr.deferredFreeAlloc(alloc);
+		*m_pendingUnmaps.add(1) = alloc;
 	}
 
 	void UploadHelperVk::prepareNextUploadBatch()
@@ -254,10 +251,10 @@ namespace YAPT
 		};
 
 
-		VkDeviceMemory* pendingUnmaps = m_pendingUnmaps.getAll();
+		Allocation* pendingUnmaps = m_pendingUnmaps.getAll();
 		for (size_t i = 0; i < m_pendingUnmaps.count(); ++i)
 		{
-			vkUnmapMemory(m_resMngr.getDevice(), pendingUnmaps[i]);
+			m_resMngr.unmap(pendingUnmaps[i]);
 		}
 
 		if (m_pendingBufferUploads.count() == 0 && m_pendingTextureUploads.count() == 0) return false;

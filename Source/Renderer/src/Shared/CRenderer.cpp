@@ -2,7 +2,8 @@
 #include <Renderer/Shared/MeshProxy.h>
 #include <Renderer/Shared/MaterialProxy.h>
 #include <Renderer/Shared/RenderObjectProxy.h>
-#include <Renderer/Shared/ResourceAllocationPoolImpl.h>
+#include <Renderer/Shared/TextureImpl.h>
+#include <Renderer/Shared/BufferImpl.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
 #include <Renderer/Shared/Utility/ShaderLoader.h>
 #include <Renderer/Shared/RenderPipeline/RenderPipelineManager.h>
@@ -234,9 +235,35 @@ namespace YAPT
 			m_swapChain = YAPT_NULL_HANDLE;
 		}
 	}
-	ResourceAllocationPool* CRenderer::createResourceAllocationPool()
+
+	Texture* CRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
 	{
-		return new ResourceAllocationPoolImpl(this);
+		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
+		textureToBeCreated(desc);
+
+		TextureImpl* tex = new TextureImpl(desc, this);
+		ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+		TextureHandle texHandle = Gfx::createTexture(getGfxHandle(), tex->getDesc(), state, name);
+		tex->setResourceHandle(texHandle);
+
+		textureCreated(tex);
+
+		return tex;
+	}
+
+	Buffer* CRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
+	{
+		BufferDesc desc(resourceUsage, size);
+		bufferToBeCreated(desc);
+
+		BufferImpl* buf = new BufferImpl(desc, this);
+		ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
+		BufferHandle bufHandle = Gfx::createBuffer(getGfxHandle(), buf->getDesc(), state, name);
+		buf->setResourceHandle(bufHandle);
+
+		bufferCreated(buf);
+
+		return buf;
 	}
 
 	Mesh* CRenderer::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount)

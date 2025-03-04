@@ -7,11 +7,16 @@
 #include <Gfx/Vk/AccelerationStructureBuilderVk.h>
 
 #include <assert.h>
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 
 
 namespace YAPT
 {
-	ResourceManagerVk::ResourceManagerVk(VkPhysicalDevice physicalDevice, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength)
+
+	
+
+	ResourceManagerVk::ResourceManagerVk(VkPhysicalDevice physicalDevice, VkInstance instance, const VkExtensions& extFuncs, SubmissionThreadVk& submissionThread, const QueueDefinitionVk& copyQueue, VkDevice device, size_t pipelineLength)
 		:m_submissionThread(submissionThread),
 		m_copyQueue(copyQueue),
 		m_pipelineLength(pipelineLength),
@@ -24,12 +29,29 @@ namespace YAPT
 		m_destroyObjectsIndex(0)
 	{
 		m_pendingDestroyedObjects.resize(pipelineLength);
+		m_pendingFreeAlloc.resize(pipelineLength);
 		vkGetPhysicalDeviceMemoryProperties(physicalDevice, &m_memoryProps);
+
+		//init vma
+		VmaVulkanFunctions vulkanFunctions = {};
+		vulkanFunctions.vkGetInstanceProcAddr = &vkGetInstanceProcAddr;
+		vulkanFunctions.vkGetDeviceProcAddr = &vkGetDeviceProcAddr;
+		VmaAllocatorCreateInfo allocatorCreateInfo = {};
+		allocatorCreateInfo.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT | VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+		allocatorCreateInfo.vulkanApiVersion = VK_API_VERSION_1_2;
+		allocatorCreateInfo.physicalDevice = physicalDevice;
+		allocatorCreateInfo.device = device;
+		allocatorCreateInfo.instance = instance;
+		allocatorCreateInfo.pVulkanFunctions = &vulkanFunctions;
+
+		vmaCreateAllocator(&allocatorCreateInfo, &m_allocator);
 
 		m_preFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
 		m_duringFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
 		m_accStructBuilder = new AccelerationStructureBuilder(*this);
 		m_lastSignaledSemaphore = VK_NULL_HANDLE;
+
+		
 	}
 	ResourceManagerVk::~ResourceManagerVk()
 	{
@@ -60,6 +82,23 @@ namespace YAPT
 			}
 
 		}
+
+		//destroy pending list
+		{
+			std::unique_lock<std::mutex> lock(m_pendingFreeLock);
+			for (size_t i = 0; i < m_pendingFreeAlloc.size(); ++i)
+			{
+				std::vector<Allocation>& freeList = m_pendingFreeAlloc[i];
+				for (size_t k = 0; k < freeList.size(); ++k)
+				{
+					vmaFreeMemory(m_allocator, freeList[k]);
+				}
+				freeList.clear();
+			}
+
+		}
+		vmaDestroyAllocator(m_allocator);
+
 	}
 
 	void ResourceManagerVk::prepare()
@@ -67,15 +106,26 @@ namespace YAPT
 		m_preFrameUploads->prepareNextUploadBatch();
 		{
 			//apply & clear pending destruction list
-			std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
 			m_destroyObjectsIndex = (m_destroyObjectsIndex + 1) % m_pendingDestroyedObjects.size();
-
-			std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[m_destroyObjectsIndex];
-			for (size_t i = 0; i < destroyList.size(); ++i)
 			{
-				destroyList[i].cb(m_device, m_extensionFuncs, destroyList[i].data, VK_ALLOC_CB);
+				std::unique_lock<std::mutex> lock(m_destroyObjectsLock);
+				std::vector<DestroyResourceEntry>& destroyList = m_pendingDestroyedObjects[m_destroyObjectsIndex];
+				for (size_t i = 0; i < destroyList.size(); ++i)
+				{
+					destroyList[i].cb(m_device, m_extensionFuncs, destroyList[i].data, VK_ALLOC_CB);
+				}
+				destroyList.clear();
 			}
-			destroyList.clear();
+		}
+
+		{
+			std::unique_lock<std::mutex> lock(m_pendingFreeLock);
+			std::vector<Allocation>& freeList = m_pendingFreeAlloc[m_destroyObjectsIndex];
+			for (size_t k = 0; k < freeList.size(); ++k)
+			{
+				vmaFreeMemory(m_allocator, freeList[k]);
+			}
+			freeList.clear();
 		}
 		
 	}
@@ -100,53 +150,6 @@ namespace YAPT
 		}
 	}
 
-	VkMemoryRequirements ResourceManagerVk::getMemoryRequirements(VkBuffer buffer)
-	{
-		VkMemoryRequirements memoryReqs;
-		vkGetBufferMemoryRequirements(m_device, buffer, &memoryReqs);
-		return memoryReqs;
-	}
-	bool ResourceManagerVk::allocateDeviceMemory(VkBuffer buffer, VkMemoryPropertyFlags requiredFlags, bool requireDeviceAddress, AllocatedMemoryInfo& out)
-	{
-		VkMemoryRequirements reqs = getMemoryRequirements(buffer);
-		return allocateDeviceMemory(reqs.memoryTypeBits, requiredFlags, reqs.size, requireDeviceAddress, out);
-		
-	}
-
-	
-	bool ResourceManagerVk::allocateDeviceMemory(uint32_t allowedMemoryTypes, VkMemoryPropertyFlags requiredFlags, size_t size, bool requireDeviceAddress, AllocatedMemoryInfo& out)
-	{
-		for (uint32_t i = 0; i < m_memoryProps.memoryTypeCount; ++i)
-		{
-			if ((allowedMemoryTypes & (1 << i)) && ((m_memoryProps.memoryTypes[i].propertyFlags & requiredFlags) == requiredFlags))
-			{
-				VkMemoryAllocateInfo info{};
-				info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-				info.allocationSize = size;
-				info.memoryTypeIndex = i;
-
-				//TODO: check if actually needed
-				VkMemoryAllocateFlagsInfoKHR flags_info{ VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO_KHR };
-				flags_info.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-				if (requireDeviceAddress)
-				{
-					info.pNext = &flags_info;
-				}
-				
-
-				VkDeviceMemory memory;
-				VkResult res = vkAllocateMemory(m_device, &info, VK_ALLOC_CB, &memory);
-				if (res == VK_SUCCESS)
-				{
-					out.memory = memory;
-					out.flags = m_memoryProps.memoryTypes[i].propertyFlags;
-					return true;
-				}
-			}
-		}
-
-		return false;
-	}
 
 	void ResourceManagerVk::upload(VkBuffer handle, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 	{
@@ -290,7 +293,10 @@ namespace YAPT
 			buffHandle->name = std::string(name);
 		}
 #endif
-		VkResult res = vkCreateBuffer(getDevice(), &buffHandle->createInfo, VK_ALLOC_CB, &buffHandle->buffer);
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		VkResult res = vmaCreateBuffer(m_allocator, &buffHandle->createInfo, &allocInfo, &buffHandle->buffer, &buffHandle->alloc, nullptr);
+
 		checkVkResult(res);
 
 		buffHandle->owningQueueFamily = owningQueueFamily;
@@ -316,10 +322,8 @@ namespace YAPT
 			texHandle->name = std::string(name);
 		}
 #endif
-		VkResult res = vkCreateImage(getDevice(), &texHandle->createInfo, VK_ALLOC_CB, &texHandle->image);
-		checkVkResult(res);
-
-		if (res != VK_SUCCESS)
+		bool res = createTextureVk(texHandle->createInfo, owningQueueFamily, &texHandle->image, &texHandle->alloc);
+		if (!res)
 		{
 			delete texHandle;
 			texHandle = nullptr;
@@ -330,15 +334,77 @@ namespace YAPT
 
 	void ResourceManagerVk::destroyBuffer(BufferHandleVk* handle)
 	{
-		deferredDestroyVkResource(handle->buffer);
+		destroyBufferVk(handle->buffer, handle->alloc);
 		delete handle;
 	}
 
 	void ResourceManagerVk::destroyTexture(TextureHandleVk* handle)
 	{
-		deferredDestroyVkResource(handle->image);
+		destroyTextureVk(handle->image, handle->alloc);
 		delete handle;
 	}
+
+	bool ResourceManagerVk::createBufferVk(const VkBufferCreateInfo& desc, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut)
+	{
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		return createBufferVk(desc, allocInfo, owningQueueFamily, buffOut, allocOut);
+	}
+
+	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut)
+	{
+		VmaAllocationCreateInfo allocInfo = {};
+		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		return createTextureVk(desc, allocInfo, owningQueueFamily, imageOut, allocOut);
+	}
+
+	bool ResourceManagerVk::createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut)
+	{
+		VkResult res = vmaCreateBuffer(m_allocator, &desc, &allocInfo, buffOut, allocOut, nullptr);
+		return checkVkResult(res);
+	}
+
+	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut)
+	{
+		VkResult res = vmaCreateImage(m_allocator, &desc, &allocInfo, imageOut, allocOut, nullptr);
+		return checkVkResult(res);
+	}
+
+	void* ResourceManagerVk::map(Allocation alloc)
+	{
+		
+		if (alloc->IsPersistentMap())
+		{
+			return alloc->GetMappedData();
+		}
+		else
+		{
+			void* mapped;
+			vmaMapMemory(m_allocator, alloc, &mapped);
+			return mapped;
+		}
+	}
+	void ResourceManagerVk::unmap(Allocation alloc)
+	{
+		if (!alloc->IsPersistentMap())
+		{
+			vmaUnmapMemory(m_allocator, alloc);
+		}
+	}
+	
+
+	void ResourceManagerVk::destroyBufferVk(VkBuffer buff, Allocation alloc)
+	{
+		vmaFreeMemory(m_allocator, alloc);
+		deferredDestroyVkResource(buff);
+	}
+
+	void ResourceManagerVk::destroyTextureVk(VkImage image, Allocation alloc)
+	{
+		vmaFreeMemory(m_allocator, alloc);
+		deferredDestroyVkResource(image);
+	}
+
 
 	ShaderModuleHandle ResourceManagerVk::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{

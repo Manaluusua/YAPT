@@ -25,7 +25,17 @@ namespace YAPT
 		0,
 		0 };
 
-	RCObjectPtr<ID3D12Resource> createCommittedBuffer(ID3D12Device& device, size_t size, D3D12_RESOURCE_FLAGS usageFlags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps)
+	/*RCObjectPtr<ID3D12Resource> createCommittedBuffer(ID3D12Device& device, size_t size, D3D12_RESOURCE_FLAGS usageFlags, D3D12_RESOURCE_STATES initState, const D3D12_HEAP_PROPERTIES& heapProps)
+	{
+		
+
+		RCObjectPtr<ID3D12Resource> buffer;
+
+		checkForDxError(device.CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, initState, nullptr, __uuidof(*buffer), buffer.asVoid()));
+		return buffer;
+	}*/
+
+	Allocation* createBuffer(ResourceManagerDx12& mngr, size_t size, D3D12_HEAP_TYPE heapType, D3D12_RESOURCE_FLAGS usageFlags, D3D12_RESOURCE_STATES initState, ID3D12Resource** resOut)
 	{
 		D3D12_RESOURCE_DESC resourceDesc = {};
 		resourceDesc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
@@ -40,10 +50,7 @@ namespace YAPT
 		resourceDesc.SampleDesc.Quality = 0;
 		resourceDesc.Width = size;
 
-		RCObjectPtr<ID3D12Resource> buffer;
-
-		checkForDxError(device.CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &resourceDesc, initState, nullptr, __uuidof(*buffer), buffer.asVoid()));
-		return buffer;
+		return mngr.allocate(resourceDesc, heapType, initState, nullptr, IID_PPV_ARGS(resOut));
 	}
 
 
@@ -125,11 +132,14 @@ namespace YAPT
 		for (size_t blasGroupIndex = 0; blasGroupIndex < numberOfDefinitions; ++blasGroupIndex)
 		{
 			const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& prebuildInfo = prebuildInfoList[blasGroupIndex];
-			RCPtr<ID3D12Resource> accStructureMemory = createCommittedBuffer(m_resourceMngr.getDevice(), prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, sDefaultHeapProps);
+			RCPtr<ID3D12Resource> accStructureMemory;
+			Allocation* alloc =  createBuffer(m_resourceMngr, prebuildInfo.ResultDataMaxSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, &accStructureMemory);
+
 			const BottomLevelAccelerationStructureDefinition& blasDefGroup = definitions[blasGroupIndex];
 			BottomLevelAccelerationStructureDx12* blasStruct = new BottomLevelAccelerationStructureDx12;
 			blasStruct->accelerationStructure = accStructureMemory;
 			blasStruct->definitions.assign(blasDefGroup.geometryDefinitions, blasDefGroup.geometryDefinitions + blasDefGroup.geometryDefinitionCount);
+			blasStruct->allocation = alloc;
 			blasArrayOut[blasGroupIndex] = blasStruct;
 		}
 
@@ -209,9 +219,11 @@ namespace YAPT
 
 		overallScrathSizeInBytes += D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT;
 
-		RCPtr<ID3D12Resource> scratch = createCommittedBuffer(m_resourceMngr.getDevice(), overallScrathSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, sDefaultHeapProps);
+		RCPtr<ID3D12Resource> scratch;
+		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, &scratch);
 		//for now just let go of scratch, should maybe pool the scratch memory
 		m_resourceMngr.addToPendingDestructionList(scratch.get());
+		m_resourceMngr.addToPendingDestructionList(alloc);
 
 		UINT64 scatchMemoryOffset = 0;
 
@@ -248,6 +260,7 @@ namespace YAPT
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
 			m_resourceMngr.addToPendingDestructionList(structures[i]->accelerationStructure.get());
+			m_resourceMngr.addToPendingDestructionList(structures[i]->allocation);
 			delete structures[i];
 		}
 	}
@@ -293,12 +306,15 @@ namespace YAPT
 		{
 			const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO& prebuildInfo = prebuildInfoList[tlasGroupIndex];
 			const TopLevelAccelerationStructureDefinition& tlasDefGroup = definitions[tlasGroupIndex];
-			RCPtr<ID3D12Resource> accStructureMemory = createCommittedBuffer(m_resourceMngr.getDevice(), prebuildInfo.ResultDataMaxSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, sDefaultHeapProps);
+
+			RCPtr<ID3D12Resource> accStructureMemory;
+			Allocation* alloc = createBuffer(m_resourceMngr, prebuildInfo.ResultDataMaxSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, &accStructureMemory);
 
 
 			TopLevelAccelerationStructureDx12* tlasStruct = new TopLevelAccelerationStructureDx12;
 			tlasStruct->accelerationStructure.resource = accStructureMemory;
 			tlasStruct->definitions.assign(tlasDefGroup.instanceDefinitions, tlasDefGroup.instanceDefinitions + tlasDefGroup.instanceDefinitionCount);
+			tlasStruct->allocation = alloc;
 
 			BufferViewDesc& bufferViewDesc = tlasStruct->accelerationStructure.desc;
 			bufferViewDesc.offsetInBytes = 0;
@@ -328,8 +344,12 @@ namespace YAPT
 
 		if (totalNumberOfinstanceDefinitions > 0)
 		{
-			RCPtr<ID3D12Resource> instanceData = createCommittedBuffer(m_resourceMngr.getDevice(), sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * totalNumberOfinstanceDefinitions, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, sUploadHeapProps);
+
+			RCPtr<ID3D12Resource> instanceData;
+			Allocation* alloc = createBuffer(m_resourceMngr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * totalNumberOfinstanceDefinitions, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, &instanceData);
+
 			m_resourceMngr.addToPendingDestructionList(instanceData);
+			m_resourceMngr.addToPendingDestructionList(alloc);
 
 			D3D12_RAYTRACING_INSTANCE_DESC* instanceDataDstPtr;
 			checkForDxError(instanceData->Map(0, nullptr, (void**)&instanceDataDstPtr));
@@ -382,11 +402,11 @@ namespace YAPT
 			m_resourceMngr.getDevice().GetRaytracingAccelerationStructurePrebuildInfo(accStructureInputs.data() + tlasGroupIndex, prebuildInfoList.data() + tlasGroupIndex);
 			overallScrathSizeInBytes += prebuildInfoList[tlasGroupIndex].ScratchDataSizeInBytes;
 		}
+		RCPtr<ID3D12Resource> scratch;
+		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, &scratch);
 
-		RCPtr<ID3D12Resource> scratch = createCommittedBuffer(m_resourceMngr.getDevice(), overallScrathSizeInBytes, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, sDefaultHeapProps);
-		//for now just let go of scratch, should maybe pool the scratch memory
 		m_resourceMngr.addToPendingDestructionList(scratch.get());
-		
+		m_resourceMngr.addToPendingDestructionList(alloc);
 		
 
 		UINT64 scratchMemoryOffset = 0;
@@ -434,6 +454,7 @@ namespace YAPT
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
 			m_resourceMngr.addToPendingDestructionList(structures[i]->accelerationStructure.resource.get());
+			m_resourceMngr.addToPendingDestructionList(structures[i]->allocation);
 			delete structures[i];
 		}
 	}
