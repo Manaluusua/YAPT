@@ -1,15 +1,12 @@
-import imageio as iio
-from pathlib import Path
-from yapt.texture_helper import TextureHelper
+
+from yapt.resources import Resources
 
 resources = yapt_instance.get_resources()
 
 
 #envmap
-env_map_path = Path("D:/Random/3DSampleAssets/EnvMaps/env_room_studio_bgra8.dds")
-env_map = iio.imread(str(env_map_path))
-print(f"Image shape: {env_map.shape}")
-print(f"Image data type: {env_map.dtype}")
+
+resources.load_texture_from_path("D:/Random/3DSampleAssets/EnvMaps/env_room_studio_bgra8.dds")
 
 #sphere
 

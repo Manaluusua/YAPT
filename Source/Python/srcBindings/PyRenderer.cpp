@@ -79,6 +79,15 @@ namespace YAPT
 	}
 
 
+	PyTexture* PyRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
+	{
+		return new PyTexture(m_renderer->createTexture(name, dimensions, format, resourceUsage, width, height, mips, depthOrSlices));
+	}
+	PyBuffer* PyRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
+	{
+		return new PyBuffer(m_renderer->createBuffer(name,  resourceUsage, size));
+	}
+
 	BINDING_FUNC(PyRenderer, m)
 	{
 		pybind11::class_<PyRenderer>(m, "Renderer")
@@ -88,7 +97,9 @@ namespace YAPT
 			.def("getRendererVariable", &PyRenderer::getRendererVariable)
 			.def("getAllRendererVariableNames", &PyRenderer::getAllRendererVariableNames)
 			.def("setRenderOutputToSurface", &PyRenderer::setRenderOutputToSurface)
-			.def("resetRenderOutput", &PyRenderer::resetRenderOutput);
+			.def("resetRenderOutput", &PyRenderer::resetRenderOutput)
+			.def("createTexture", &PyRenderer::createTexture)
+			.def("createBuffer", &PyRenderer::createBuffer);
 	
 	}
 }

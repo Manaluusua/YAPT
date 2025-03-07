@@ -90,7 +90,7 @@ namespace YAPT
             .value("BC7_UNORM_SRGB", ResourceFormat::BC7_UNORM_SRGB);
 
 
-        pybind11::enum_<ResourceUsageBits>(m, "ResourceUsageBits")
+        pybind11::enum_<ResourceUsageBits>(m, "ResourceUsageBits", pybind11::arithmetic())
             .value("UNKNOWN", RESOURCE_USAGE_UNKNOWN)
             .value("COPY_DESTINATION", RESOURCE_USAGE_COPY_DESTINATION)
             .value("COPY_SOURCE", RESOURCE_USAGE_COPY_SOURCE)

@@ -28,7 +28,8 @@ namespace YAPT
 		void setRenderOutputToSurface(size_t width, size_t height, uintptr_t windowHandle);
 		void resetRenderOutput();
 
-		
+		PyTexture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1);
+		PyBuffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size);
 
 		PyRendererVar getRendererVariable(const char* varName);
 		std::vector<const char*> getAllRendererVariableNames();
