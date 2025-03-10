@@ -5,7 +5,7 @@ from yapt.camera_controller import CameraController
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QDateTime
 import sys
-
+import gc
 
 class Application:
     def __init__(self):
@@ -42,6 +42,10 @@ class Application:
             return
 
         self._timer.stop() #hammertime
+        self._resources.clear()
+        self._resources = None
+        gc.collect()
+
         self._renderer.resetRenderOutput()
         self._scene.shutdown()
         self._renderer.shutdown()

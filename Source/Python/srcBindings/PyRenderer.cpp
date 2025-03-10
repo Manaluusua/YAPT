@@ -86,7 +86,9 @@ namespace YAPT
 		{
 			tex->setName(name);
 		}
-		return new PyTexture(tex);
+		PyTexture* pytex =  new PyTexture(tex);
+		tex->Release();
+		return pytex;
 	}
 	PyBuffer* PyRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
 	{
@@ -95,7 +97,9 @@ namespace YAPT
 		{
 			buff->setName(name);
 		}
-		return new PyBuffer(buff);
+		PyBuffer* pybuf =  new PyBuffer(buff);
+		buff->Release();
+		return pybuf;
 	}
 
 	BINDING_FUNC(PyRenderer, m)

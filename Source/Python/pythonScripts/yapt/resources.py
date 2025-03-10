@@ -13,6 +13,10 @@ class Resources:
         self._textures = {}
         self._meshes = {}
 
+    def clear(self):
+        self._textures = None
+        self._meshes = None
+
     def load_texture_from_path(self, tex_path, verbose = False):
         path = Path(tex_path)
         path_str = str(path)
