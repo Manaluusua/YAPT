@@ -12,6 +12,8 @@ namespace YAPT
 	public:
 		virtual void upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, const TextureDataDefinition* textureDataDefinitions) = 0;
 		virtual const TextureDesc& getDesc() const = 0;
+		virtual void setName(const char* name) = 0;
+		virtual const char* getName() const = 0;
 	protected:
 		virtual ~Texture() {}
 	};

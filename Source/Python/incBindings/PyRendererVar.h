@@ -4,6 +4,8 @@
 
 namespace YAPT
 {
+    class PyTexture;
+    class PyBuffer;
 	class PyRendererVar
 	{
 	public:
@@ -24,8 +26,8 @@ namespace YAPT
         void set(const ivec3p& val);
         void set(const ivec4p& val);
 
-        void set(const RCPtr<Texture>& val);
-        void set(const RCPtr<Buffer>& val);
+        void set(const PyTexture& val);
+        void set(const PyBuffer& val);
 
         bool get(float& val);
         bool get(uint32_t& val);

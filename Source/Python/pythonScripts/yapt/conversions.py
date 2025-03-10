@@ -70,9 +70,9 @@ class ConvUtility:
         if depth > 1:
             dim = ResourceDimension.TEXTURE_3D
         else:
-            if width == 6*height or height == 6 * width:
-                dim = ResourceDimension.TEXTURE_CUBEMAP
-            elif height == 1:
+            #if width == 6*height or height == 6 * width:
+            #    dim = ResourceDimension.TEXTURE_CUBEMAP
+            if height == 1:
                 dim = ResourceDimension.TEXTURE_1D
             else:
                 dim = ResourceDimension.TEXTURE_2D

@@ -13,12 +13,13 @@ namespace YAPT
 		PyTexture(Texture* buffer);
 		~PyTexture();
 
-		void upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, const void* data);
-		void memoryAllocated();
+		void upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, uintptr_t data);
+		const char* getName() const;
 
+		const RCObjectPtr<Texture>& getTexture() const { return m_texture; }
 	private:
 		RCObjectPtr<Texture> m_texture;
-		bool m_memoryAllocated;
+
 
 	};
 }

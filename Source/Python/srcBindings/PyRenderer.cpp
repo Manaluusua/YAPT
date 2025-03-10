@@ -81,11 +81,21 @@ namespace YAPT
 
 	PyTexture* PyRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
 	{
-		return new PyTexture(m_renderer->createTexture(name, dimensions, format, resourceUsage, width, height, mips, depthOrSlices));
+		Texture* tex = m_renderer->createTexture(name, dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
+		if (name != nullptr)
+		{
+			tex->setName(name);
+		}
+		return new PyTexture(tex);
 	}
 	PyBuffer* PyRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
 	{
-		return new PyBuffer(m_renderer->createBuffer(name,  resourceUsage, size));
+		Buffer* buff = m_renderer->createBuffer(name, resourceUsage, size);
+		if (name != nullptr)
+		{
+			buff->setName(name);
+		}
+		return new PyBuffer(buff);
 	}
 
 	BINDING_FUNC(PyRenderer, m)

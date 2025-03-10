@@ -5,8 +5,7 @@ namespace YAPT
 	DEFINE_BINDING_CLASS(PyBuffer)
 
 	PyBuffer::PyBuffer(Buffer* buffer)
-		:m_buffer(buffer),
-		m_memoryAllocated(false)
+		:m_buffer(buffer)
 	{
 	}
 	PyBuffer::~PyBuffer()
@@ -18,14 +17,16 @@ namespace YAPT
 	{
 
 	}
-	void PyBuffer::memoryAllocated()
+
+	const char* PyBuffer::getName() const
 	{
-		m_memoryAllocated = true;
+		return m_buffer->getName();
 	}
 
 	BINDING_FUNC(PyBuffer, m)
 	{
 		pybind11::class_<PyBuffer>(m, "Buffer")
-			.def("upload", &PyBuffer::upload);
+			.def("upload", &PyBuffer::upload)
+			.def("getName", &PyBuffer::getName);
 	}
 }

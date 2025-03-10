@@ -5,8 +5,7 @@ namespace YAPT
 	DEFINE_BINDING_CLASS(PyTexture)
 
 	PyTexture::PyTexture(Texture* t)
-		:m_texture(t),
-		m_memoryAllocated(false)
+		:m_texture(t)
 	{
 	}
 	PyTexture::~PyTexture()
@@ -14,19 +13,24 @@ namespace YAPT
 		m_texture = nullptr;
 	}
 
-	void PyTexture::upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, const void* data)
+	void PyTexture::upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, uintptr_t data)
 	{
-
+		void* ptr = reinterpret_cast<void*>(data);
+		TextureDataDefinition def;
+		def.data = ptr;
+		def.rowPitchInBytes = rowPitchInBytes;
+		m_texture->upload(mipOffset, arrayOffset, mipCount, arrayCount, &def);
 	}
 
-	void PyTexture::memoryAllocated()
+	const char* PyTexture::getName() const
 	{
-		m_memoryAllocated = true;
+		return m_texture->getName();
 	}
 
 	BINDING_FUNC(PyTexture, m)
 	{
 		pybind11::class_<PyTexture>(m, "Texture")
-			.def("upload", &PyTexture::upload);
+			.def("upload", &PyTexture::upload)
+			.def("getName", &PyTexture::getName);
 	}
 }

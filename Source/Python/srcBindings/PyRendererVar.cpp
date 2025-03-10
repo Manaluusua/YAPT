@@ -1,5 +1,8 @@
 #include <PyRendererVar.h>
 
+#include <PyTexture.h>
+#include <PyBuffer.h>
+
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyRendererVar);
@@ -26,8 +29,8 @@ namespace YAPT
     void PyRendererVar::set(const ivec3p& val) { m_rendererVar->set(val); }
     void PyRendererVar::set(const ivec4p& val) { m_rendererVar->set(val); }
 
-    void PyRendererVar::set(const RCPtr<Texture>& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const RCPtr<Buffer>& val) { m_rendererVar->set(val); }
+    void PyRendererVar::set(const PyTexture& val) { m_rendererVar->set(val.getTexture()); }
+    void PyRendererVar::set(const PyBuffer& val) { m_rendererVar->set(val.getBuffer()); }
 
     bool PyRendererVar::get(float& val) { return m_rendererVar->get(val); }
     bool PyRendererVar::get(uint32_t& val) { return m_rendererVar->get(val); }
@@ -86,8 +89,8 @@ namespace YAPT
             .def("set", pybind11::overload_cast<const ivec2p&>(&PyRendererVar::set))
             .def("set", pybind11::overload_cast<const ivec3p&>(&PyRendererVar::set))
             .def("set", pybind11::overload_cast<const ivec4p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const RCPtr<Texture>&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const RCPtr<Buffer>&>(&PyRendererVar::set))
+            .def("set", pybind11::overload_cast<const PyTexture&>(&PyRendererVar::set))
+            .def("set", pybind11::overload_cast<const PyBuffer&>(&PyRendererVar::set))
 
             .def("get", [](PyRendererVar& self, float& val) { return self.get(val); })
             .def("get", [](PyRendererVar& self, uint32_t& val) { return self.get(val); })
@@ -98,8 +101,8 @@ namespace YAPT
             .def("get", [](PyRendererVar& self, ivec2p& val) { return self.get(val); })
             .def("get", [](PyRendererVar& self, ivec3p& val) { return self.get(val); })
             .def("get", [](PyRendererVar& self, ivec4p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, RCPtr<Texture>& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, RCPtr<Buffer>& val) { return self.get(val); })
+            //.def("get", [](PyRendererVar& self, RCPtr<Texture>& val) { return self.get(val); })
+            //.def("get", [](PyRendererVar& self, RCPtr<Buffer>& val) { return self.get(val); })
 
             .def("getLimits", [](PyRendererVar& self, float& min, float& max) { return self.getLimits(min, max); })
             .def("getLimits", [](PyRendererVar& self, uint32_t& min, uint32_t& max) { return self.getLimits(min, max); })

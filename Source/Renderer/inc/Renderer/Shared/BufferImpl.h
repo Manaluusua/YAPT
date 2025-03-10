@@ -17,6 +17,9 @@ namespace YAPT
 		void upload(size_t offsetInBytes, size_t sizeInBytes, const void* data);
 		virtual const BufferDesc& getDesc() const { return m_desc; }
 
+		virtual void setName(const char* name) { m_name = name; };
+		virtual const char* getName() const { return m_name.c_str(); }
+
 		void setResourceHandle(BufferHandle bufferHandle);
 		BufferHandle getResourceHandle() const;
 
@@ -28,6 +31,7 @@ namespace YAPT
 		BufferDesc m_desc;
 		BufferHandle m_bufferHandle;
 		uint32_t m_bindlessArrayIndex;
+		std::string m_name;
 	};
 }
 

@@ -77,6 +77,7 @@ namespace YAPT
 	{
 		//calculate required memory
 		size_t memoryRequiredInBytes = 0;
+		size_t texelBlockSize = getTexelBlockSize(resourceDesc.format);
 		{
 			uint32_t width = resourceDesc.extent.width;
 			uint32_t height = resourceDesc.extent.height;
@@ -91,7 +92,7 @@ namespace YAPT
 			for (size_t mipLevel = 0; mipLevel < mipCount; ++mipLevel)
 			{
 				size_t mipSize = textureDataDefinitions[mipLevel].rowPitchInBytes * height * depth;
-				memoryRequiredInBytes += mipSize;
+				memoryRequiredInBytes += mipSize + texelBlockSize;
 
 				width = max(1u, width >> 1);
 				height = max(1u, height >> 1);
@@ -117,7 +118,7 @@ namespace YAPT
 		info->dstImage = image;
 		info->srcBuffer = uploadInfo.uploadBuffer;
 		info->copyDescs.resize(arraySliceCount * mipCount);
-		size_t currentUploadBufferOffset = uploadInfo.offsetToHeap;
+		size_t currentUploadBufferOffset = align(uploadInfo.offsetToHeap, texelBlockSize);
 		size_t mappedBufferOffset = 0;
 
 		for (size_t arraySlice = 0; arraySlice < arraySliceCount; ++arraySlice)
@@ -151,8 +152,11 @@ namespace YAPT
 				width = max(1u, width >> 1);
 				height = max(1u, height >> 1);
 				depth = max(1u, depth >> 1);
-				currentUploadBufferOffset += copySize;
-				mappedBufferOffset += copySize;
+
+				size_t nextBatchOffset = align(copySize, texelBlockSize);
+
+				currentUploadBufferOffset += nextBatchOffset;
+				mappedBufferOffset += nextBatchOffset;
 			}
 		}
 
