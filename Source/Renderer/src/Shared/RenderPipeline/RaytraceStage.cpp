@@ -154,7 +154,10 @@ namespace YAPT
 	}
 	bool RaytraceStage::hasSceneChanged()
 	{
-		return getRenderer()->getMaterialManager().hasChanges() || getRenderer()->getMeshManager().hasChanges() || getRenderer()->getRenderObjectManager().hasChanges();
+		bool objectsChanged =  getRenderer()->getMaterialManager().hasChanges() || getRenderer()->getMeshManager().hasChanges() || getRenderer()->getRenderObjectManager().hasChanges();
+		bool skymapChanged = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX) != m_lastEnvMap;
+		
+		return objectsChanged || skymapChanged;
 	}
 
 	void RaytraceStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)

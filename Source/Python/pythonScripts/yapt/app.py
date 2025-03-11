@@ -64,11 +64,11 @@ class Application:
     def refresh_swapchain(self):
         
         render_widget = self._main_window.get_render_area_widget()
-        render_res = ivec2([render_widget.width(), render_widget.height()]);
+        render_res = [render_widget.width(), render_widget.height()];
 
-        self._renderer.setRenderOutputToSurface(render_res.x, render_res.y, render_widget.winId())
-        self._renderer.getRendererVariable("Generic.RenderResolution").set(render_res)
-        self._cam.set_aspect(float(render_res.x) / render_res.y);
+        self._renderer.setRenderOutputToSurface(*render_res, render_widget.winId())
+        self._renderer.getRendererVariable("Generic.RenderResolution").setFromIntArray(render_res)
+        self._cam.set_aspect(float(render_res[0]) / render_res[1]);
         self._sc_ready = True
 
 

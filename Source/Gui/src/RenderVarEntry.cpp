@@ -26,12 +26,6 @@ namespace YAPT
 			m_layout->addWidget(wrapper);
 		}
 		break;
-		case YAPT::RendererVariableType::UINT:
-		{
-			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<uint32_t, 1, uint32_t, YAPT::RendererVariableType::UINT>(this, renderVar);
-			m_layout->addWidget(wrapper);
-		}
-		break;
 		case YAPT::RendererVariableType::INT:
 		{
 			RenderVarWrapper* wrapper = new ConcreteRenderVarWrapper<int32_t, 1, int32_t, YAPT::RendererVariableType::INT>(this, renderVar);

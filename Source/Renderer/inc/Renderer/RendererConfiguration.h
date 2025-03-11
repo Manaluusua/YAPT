@@ -11,7 +11,6 @@ namespace YAPT
 	enum class RendererVariableType
 	{
 		FLOAT,
-		UINT,
 		INT,
 
 		VEC2,
@@ -28,7 +27,6 @@ namespace YAPT
 	{
 	public:
 		virtual void set(const float& val) = 0;
-		virtual void set(const uint32_t& val) = 0;
 		virtual void set(const int32_t& val) = 0;
 
 		virtual void set(const vec2p& val) = 0;
@@ -44,7 +42,6 @@ namespace YAPT
 
 
 		virtual bool get(float& val) = 0;
-		virtual bool get(uint32_t& val) = 0;
 		virtual bool get(int32_t& val) = 0;
 					 
 		virtual bool get(vec2p& val) = 0;
@@ -59,7 +56,6 @@ namespace YAPT
 		virtual bool get(RCPtr<Buffer>& val) = 0;
 
 		virtual bool getLimits(float& min, float& max) = 0;
-		virtual bool getLimits(uint32_t& min, uint32_t& max) = 0;
 		virtual bool getLimits(int32_t& min, int32_t& max) = 0;
 
 		virtual bool getLimits(vec2p& min, vec2p& max) = 0;

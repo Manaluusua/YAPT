@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QFileDialog, QVBoxLayout
 from PySide6.QtGui import QAction, QPalette, QColor
-from yapt.yapt_renderer_vars_window import RendererVarsWindow
+from yapt.renderer_vars_window import RendererVarsWindow
 import os
 from pathlib import Path
 

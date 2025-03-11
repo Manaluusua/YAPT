@@ -13,11 +13,11 @@ namespace YAPT
 		m_texture = nullptr;
 	}
 
-	void PyTexture::upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, uintptr_t data)
+	void PyTexture::upload(uint32_t mipOffset, uint32_t arrayOffset, uint32_t mipCount, uint32_t arrayCount, size_t rowPitchInBytes, uintptr_t data, size_t dataPtrOffset)
 	{
-		void* ptr = reinterpret_cast<void*>(data);
+		char* ptr = reinterpret_cast<char*>(data);
 		TextureDataDefinition def;
-		def.data = ptr;
+		def.data = ptr + dataPtrOffset;
 		def.rowPitchInBytes = rowPitchInBytes;
 		m_texture->upload(mipOffset, arrayOffset, mipCount, arrayCount, &def);
 	}

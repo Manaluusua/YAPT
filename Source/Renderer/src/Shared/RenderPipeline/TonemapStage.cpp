@@ -34,7 +34,7 @@ namespace YAPT
 		float mid = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_MID);
 		float shoulder = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_SHOULDER);
 
-		uint32_t enableAutoExposure = config.getRendererVarValueInternal<uint32_t>(RVARNAME_TONEMAP_USE_AUTOEXPOSURE);
+		int32_t enableAutoExposure = config.getRendererVarValueInternal<int32_t>(RVARNAME_TONEMAP_USE_AUTOEXPOSURE);
 		float manualExposure = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_MANUALEXPOSURE);
 		float eyeAdaptSpeed = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_EYE_ADAPT_SPEED);
 		float exposureCompensation = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_EXPOSURE_COMPENSATION);

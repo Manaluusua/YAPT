@@ -92,9 +92,6 @@ namespace YAPT
 			case YAPT::RendererVariableType::FLOAT:
 				retVal = new CRendererVariable<float, RendererVariableType::FLOAT>(this);
 				break;
-			case YAPT::RendererVariableType::UINT:
-				retVal = new CRendererVariable<uint32_t, RendererVariableType::UINT>(this);
-				break;
 			case YAPT::RendererVariableType::INT:
 				retVal = new CRendererVariable<int32_t, RendererVariableType::INT>(this);
 				break;

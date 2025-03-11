@@ -41,21 +41,27 @@ class Resources:
         tex = None
         try:
             width, height, depth = spec.width, spec.height, spec.depth
-            mips = 1
+            mips = 1 #TODO support
             dim = ConvUtility.oiio_spec_to_dimension(spec, verbose)
             form = ConvUtility.oiio_spec_to_format(spec, verbose)
             row_pitch = spec.scanline_bytes() 
             
-            data = image.read_image(format=oiio.UNKNOWN)
-
-            adjusted_height = height
-            if(dim == ResourceDimension.TEXTURE_CUBEMAP and width == int(height / 6)):
-                adjusted_height = int(height / 6)
-                depth = 6
+            if(dim == ResourceDimension.TEXTURE_CUBEMAP):
+                side_w, side_h = width, int(height/6)
+                tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, side_w, side_h, mips, 6)
+                data = image.read_image(format=oiio.UNKNOWN)
+                bpp = spec.pixel_bytes()
+                slice_size = side_w * side_h * bpp
+                for i in range(6):
+                    ptr = data.ctypes.data
+                    tex.upload(0, i, mips, 1, row_pitch, ptr, int(slice_size * i))
+            else:
                 
-            tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, adjusted_height, mips, depth)
-            ptr = data.ctypes.data
-            tex.upload(0, 0, mips, 1, row_pitch, ptr)
+                tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, mips, depth)
+                data = image.read_image(format=oiio.UNKNOWN)
+                ptr = data.ctypes.data
+                tex.upload(0, 0, mips, depth, row_pitch, ptr)
+
         except Exception as e:
             print(f"failed to load {path_str}, {e}")
             return None

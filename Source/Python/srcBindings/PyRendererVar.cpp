@@ -3,9 +3,25 @@
 #include <PyTexture.h>
 #include <PyBuffer.h>
 
+#include <pybind11/stl.h>
+
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyRendererVar);
+
+    template<typename VecType>
+    std::vector<typename VecType::value_type> asVector(VecType v)
+    {
+        std::vector<typename VecType::value_type> vec;
+        vec.reserve(v.length());
+        for (size_t i = 0; i < v.length(); ++i)
+        {
+            vec.push_back(glm::value_ptr(v)[i]);
+        }
+        return vec;
+        
+    }
+
 
 	PyRendererVar::PyRendererVar(RendererVariable* var)
         :m_rendererVar(var)
@@ -17,47 +33,269 @@ namespace YAPT
 
 	}
 
-    void PyRendererVar::set(const float& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const uint32_t& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const int32_t& val) { m_rendererVar->set(val); }
+    void PyRendererVar::setFromFloatArray(std::vector<float> floats)
+    {
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::FLOAT:
+            if (floats.size() > 0)
+            {
+                m_rendererVar->set(floats[0]);
+            }
+            break;
+        case RendererVariableType::VEC2:
+            if (floats.size() > 1)
+            {
+                m_rendererVar->set(vec2p(floats[0], floats[1]));
+            }
+            break;
+        case RendererVariableType::VEC3:
+            if (floats.size() > 2)
+            {
+                m_rendererVar->set(vec3p(floats[0], floats[1], floats[2]));
+            }
+            break;
+        case RendererVariableType::VEC4:
+            if (floats.size() > 3)
+            {
+                m_rendererVar->set(vec4p(floats[0], floats[1], floats[2], floats[3]));
+            }
+            break;
 
-    void PyRendererVar::set(const vec2p& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const vec3p& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const vec4p& val) { m_rendererVar->set(val); }
+        default:
+            //report error? silent fail for now
+            break;
+        }
+    }
+    void PyRendererVar::setFromIntArray(std::vector<int32_t> ints)
+    {
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::INT:
+            if (ints.size() > 0)
+            {
+                m_rendererVar->set(ints[0]);
+            }
+            break;
+        case RendererVariableType::IVEC2:
+            if (ints.size() > 1)
+            {
+                m_rendererVar->set(ivec2p(ints[0], ints[1]));
+            }
+            break;
+        case RendererVariableType::IVEC3:
+            if (ints.size() > 2)
+            {
+                m_rendererVar->set(ivec3p(ints[0], ints[1], ints[2]));
+            }
+            break;
+        case RendererVariableType::IVEC4:
+            if (ints.size() > 3)
+            {
+                m_rendererVar->set(ivec4p(ints[0], ints[1], ints[2], ints[3]));
+            }
+            break;
 
-    void PyRendererVar::set(const ivec2p& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const ivec3p& val) { m_rendererVar->set(val); }
-    void PyRendererVar::set(const ivec4p& val) { m_rendererVar->set(val); }
+        default:
+            //report error? silent fail for now
+            break;
+        }
 
-    void PyRendererVar::set(const PyTexture& val) { m_rendererVar->set(val.getTexture()); }
-    void PyRendererVar::set(const PyBuffer& val) { m_rendererVar->set(val.getBuffer()); }
+    }
 
-    bool PyRendererVar::get(float& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(uint32_t& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(int32_t& val) { return m_rendererVar->get(val); }
+    void PyRendererVar::setTexture(const PyTexture& val)
+    {
+        m_rendererVar->set(val.getTexture());
+    }
+    void PyRendererVar::setBuffer(const PyBuffer& val)
+    {
+        m_rendererVar->set(val.getBuffer());
+    }
 
-    bool PyRendererVar::get(vec2p& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(vec3p& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(vec4p& val) { return m_rendererVar->get(val); }
+    std::vector<float> PyRendererVar::getAsFloatArray()
+    {
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::FLOAT:
+        {
+            float val;
+            m_rendererVar->get(val);
+            return std::vector{ val };
+            break;
+        }
+        case RendererVariableType::VEC2:
+        {
+            vec2p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        case RendererVariableType::VEC3:
+        {
+            vec3p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        case RendererVariableType::VEC4:
+        {
+            vec4p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        default:
+            //report error? silent fail for now
+            break;
+        }
+        return std::vector<float>();
+    }
+    std::vector<int32_t> PyRendererVar::getAsIntArray()
+    {
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::INT:
+        {
+            int32_t val;
+            m_rendererVar->get(val);
+            return std::vector{ val };
+            break;
+        }
+        case RendererVariableType::IVEC2:
+        {
+            ivec2p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        case RendererVariableType::IVEC3:
+        {
+            ivec3p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        case RendererVariableType::IVEC4:
+        {
+            ivec4p val;
+            m_rendererVar->get(val);
+            return asVector(val);
+            break;
+        }
+        default:
+            //report error? silent fail for now
+            break;
+        }
+        return std::vector<int32_t>();
+    }
 
-    bool PyRendererVar::get(ivec2p& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(ivec3p& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(ivec4p& val) { return m_rendererVar->get(val); }
+    PyTexture* PyRendererVar::getTexture()
+    {
+        RCPtr<Texture> tex;
+        m_rendererVar->get(tex);
+        if (tex != nullptr)
+        {
+            return new PyTexture(tex);
+        }
+        return nullptr;
+    }
+    PyBuffer* PyRendererVar::getBuffer()
+    {
+        RCPtr<Buffer> b;
+        m_rendererVar->get(b);
+        if (b != nullptr)
+        {
+            return new PyBuffer(b);
+        }
+        return nullptr;
+    }
 
-    bool PyRendererVar::get(RCPtr<Texture>& val) { return m_rendererVar->get(val); }
-    bool PyRendererVar::get(RCPtr<Buffer>& val) { return m_rendererVar->get(val); }
-
-    bool PyRendererVar::getLimits(float& min, float& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(uint32_t& min, uint32_t& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(int32_t& min, int32_t& max) { return m_rendererVar->getLimits(min, max); }
-
-    bool PyRendererVar::getLimits(vec2p& min, vec2p& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(vec3p& min, vec3p& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(vec4p& min, vec4p& max) { return m_rendererVar->getLimits(min, max); }
-
-    bool PyRendererVar::getLimits(ivec2p& min, ivec2p& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(ivec3p& min, ivec3p& max) { return m_rendererVar->getLimits(min, max); }
-    bool PyRendererVar::getLimits(ivec4p& min, ivec4p& max) { return m_rendererVar->getLimits(min, max); }
+    std::array<std::vector<float>, 2> PyRendererVar::getLimitsFloat()
+    {
+        std::array<std::vector<float>, 2> limits;
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::FLOAT:
+        {
+            float val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = std::vector{ val0 };
+            limits[1] = std::vector{ val1 };
+            break;
+        }
+        case RendererVariableType::IVEC2:
+        {
+            vec2p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        case RendererVariableType::IVEC3:
+        {
+            vec3p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        case RendererVariableType::IVEC4:
+        {
+            vec4p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        default:
+            //report error? silent fail for now
+            break;
+        }
+        return limits;
+    }
+    std::array<std::vector<int>, 2> PyRendererVar::getLimitsInt()
+    {
+        std::array<std::vector<int>, 2> limits;
+        switch (m_rendererVar->getType())
+        {
+        case RendererVariableType::INT:
+        {
+            int32_t val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = std::vector{ val0 };
+            limits[1] = std::vector{ val1 };
+            break;
+        }
+        case RendererVariableType::IVEC2:
+        {
+            ivec2p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        case RendererVariableType::IVEC3:
+        {
+            ivec3p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        case RendererVariableType::IVEC4:
+        {
+            ivec4p val0, val1;
+            m_rendererVar->getLimits(val0, val1);
+            limits[0] = asVector(val0);
+            limits[1] = asVector(val1);
+            break;
+        }
+        default:
+            //report error? silent fail for now
+            break;
+        }
+        return limits;
+    }
 
     RendererVariableType PyRendererVar::getType() const { return m_rendererVar->getType(); }
 
@@ -68,7 +306,6 @@ namespace YAPT
 
         pybind11::enum_<RendererVariableType>(m, "RendererVariableType")
             .value("FLOAT", RendererVariableType::FLOAT)
-            .value("UINT", RendererVariableType::UINT)
             .value("INT", RendererVariableType::INT)
             .value("VEC2", RendererVariableType::VEC2)
             .value("VEC3", RendererVariableType::VEC3)
@@ -80,39 +317,18 @@ namespace YAPT
             .value("BUFFER", RendererVariableType::BUFFER);
 
         pybind11::class_<PyRendererVar>(m, "RendererVariable")
-            .def("set", pybind11::overload_cast<const float&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const uint32_t&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const int32_t&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const vec2p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const vec3p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const vec4p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const ivec2p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const ivec3p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const ivec4p&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const PyTexture&>(&PyRendererVar::set))
-            .def("set", pybind11::overload_cast<const PyBuffer&>(&PyRendererVar::set))
+            .def("setFromFloatArray", &PyRendererVar::setFromFloatArray)
+            .def("setFromIntArray", &PyRendererVar::setFromIntArray)
+            .def("setTexture", &PyRendererVar::setTexture)
+            .def("setBuffer", &PyRendererVar::setBuffer)
 
-            .def("get", [](PyRendererVar& self, float& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, uint32_t& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, int32_t& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, vec2p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, vec3p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, vec4p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, ivec2p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, ivec3p& val) { return self.get(val); })
-            .def("get", [](PyRendererVar& self, ivec4p& val) { return self.get(val); })
-            //.def("get", [](PyRendererVar& self, RCPtr<Texture>& val) { return self.get(val); })
-            //.def("get", [](PyRendererVar& self, RCPtr<Buffer>& val) { return self.get(val); })
+            .def("getAsFloatArray", &PyRendererVar::getAsFloatArray)
+            .def("getAsIntArray", &PyRendererVar::getAsIntArray)
+            .def("getTexture", &PyRendererVar::getTexture)
+            .def("getBuffer", &PyRendererVar::getBuffer)
 
-            .def("getLimits", [](PyRendererVar& self, float& min, float& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, uint32_t& min, uint32_t& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, int32_t& min, int32_t& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, vec2p& min, vec2p& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, vec3p& min, vec3p& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, vec4p& min, vec4p& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, ivec2p& min, ivec2p& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, ivec3p& min, ivec3p& max) { return self.getLimits(min, max); })
-            .def("getLimits", [](PyRendererVar& self, ivec4p& min, ivec4p& max) { return self.getLimits(min, max); })
+            .def("getLimitsFloat", &PyRendererVar::getLimitsFloat)
+            .def("getLimitsInt", &PyRendererVar::getLimitsInt)
 
             .def("getType", &PyRendererVar::getType);
 
