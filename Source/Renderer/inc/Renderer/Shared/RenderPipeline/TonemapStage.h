@@ -4,7 +4,6 @@
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <Gfx/RenderGraph/ComputeNode.h>
-#include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 
 namespace YAPT
@@ -72,8 +71,6 @@ namespace YAPT
 		void executePrepareTonemapData(const RenderGraphNodeExecutionContext& execContext);
 		void executeTonemapping(const RenderGraphNodeExecutionContext& execContext);
 
-		DeferredRenderGraphBindingUtility m_bindingsUtility;
-		
 		FixedSizeGpuBufferHelper<TonemapConstants> m_tonemapConstants;
 
 		ComputeNode* m_generateHistogramNode;

@@ -133,7 +133,7 @@ namespace YAPT
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_ColorClear, true);
 			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Mesh Debug Stage Color Target");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_colorTarget);
+			getGraph()->setRenderGraphResourceTexture(renderTargetResId, m_colorTarget);
 		}
 
 		//depth
@@ -144,7 +144,7 @@ namespace YAPT
 			TextureDesc depthDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_DepthClear, true);
 
 			m_depthTarget = data.resolutionDependantResourcesPool->requestTexture(depthDesc, "Mesh Debug Stage Depth Target");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_depthTarget);
+			getGraph()->setRenderGraphResourceTexture(renderTargetResId, m_depthTarget);
 		}
 
 
@@ -161,8 +161,6 @@ namespace YAPT
 
 	void MeshDebugStage::prepare(const PrepareData& cntx)
 	{
-		m_bindingsUtility.flushDeferredRenderGraphResourceBindings(getGraph());
-
 
 
 	}

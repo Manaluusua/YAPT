@@ -126,7 +126,7 @@ namespace YAPT
 
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_resolveTargetWidth, m_resolveTargetHeight, 1, 1);
 			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(rtTarget, rtTargetTex);
+			getGraph()->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
 		}
 		
 
@@ -140,8 +140,7 @@ namespace YAPT
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_resolveTargetWidth, m_resolveTargetHeight, 1, 1);
 			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "merged RT result");
-
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(resId, tex);
+			getGraph()->setRenderGraphResourceTexture(resId, tex);
 		}
 
 		clearAccumulatedFrames();
@@ -494,7 +493,7 @@ namespace YAPT
 
 	void RaytraceStage::prepare(const PrepareData& cntx)
 	{
-		m_bindingsUtility.flushDeferredRenderGraphResourceBindings(getGraph());
+
 	}
 	void RaytraceStage::update(const UpdateData& cntx)
 	{

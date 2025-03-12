@@ -3,7 +3,6 @@
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
 #include <Gfx/RenderGraph/RenderNode.h>
-#include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/MeshInternal.h>
 #include <Renderer/Shared/RenderObjectManager.h>
@@ -50,10 +49,6 @@ namespace YAPT
 		void execute(const RenderGraphNodeExecutionContext& execContext);
 
 		void assignToPSOBucket(MeshInternal* mesh, RenderObjectManager::RenderData& data);
-
-
-		DeferredRenderGraphBindingUtility m_bindingsUtility;
-		
 
 		RenderNode* m_renderMeshesNode;
 

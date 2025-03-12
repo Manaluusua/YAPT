@@ -5,7 +5,6 @@
 #include <Gfx/RenderGraph/RaytraceNode.h>
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <Gfx/RenderGraph/GenericExecuteNode.h>
-#include <Renderer/Shared/RenderPipeline/RenderStageUtilities.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/AccelerationStructureHelper.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
@@ -168,8 +167,6 @@ namespace YAPT
 
 		uint32_t m_framesAccumulated;
 		uint32_t m_raysPerFrameDivisor;
-
-		DeferredRenderGraphBindingUtility m_bindingsUtility;
 
 		Texture* m_lastEnvMap;
 

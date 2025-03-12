@@ -208,7 +208,7 @@ namespace YAPT
 
 			BufferDesc histogramBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(uint32_t) * HISTOGRAM_BUCKETS_COUNT);
 			m_histogramBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramBufferDesc, "Luminance Histogram Buffer");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramBufferId, m_histogramBuffer);
+			getGraph()->setRenderGraphResourceBuffer(histogramBufferId, m_histogramBuffer);
 		}
 		
 		{
@@ -216,7 +216,7 @@ namespace YAPT
 
 			BufferDesc histogramResultBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(LuminanceHistogramAnalysisResults));
 			m_luminanceAnalysisResultsBuffer = data.renderGraphLifetimeResources->requestBuffer(histogramResultBufferDesc, "Luminance Info Buffer");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(histogramResultId, m_luminanceAnalysisResultsBuffer);
+			getGraph()->setRenderGraphResourceBuffer(histogramResultId, m_luminanceAnalysisResultsBuffer);
 		}
 
 		{
@@ -224,7 +224,7 @@ namespace YAPT
 
 			BufferDesc exposureInfoBufferDesc(RESOURCE_USAGE_STORAGE_BUFFER, sizeof(ExposureInfo));
 			m_exposureInfo = data.renderGraphLifetimeResources->requestBuffer(exposureInfoBufferDesc, "Exposure Info");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(prepareDataId, m_exposureInfo);
+			getGraph()->setRenderGraphResourceBuffer(prepareDataId, m_exposureInfo);
 		}
 
 		
@@ -261,7 +261,7 @@ namespace YAPT
 		{
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1);
 			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "LDR Color Target");
-			m_bindingsUtility.setDeferredRenderGraphResourceBinding(renderTargetResId, m_colorTarget);
+			getGraph()->setRenderGraphResourceTexture(renderTargetResId, m_colorTarget);
 		}
 		
 		
@@ -276,10 +276,7 @@ namespace YAPT
 
 	void TonemapStage::prepare(const PrepareData& cntx)
 	{
-		m_bindingsUtility.flushDeferredRenderGraphResourceBindings(getGraph());
 
-
-		 
 	}
 	void TonemapStage::update(const UpdateData& cntx)
 	{

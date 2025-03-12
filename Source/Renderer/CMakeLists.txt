@@ -66,7 +66,6 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineManager.h
 	
 	inc/Renderer/Shared/RenderPipeline/RenderStage.h
-	inc/Renderer/Shared/RenderPipeline/RenderStageUtilities.h
 	
 	inc/Renderer/Shared/RenderPipeline/PathTracerPipeline.h	
 	inc/Renderer/Shared/RenderPipeline/DebugDrawPipeline.h	
@@ -116,7 +115,6 @@ set(SOURCE
 	
 	src/Shared/RenderPipeline/RenderPipelineBase.cpp
 	src/Shared/RenderPipeline/RenderStage.cpp
-	src/Shared/RenderPipeline/RenderStageUtilities.cpp
 	src/Shared/RenderPipeline/PathTracerPipeline.cpp
 	src/Shared/RenderPipeline/DebugDrawPipeline.cpp
 	src/Shared/RenderPipeline/TonemapStage.cpp
