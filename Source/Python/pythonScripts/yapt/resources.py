@@ -7,6 +7,8 @@ import OpenImageIO as oiio
 import imageio.v3 as iio
 import ctypes
 
+import trimesh
+
 class Resources:
     def __init__(self, renderer):
         self._renderer = renderer
@@ -30,6 +32,25 @@ class Resources:
             self._textures[img_name] = self.__load_tex_with_oiio(path_str, img_name, verbose)
         return tex
 
+    def load_meshes_from_path(self, mesh_path, verbose = False):
+        path = Path(mesh_path)
+        path_str = str(path)
+        file_name = path.stem
+        scene = trimesh.load(mesh_path, force="scene")
+
+        if not isinstance(scene, trimesh.Scene):
+            print("Loaded file is not a scene, treating as a single mesh.")
+            scene = trimesh.Scene([scene])
+
+        # Extract individual meshes
+        mesh_list = []
+        for name, trimesh in scene.geometry.items():
+            mesh = self._create_and_upload_from_trimesh(name, trimesh, verbose)
+            self._meshes[name] = mesh
+            mesh_list.append(mesh)
+
+        return mesh_list
+    ###TEXTURES INTERNAL###
     def __load_tex_with_oiio(self, path_str, img_name, verbose = False):
         image = oiio.ImageInput.open(path_str)
 
@@ -85,8 +106,35 @@ class Resources:
 
         return self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, 1, 1)
 
-        
-        
+        ###MESHES INTERNAL###
+    def load_meshes_from_path(self, mesh_path, verbose = False):
+        path = Path(mesh_path)
+        path_str = str(path)
+        file_name = path.stem
+        scene = trimesh.load(mesh_path, force="scene")
 
+        if not isinstance(scene, trimesh.Scene):
+            print("Loaded file is not a scene, treating as a single mesh.")
+            scene = trimesh.Scene([scene])
 
+        # Extract individual meshes
+        meshes = []
+        for name, mesh in scene.geometry.items():
+            print(f"Processing mesh: {name}")
+            meshes.append(mesh)
     
+    
+    def _create_and_upload_from_trimesh(self, mesh_name, mesh, verbose = False):
+        vertices = mesh.vertices  # (N, 3) array of vertex positions
+    
+        # Face indices
+        faces = mesh.faces  # (M, 3) array of triangle vertex indices
+    
+        # Normals (if available)
+        normals = mesh.vertex_normals if hasattr(mesh, 'vertex_normals') else None
+    
+        # Texture coordinates (if available)
+        uvs = mesh.visual.uv if mesh.visual and hasattr(mesh.visual, 'uv') else None
+
+        # Colors (if available)
+        colors = mesh.visual.vertex_colors if mesh.visual and hasattr(mesh.visual, 'vertex_colors') else None

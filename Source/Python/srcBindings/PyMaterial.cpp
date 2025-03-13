@@ -8,12 +8,13 @@ namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyMaterial);
 
-	PyMaterial::PyMaterial(PyRenderer* rend)
+	PyMaterial::PyMaterial(Renderer* rend)
 	{
-		m_material = rend->getRenderer()->createMaterial();
+		m_material = rend->createMaterial();
 	}
 	PyMaterial::~PyMaterial()
 	{
+        release();
 	}
 
 
@@ -222,9 +223,7 @@ namespace YAPT
 	{
 
 		auto mat = pybind11::class_<PyMaterial>(m, "Material");
-		mat.def(pybind11::init<PyRenderer*>())
-			.def("release", &PyMaterial::release)
-            .def("setFromMaterialPreset", &PyMaterial::setFromMaterialPreset)
+		mat.def("setFromMaterialPreset", &PyMaterial::setFromMaterialPreset)
             .def("setTransparency", &PyMaterial::setTransparency)
             .def("getTransparency", &PyMaterial::getTransparency)
             .def("setMetalness", &PyMaterial::setMetalness)

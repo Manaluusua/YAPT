@@ -4,14 +4,14 @@
 #include <memory>
 namespace YAPT
 {
-	class PyRenderer;
+	class Renderer;
 	class PyMaterial
 	{
 	public:
 		DECLARE_BINDING_CLASS(PyMaterial);
 		void release();
 
-		PyMaterial(PyRenderer* rend);
+		PyMaterial(Renderer* rend);
 		~PyMaterial();
 
 		void setFromMaterialPreset(MaterialPreset preset);

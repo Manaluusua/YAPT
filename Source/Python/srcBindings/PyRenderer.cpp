@@ -6,6 +6,7 @@
 #include <PyRendererCache.h>
 #include <PyTexture.h>
 #include <PyBuffer.h>
+#include <PyMaterial.h>
 
 namespace YAPT
 {
@@ -100,6 +101,16 @@ namespace YAPT
 		PyBuffer* pybuf =  new PyBuffer(buff);
 		buff->Release();
 		return pybuf;
+	}
+
+	PyMaterial* PyRenderer::createMaterial()
+	{
+		return new PyMaterial(m_renderer);
+	}
+	PyMesh* PyRenderer::createMesh(const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+	{
+		PyMesh* mesh = new PyMesh(m_renderer, layouts, vertexCount);
+		return mesh;
 	}
 
 	BINDING_FUNC(PyRenderer, m)

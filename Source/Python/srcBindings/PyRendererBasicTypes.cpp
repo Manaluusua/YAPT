@@ -7,6 +7,14 @@ namespace YAPT
 		
 	BINDING_FUNC(PyRendererBasicTypes, m)
 	{
+        pybind11::enum_<AttributeSemanticName>(m, "AttributeSemanticName")
+            .value("UNKNOWN", AttributeSemanticName::UNKNOWN)
+            .value("POSITION", AttributeSemanticName::POSITION)
+            .value("TEXCOORD", AttributeSemanticName::TEXCOORD)
+            .value("NORMAL", AttributeSemanticName::NORMAL)
+            .value("TANGENT", AttributeSemanticName::TANGENT)
+            .value("COLOR", AttributeSemanticName::COLOR)
+            .export_values();
 
         pybind11::enum_<ResourceDimension>(m, "ResourceDimension")
             .value("BUFFER", ResourceDimension::BUFFER)
