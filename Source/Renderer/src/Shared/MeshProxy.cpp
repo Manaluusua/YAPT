@@ -9,6 +9,7 @@ namespace YAPT
 		:m_mngr(mngr),
 		_id(InvalidMeshIndex)
 	{
+		resetRequirements(numberOfVertexBufferLayouts, true);
 		m_data.numberOfVertices = numberOfVertices;
 
 		AttributeSemantic positionSemantic(AttributeSemanticName::POSITION);
@@ -73,18 +74,35 @@ namespace YAPT
 	{
 		assert(bufferIndex < m_vertexBuffers.size());
 		m_vertexBuffers[bufferIndex] = { static_cast<BufferImpl*>(buffer),YAPT_NULL_HANDLE, offsetInBytes };
+		vertexBufferBound(bufferIndex);
 		m_mngr->meshChanged(this);
 	}
 	void MeshProxy::setIndexBuffer(Buffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives)
 	{
 		m_indexBuffer = { static_cast<BufferImpl*>(buffer), YAPT_NULL_HANDLE, offsetInBytes };
 		m_primitiveCount = numberOfPrimitives;
+		indexBufferBound();
 		m_mngr->meshChanged(this);
 	}
 
 	void MeshProxy::allReferencesReleased()
 	{
 		m_mngr->meshReleased(this);
+	}
+
+	void MeshProxy::resetRequirements(size_t numberOfBuffers, bool hasIndexbuffer)
+	{
+		assert(numberOfBuffers < 32);
+		m_meshRequirementsNotSet = 0xFFFFFFFF >> (32 - numberOfBuffers);
+		m_meshRequirementsNotSet |= 1 << 31;
+	}
+	void MeshProxy::vertexBufferBound(size_t index)
+	{
+		m_meshRequirementsNotSet &= ~(1 << index);
+	}
+	void MeshProxy::indexBufferBound()
+	{
+		m_meshRequirementsNotSet &= ~(1 << 31);
 	}
 
 }

@@ -103,13 +103,13 @@ namespace YAPT
 		return pybuf;
 	}
 
-	PyMaterial* PyRenderer::createMaterial()
+	PyMaterial* PyRenderer::createMaterial(const char* name)
 	{
-		return new PyMaterial(m_renderer);
+		return new PyMaterial(m_renderer, name);
 	}
-	PyMesh* PyRenderer::createMesh(const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+	PyMesh* PyRenderer::createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
 	{
-		PyMesh* mesh = new PyMesh(m_renderer, layouts, vertexCount);
+		PyMesh* mesh = new PyMesh(m_renderer, name,  layouts, vertexCount);
 		return mesh;
 	}
 
@@ -124,7 +124,9 @@ namespace YAPT
 			.def("setRenderOutputToSurface", &PyRenderer::setRenderOutputToSurface)
 			.def("resetRenderOutput", &PyRenderer::resetRenderOutput)
 			.def("createTexture", &PyRenderer::createTexture)
-			.def("createBuffer", &PyRenderer::createBuffer);
+			.def("createBuffer", &PyRenderer::createBuffer)
+			.def("createMesh", &PyRenderer::createMesh)
+			.def("createMaterial", &PyRenderer::createMaterial);
 	
 	}
 }

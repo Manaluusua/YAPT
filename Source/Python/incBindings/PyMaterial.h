@@ -11,9 +11,10 @@ namespace YAPT
 		DECLARE_BINDING_CLASS(PyMaterial);
 		void release();
 
-		PyMaterial(Renderer* rend);
+		PyMaterial(Renderer* rend, const char* name);
 		~PyMaterial();
 
+		const char* getName() const;
 		void setFromMaterialPreset(MaterialPreset preset);
 
 		void setTransparency(float transparency);
@@ -74,6 +75,7 @@ namespace YAPT
 		float getThinFilmThickness() const;
 
 	private:
+		std::string m_name;
 		RCObjectPtr<Material> m_material;
 	};
 }

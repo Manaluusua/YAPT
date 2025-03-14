@@ -16,8 +16,9 @@ namespace YAPT
 		enum MeshState
 		{
 			MESHSTATE_NOCHANGES = 0,
-			MESHSTATE_CREATED = YAPTBIT(1),
-			MESHSTATE_MODIFIED = YAPTBIT(2),
+			MESHSTATE_INCOMPLETE = YAPTBIT(1),
+			MESHSTATE_CREATED = YAPTBIT(2),
+			MESHSTATE_MODIFIED = YAPTBIT(3),
 			MESHSTATE_DESTROYED = YAPTBIT(4)
 		};
 
@@ -31,10 +32,18 @@ namespace YAPT
 
 		MeshInternal* getMeshInternal() { return m_mngr->getMeshInternal(_id); }
 
+		bool hasAllRequiredBuffers() const { return m_meshRequirementsNotSet == 0; }
+
 	protected:
 		virtual void allReferencesReleased() final;
 
 	private:
+
+		void resetRequirements(size_t numberOfBuffers, bool hasIndexbuffer);
+		void vertexBufferBound(size_t index);
+		void indexBufferBound();
+
+
 		MeshManager* m_mngr;
 
 		std::vector<MeshBufferBinding> m_vertexBuffers;
@@ -42,6 +51,7 @@ namespace YAPT
 		size_t m_primitiveCount;
 
 		MeshLayoutInfo m_data;
+		uint32_t m_meshRequirementsNotSet;
 
 		//Handled by MeshManager
 		size_t _meshState;

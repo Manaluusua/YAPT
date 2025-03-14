@@ -1,5 +1,7 @@
 #include <Renderer/Shared/MeshManager.h>
 #include <Renderer/Shared/MeshProxy.h>
+#include <xxhash.h>
+
 namespace YAPT
 {
 	MeshManager::MeshManager(GfxApiHandle gfx)
@@ -15,8 +17,7 @@ namespace YAPT
 	MeshProxy* MeshManager::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount)
 	{
 		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount);
-		mesh->_meshState = MeshProxy::MESHSTATE_CREATED;
-		m_changedMeshes.push_back(mesh);
+		mesh->_meshState = MeshProxy::MESHSTATE_INCOMPLETE;
 		return mesh;
 	}
 	void MeshManager::meshReleased(MeshProxy* obj)
@@ -42,7 +43,7 @@ namespace YAPT
 			MeshProxy* meshImpl = m_changedMeshes[i];
 			size_t meshState = meshImpl->_meshState;
 			//check cornercase of being created and destroyed in the same frame
-			if ((meshState & MeshProxy::MESHSTATE_CREATED) != 0 && (meshState & MeshProxy::MESHSTATE_DESTROYED) != 0)
+			if (((meshState & MeshProxy::MESHSTATE_CREATED) != 0 || (meshState & MeshProxy::MESHSTATE_INCOMPLETE) != 0) && (meshState & MeshProxy::MESHSTATE_DESTROYED) != 0)
 			{
 				delete meshImpl;
 				continue;
@@ -82,8 +83,21 @@ namespace YAPT
 
 	void MeshManager::meshChanged(MeshProxy* obj)
 	{
-		addToChangedListIfNotAdded(obj);
-		obj->_meshState |= MeshProxy::MESHSTATE_MODIFIED;
+		
+		if ((obj->_meshState & MeshProxy::MESHSTATE_INCOMPLETE) != 0)
+		{
+			if (obj->hasAllRequiredBuffers())
+			{
+				m_changedMeshes.push_back(obj);
+				obj->_meshState = MeshProxy::MESHSTATE_CREATED;
+			}
+		}
+		else
+		{
+			addToChangedListIfNotAdded(obj);
+			obj->_meshState |= MeshProxy::MESHSTATE_MODIFIED;
+		}
+		
 	}
 
 
@@ -105,8 +119,26 @@ namespace YAPT
 
 	MeshLayoutID MeshManager::getMeshLayoutIDForLayout(const MeshLayoutInfo& info)
 	{
-		static size_t id = 0;
-		return id++; //TODO: implement properly
+		XXH64_state_t* const state = XXH64_createState();
+		XXH64_hash_t const seed = 0; 
+		XXH64_reset(state, seed);
+
+		for (size_t i = 0; i < info.vertexBufferConfigurations.size(); ++i)
+		{
+			const VertexBufferConfiguration& config = info.vertexBufferConfigurations[i];
+			for (size_t k = 0; k < config.attributes.size(); ++k)
+			{
+				XXH64_update(state, config.attributes.data(), config.attributes.size() * sizeof(Attribute));
+				XXH64_update(state, config.offsetFromVertexStart.data(), config.offsetFromVertexStart.size() * sizeof(uint32_t));
+				XXH64_update(state, &config.stride, sizeof(uint32_t));
+			}
+		}
+
+		XXH64_update(state, &info.numberOfVertices, sizeof(size_t));
+		XXH64_hash_t const hash = XXH64_digest(state);
+		XXH64_freeState(state);
+
+		return hash;
 	}
 
 	MeshInternal* MeshManager::getMeshInternal(MeshIndex id)

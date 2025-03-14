@@ -7,7 +7,7 @@
 
 namespace YAPT
 {
-	typedef size_t MeshLayoutID;
+	typedef uint64_t MeshLayoutID;
 	struct VertexBufferConfiguration
 	{
 		std::vector<Attribute> attributes;

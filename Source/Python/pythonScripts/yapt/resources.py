@@ -1,11 +1,10 @@
-from py_yapt import Renderer, ResourceUsageBits, ResourceDimension
+from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName
 from yapt.conversions import ConvUtility
+from yapt.mesh_utils import MeshUtility
 from pathlib import Path
-import sys
 
 import OpenImageIO as oiio
 import imageio.v3 as iio
-import ctypes
 
 import trimesh
 
@@ -36,7 +35,8 @@ class Resources:
         path = Path(mesh_path)
         path_str = str(path)
         file_name = path.stem
-        scene = trimesh.load(mesh_path, force="scene")
+
+        scene = trimesh.load(path_str, force="scene")
 
         if not isinstance(scene, trimesh.Scene):
             print("Loaded file is not a scene, treating as a single mesh.")
@@ -44,12 +44,13 @@ class Resources:
 
         # Extract individual meshes
         mesh_list = []
-        for name, trimesh in scene.geometry.items():
-            mesh = self._create_and_upload_from_trimesh(name, trimesh, verbose)
+        for name, geo in scene.geometry.items():
+            mesh = self._create_and_upload_from_trimesh(name, geo, verbose)
             self._meshes[name] = mesh
             mesh_list.append(mesh)
 
         return mesh_list
+
     ###TEXTURES INTERNAL###
     def __load_tex_with_oiio(self, path_str, img_name, verbose = False):
         image = oiio.ImageInput.open(path_str)
@@ -106,35 +107,45 @@ class Resources:
 
         return self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, 1, 1)
 
-        ###MESHES INTERNAL###
-    def load_meshes_from_path(self, mesh_path, verbose = False):
-        path = Path(mesh_path)
-        path_str = str(path)
-        file_name = path.stem
-        scene = trimesh.load(mesh_path, force="scene")
-
-        if not isinstance(scene, trimesh.Scene):
-            print("Loaded file is not a scene, treating as a single mesh.")
-            scene = trimesh.Scene([scene])
-
-        # Extract individual meshes
-        meshes = []
-        for name, mesh in scene.geometry.items():
-            print(f"Processing mesh: {name}")
-            meshes.append(mesh)
-    
-    
+    ###MESHES INTERNAL###
     def _create_and_upload_from_trimesh(self, mesh_name, mesh, verbose = False):
+
         vertices = mesh.vertices  # (N, 3) array of vertex positions
     
         # Face indices
         faces = mesh.faces  # (M, 3) array of triangle vertex indices
-    
+
         # Normals (if available)
         normals = mesh.vertex_normals if hasattr(mesh, 'vertex_normals') else None
     
         # Texture coordinates (if available)
         uvs = mesh.visual.uv if mesh.visual and hasattr(mesh.visual, 'uv') else None
 
+        tangents = None
+
+        if uvs != None and normals != None:
+            tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
+
         # Colors (if available)
         colors = mesh.visual.vertex_colors if mesh.visual and hasattr(mesh.visual, 'vertex_colors') else None
+
+        layout = []
+        buffers = []
+
+        layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGB32_SFLOAT, AttributeSemanticName.POSITION, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+
+        if(normals is not None):
+            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGB32_SFLOAT, AttributeSemanticName.NORMAL, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+
+        if(tangents is not None):
+            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGBA32_SFLOAT, AttributeSemanticName.TANGENT, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+
+        if(uvs is not None):
+            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RG32_SFLOAT, AttributeSemanticName.TEXCOORD, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+
+        if(colors is not None):
+            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGBA32_SFLOAT, AttributeSemanticName.COLOR, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+
+        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices))
+
+

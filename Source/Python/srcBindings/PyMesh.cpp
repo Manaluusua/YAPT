@@ -1,10 +1,13 @@
 #include <PyMesh.h>
 #include <Renderer/Mesh.h>
 #include <Renderer/Renderer.h>
+#include <pybind11/stl.h>
+#include <PyBuffer.h>
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyMesh);
-	PyMesh::PyMesh(Renderer* rend, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+	PyMesh::PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+		:m_name(name)
 	{
 		std::vector<VertexBufferLayout> layoutsNative;
 		std::vector<Attribute> attributesNative;
@@ -38,6 +41,7 @@ namespace YAPT
 		}
 
 		m_mesh = rend->createMesh(layoutsNative.data(), layoutsNative.size(), vertexCount);
+		m_mesh.get()->Release();
 
 	}
 	PyMesh::~PyMesh()
@@ -45,20 +49,41 @@ namespace YAPT
 		m_mesh = nullptr;
 	}
 
+	const char* PyMesh::getName() const
+	{
+		return m_name.c_str();
+	}
+
+	void PyMesh::setVertexBuffer(size_t bufferIndex, PyBuffer* buffer, size_t offsetInBytes)
+	{
+		m_mesh->setVertexBuffer(bufferIndex, buffer->getBuffer().get(), offsetInBytes);
+	}
+	void PyMesh::setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives)
+	{
+		m_mesh->setIndexBuffer(buffer->getBuffer().get(), offsetInBytes, numberOfPrimitives);
+	}
 
 	BINDING_FUNC(PyMesh, m)
 	{
-		pybind11::class_<PyMeshAttribute>(m, "PyMeshAttribute")
+		pybind11::class_<PyMeshAttribute>(m, "MeshAttribute")
 			.def(pybind11::init<>())  // Default constructor
+			.def(pybind11::init<ResourceFormat, AttributeSemanticName, int>())
 			.def_readwrite("format", &PyMeshAttribute::format)
 			.def_readwrite("semanticName", &PyMeshAttribute::semanticName)
 			.def_readwrite("semanticIndex", &PyMeshAttribute::semanticIndex);
 
-		pybind11::class_<PyVertexBufferLayout>(m, "PyVertexBufferLayout")
+		pybind11::class_<PyVertexBufferLayout>(m, "VertexBufferLayout")
 			.def(pybind11::init<>())  // Default constructor
+			.def(pybind11::init<const std::vector<PyMeshAttribute>&, uint32_t>())
 			.def_readwrite("attributes", &PyVertexBufferLayout::attributes)
 			.def_readwrite("vertexStrideInBytes", &PyVertexBufferLayout::vertexStrideInBytes)
 			.def_readonly_static("STRIDE_TIGHTLY_PACKED", &PyVertexBufferLayout::STRIDE_TIGHTLY_PACKED);
+
+
+		pybind11::class_<PyMesh>(m, "Mesh")
+			.def("getName", &PyMesh::getName)
+			.def("setVertexBuffer", &PyMesh::setVertexBuffer)
+			.def("setIndexBuffer", &PyMesh::setIndexBuffer);
 
 		
 	}
