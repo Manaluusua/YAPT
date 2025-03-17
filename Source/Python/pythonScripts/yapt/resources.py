@@ -7,6 +7,7 @@ import OpenImageIO as oiio
 import imageio.v3 as iio
 
 import trimesh
+import numpy as np
 
 class Resources:
     def __init__(self, renderer):
@@ -132,20 +133,46 @@ class Resources:
         layout = []
         buffers = []
 
+        use16BitIndices = len(vertices) < 0xFFFF
+
         layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGB32_SFLOAT, AttributeSemanticName.POSITION, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+        buffers.append(self._create_and_upload_buffer(f"{mesh_name}_positions", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER, vertices, np.float32))
 
         if(normals is not None):
             layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGB32_SFLOAT, AttributeSemanticName.NORMAL, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+            buffers.append(self._create_and_upload_buffer(f"{mesh_name}_normals", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER, normals, np.float32))
 
         if(tangents is not None):
             layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGBA32_SFLOAT, AttributeSemanticName.TANGENT, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+            buffers.append(self._create_and_upload_buffer(f"{mesh_name}_tangents", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER, tangents, np.float32))
 
         if(uvs is not None):
             layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RG32_SFLOAT, AttributeSemanticName.TEXCOORD, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+            buffers.append(self._create_and_upload_buffer(f"{mesh_name}_texcoord0", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER, uvs, np.float32))
 
         if(colors is not None):
-            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGBA32_SFLOAT, AttributeSemanticName.COLOR, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+            layout.append(VertexBufferLayout([MeshAttribute(ResourceFormat.RGBA8_UINT, AttributeSemanticName.COLOR, 0)], VertexBufferLayout.STRIDE_TIGHTLY_PACKED))
+            buffers.append(self._create_and_upload_buffer(f"{mesh_name}_colors", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER, colors, np.uint8))
 
-        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices))
+        indices = self._create_and_upload_buffer(f"{mesh_name}_indices", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.INDEX_BUFFER, faces, np.uint16 if use16BitIndices else np.uint32)
 
+        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), use16BitIndices)
 
+        for i in range(len(buffers)):
+            mesh.setVertexBuffer(i, buffers[i], 0)
+
+        mesh.setIndexBuffer(indices, 0, int(faces.size / 3))
+
+        return mesh
+
+    def _create_and_upload_buffer(self, name, usage, data, forceType):
+
+        if forceType != None:
+            data = np.array(data, dtype=forceType)
+
+        size = data.size * data.itemsize
+        ptr = data.ctypes.data
+
+        buff = self._renderer.createBuffer(name, usage, size)
+        buff.upload(0, size, ptr, 0)
+        return buff

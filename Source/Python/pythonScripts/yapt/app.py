@@ -1,7 +1,7 @@
-from py_yapt import Renderer, Scene, RendererCache, ivec2
+from py_yapt import Renderer, RendererCache, ivec2
 from yapt.main_window import MainWindow
 from yapt.resources import Resources
-from yapt.camera_controller import CameraController
+from yapt.scene_wrapper import SceneWrapper
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QDateTime
 import sys
@@ -16,12 +16,8 @@ class Application:
         self._renderer.init(
             renderer_cache, self._main_window.get_render_area_widget().winId(), False
         )
-        self._scene = Scene()
-        self._scene.init(self._renderer)
-
+        self._scene = SceneWrapper(self._renderer)
         self._resources = Resources(self._renderer)
-        self._cam = CameraController(self._scene.getMainCamera())
-
 
         DEFAULT_TICK_RATE = 1000.0 / 60;
         self._timer = QTimer(self._main_window)
@@ -58,8 +54,11 @@ class Application:
     def get_resources(self):
         return self._resources
 
+    def get_scene(self):
+        return self._scene
+
     def get_camera_controller(self):
-        return self._cam
+        return self._scene.get_camera_controller()
 
     def refresh_swapchain(self):
         
@@ -68,7 +67,7 @@ class Application:
 
         self._renderer.setRenderOutputToSurface(*render_res, render_widget.winId())
         self._renderer.getRendererVariable("Generic.RenderResolution").setFromIntArray(render_res)
-        self._cam.set_aspect(float(render_res[0]) / render_res[1]);
+        self._scene.get_camera_controller().set_aspect(float(render_res[0]) / render_res[1]);
         self._sc_ready = True
 
 
@@ -83,7 +82,5 @@ class Application:
 
         current_time = QDateTime.currentMSecsSinceEpoch()
         dt = (current_time - self._last_update_ms) * 1e-3;
-
-        self._cam.update(dt);
         self._scene.update(dt);
         self._last_update_ms = current_time;

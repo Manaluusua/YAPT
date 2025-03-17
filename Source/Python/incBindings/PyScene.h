@@ -6,6 +6,7 @@ namespace YAPT
 	class PyRenderer;
 	class PyCamera;
 	class Scene;
+	class PyRenderObject;
 	class PyScene
 	{
 	public:
@@ -16,6 +17,8 @@ namespace YAPT
 		void shutdown();
 
 		void update(float deltaTime);
+
+		PyRenderObject* createRenderObject(const char* name);
 
 		PyCamera* getMainCamera();
 

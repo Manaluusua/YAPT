@@ -63,6 +63,8 @@ namespace YAPT
 		size_t getMeshIndex() const { return m_id; }
 		
 		MeshLayoutID getMeshLayoutID() const { return m_meshLayoutId; }
+
+		ResourceFormat getIndexBufferFormat() const { return m_indexFormat; }
 	private:
 		
 		GfxApiHandle m_gfx;

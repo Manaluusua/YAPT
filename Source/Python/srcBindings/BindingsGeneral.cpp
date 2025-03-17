@@ -1,8 +1,7 @@
 #include <PyBindingsCommon.h>
-#include <PyRenderer.h>
 #include <vector>
 
-static std::vector< RegisterPythonClassFunc> s_registerPythonClassFuncs;
+static std::vector<RegisterPythonClassFunc> s_registerPythonClassFuncs;
 
 
 void addPythonRegisterFunc(RegisterPythonClassFunc f)

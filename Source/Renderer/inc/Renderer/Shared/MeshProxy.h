@@ -22,7 +22,7 @@ namespace YAPT
 			MESHSTATE_DESTROYED = YAPTBIT(4)
 		};
 
-		MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices);
+		MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, bool use16BitIndices);
 
 		virtual void setVertexBuffer(size_t bufferIndex, Buffer* buffer, size_t offsetInBytes) final;
 		virtual void setIndexBuffer(Buffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives) final;
@@ -31,6 +31,8 @@ namespace YAPT
 		const MeshLayoutInfo& getMeshLayoutInfo() const { return m_data; }
 
 		MeshInternal* getMeshInternal() { return m_mngr->getMeshInternal(_id); }
+
+		bool has16BitIndices() const { return m_use16BitIndices; }
 
 		bool hasAllRequiredBuffers() const { return m_meshRequirementsNotSet == 0; }
 
@@ -52,6 +54,7 @@ namespace YAPT
 
 		MeshLayoutInfo m_data;
 		uint32_t m_meshRequirementsNotSet;
+		bool m_use16BitIndices;
 
 		//Handled by MeshManager
 		size_t _meshState;

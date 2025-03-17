@@ -21,7 +21,7 @@ namespace YAPT
             .def("getFarPlance", &PyCamera::getFarPlance)
             .def("getOrthographicSize", &PyCamera::getOrthographicSize)
             .def("getProjectionType", &PyCamera::getProjectionType)
-            .def("getTransform", &PyCamera::getTransform, pybind11::return_value_policy::reference);
+            .def("getTransform", &PyCamera::getTransform, pybind11::return_value_policy::reference_internal);
 
 		pybind11::enum_<Camera::ProjectionType>(cam, "ProjectionType")
 			.value("PERSPECTIVE", Camera::ProjectionType::PERSPECTIVE)

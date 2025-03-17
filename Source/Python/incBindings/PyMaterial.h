@@ -9,10 +9,11 @@ namespace YAPT
 	{
 	public:
 		DECLARE_BINDING_CLASS(PyMaterial);
-		void release();
 
 		PyMaterial(Renderer* rend, const char* name);
 		~PyMaterial();
+
+		Material* getMaterial() { return m_material; }
 
 		const char* getName() const;
 		void setFromMaterialPreset(MaterialPreset preset);

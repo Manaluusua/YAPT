@@ -266,9 +266,9 @@ namespace YAPT
 		return buf;
 	}
 
-	Mesh* CRenderer::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount)
+	Mesh* CRenderer::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices)
 	{
-		return m_meshMngr->createMesh(layouts, numberOfVertexBufferLayouts, vertexCount);
+		return m_meshMngr->createMesh(layouts, numberOfVertexBufferLayouts, vertexCount, use16BitIndices);
 	}
 	Material* CRenderer::createMaterial()
 	{

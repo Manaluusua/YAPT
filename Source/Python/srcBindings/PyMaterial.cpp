@@ -15,7 +15,7 @@ namespace YAPT
 	}
 	PyMaterial::~PyMaterial()
 	{
-        release();
+        m_material = nullptr;
 	}
 
     const char* PyMaterial::getName() const
@@ -23,10 +23,6 @@ namespace YAPT
         return m_name.c_str();
     }
 
-	void PyMaterial::release()
-	{
-		m_material = nullptr;
-	}
 
     void PyMaterial::setFromMaterialPreset(MaterialPreset preset)
     {

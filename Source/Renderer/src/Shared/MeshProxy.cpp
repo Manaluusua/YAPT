@@ -5,8 +5,9 @@
 
 namespace YAPT
 {
-	MeshProxy::MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices)
+	MeshProxy::MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, bool use16BitIndices)
 		:m_mngr(mngr),
+		m_use16BitIndices(m_use16BitIndices),
 		_id(InvalidMeshIndex)
 	{
 		resetRequirements(numberOfVertexBufferLayouts, true);

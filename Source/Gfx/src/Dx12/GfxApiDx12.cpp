@@ -126,7 +126,7 @@ namespace YAPT
 		{
 			BufferHandleDx12* bufferHandle = new BufferHandleDx12;
 			bufferDescToDx12ResourceDesc(desc, bufferHandle->bufferDesc);
-			D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;//yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
 			bufferHandle->lastSeenState.init(state, 1);
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)

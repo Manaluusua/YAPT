@@ -107,9 +107,9 @@ namespace YAPT
 	{
 		return new PyMaterial(m_renderer, name);
 	}
-	PyMesh* PyRenderer::createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+	PyMesh* PyRenderer::createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, bool use16BitIndices)
 	{
-		PyMesh* mesh = new PyMesh(m_renderer, name,  layouts, vertexCount);
+		PyMesh* mesh = new PyMesh(m_renderer, name,  layouts, vertexCount, use16BitIndices);
 		return mesh;
 	}
 

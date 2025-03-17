@@ -661,7 +661,7 @@ YAPT::RCObjectPtr<YAPT::Mesh> TestScene::loadMesh(const char* path)
 		}
 
 		//create mesh
-		mesh = m_renderer->createMesh(info.layouts, info.numberOfVertexBuffers, info.vertexCount);
+		mesh = m_renderer->createMesh(info.layouts, info.numberOfVertexBuffers, info.vertexCount, false);
 		for (size_t i = 0; i < info.numberOfVertexBuffers; ++i)
 		{
 			mesh->setVertexBuffer(i, vertexBuffers[i].get(), 0);

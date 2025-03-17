@@ -1,22 +1,21 @@
 #include <Renderer/Shared/MeshManager.h>
 #include <Renderer/Shared/MeshProxy.h>
-#include <xxhash.h>
 
 namespace YAPT
 {
 	MeshManager::MeshManager(GfxApiHandle gfx)
 		:m_gfx(gfx)
 	{
-
+		m_hashState = XXH64_createState();
 	}
 	MeshManager::~MeshManager()
 	{
-
+		XXH64_freeState(m_hashState);
 	}
 	 
-	MeshProxy* MeshManager::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount)
+	MeshProxy* MeshManager::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices)
 	{
-		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount);
+		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount, use16BitIndices);
 		mesh->_meshState = MeshProxy::MESHSTATE_INCOMPLETE;
 		return mesh;
 	}
@@ -113,30 +112,30 @@ namespace YAPT
 	{
 		//real construction
 		MeshLayoutID layoutID = getMeshLayoutIDForLayout(obj->getMeshLayoutInfo());
-		MeshIndex id = m_meshes.addEntry(m_gfx, layoutID, obj->getMeshLayoutInfo());
+		MeshIndex id = m_meshes.addEntry(m_gfx, layoutID, obj->getMeshLayoutInfo(), obj->has16BitIndices());
 		return id;
 	}
 
 	MeshLayoutID MeshManager::getMeshLayoutIDForLayout(const MeshLayoutInfo& info)
 	{
-		XXH64_state_t* const state = XXH64_createState();
+		
 		XXH64_hash_t const seed = 0; 
-		XXH64_reset(state, seed);
+		XXH64_reset(m_hashState, seed);
 
 		for (size_t i = 0; i < info.vertexBufferConfigurations.size(); ++i)
 		{
 			const VertexBufferConfiguration& config = info.vertexBufferConfigurations[i];
 			for (size_t k = 0; k < config.attributes.size(); ++k)
 			{
-				XXH64_update(state, config.attributes.data(), config.attributes.size() * sizeof(Attribute));
-				XXH64_update(state, config.offsetFromVertexStart.data(), config.offsetFromVertexStart.size() * sizeof(uint32_t));
-				XXH64_update(state, &config.stride, sizeof(uint32_t));
+				XXH64_update(m_hashState, config.attributes.data(), config.attributes.size() * sizeof(Attribute));
+				XXH64_update(m_hashState, config.offsetFromVertexStart.data(), config.offsetFromVertexStart.size() * sizeof(uint32_t));
+				XXH64_update(m_hashState, &config.stride, sizeof(uint32_t));
 			}
 		}
 
-		XXH64_update(state, &info.numberOfVertices, sizeof(size_t));
-		XXH64_hash_t const hash = XXH64_digest(state);
-		XXH64_freeState(state);
+		XXH64_update(m_hashState, &info.numberOfVertices, sizeof(size_t));
+		XXH64_hash_t const hash = XXH64_digest(m_hashState);
+		
 
 		return hash;
 	}

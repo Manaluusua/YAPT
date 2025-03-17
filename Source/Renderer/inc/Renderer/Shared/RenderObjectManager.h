@@ -106,8 +106,6 @@ namespace YAPT
 		RenderObjectId createRenderObjectEntry(const RenderObjectProxy* proxy);
 		void replicateChanges(RenderObjectProxy* src, size_t destinationIndex);
 
-		void allocateGPUBuffer(size_t entryCount);
-
 		GfxApiHandle m_gfx;
 
 		std::vector<RenderObjectId> m_createdEntries;

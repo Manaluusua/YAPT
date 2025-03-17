@@ -17,7 +17,7 @@ namespace YAPT
 		geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
 		geom.vertexFormat = vertexBufferConfig.attributes[info.position0.attributeIndex].format;
 		geom.indexCount = mesh->getPrimitiveCount() * 3; //Triangles
-		geom.indexFormat = ResourceFormat::R32_UINT; //assume 32bit indices
+		geom.indexFormat = mesh->getIndexBufferFormat(); 
 
 		geom.vertexBuffer = vBuffer.buffer->getResourceHandle();
 		geom.indexBuffer = mesh->getIndexBuffer().buffer->getResourceHandle();

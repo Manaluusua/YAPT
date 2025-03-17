@@ -12,7 +12,7 @@ namespace YAPT
 		PyBuffer(Buffer* buffer);
 		~PyBuffer();
 
-		void upload(size_t offsetInBytes, size_t sizeInBytes, const void* data);
+		void upload(size_t offsetInBytes, size_t sizeInBytes, uintptr_t data, size_t dataPtrOffset);
 		const char* getName() const;
 		
 		const RCObjectPtr<Buffer>& getBuffer() const { return m_buffer; }

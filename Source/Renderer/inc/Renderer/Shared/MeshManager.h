@@ -13,6 +13,7 @@ namespace YAPT
 	constexpr MeshIndex InvalidMeshIndex = InvalidBubbleArrayIndex;
 
 	class MeshProxy;
+	
 	class MeshManager
 	{
 		friend class MeshProxy;
@@ -23,7 +24,7 @@ namespace YAPT
 		MeshManager(GfxApiHandle gfx);
 		~MeshManager();
 
-		MeshProxy* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount);
+		MeshProxy* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices);
 		void meshReleased(MeshProxy* obj);
 
 		void replicateChanges();
@@ -37,13 +38,13 @@ namespace YAPT
 		}
 		void getDestroyedEntries(const MeshIndex*& ids, size_t& numberOfEntries) const
 		{
-			ids = m_createdEntries.data();
-			numberOfEntries = m_createdEntries.size();
+			ids = m_destroyedEntries.data();
+			numberOfEntries = m_destroyedEntries.size();
 		}
 		void getModifiedEntries(const MeshIndex*& ids, size_t& numberOfEntries) const
 		{
-			ids = m_createdEntries.data();
-			numberOfEntries = m_createdEntries.size();
+			ids = m_modifiedEntries.data();
+			numberOfEntries = m_modifiedEntries.size();
 		}
 
 		MeshIterator getMeshIterator() { return m_meshes.getIterator(); }
@@ -71,6 +72,8 @@ namespace YAPT
 		BubbleArray<MeshInternal> m_meshes;
 
 		std::vector<MeshProxy*> m_changedMeshes;
+
+		XXH64_state_t* m_hashState;
 
 	};
 }

@@ -90,9 +90,9 @@ namespace YAPT
             return m_camera->getProjectionType();
         }
 
-        PyTransform& getTransform() 
+        PyTransform* getTransform() 
         {
-            return m_transform;
+            return &m_transform;
         }
 
 	private:

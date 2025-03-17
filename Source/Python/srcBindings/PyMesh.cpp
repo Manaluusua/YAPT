@@ -6,7 +6,7 @@
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyMesh);
-	PyMesh::PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount)
+	PyMesh::PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, bool use16BitIndices)
 		:m_name(name)
 	{
 		std::vector<VertexBufferLayout> layoutsNative;
@@ -40,7 +40,7 @@ namespace YAPT
 
 		}
 
-		m_mesh = rend->createMesh(layoutsNative.data(), layoutsNative.size(), vertexCount);
+		m_mesh = rend->createMesh(layoutsNative.data(), layoutsNative.size(), vertexCount, use16BitIndices);
 		m_mesh.get()->Release();
 
 	}

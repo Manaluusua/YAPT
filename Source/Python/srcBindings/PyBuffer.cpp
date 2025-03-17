@@ -13,9 +13,10 @@ namespace YAPT
 		m_buffer = nullptr;
 	}
 
-	void PyBuffer::upload(size_t offsetInBytes, size_t sizeInBytes, const void* data)
+	void PyBuffer::upload(size_t offsetInBytes, size_t sizeInBytes, uintptr_t data, size_t dataPtrOffset)
 	{
-
+		char* ptr = reinterpret_cast<char*>(data) + dataPtrOffset;
+		m_buffer->upload(offsetInBytes, sizeInBytes, ptr);
 	}
 
 	const char* PyBuffer::getName() const

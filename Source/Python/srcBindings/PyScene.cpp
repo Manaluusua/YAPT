@@ -3,6 +3,7 @@
 #include <Scene/Scene.h>
 #include <PyRenderer.h>
 #include <PyCamera.h>
+#include <PyRenderObject.h>
 
 namespace YAPT
 {
@@ -47,6 +48,11 @@ namespace YAPT
 		m_scene->update(params);
 	}
 
+	PyRenderObject* PyScene::createRenderObject(const char* name)
+	{
+		return new PyRenderObject(name, m_scene);
+	}
+
 	PyCamera* PyScene::getMainCamera()
 	{
 		return new PyCamera(m_scene->getMainCamera());
@@ -59,6 +65,7 @@ namespace YAPT
 			.def("init", &PyScene::init)
 			.def("shutdown", &PyScene::shutdown)
 			.def("update", &PyScene::update)
+			.def("createRenderObject", &PyScene::createRenderObject)
 			.def("getMainCamera", &PyScene::getMainCamera);
 	}
 }
