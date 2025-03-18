@@ -13,7 +13,7 @@ namespace YAPT
 		m_obj(scene->createModel()),
 		m_transform(&m_obj->getTransform())
 	{
-
+		m_obj->Release();
 	}
 	PyRenderObject::~PyRenderObject()
 	{

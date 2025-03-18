@@ -10,7 +10,7 @@ class SceneWrapper:
         self._render_objects = set()
 
     def shutdown(self):
-        
+        self._render_objects.clear()
         self._scene.shutdown()
 
         
