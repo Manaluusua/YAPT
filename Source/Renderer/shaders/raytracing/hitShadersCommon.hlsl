@@ -111,6 +111,11 @@ void unpackBufferInfo(in uint2 val, out uint bufferIndex, out uint bufferStride,
 	bufferOffset = val.x;
 }
 
+bool isValidPackedBufferInfo(in uint2 val)
+{
+	return val.x != uint(-1) && val.y != uint(-1);
+}
+
 uint3 fetchIndices()
 {
 	uint primIndex = PrimitiveIndex();
@@ -146,6 +151,11 @@ float3 fetchMeshNormal(in uint3 indices, in float3 barycentrics)
 	return normalize(barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3);
 }
 
+bool meshHasValidTangents()
+{
+	return isValidPackedBufferInfo(SHADERTABLE_EXTRADATA.tangentBuffer);
+}
+
 float3 fetchMeshTangent(in uint3 indices, in float3 barycentrics)
 {
 	uint bufferIndex;
@@ -163,6 +173,11 @@ float3 fetchMeshTangent(in uint3 indices, in float3 barycentrics)
 	t3.xyz *= t3.w;
 
 	return normalize(barycentrics.x * t1.xyz + barycentrics.y * t2.xyz + barycentrics.z * t3.xyz);
+}
+
+bool meshHasValidUVs()
+{
+	return isValidPackedBufferInfo(SHADERTABLE_EXTRADATA.uvBuffer);
 }
 
 float2 fetchMeshUV(in uint3 indices, in float3 barycentrics)

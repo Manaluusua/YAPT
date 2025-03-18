@@ -109,6 +109,9 @@ class Resources:
         return self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, 1, 1)
 
     ###MESHES INTERNAL###
+
+    
+
     def _create_and_upload_from_trimesh(self, mesh_name, mesh, verbose = False):
 
         vertices = mesh.vertices  # (N, 3) array of vertex positions
@@ -119,13 +122,27 @@ class Resources:
         # Normals (if available)
         normals = mesh.vertex_normals if hasattr(mesh, 'vertex_normals') else None
     
+
         # Texture coordinates (if available)
         uvs = mesh.visual.uv if mesh.visual and hasattr(mesh.visual, 'uv') else None
 
-        tangents = None
+        hasUVs = uvs is not None
 
-        if uvs != None and normals != None:
-            tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
+        #if not hasUVs:
+        #   uvs = np.zeros((len(vertices), 2))
+        #   print(f"mesh {mesh_name} does not have uv coordinates. Filling with 0.")
+
+        tangents = None
+        if hasattr(mesh.metadata, 'tangents'):
+            tangents = mesh.metadata['tangents']
+        #else:
+        #    if hasUVs and normals is not None:
+        #        tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
+        #        print(f"mesh {mesh_name} doesn't have tangents, calculating with UVs")
+        #    else:
+        #        tangents = MeshUtility.calculate_arbitrary_tangents(normals)
+        #        print(f"mesh {mesh_name} doesn't have tangents nor uvs, calculating arbitrary tangents")
+        #
 
         # Colors (if available)
         colors = mesh.visual.vertex_colors if mesh.visual and hasattr(mesh.visual, 'vertex_colors') else None

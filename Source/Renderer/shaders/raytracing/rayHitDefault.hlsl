@@ -9,8 +9,8 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	uint3 indices = fetchIndices();
 	float3 geometryNormal = fetchMeshNormal(indices, barycentrics);
-	float3 tangent = fetchMeshTangent(indices, barycentrics);
-	float2 uv = fetchMeshUV(indices, barycentrics);
+	float3 tangent = meshHasValidTangents() ? fetchMeshTangent(indices, barycentrics) : float3(1.f, 0.f, 0.f);
+	float2 uv = meshHasValidUVs() ? fetchMeshUV(indices, barycentrics) : float2(0.5f, 0.5f);
 	
 	
 	//fetch surface material parameters
