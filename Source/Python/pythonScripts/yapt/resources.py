@@ -6,7 +6,7 @@ from pathlib import Path
 import OpenImageIO as oiio
 import imageio.v3 as iio
 
-import trimesh
+from pygltflib import GLTF2
 import numpy as np
 
 class Resources:
@@ -37,18 +37,19 @@ class Resources:
         path_str = str(path)
         file_name = path.stem
 
-        scene = trimesh.load(path_str, force="scene")
-
-        if not isinstance(scene, trimesh.Scene):
-            print("Loaded file is not a scene, treating as a single mesh.")
-            scene = trimesh.Scene([scene])
+        gltf = GLTF2().load(path_str)
 
         # Extract individual meshes
         mesh_list = []
-        for name, geo in scene.geometry.items():
-            mesh = self._create_and_upload_from_trimesh(name, geo, verbose)
-            self._meshes[name] = mesh
-            mesh_list.append(mesh)
+        mesh_index = 0
+        for gltf_mesh in gltf.meshes:
+            for primitive in gltf_mesh.primitives:
+                name = f"{file_name}_mesh_{mesh_index}"
+                mesh = self._create_and_upload_from_gltf(gltf, name, primitive, verbose)
+                if mesh is not None:
+                    self._meshes[name] = mesh
+                    mesh_list.append(mesh)
+                    ++mesh_index
 
         return mesh_list
 
@@ -110,42 +111,123 @@ class Resources:
 
     ###MESHES INTERNAL###
 
-    
+    def _get_component_count(self, accessor):
+        if(accessor.type == 'SCALAR'):
+            return 1;
+        elif(accessor.type == 'VEC2'):
+            return 2;
+        elif(accessor.type == 'VEC3'):
+            return 3;
+        elif(accessor.type == 'VEC4'):
+            return 4;
+        elif(accessor.type == 'MAT2'):
+            return 4;
+        elif(accessor.type == 'MAT3'):
+            return 9;
+        elif(accessor.type == 'MAT4'):
+            return 16;
 
-    def _create_and_upload_from_trimesh(self, mesh_name, mesh, verbose = False):
+    def _get_component_size_in_bytes(self, accessor):
+        if(accessor.componentType == 5120):
+            return 1;
+        elif(accessor.componentType == 5121):
+            return 1;
+        elif(accessor.componentType == 5122):
+            return 2;
+        elif(accessor.componentType == 5123):
+            return 2;
+        elif(accessor.componentType == 5125):
+            return 4;
+        elif(accessor.componentType == 5126):
+            return 4;
 
-        vertices = mesh.vertices  # (N, 3) array of vertex positions
-    
-        # Face indices
-        faces = mesh.faces  # (M, 3) array of triangle vertex indices
+    def _get_component_numpy_dtype(self, accessor):
+        if(accessor.componentType == 5120):
+            return np.int8
+        elif(accessor.componentType == 5121):
+            return np.uint8
+        elif(accessor.componentType == 5122):
+            return np.int16
+        elif(accessor.componentType == 5123):
+            return np.uint16
+        elif(accessor.componentType == 5125):
+            return np.uint32;
+        elif(accessor.componentType == 5126):
+            return np.float32
 
-        # Normals (if available)
-        normals = mesh.vertex_normals if hasattr(mesh, 'vertex_normals') else None
-    
+    def _extract_data_from_accessor(self, gltf, accessor_index):
+        accessor = gltf.accessors[accessor_index]
 
-        # Texture coordinates (if available)
-        uvs = mesh.visual.uv if mesh.visual and hasattr(mesh.visual, 'uv') else None
+        buffer_view = gltf.bufferViews[accessor.bufferView]
+        buff = gltf.buffers[buffer_view.buffer]
 
-        hasUVs = uvs is not None
+        data = gltf.get_data_from_buffer_uri(buff.uri)
 
-        #if not hasUVs:
-        #   uvs = np.zeros((len(vertices), 2))
-        #   print(f"mesh {mesh_name} does not have uv coordinates. Filling with 0.")
+        comp_size_bytes = self._get_component_size_in_bytes(accessor)
+        component_count = self._get_component_count(accessor)
+        entry_count = accessor.count
 
+        start = buffer_view.byteOffset + accessor.byteOffset
+        end = start + buffer_view.byteLength
+
+        stride = comp_size_bytes
+
+        if hasattr(buffer_view, 'byteStride') and buffer_view.byteStride != None:
+            stride = buffer_view.byteStride
+
+        data_array = np.ndarray(shape=(entry_count * component_count), dtype=self._get_component_numpy_dtype(accessor), buffer=data[start:end],  strides=(stride))
+        
+        if component_count > 1:
+            data_array = data_array.reshape((-1, component_count))
+
+        return data_array
+
+    def _create_and_upload_from_gltf(self, gltf, mesh_name, primitive, verbose = False):
+        print(f"loading {mesh_name}")
+        # Extract indices
+        faces = None
+        if primitive.indices is not None:
+            faces = self._extract_data_from_accessor(gltf, primitive.indices)
+        
+        # Extract vertices, normals, tangents, and uvs
+        vertices = None
+        normals = None
         tangents = None
-        if hasattr(mesh.metadata, 'tangents'):
-            tangents = mesh.metadata['tangents']
-        #else:
-        #    if hasUVs and normals is not None:
-        #        tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
-        #        print(f"mesh {mesh_name} doesn't have tangents, calculating with UVs")
-        #    else:
-        #        tangents = MeshUtility.calculate_arbitrary_tangents(normals)
-        #        print(f"mesh {mesh_name} doesn't have tangents nor uvs, calculating arbitrary tangents")
-        #
+        uvs = None
+        colors = None
+        
+        #TODO: do this properly. Currently we extract all attributes to separate buffers, should accept the layout that is in the file or explicitly define it.
 
-        # Colors (if available)
-        colors = mesh.visual.vertex_colors if mesh.visual and hasattr(mesh.visual, 'vertex_colors') else None
+        if primitive.attributes.POSITION is not None:
+            vertices = self._extract_data_from_accessor(gltf, primitive.attributes.POSITION)
+        
+        if primitive.attributes.NORMAL is not None:
+            normals = self._extract_data_from_accessor(gltf, primitive.attributes.NORMAL)
+        
+        if primitive.attributes.TANGENT is not None:
+            tangents = self._extract_data_from_accessor(gltf, primitive.attributes.TANGENT)
+        
+        if primitive.attributes.TEXCOORD_0 is not None:
+            uvs = self._extract_data_from_accessor(gltf, primitive.attributes.TEXCOORD_0)
+            
+        if primitive.attributes.COLOR_0 is not None:
+            colors = self._extract_data_from_accessor(gltf, primitive.attributes.COLOR_0)
+
+        if vertices is None:
+            print(f"could not load mesh {mesh_name}, missing vertex positions")
+            return None
+
+        if normals is None:
+            print(f"could not load mesh {mesh_name}, missing vertex normals")
+            return None
+
+        if tangents is None and uvs is not None:
+            print("Warning: mesh {mesh_name} does not contain tangents. Recalculating them (this might be slow)")
+            tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
+
+        if tangents is None:
+            print(f"could not load mesh {mesh_name}, missing vertex tangents (and no UVs to recalculate them)")
+            return None
 
         layout = []
         buffers = []

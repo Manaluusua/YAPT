@@ -8,12 +8,14 @@ class MeshUtility:
         num_vertices = len(positions)
         tangents = np.zeros((num_vertices, 4))
         bitangents = np.zeros((num_vertices, 3))
-        
+
         for i in range(0, len(indices), 3):
-            i0, i1, i2 = indices[i]
+            i0, i1, i2 = indices[i:i+3]
+            print("a")
             v0, v1, v2 = positions[i0], positions[i1], positions[i2]
+            print("c")
             uv0, uv1, uv2 = uvs[i0], uvs[i1], uvs[i2]
-            
+            print("b")
             E1, E2 = v1 - v0, v2 - v0
             dUV1, dUV2 = uv1 - uv0, uv2 - uv0
 
@@ -30,7 +32,7 @@ class MeshUtility:
             bitangents[i1] += bitangent
             bitangents[i2] += bitangent
         
-
+        print("s")
         for i in range(num_vertices):
             
             N = normals[i]
