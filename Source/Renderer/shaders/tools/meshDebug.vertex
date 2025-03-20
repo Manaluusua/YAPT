@@ -11,7 +11,7 @@ struct VertexInput
 {
     float3 position : POSITION;
 	float3 normal : NORMAL0;
-	float3 tangent : TANGENT0;
+	float4 tangent : TANGENT0;
 	float2 uv : TEXCOORD0;
 
 	
@@ -28,6 +28,6 @@ VertexOutput main(VertexInput input)
 {
     VertexOutput output;
     output.position = mul( g_ObjectData.mvpMat, float4(input.position, 1.0f));
-	output.color = input.normal.xyz;
+	output.color = input.normal.xyz * 0.5f + 0.5f;
     return output;
 }

@@ -2,6 +2,7 @@
 #include <PyBindingsCommon.h>
 #include <Gfx/GfxTypes.h>
 #include <Renderer/Mesh.h>
+#include <Common/RCObjectPtr.h>
 
 namespace YAPT
 {

@@ -346,8 +346,9 @@ namespace YAPT
 		//index buffer
 		{
 			const MeshBufferBinding& indexBufferBinding = mesh->getIndexBuffer();
+			bool use16BitIndices = mesh->getIndexBufferFormat() == ResourceFormat::R16_UINT;
 			size_t offsetInBytes = indexBufferBinding.offsetInBytes;
-			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), 3, uint32_t(offsetInBytes) / sizeof(uint32_t));
+			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), use16BitIndices ? 2 : 3, uint32_t(offsetInBytes) / sizeof(uint32_t)); //16bit indices marked with stride of 2. If you change this, remember to change this assumptin in the shaders too!
 		}
 		//vertex data
 		{

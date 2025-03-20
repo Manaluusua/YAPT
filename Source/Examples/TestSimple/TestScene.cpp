@@ -14,7 +14,7 @@
 //#define ASSETPATH ""
 //#define CUBEMAPS_PATH ""
 
-#define ENVMAP_PATH CUBEMAPS_PATH "skybox_studio.ktx"
+#define ENVMAP_PATH CUBEMAPS_PATH "env_room_studio_16f.ktx"
 //#define MODEL_PATH "I:/Libraries/glTF-Sample-Models/2.0/Suzanne/glTF/Suzanne.gltf"
 //#define MODEL_PATH "I:/Libraries/glTF-Sample-Models/2.0/BoomBox/glTF-Binary/BoomBox.glb"
 #define TORUS_PATH ASSETPATH "Torus/torus.glb"
@@ -38,7 +38,7 @@ TestScene::TestScene(YAPT::Renderer* renderer, YAPT::Gui* gui, YAPT::Scene* scen
 void TestScene::buildScene()
 {
 	loadMeshes();
-	loadEnvMap();
+	//loadEnvMap();
 
 	createWhiteFurnaceTestScene();
 	//createMaterialComparisonScene();

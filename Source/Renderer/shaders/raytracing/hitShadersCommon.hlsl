@@ -128,9 +128,41 @@ uint3 fetchIndices()
 	
 	uint3 indices;
 
-	indices.x = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset];
-	indices.y = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 1];
-	indices.z = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 2];
+	if (indexBufferStride == 2) //stride of 2 means 16 bit indices
+	{
+		int ind = (primIndex / 2) * 3;
+		int odd = primIndex & 0x1;
+
+		if (odd != 0)
+		{
+			uint val0 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 1];
+			uint val1 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 2];
+
+			indices.x = val0 >> 16;
+			indices.y = val1 & 0xFFFF;
+			indices.z = val1 >> 16;
+		}
+		else
+		{
+			uint val0 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset];
+			uint val1 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 1];
+
+			indices.x = val0 & 0xFFFF;
+			indices.y = val0 >> 16;
+			indices.z = val1 & 0xFFFF;
+		}
+
+		
+
+	}
+	else
+	{
+		indices.x = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset];
+		indices.y = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 1];
+		indices.z = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 2];
+	}
+
+	
 
 
 	return indices;

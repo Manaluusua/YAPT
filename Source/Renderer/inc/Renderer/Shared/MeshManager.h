@@ -6,6 +6,7 @@
 #include <Common/RCObjectPtr.h>
 #include <Renderer/Shared/MeshInternal.h>
 #include <Gfx/GfxApi.h>
+#include <xxhash.h>
 
 namespace YAPT
 {
