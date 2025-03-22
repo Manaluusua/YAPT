@@ -20,7 +20,12 @@ namespace YAPT
 		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
 		allocInfo.requiredFlags = memoryPropertyFlags;
 
-		bool success = mngr.createBufferVk(buffCreateInfo, 0, &buffer, &deviceMemory);
+		if (memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+		{
+			allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+		}
+
+		bool success = mngr.createBufferVk(buffCreateInfo, allocInfo, 0, &buffer, &deviceMemory);
 
 		assert(success);
 
