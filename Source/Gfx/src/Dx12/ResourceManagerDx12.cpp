@@ -361,6 +361,12 @@ namespace YAPT
 
 	ShaderModuleHandle ResourceManagerDx12::createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount)
 	{
+
+		const static LPCWSTR extraCompilerParams[] =
+		{
+			{L"-HV 2021"}
+		};
+
 		ShaderModuleHandle mod = new ShaderModuleDx12;
 
 		std::wstring profileWStr;
@@ -396,7 +402,7 @@ namespace YAPT
 		
 
 		mod->type = moduleType;
-		mod->shaderBlob = compileFromFile(profileWStr.data(), entryPointWStr.data(), moduleType == ShaderModuleType::LIBRARY_MODULE ? L"" : entryPointWStr.data(), filePathWStr.data(), definesDxc.data(), (UINT32)defineCountFinal);
+		mod->shaderBlob = compileFromFile(profileWStr.data(), entryPointWStr.data(), moduleType == ShaderModuleType::LIBRARY_MODULE ? L"" : entryPointWStr.data(), filePathWStr.data(), definesDxc.data(), (UINT32)defineCountFinal, extraCompilerParams, countOf(extraCompilerParams));
 		if (mod->shaderBlob.get())
 		{
 			readReflectionData(mod->shaderBlob.get(), entryPoint, mod->reflection);

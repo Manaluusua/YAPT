@@ -43,18 +43,17 @@ struct SurfaceDefinition
 	float3x3 toCoatingLayerTangentSpace;
 	float3x3 toBaseLayerTangentSpace;
 	
+	SpectralSamples specular;
+	SpectralSamples albedo;
+	SpectralSamples absorption;
+	SpectralSamples emissive;
+	SpectralSamples sheenColor;
 	float3 geometryNormal;
-	
-	float3 albedo;
 	float transparency;
-	float3 specular;
-	float metalness;
-	float3 absorption;
-	float dielectricIOR;
-	float3 emissive;
-	float roughness;
 	
-
+	float metalness;
+	float dielectricIOR;
+	float roughness;
 	float specularAmount;
 	float clearCoatAmount;
 	float clearCoatIOR;
@@ -63,11 +62,7 @@ struct SurfaceDefinition
 	float anisotropy;
 	float anisotropyRotation;
 	float thinFilmThickness;
-	float pad;
-	
-	float3 sheenColor;
 	float sheenRoughness;
-	
 	float sheenAmount;
 	bool isTwoSided;
 };
@@ -236,13 +231,13 @@ void makeOrthogonal(in float3 n, inout float3 t)
 
 void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
 {
-	surfaceDef.albedo = SHADERTABLE_EXTRADATA.albedoTransparency.xyz;
+	surfaceDef.albedo.setFromXYZ(SHADERTABLE_EXTRADATA.albedoTransparency.xyz);
 	surfaceDef.transparency = SHADERTABLE_EXTRADATA.albedoTransparency.a;
-	surfaceDef.specular = SHADERTABLE_EXTRADATA.specularMetalness.xyz;
+	surfaceDef.specular.setFromXYZ(SHADERTABLE_EXTRADATA.specularMetalness.xyz);
 	surfaceDef.metalness = SHADERTABLE_EXTRADATA.specularMetalness.a;
-	surfaceDef.absorption = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.xyz;
+	surfaceDef.absorption.setFromXYZ(SHADERTABLE_EXTRADATA.absorptionDielectricIOR.xyz);
 	surfaceDef.dielectricIOR = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.a;
-	surfaceDef.emissive = SHADERTABLE_EXTRADATA.emissiveRoughness.xyz;
+	surfaceDef.emissive.setFromXYZ(SHADERTABLE_EXTRADATA.emissiveRoughness.xyz);
 	surfaceDef.roughness = SHADERTABLE_EXTRADATA.emissiveRoughness.a;
 	surfaceDef.specularAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.x;
 	surfaceDef.clearCoatAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.y;
@@ -254,7 +249,7 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
 	surfaceDef.thinFilmThickness = SHADERTABLE_EXTRADATA.thinFilmThickness;
 	surfaceDef.isTwoSided = (SHADERTABLE_EXTRADATA.materialMask & MaterialMask_TwoSided) != 0;
 	
-	surfaceDef.sheenColor = SHADERTABLE_EXTRADATA.sheenColorRoughness.rgb;
+	surfaceDef.sheenColor.setFromXYZ(SHADERTABLE_EXTRADATA.sheenColorRoughness.rgb);
 	surfaceDef.sheenRoughness = SHADERTABLE_EXTRADATA.sheenColorRoughness.a;
 	surfaceDef.sheenAmount = SHADERTABLE_EXTRADATA.sheenAmount;
 	
@@ -264,11 +259,11 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
 
 void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinition surfaceDef)
 {
-	
+	//TODO
 	if(SHADERTABLE_EXTRADATA.albedoTexIndex != TEX_UNBOUND_INDEX)
 	{
 		float4 atex = g_textures2D[SHADERTABLE_EXTRADATA.albedoTexIndex].SampleLevel(g_colorSampler, uv, 0);
-		surfaceDef.albedo *= atex.rgb;
+		//surfaceDef.albedo *= atex.rgb;
 	}
 	
 	if(SHADERTABLE_EXTRADATA.normalTexIndex != TEX_UNBOUND_INDEX)
@@ -288,9 +283,21 @@ void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 norm
 	if(SHADERTABLE_EXTRADATA.emissiveTexIndex != TEX_UNBOUND_INDEX)
 	{
 		float4 emissive = g_textures2D[SHADERTABLE_EXTRADATA.emissiveTexIndex].SampleLevel(g_colorSampler, uv, 0);
-		surfaceDef.emissive *= emissive.rgb;
+		//surfaceDef.emissive *= emissive.rgb;
 	}
 	
 }
 	
+
+SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)
+{
+	SpectralSamples s;
+	for (uint i = 0; i < absorption.getSampleCount(); ++i)
+	{
+		float v = exp(-absorption[i] * distance);
+		s.setInd(i, v);
+	}
+	return s;
+}
+
 #endif

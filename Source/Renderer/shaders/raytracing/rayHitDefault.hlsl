@@ -78,21 +78,23 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	
 	//surface setup done, do the rest
 	float3 lightDir;
-	float3 w;
+	SpectralSamples w;
+
  
 	float rayDistance = RayTCurrent();
 	
 	//before handling the intersection, apply and clear absorption
-	if(dot(payload.absorption, float3(1.f, 1.f, 1.f)) != 0.f)
+	if (!payload.absorption.allSamplesEqual(0))
 	{
-		payload.throughput *= calculatTransmittance(rayDistance, payload.absorption);
-		payload.absorption = float3(0.0f, 0.0f, 0.0f);
+
+		payload.throughput = payload.throughput * calculateTransmittance(rayDistance, payload.absorption);
+		payload.absorption.set(0.f);
 		
 	}
 	
-	if(dot(surfaceDef.emissive, float3(1.f, 1.f, 1.f)) != 0.f)
+	if(!surfaceDef.emissive.allSamplesEqual(0))
 	{
-		payload.totalLight += payload.throughput * surfaceDef.emissive;
+		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive;
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
 	else
@@ -101,7 +103,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 		sampleMaterial(surfaceDef, payload, rayDir,  w, lightDir);
 	}
 	
-	payload.throughput *= w;
+	payload.throughput = payload.throughput * w;
 
 	if(isZero(lightDir))
 	{

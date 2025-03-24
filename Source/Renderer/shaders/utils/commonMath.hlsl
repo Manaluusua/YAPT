@@ -38,7 +38,7 @@ float jRefraction(float eta, float3 wo, float3 wm, float3 wi)
 
 
 
-float3 calculatTransmittance(float distance, float3 absorption)
+float calculateTransmittance(float distance, float absorption)
 {
 	return exp(-absorption * distance);
 }

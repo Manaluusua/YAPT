@@ -15,7 +15,7 @@ namespace YAPT
 		{L"-fspv-extension=SPV_KHR_ray_tracing"},
 		{L"-fspv-extension=SPV_EXT_descriptor_indexing"},
 		{L"-fspv-extension=SPV_KHR_ray_query"},
-		
+		{L"-HV 2021"},
 		/*{L"-fspv-reflect"},
 		{L"-fspv-extension=SPV_GOOGLE_hlsl_functionality1"},
 		{L"-fspv-extension=SPV_GOOGLE_user_type"},*/

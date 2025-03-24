@@ -15,16 +15,17 @@
 //structures
 struct Payload
 {
-	float3 throughput;
-	uint rayState; 
-	float3 totalLight;
-	uint pathLength;
+	SpectralSamples throughput;
+	SpectralSamples absorption;
+	SpectralSamples totalLight;
+	float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
 	float3 rayOrigin;
 	uint rayIndex;
 	float3 rayDirection;
+	uint pathLength;
+	
 	uint numberVolumesEntered;
-	float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
-	float3 absorption;
+	uint rayState;
 };
 
 struct RaytraceConstantData

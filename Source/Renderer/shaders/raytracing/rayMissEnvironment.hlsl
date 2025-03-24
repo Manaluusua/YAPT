@@ -41,14 +41,21 @@ float4 getSkyBoxColor()
 	
 }
 
+SpectralSamples ToSpectralSamples(float3 color)
+{
+	SpectralSamples s;
+	s.setFromXYZ(color);
+	return s;
+}
+
 [shader("miss")]
 void rayMissEnvironment(inout Payload payload)
 {
 	float4 color = getSkyBoxColor();
 #ifdef WHITE_FURNACE_TEST
-	payload.totalLight += payload.throughput * color.a;
+	payload.totalLight = payload.totalLight + payload.throughput * color.a;
 #else
-	payload.totalLight += payload.throughput * color.xyz;
+	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(color.xyz);
 #endif
 	//payload.totalLight += payload.throughput * color.a * (rayDir * 0.5 + 0.5) * 0.2 + 0.9;
 	payload.rayState = RAY_STATE_TERMINATED; //terminate ray

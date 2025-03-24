@@ -58,8 +58,12 @@ set(HEADERS
 	inc/Renderer/Shared/Utility/BindlessResourceUtility.h
 	inc/Renderer/Shared/Utility/AccelerationStructureHelper.h
 	inc/Renderer/Shared/Utility/ShaderTableHelper.h
+	
 	inc/Renderer/Shared/Utility/MultipleScatterLUT.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUTUtility.h
+	
+	inc/Renderer/Shared/Utility/SpectralUtility.h
+	inc/Renderer/Shared/Utility/SpectralData.h
 
 	inc/Renderer/Shared/RenderPipeline/RenderPipeline.h
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineBase.h
@@ -111,7 +115,10 @@ set(SOURCE
 	src/Shared/Utility/BindlessResourceUtility.cpp
 	src/Shared/Utility/AccelerationStructureHelper.cpp
 	src/Shared/Utility/ShaderTableHelper.cpp
+	
 	src/Shared/Utility/MultipleScatterLUT.cpp
+	
+	src/Shared/Utility/SpectralUtility.cpp
 	
 	src/Shared/RenderPipeline/RenderPipelineBase.cpp
 	src/Shared/RenderPipeline/RenderStage.cpp

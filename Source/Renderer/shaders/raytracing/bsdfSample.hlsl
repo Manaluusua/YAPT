@@ -1,17 +1,18 @@
 
 #ifndef BSDFSAMPLE_HLSL_INCL
 #define BSDFSAMPLE_HLSL_INCL
+#include "spectralDistribution.hlsl"
+#include "hitShadersCommon.hlsl"
 #include "../utils/ggx.hlsl"
 #include "../utils/miscBrdf.hlsl"
-#include "hitShadersCommon.hlsl"
 #include "../utils/multiScatter.hlsl"
 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
-float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float3 sample)
+float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float3 s)
 {
-	float3 wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
+	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
 	if(wi.y < 0.f)
 	{
@@ -46,9 +47,9 @@ float3 evaluateGGXReflectionConductor(in float3 etaR, in float3 etaK,in float ax
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
-float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float3 sample)
+float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float3 s)
 {
-	float3 wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
+	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
 	if(!onSameHemisphere(wo, wi))
 	{
@@ -69,7 +70,7 @@ float pdfGGXReflectionDielectric(in float3 wo, in float3 wi, in float ax, in flo
 	return pdf;
 }
 
-float3 evaluateGGXReflectionDielectric(in float etaR,in float ax ,in float ay, in float3 wo, in float3 wi)
+float evaluateGGXReflectionDielectric(in float etaR, in float ax ,in float ay, in float3 wo, in float3 wi)
 {
 	float3 wm = normalize(wo + wi);
 	if(!onSameHemisphere(wo, wi))
@@ -169,7 +170,7 @@ float pdfGGXTransmitted(in float etaR, in float3 wo, in float3 wi, in float ax, 
 	
 }
 
-float3 evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 wo, in float3 wi)
+float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 wo, in float3 wi)
 {
 	if(etaR == 1.f)
 	{
@@ -187,11 +188,11 @@ float3 evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3
 	
 	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
 	
-	float3 weight;
+	float weight;
 
 	float VdotH = saturate(dot(wo, wm));
 	
-	float3 F = fresnelDielectricDielectric2(etaR, VdotH);
+	float F = fresnelDielectricDielectric2(etaR, VdotH);
 	float G2 = G2GGX(wo, wi, wm, ax, ay);
 	float D = DGGX(wm, ax, ay);
 	
@@ -223,10 +224,10 @@ float pdfDiffuseLambertian(in float3 wo, in float3 wi, in float ax, in float ay)
 	return pdf;
 }
 
-float3 evaluateDiffuseLambertian(in float3 albedo, in float ax, in float ay, in float3 wo, in float3 wi)
+SpectralSamples evaluateDiffuseLambertian(in SpectralSamples albedo, in float ax, in float ay, in float3 wo, in float3 wi)
 {
-	float3 w = evaluateLambertian(albedo, wi);
-	return w;
+	return albedo / PI;
+
 }
 
 
@@ -253,9 +254,9 @@ float pdfSheen(in float3 wo, in float3 wi, in float r)
 	return pdf;
 }
 
-float3 evaluateSheen(in float3 sheenColor, in float r, in float3 wo, in float3 wi)
+SpectralSamples evaluateSheen(in SpectralSamples sheenColor, in float r, in float3 wo, in float3 wi)
 {
-	float3 colOut = 0.f;
+	SpectralSamples colOut = (SpectralSamples)0.f;
 	if(wi.y < 0.0f)
 	{
 		return colOut;
@@ -266,11 +267,12 @@ float3 evaluateSheen(in float3 sheenColor, in float r, in float3 wo, in float3 w
 	if( dot(wi, wm) > 0.f && dot(wo, wm) > 0)
 	{
 		//replace with schlick?
-		float3 F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
+		SpectralSamples F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
 
 		float D = DSheen(wm, r);
 		float G = GSheen(wo, wi, r);
-		colOut = F * G * D / max(4.f * wo.y * wi.y, 0.00001f);
+		float DGDenom = D * G / max(4.f * wo.y * wi.y, 0.00001f);
+		colOut = F * DGDenom;
 	} 
 	return colOut;
 }

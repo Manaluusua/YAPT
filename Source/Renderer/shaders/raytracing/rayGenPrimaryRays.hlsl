@@ -31,15 +31,15 @@ void rayGenPrimaryRays()
 	
 	
     Payload payload;
-	payload.throughput = float3(1, 1, 1);
-	payload.totalLight = float3(0, 0, 0);
+	payload.throughput.set(1.f);
+	payload.totalLight.set(0.f);
 	payload.rayOrigin = rayOrigin;
     payload.rayDirection = rayDir;
 	payload.rayState = RAY_STATE_ALIVE;
 	payload.pathLength = 0;
 	payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
 	payload.numberVolumesEntered = 0;
-	payload.absorption = float3(0.0, 0.0, 0.0);
+	payload.absorption.set(0.0f);
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;
@@ -136,11 +136,11 @@ void rayGenPrimaryRays()
 	return;
 	*/
 	
-	bool resultsValid = !isNan(payload.totalLight);
+	bool resultsValid = !payload.totalLight.hasNan();
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
 	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight, 1.f);
+		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight.ToRGB(), 1.f);
 	} 
 	else
 	{
