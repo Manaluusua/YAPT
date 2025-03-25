@@ -3,6 +3,7 @@
 #include <Gfx/GfxTypes.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <Renderer/Shared/Utility/MultipleScatterLUT.h>
+#include <Renderer/Shared/Utility/SpectralUtility.h>
 
 namespace YAPT
 {
@@ -42,6 +43,7 @@ namespace YAPT
         const VertexBufferDefinition* getDefaultVertexBufferDefinition(DefaultBufferType type) const;
 
         MultiScatteringLUTs& getMultiScatteringLUTs() { return m_multiScatteringLUTs; }
+        SpectralUtility& getSpectralUtility() { return m_specUtility; }
     private:
 
         struct BufferHandleAndView
@@ -72,6 +74,8 @@ namespace YAPT
 
         void unloadSamplers();
         MultiScatteringLUTs m_multiScatteringLUTs;
+        SpectralUtility m_specUtility;
+
         CRenderer* m_renderer;
         GfxApiHandle m_gfx;
         

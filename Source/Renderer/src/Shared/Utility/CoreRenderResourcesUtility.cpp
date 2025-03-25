@@ -133,7 +133,7 @@ namespace YAPT
 
 		}
 		m_multiScatteringLUTs.initializeLUTStorage(m_renderer, m_postProcessPool);
-		
+		m_specUtility.initializeLUTStorage(m_renderer, m_postProcessPool);
 
 	}
 
@@ -242,6 +242,7 @@ namespace YAPT
 		}
 		
 		m_multiScatteringLUTs.initializeLUTContents();
+		m_specUtility.initializeLUTContents();
 	}
 
 	void CoreRenderResourcesUtility::createSamplers()

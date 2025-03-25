@@ -62,10 +62,15 @@ float getSheenDirectionalAlbedo(float cosTheta, float roughness)
 
 //-------------------------------------- Fms -----------------------------------------------------//
 
-/*SpectralSamples getFmsTurquin(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
+SpectralSamples getFmsTurquin(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
 {
-	return fresnelDielectricConductor(etaR, etaK, cosTheta);
-}*/
+	SpectralSamples s;
+	for (uint i = 0; i < etaR.getSampleCount(); ++i)
+	{
+		s.setInd(i, fresnelDielectricConductor(etaR[i], etaK[i], cosTheta));
+	}
+	return s;
+}
 
 
 float getFmsTurquin(float etaR, float cosTheta)
@@ -73,10 +78,10 @@ float getFmsTurquin(float etaR, float cosTheta)
 	return fresnelDielectricDielectric2(etaR, cosTheta);
 }
 
-/*SpectralSamples getFmsConductor(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
+SpectralSamples getFmsConductor(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
 {
 	return getFmsTurquin(etaR, etaK, cosTheta);
-}*/
+}
 
 float getFmsDielectric(float etaR, float cosTheta)
 {
