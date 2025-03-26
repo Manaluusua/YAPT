@@ -24,7 +24,7 @@ namespace YAPT
 
 	float jReflection(const vec3p& wi, const vec3p& wm)
 	{
-		return 1.f / SAFE_DIVISOR(4 * MathUtils::saturate(dot(wi, wm)));
+		return MathUtils::safeDiv(1.f, 4 * MathUtils::saturate(dot(wi, wm)));
 	}
 
 
@@ -35,7 +35,7 @@ namespace YAPT
 		float dotMI = abs(dot(wi, wm));
 
 		float denom = MathUtils::sqr(dotMO + eta * dotMI);
-		return MathUtils::sqr(eta) * dotMI / SAFE_DIVISOR(denom);
+		return MathUtils::safeDiv(MathUtils::sqr(eta) * dotMI, denom);
 	}
 
 	inline float smithLambdaGGX(vec3p d, float ax, float ay)
@@ -68,10 +68,10 @@ namespace YAPT
 	{
 		ax = max(ax, 0.000001f);
 		ay = max(ay, 0.000001f);
-		float denom = (MathUtils::sqr(wm.x / SAFE_DIVISOR(ax)) + MathUtils::sqr(wm.z / SAFE_DIVISOR(ay)) + MathUtils::sqr(wm.y));
+		float denom = (MathUtils::sqr(MathUtils::safeDiv(wm.x, ax)) + MathUtils::sqr(MathUtils::safeDiv(wm.z, ay)) + MathUtils::sqr(wm.y));
 		denom *= denom;
 		denom *= ax * ay * PI;
-		return (1.f / SAFE_DIVISOR(denom));
+		return MathUtils::safeDiv(1.f, denom);
 
 	}
 
@@ -80,7 +80,7 @@ namespace YAPT
 	{
 		float D = DGGX(wm, ax, ay);
 		float G1 = G1GGX(wo, wm, ax, ay);
-		return (G1 * abs(dot(wo, wm)) * D) / SAFE_DIVISOR(abs(wo.y));
+		return MathUtils::safeDiv(G1 * abs(dot(wo, wm)) * D, abs(wo.y));
 	}
 
 	inline vec3p sampleNormalsGGX(float ax, float ay, float u1, float u2)
@@ -273,9 +273,9 @@ namespace YAPT
 		else
 		{
 			if (dot(wo, wm) * dot(wi, wm) > 0) return vec3p(0.f);
-			         
-			weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi) / SAFE_DIVISOR(abs(wo.y * wi.y));
-
+			float denom = abs(wo.y * wi.y);
+			weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi);
+			weight = MathUtils::safeDiv(weight, denom);
 		}
 		return weight;
 	}

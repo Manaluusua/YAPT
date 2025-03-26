@@ -4,6 +4,7 @@
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
+#include <Renderer/Shared/Utility/SpectralUtility.h>
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Renderer/Shared/BindlessTextureManager.h>
 #include <Renderer/Shared/BindlessBufferManager.h>
@@ -277,6 +278,7 @@ namespace YAPT
 
 		m_rayTraceConstants.init(data.renderGraphLifetimeResources);
 		m_randomSamples.init(data.renderGraphLifetimeResources);
+		m_wavelengthSamples.init(data.renderGraphLifetimeResources);
 	}
 
 	bool  RaytraceStage::doesShaderTableNeedUpdate()
@@ -586,7 +588,7 @@ namespace YAPT
 			{
 				if (m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor) == 0)
 				{
-					updateRandomSamples();
+					updateSamples();
 				}
 			}
 		}
@@ -634,14 +636,17 @@ namespace YAPT
 							  
 			TextureViewHandle sheenDirectionalAlbedo = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getDirectionalAlbedoSheen();
 
+			TextureViewHandle cieLUT = getRenderer()->getCoreResources()->getSpectralUtility().getXYZColorMatchingLUT();
+
 			TextureViewHandle noiseTex = getRenderer()->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
 			
 
 			DescriptorSetUpdate updates[] = {
 				{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
 				{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
-				{3, 0, 1, DescriptorPtr(&accStruct) },
-				{4, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{3, 0, 1, DescriptorPtr(m_wavelengthSamples.getViewPtr())},
+				{4, 0, 1, DescriptorPtr(&accStruct) },
+				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
 				{10, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
 				{11, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
 				{12, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
@@ -651,6 +656,7 @@ namespace YAPT
 				{16, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
 				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
 				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
+				{19, 0, 1, DescriptorPtr(&cieLUT)},
 				{20, 0, 1, DescriptorPtr(&noiseTex)}
 			};
 			Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_rtDescSet, updates, countOf(updates));
@@ -764,10 +770,18 @@ namespace YAPT
 		return v;
 	}
 	
-	void RaytraceStage::updateRandomSamples()
+	void RaytraceStage::updateSamples()
 	{       
-		MathUtils::generateHaltonSequence(NUMBER_OF_RANDOM_SAMPLES, m_randomSamples.getData()->samples, getCurrentNumberOfSamplesPerPixel());
+		uint32_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
+
+		MathUtils::generateHaltonSequence(NUMBER_OF_RANDOM_SAMPLES, m_randomSamples.getData()->samples, sampleOffset);
 		m_randomSamples.flush();
+		
+
+		float rand = halton<float>(11, sampleOffset);
+		SpectralSampleWavelengths* data = m_wavelengthSamples.getData();
+		SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, data->lambdaPDF, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
+		m_wavelengthSamples.flush();
 	}
 	
 	void RaytraceStage::initSubpixelJitterSamples()

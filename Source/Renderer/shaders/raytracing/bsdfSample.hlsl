@@ -1,7 +1,7 @@
 
 #ifndef BSDFSAMPLE_HLSL_INCL
 #define BSDFSAMPLE_HLSL_INCL
-#include "spectralDistribution.hlsl"
+#include "raytraceCommonResources.hlsl"
 #include "hitShadersCommon.hlsl"
 #include "../utils/ggx.hlsl"
 #include "../utils/miscBrdf.hlsl"
@@ -31,20 +31,22 @@ float pdfGGXReflectionConductor(in float3 wo, in float3 wi, in float ax, in floa
 	return pdfWMGGX(wo, wm, ax, ay) * jReflection(wo, wm);
 }
 
-float3 evaluateGGXReflectionConductor(in float3 etaR, in float3 etaK,in float ax ,in float ay, in float3 wo, in float3 wi)
+template<typename T>
+T evaluateGGXReflectionConductor(in T etaR, in T etaK,in float ax ,in float ay, in float3 wo, in float3 wi)
 {
 	float3 wm = normalize(wo + wi);
 	if(!onSameHemisphere(wo, wi))
 	{
-		return 0.f;
+		return (T)0;
 	}
 
-	float3 F = fresnelDielectricConductor(etaR, etaK, dot(wo, wm));
+	T F = fresnelDielectricConductor(etaR, etaK, dot(wo, wm));
 	float G2 = G2GGX(wo, wi, wm, ax, ay);
 	float D = DGGX(wm, ax, ay);
 	
 	return F * G2 * D / max(4.f * wo.y * wi.y, 0.00001f);
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float3 s)
@@ -196,7 +198,10 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 	float G2 = G2GGX(wo, wi, wm, ax, ay);
 	float D = DGGX(wm, ax, ay);
 	
-	weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi) / SAFE_DIVISOR(abs(wo.y * wi.y));
+	float denom = abs(wo.y * wi.y);
+
+	weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi);
+	weight = safeDiv(weight, denom);
 	
 
 	return weight;
@@ -223,8 +228,8 @@ float pdfDiffuseLambertian(in float3 wo, in float3 wi, in float ax, in float ay)
 	float pdf = pdfHemisphere(wi); //diff
 	return pdf;
 }
-
-SpectralSamples evaluateDiffuseLambertian(in SpectralSamples albedo, in float ax, in float ay, in float3 wo, in float3 wi)
+template<typename T>
+T evaluateDiffuseLambertian(in T albedo, in float ax, in float ay, in float3 wo, in float3 wi)
 {
 	return albedo / PI;
 
@@ -254,9 +259,10 @@ float pdfSheen(in float3 wo, in float3 wi, in float r)
 	return pdf;
 }
 
-SpectralSamples evaluateSheen(in SpectralSamples sheenColor, in float r, in float3 wo, in float3 wi)
+template<typename T>
+T evaluateSheen(in T sheenColor, in float r, in float3 wo, in float3 wi)
 {
-	SpectralSamples colOut = (SpectralSamples)0.f;
+	T colOut = (T)0.f;
 	if(wi.y < 0.0f)
 	{
 		return colOut;
@@ -267,7 +273,7 @@ SpectralSamples evaluateSheen(in SpectralSamples sheenColor, in float r, in floa
 	if( dot(wi, wm) > 0.f && dot(wo, wm) > 0)
 	{
 		//replace with schlick?
-		SpectralSamples F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
+		T F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
 
 		float D = DSheen(wm, r);
 		float G = GSheen(wo, wi, r);

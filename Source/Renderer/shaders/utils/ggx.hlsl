@@ -52,7 +52,7 @@ float DGGX(float3 wm, float ax, float ay)
 	float denom = (sqr(wm.x / ax) + sqr(wm.z / ay) + sqr(wm.y));
 	denom *= denom;
 	denom *= ax * ay * PI;
-	return (1.f / SAFE_DIVISOR(denom));
+	return safeDiv(1.f, denom);
 	
 }
 
@@ -88,7 +88,7 @@ float DVGGX(float3 wo, float3 wm, float ax, float ay)
 {
 	float D = DGGX(wm, ax, ay);
 	float G1 = G1GGX(wo, wm, ax, ay);
-	return (G1 *  abs(dot(wo, wm))*D) / SAFE_DIVISOR(abs(wo.y)); 
+	return safeDiv(G1 * abs(dot(wo, wm)) * D, abs(wo.y)); 
 }
 
 float3 sampleWMGGX(float3 wo, float ax, float ay, float u1, float u2)

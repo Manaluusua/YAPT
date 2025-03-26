@@ -1,5 +1,7 @@
 #pragma once
 
+//keep in sync with shaders (could collapse to shared header)
+
 namespace YAPT
 {
 	constexpr int SIE_SAMPLE_COUNT = 471;

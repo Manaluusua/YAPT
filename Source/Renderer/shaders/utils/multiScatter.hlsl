@@ -61,36 +61,21 @@ float getSheenDirectionalAlbedo(float cosTheta, float roughness)
 
 
 //-------------------------------------- Fms -----------------------------------------------------//
-
-SpectralSamples getFmsTurquin(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
+template<typename T>
+T getFmsConductor(T etaR, T etaK, float cosTheta) //TODO
 {
-	SpectralSamples s;
-	for (uint i = 0; i < etaR.getSampleCount(); ++i)
-	{
-		s.setInd(i, fresnelDielectricConductor(etaR[i], etaK[i], cosTheta));
-	}
-	return s;
-}
-
-
-float getFmsTurquin(float etaR, float cosTheta)
-{
-	return fresnelDielectricDielectric2(etaR, cosTheta);
-}
-
-SpectralSamples getFmsConductor(SpectralSamples etaR, SpectralSamples etaK, float cosTheta) //TODO
-{
-	return getFmsTurquin(etaR, etaK, cosTheta);
+	return fresnelDielectricConductor(etaR, etaK, cosTheta);
 }
 
 float getFmsDielectric(float etaR, float cosTheta)
 {
-	return getFmsTurquin(etaR, cosTheta);
+	return fresnelDielectricDielectric2(etaR, cosTheta);
 }
 
 
 //--------------------------------------Energy compensation -----------------------------------------------------//
-SpectralSamples getEnergyCompensationKulla(in SpectralSamples fms, in float dotWo, in float dotWi, in float linearRoughness, in SpectralSamples singleScattering)
+template<typename T>
+T getEnergyCompensationKulla(in T fms, in float dotWo, in float dotWi, in float linearRoughness, in T singleScattering)
 { 
 	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(abs(dotWo), linearRoughness);
 	float dirAlbedoWi = getSSDirectionalAlbedoNoFresnel(abs(dotWi), linearRoughness);
@@ -100,15 +85,15 @@ SpectralSamples getEnergyCompensationKulla(in SpectralSamples fms, in float dotW
 	
 }
 
-
-float getEnergyCompensationTurquin(in float fms, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
+template<typename T>
+T getEnergyCompensationTurquin(in T fms, in float dotWo, in float dotWi, in float linearRoughness, in T singleScatter)
 {
 	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(abs(dotWo), linearRoughness);
-	float energyCompensation = fms * ( 1.f - dirAlbedoWo) / dirAlbedoWo;
-	return  energyCompensation * singleScatter;
+	T energyCompensation = fms * ( 1.f - dirAlbedoWo) / dirAlbedoWo;
+	return singleScatter * energyCompensation;
 }
-
-float getEnergyCompensation(in float fms, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
+template<typename T>
+T getEnergyCompensation(in T fms, in float dotWo, in float dotWi, in float linearRoughness, in T singleScatter)
 {
 	//return getEnergyCompensationKulla(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
 	return getEnergyCompensationTurquin(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);

@@ -3,12 +3,23 @@
 
 #define SAFE_DIVISOR(x) (((x) == 0.f) ? (1.f) : (x))
 
-
 namespace YAPT
 {
 	namespace MathUtils
 	{
 		constexpr float PI = glm::pi<float>();
+
+		template<typename T, typename U>
+		inline T safeDiv(T x, U y)
+		{
+			if (y == 0)
+			{
+				return T(0);
+			}
+
+			return x / y;
+		}
+
 
 		inline float step(float y, float x)
 		{

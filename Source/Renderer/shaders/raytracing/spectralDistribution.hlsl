@@ -1,9 +1,13 @@
 #ifndef SPECTRAL_DISTRIBUTION_HLSL_INCL
 #define SPECTRAL_DISTRIBUTION_HLSL_INCL
 
-#define SPECTRAL_SAMPLES_COUNT 3
+//the resources needed are defined in raytraceCommonResources.hlsl
 
-#include "../utils/common.hlsl"
+float3 getXYZCoeffsForWavelength(float lambda)
+{
+	float u = (lambda - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN);
+	return sampleLUT(g_lutSampler, g_cieXYZCoeffsLUT, u).xyz;
+}
 
 struct SpectralSamples
 {
@@ -130,6 +134,15 @@ struct SpectralSamples
 
 	float3 ToXYZ()
 	{
+		/*float3 xyz = 0;
+		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		{
+			float2 lambdaPDF = g_sampledWavelengthAndPDF[i];
+			float3 xyzCoeffs = getXYZCoeffsForWavelength(lambdaPDF.x);
+			xyz += samples[i] * safeDiv(xyzCoeffs, lambdaPDF.y);
+		}
+		return xyz / SIE_Y_SUM;*/
+
 		return float3(samples[0], samples[1], samples[2]);
 	}
 
@@ -148,6 +161,16 @@ struct SpectralSamples
 		return false;
 	}
 };
+
+SpectralSamples sqrt(SpectralSamples v)
+{
+	SpectralSamples s;
+	for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+	{
+		s.samples[i] = sqrt(v[i]);
+	}
+	return s;
+}
 
 
 

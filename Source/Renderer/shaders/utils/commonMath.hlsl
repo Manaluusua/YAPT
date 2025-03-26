@@ -23,7 +23,7 @@ float3 refr(float etaR, float3 wm, float3 wo)
 
 float jReflection(float3 wi, float3 wm)
 {
-	return 1.f/SAFE_DIVISOR(4*saturate(dot(wi,wm)));
+	return safeDiv(1.f, 4 * saturate(dot(wi,wm)));
 }
 
 
@@ -33,7 +33,7 @@ float jRefraction(float eta, float3 wo, float3 wm, float3 wi)
 	float dotMI = abs(dot(wi, wm));
 	
 	float denom = sqr(dotMO + eta * dotMI);
-    return sqr(eta) * dotMI / SAFE_DIVISOR(denom);
+    return safeDiv(sqr(eta) * dotMI, denom);
 }
 
 

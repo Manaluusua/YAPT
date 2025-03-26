@@ -2,31 +2,7 @@
 #define RAYTRACE_COMMON_RESOURCES_HLSL_INCL
 
 #include "raytraceCommon.hlsl"
-
-#define NUMBER_OF_RANDOM_SAMPLES 256
-
-#define RAY_STATE_ALIVE 0
-#define RAY_STATE_TERMINATED 1
-#define RAY_STATE_CANCELLED 2
-#define RAY_MAX_VOLUMES_ENTERED 4
-
-#define IOR_DEFAULT (1.0f) 
-
-//structures
-struct Payload
-{
-	SpectralSamples throughput;
-	SpectralSamples absorption;
-	SpectralSamples totalLight;
-	float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
-	float3 rayOrigin;
-	uint rayIndex;
-	float3 rayDirection;
-	uint pathLength;
-	
-	uint numberVolumesEntered;
-	uint rayState;
-};
+//data structs, keep in sync with raytracestage
 
 struct RaytraceConstantData
 {
@@ -43,11 +19,17 @@ struct RandomSamples
 	float4 samples[NUMBER_OF_RANDOM_SAMPLES];
 };
 
+struct SpectralSampleWavelengths
+{
+	float2 lambdaPDF[SPECTRAL_SAMPLES_COUNT];
+};
 
+//uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
-RaytracingAccelerationStructure g_accelerationStructure : register(t3, space0);
-RWTexture2D<float4> g_outputColor : register(u4, space0);
+ConstantBuffer<SpectralSampleWavelengths> g_sampledWavelengths : register(b3, space0);
+RaytracingAccelerationStructure g_accelerationStructure : register(t4, space0);
+RWTexture2D<float4> g_outputColor : register(u5, space0);
 SamplerState g_colorSampler : register(s6, space0);
 SamplerState g_pointSampler: register(s7, space0);
 SamplerState g_lutSampler : register(s8, space0);
@@ -62,7 +44,8 @@ Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t16, space0);
 Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t17, space0);
 Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t18, space0);
 
-Texture2D g_noiseTex : register(t20, space0);
+Texture1D g_cieXYZCoeffsLUT : register(t19, space0);
+Texture2D g_NoiseTex : register(t20, space0);
 
 
 //bindless texture aliases
@@ -78,9 +61,7 @@ Buffer<uint> g_buffersUint[] : register(t0, space2);
 [[vk::binding(0, 2)]]
 Buffer<float> g_buffersFloat[] : register(t0, space10002);
 
-
-
-//defines
+//helper defines
 #define g_uvToViewTransform g_rayGenConstants.uvToView
 #define g_viewToWorldTransform g_rayGenConstants.viewToWorld
 #define g_cameraPosition g_rayGenConstants.cameraPosition.xyz
@@ -91,7 +72,9 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
 #define g_randomSamples g_randomSampleLocations.samples
 
-//funcs
+#define g_sampledWavelengthAndPDF g_sampledWavelengths.lambdaPDF
+
+//helper functions
 float4 getRandomSampleFloat4(uint offset)
 {
 	uint index = offset % NUMBER_OF_RANDOM_SAMPLES;
@@ -146,38 +129,7 @@ float4 sampleLUT(in SamplerState s, in Texture3D t, float3 uv)
 	return t.SampleLevel(s, c, 0);
 }
 
-
-float payloadGetCurrentIOR(in Payload payload)
-{
-	float currentIOR = IOR_DEFAULT; //air if not entered volume
-	if(payload.numberVolumesEntered != 0)
-	{
-		currentIOR = payload.volumesEntered[payload.numberVolumesEntered - 1];
-	}
-	return currentIOR;
-}
-
-float payloadGetBeforeCurrentIOR(in Payload payload)
-{
-	float beforeCurrentIOR = IOR_DEFAULT; 
-	if(payload.numberVolumesEntered > 1)
-	{
-		beforeCurrentIOR = payload.volumesEntered[payload.numberVolumesEntered - 2];
-	}
-	return beforeCurrentIOR;
-}
-
-void payloadRayEnteredVolume(inout Payload payload, in float IOROfEnteredVolume)
-{
-	payload.numberVolumesEntered = min(payload.numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
-	payload.volumesEntered[payload.numberVolumesEntered - 1] = IOROfEnteredVolume;
-}
-
-void payloadRayExitedVolume(inout Payload payload)
-{
-	payload.numberVolumesEntered = max(0, payload.numberVolumesEntered - 1);
-}
-
-
+#include "spectralDistribution.hlsl"
+#include "payload.hlsl"
 
 #endif

@@ -3,6 +3,23 @@
 
 #define SAFE_DIVISOR(x) (((x) == 0.f) ? (1.f) : (x))
 
+template<typename T>
+bool isZero(T vec)
+{
+	return dot(vec, vec) == 0.f;
+}
+
+template<typename T, typename U>
+T safeDiv(T nom, U denom)
+{
+	if (isZero(denom))
+	{
+		return 0;
+	}
+
+	return nom / denom;
+}
+
 bool isNan(float val)
 {
 	return isnan(val) || val != val;
@@ -23,19 +40,6 @@ bool isNan(float4 val)
 	return isNan(val.xy) || isNan(val.zw);
 }
 
-bool isZero(float2 vec)
-{
-	return dot(vec, vec) == 0.f;
-}
 
-bool isZero(float3 vec)
-{
-	return dot(vec, vec) == 0.f;
-}
-
-bool isZero(float4 vec)
-{
-	return dot(vec, vec) == 0.f;
-}
 
 #endif

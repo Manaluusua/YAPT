@@ -245,38 +245,40 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	if(samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0)
 	{
-		/*if (onSameHemisphere(woBase, wiBase)) //TODO!!!!
+		if (onSameHemisphere(woBase, wiBase))
 		{
-			float2 r = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo.r, surfaceDef.specular.r);
-			float2 g = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo.g, surfaceDef.specular.g);
-			float2 b = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo.b, surfaceDef.specular.b);
-		
-			float3 n = float3(r.x, g.x, b.x);
-			float3 k = float3(r.y, g.y, b.y);
-			k = sqrt(k);
-			
-			float3 etaR = n / fromIOR;
-			float3 etaK = k / fromIOR;
+			SpectralSamples real;
+			SpectralSamples img;
+
+			for (uint i = 0; i < surfaceDef.albedo.getSampleCount(); ++i)
+			{
+				float2 v = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo[i], surfaceDef.specular[i]);
+				real.setInd(i, v.x);
+				img.setInd(i, sqrt(v.y));
+			}
+
+			SpectralSamples etaR = real / fromIOR;
+			SpectralSamples etaK = img / fromIOR;
 			
 			//single scatter
 			float pdf = pdfGGXReflectionConductor(woBase, wiBase, a2.x, a2.y);
-			float3 weight = evaluateGGXReflectionConductor(etaR, etaK, a2.x, a2.y, woBase, wiBase);
+			SpectralSamples weight = evaluateGGXReflectionConductor(etaR, etaK, a2.x, a2.y, woBase, wiBase);
 			
 			//multiscatter
 			float3 wm = normalize(woBase + wiBase);
-			float3 fms = getFmsConductor(etaR, etaK, dot(woBase, wm));
-			float3 msbrdf = getEnergyCompensation(fms, woBase.y, wiBase.y, surfaceDef.roughness, weight);
-			weight += msbrdf;
-			weight *= surfaceDef.metalness;
+			SpectralSamples fms = getFmsConductor(etaR, etaK, dot(woBase, wm));
+			SpectralSamples msbrdf = getEnergyCompensation(fms, woBase.y, wiBase.y, surfaceDef.roughness, weight);
+			weight = weight + msbrdf;
+			weight = weight * surfaceDef.metalness;
 			
 			if(pdf > 0)
 			{
-				weightSum += weight * energyLeft * abs(wiBase.y);
+				weightSum = weightSum + weight * energyLeft * abs(wiBase.y);
 				pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
 			}
 			
-			energyLeft *= 1.f - surfaceDef.metalness;
-		}*/
+			energyLeft = energyLeft * (1.f - surfaceDef.metalness);
+		}
 	} 
 	
 	

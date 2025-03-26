@@ -12,6 +12,7 @@
 namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
+	constexpr uint32_t SPECTRAL_SAMPLES_COUNT = 3;
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
 	class Texture;
@@ -72,6 +73,10 @@ namespace YAPT
 			vec4p samples[NUMBER_OF_RANDOM_SAMPLES];
 		};
 
+		struct SpectralSampleWavelengths
+		{
+			vec2p lambdaPDF[SPECTRAL_SAMPLES_COUNT];
+		};
 
 		struct RayHitShaderTableConstantData
 		{
@@ -141,7 +146,7 @@ namespace YAPT
 		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
 		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
 
-		void updateRandomSamples();
+		void updateSamples();
 
 		AccelerationStructureHelper m_accStructureHelper;
 		ShaderTableHelper m_shaderTableHelper;
@@ -152,6 +157,7 @@ namespace YAPT
 		DescriptorSetHandle m_rtDescSet;
 		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
+		FixedSizeGpuBufferHelper<SpectralSampleWavelengths> m_wavelengthSamples;
 
 		ComputeNode* m_mergeNode;
 		PostProcessComputePassUtility m_clearMergeBufferPass;

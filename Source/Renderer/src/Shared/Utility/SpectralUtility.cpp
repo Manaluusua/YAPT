@@ -1,5 +1,4 @@
 #include <Renderer/Shared/Utility/SpectralUtility.h>
-#include <Renderer/Shared/Utility/SpectralData.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Gfx/GfxBasicTypesUtility.h>
 
@@ -29,28 +28,6 @@ namespace YAPT
 			m_cieXYZColorMacthingLUT.texture = pool.requestTexture(texDesc, resState, "CIEXYZColorMatchingLUT");
 		}
 		
-	}
-	
-	uint32_t SpectralUtility::getCIELUTMinLambda() const
-	{
-		return c_cieLambda[0];
-	}
-	uint32_t SpectralUtility::getCIELUTMaxLambda() const
-	{
-		return c_cieLambda[SIE_SAMPLE_COUNT - 1];
-	}
-	uint32_t SpectralUtility::getCIELUTLambdaStep() const
-	{
-		return SIE_SAMPLE_LAMBDA_STEP;
-	}
-	uint32_t SpectralUtility::getCIELUTSampleCount() const
-	{
-		return SIE_SAMPLE_COUNT;
-	}
-
-	float SpectralUtility::getIntegralCIEY() const
-	{
-		return SIE_Y_SUM;
 	}
 
 	void SpectralUtility::initializeLUTContents()
