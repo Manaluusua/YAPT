@@ -25,22 +25,22 @@ namespace YAPT
 
 		static constexpr uint32_t getCIELUTMaxLambda()
 		{
-			return c_cieLambda[SIE_SAMPLE_COUNT - 1];
+			return c_cieLambda[CIE_SAMPLE_COUNT - 1];
 		}
 
 		static constexpr uint32_t getCIELUTLambdaStep()
 		{
-			return SIE_SAMPLE_LAMBDA_STEP;
+			return CIE_SAMPLE_LAMBDA_STEP;
 		}
 
 		static constexpr uint32_t getCIELUTSampleCount()
 		{
-			return SIE_SAMPLE_COUNT;
+			return CIE_SAMPLE_COUNT;
 		}
 
 		static constexpr float getIntegralCIEY()
 		{
-			return SIE_Y_SUM;
+			return CIE_Y_SUM;
 		}
 
 		template<typename Vec2Type>
@@ -68,14 +68,18 @@ namespace YAPT
 		}
 
 	private:
+
+		bool loadRGBToSPDLUT(vec3* lutData);
+		void storeRGBToSPDLUT(vec3* lutData);
+		void calculateRGBToSPDLUT(vec3* lutData, bool printError);
+
+		bool tryToLoadFromfile(const char* filename, ResourceDimension dim, ResourceFormat f, const glm::uvec3& expectedDimensions, void* dataOut);
+
 		struct TextureHandleAndView
 		{
 			TextureHandle texture;
 			TextureViewHandle textureView;
 		};
-
-
-
 		TextureHandleAndView m_cieXYZColorMacthingLUT;
 
 
