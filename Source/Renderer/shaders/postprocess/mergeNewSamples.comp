@@ -5,8 +5,10 @@ struct MergeNewSamplesParams
 {
 	uint4 targetTextureOffsetScaleBias;
 	uint2 sourceTextureDimensions;
+	uint64_t sampleCount;
 };
 
+//#define USE_PER_PIXEL_SAMPLE_COUNT
 
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
@@ -23,7 +25,7 @@ void main( uint3 groupId : SV_GroupID,
 		float4 srcColor = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
 		uint2 targetPosition = g_mergeParams.targetTextureOffsetScaleBias.xy * dispatchThreadId.xy + g_mergeParams.targetTextureOffsetScaleBias.zw;
 		float4 dstColor = g_targetTex[targetPosition];
-		
+#ifdef USE_PER_PIXEL_SAMPLE_COUNT
 		float w = dstColor.a + srcColor.a;
 		if(w > 0)
 		{
@@ -32,11 +34,19 @@ void main( uint3 groupId : SV_GroupID,
 			
 			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, w);
 			g_targetTex[targetPosition] = output;
-			
-			
-			
 		}
-		
+#else
+		if(srcColor.a > 0)
+		{
+			double w = 1.0/double(g_mergeParams.sampleCount);
+			//TODO: keep everything 64 bit and have the target format match?
+			float srcBlend = float(w);
+			float destBlend = float(1 - w);
+			
+			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, dstColor.w + 1);
+			g_targetTex[targetPosition] = output;
+		}
+#endif
 		
 	}
 }

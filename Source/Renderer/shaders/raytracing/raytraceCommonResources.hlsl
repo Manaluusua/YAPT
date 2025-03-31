@@ -30,9 +30,12 @@ ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
 ConstantBuffer<SpectralSampleWavelengths> g_sampledWavelengths : register(b3, space0);
 RaytracingAccelerationStructure g_accelerationStructure : register(t4, space0);
 RWTexture2D<float4> g_outputColor : register(u5, space0);
+
 SamplerState g_colorSampler : register(s6, space0);
 SamplerState g_pointSampler: register(s7, space0);
 SamplerState g_lutSampler : register(s8, space0);
+Texture2D g_NoiseTex : register(t9, space0);
+
 
 Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t10, space0);
 Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t11, space0);
@@ -45,7 +48,9 @@ Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t17, space0);
 Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t18, space0);
 
 Texture1D g_cieXYZCoeffsLUT : register(t19, space0);
-Texture2D g_NoiseTex : register(t20, space0);
+Texture1D g_rec2020ToSPDLUT : register(t20, space0);
+Texture1D g_srgbToSPDLUT : register(t21, space0);
+
 
 
 //bindless texture aliases

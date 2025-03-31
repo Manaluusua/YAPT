@@ -552,6 +552,7 @@ namespace YAPT
 			MergeNewSamplesParams* mergeSamplesParams = m_mergeSamplesConstants.getData();
 			mergeSamplesParams->sourceTextureDimensions = glm::uvec2(m_raysPerFrameWidth, m_raysPerFrameHeight);
 			mergeSamplesParams->targetTextureOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
+			mergeSamplesParams->sampleCount = getCurrentNumberOfSamplesPerPixel() + 1;
 
 			RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
 
@@ -572,7 +573,7 @@ namespace YAPT
 			mat4 viewToWorld = glm::inverse(getRenderer()->getCurrentRenderView().getView());
 			camPos = viewToWorld * camPos;
 
-			rtConstants->currentSampleIndex = getCurrentNumberOfSamplesPerPixel();
+			rtConstants->currentSampleIndex = uint32_t(getCurrentNumberOfSamplesPerPixel() % 0xFFFFFFFF);
 			rtConstants->maxRayDepth = 16;
 			rtConstants->rayUVOffset = rayUVOffset;
 			rtConstants->cameraPosition = camPos;
@@ -624,6 +625,8 @@ namespace YAPT
 			TextureViewHandle rtOutputUav = getGraph()->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructureHelper.getTopLevelAccelerationStructure();
 
+			TextureViewHandle noiseTex = getRenderer()->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
+
 			TextureViewHandle singleScatterAlbedoNoFresnel = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoNoFresnel();
 			TextureViewHandle singleScatterAverageAlbedoNoFresnel = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getSingleScatterAverageDirectionalAlbedoNoFresnel();
 			TextureViewHandle singleAndMultiScatterAlbedo = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getSingleAndMultiScatterDirectionalAlbedo();
@@ -637,8 +640,8 @@ namespace YAPT
 			TextureViewHandle sheenDirectionalAlbedo = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getDirectionalAlbedoSheen();
 
 			TextureViewHandle cieLUT = getRenderer()->getCoreResources()->getSpectralUtility().getXYZColorMatchingLUT();
-
-			TextureViewHandle noiseTex = getRenderer()->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
+			TextureViewHandle toSRGBLUT = getRenderer()->getCoreResources()->getSpectralUtility().getSRGBToSPDLUT();
+			TextureViewHandle toREC2020LUT = getRenderer()->getCoreResources()->getSpectralUtility().getREC2020ToSPDLUT();
 			
 
 			DescriptorSetUpdate updates[] = {
@@ -647,6 +650,7 @@ namespace YAPT
 				{3, 0, 1, DescriptorPtr(m_wavelengthSamples.getViewPtr())},
 				{4, 0, 1, DescriptorPtr(&accStruct) },
 				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{9, 0, 1, DescriptorPtr(&noiseTex)},
 				{10, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
 				{11, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
 				{12, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
@@ -657,7 +661,9 @@ namespace YAPT
 				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
 				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
 				{19, 0, 1, DescriptorPtr(&cieLUT)},
-				{20, 0, 1, DescriptorPtr(&noiseTex)}
+				{20, 0, 1, DescriptorPtr(&toSRGBLUT)},
+				{21, 0, 1, DescriptorPtr(&toREC2020LUT)},
+				
 			};
 			Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_rtDescSet, updates, countOf(updates));
 		}
@@ -750,7 +756,7 @@ namespace YAPT
 	uvec4p RaytraceStage::getCurrentResolveTargetTexelOffsetParams()
 	{    
 		//scale & bias
-		uint32_t frameIndex = m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor);
+		uint64_t frameIndex = m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor);
 		return glm::uvec4(m_raysPerFrameDivisor, m_raysPerFrameDivisor, frameIndex % m_raysPerFrameDivisor, frameIndex / m_raysPerFrameDivisor);
 	}
 	vec2p RaytraceStage::getCurrentRayGenerationOffset()
@@ -763,16 +769,16 @@ namespace YAPT
 		return vec2p(pixelOffset.x * targetPixelWidth, pixelOffset.y * targetPixelHeight);
 	}
 
-	uint32_t RaytraceStage::getCurrentNumberOfSamplesPerPixel()
+	uint64_t RaytraceStage::getCurrentNumberOfSamplesPerPixel()
 	{
 		uint32_t iterationsToFullResolution = m_raysPerFrameDivisor * m_raysPerFrameDivisor;
-		uint32_t v = m_framesAccumulated / iterationsToFullResolution;
+		uint64_t v = m_framesAccumulated / iterationsToFullResolution;
 		return v;
 	}
 	
 	void RaytraceStage::updateSamples()
 	{       
-		uint32_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
+		uint64_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
 
 		MathUtils::generateHaltonSequence(NUMBER_OF_RANDOM_SAMPLES, m_randomSamples.getData()->samples, sampleOffset);
 		m_randomSamples.flush();

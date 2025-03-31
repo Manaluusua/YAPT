@@ -14,15 +14,15 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	
 	
 	//fetch surface material parameters
-	SurfaceDefinition surfaceDef;
-	fetchSurfaceMaterialParameters(surfaceDef);
+	SurfaceDefinitionRGB surfaceDefRGB;
+	fetchSurfaceMaterialParameters(surfaceDefRGB);
 	
 	
 	float3 rayDir = ObjectRayDirection();
 	rayDir = normalize(rayDir); //ObjectRayDirection() contains scaling (if present)
 	
 	//if two sided, flip normal if view ray hitting from backside
-	if(surfaceDef.isTwoSided)
+	if(isTwoSided(surfaceDefRGB.flags))
 	{
 		if(dot(rayDir, geometryNormal) > 0)
 		{
@@ -31,9 +31,9 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	}
 	
 	float3 normal = geometryNormal;
-	
-	modifySurfaceMaterialParametersWithTextures(uv, normal, tangent, surfaceDef);
-	
+	modifySurfaceMaterialParametersWithTextures(uv, normal, tangent, surfaceDefRGB);
+	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+
 	
 	float3 normalBaseLayer = geometryNormal;
 	float3 normalCoatingLayer = geometryNormal;

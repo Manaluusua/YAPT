@@ -128,7 +128,7 @@ namespace YAPT
 		uvec4p getCurrentResolveTargetTexelOffsetParams();
 		vec2p getCurrentRayGenerationOffset();
 
-		uint32_t getCurrentNumberOfSamplesPerPixel();
+		uint64_t getCurrentNumberOfSamplesPerPixel();
 
 		bool doesShaderTableNeedUpdate();
 		void updateShaderTable();
@@ -171,7 +171,7 @@ namespace YAPT
 		uint32_t m_resolveTargetWidth;
 		uint32_t m_resolveTargetHeight;
 
-		uint32_t m_framesAccumulated;
+		uint64_t m_framesAccumulated;
 		uint32_t m_raysPerFrameDivisor;
 
 		Texture* m_lastEnvMap;

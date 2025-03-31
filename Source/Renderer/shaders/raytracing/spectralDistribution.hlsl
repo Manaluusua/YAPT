@@ -15,7 +15,7 @@ struct SpectralSamples
 
 	uint getSampleCount() { return SPECTRAL_SAMPLES_COUNT; }
 
-	void setFromXYZ(float3 values)
+	void setFromRGB(float3 values)
 	{
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{

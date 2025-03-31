@@ -38,6 +38,34 @@ struct RayHitShaderTableConstantData
 	uint emissiveTexIndex;
 };
 
+struct SurfaceDefinitionRGB
+{
+	float3x3 toCoatingLayerTangentSpace;
+	float3x3 toBaseLayerTangentSpace;
+
+	float3 specular;
+	float metalness;
+	float3 albedo;
+	float transparency;
+	float3 absorption;
+	float dielectricIOR;
+	float3 emissive;
+	float roughness;
+	float3 geometryNormal;
+	float specularAmount;
+	float clearCoatAmount;
+	float clearCoatIOR;
+	float clearCoatRoughness;
+
+	float anisotropy;
+	float anisotropyRotation;
+	float thinFilmThickness;
+	float3 sheenColor;
+	float sheenRoughness;
+	float sheenAmount;
+	uint flags;
+};
+
 struct SurfaceDefinition
 {
 	float3x3 toCoatingLayerTangentSpace;
@@ -64,8 +92,47 @@ struct SurfaceDefinition
 	float thinFilmThickness;
 	float sheenRoughness;
 	float sheenAmount;
-	bool isTwoSided;
+	uint flags;
 };
+
+SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
+{
+	SurfaceDefinition surfDef;
+	surfDef.toCoatingLayerTangentSpace = rgb.toCoatingLayerTangentSpace;
+	surfDef.toBaseLayerTangentSpace = rgb.toBaseLayerTangentSpace;
+
+	surfDef.specular.setFromRGB(rgb.specular);
+	surfDef.albedo.setFromRGB(rgb.albedo);
+	surfDef.absorption.setFromRGB(rgb.absorption);
+	surfDef.emissive.setFromRGB(rgb.emissive);
+	surfDef.sheenColor.setFromRGB(rgb.sheenColor);
+
+	surfDef.geometryNormal = rgb.geometryNormal;
+
+	surfDef.transparency = rgb.transparency;
+	surfDef.metalness = rgb.metalness;
+	surfDef.dielectricIOR = rgb.dielectricIOR;
+	surfDef.roughness = rgb.roughness;
+	surfDef.specularAmount = rgb.specularAmount;
+
+	surfDef.clearCoatAmount = rgb.clearCoatAmount;
+	surfDef.clearCoatIOR = rgb.clearCoatIOR;
+	surfDef.clearCoatRoughness = rgb.clearCoatRoughness;
+
+	surfDef.anisotropy = rgb.anisotropy;
+	surfDef.anisotropyRotation = rgb.anisotropyRotation;
+	surfDef.thinFilmThickness = rgb.thinFilmThickness;
+
+	surfDef.sheenRoughness = rgb.sheenRoughness;
+	surfDef.sheenAmount = rgb.sheenAmount;
+	surfDef.flags = rgb.flags;
+	return surfDef;
+}
+
+bool isTwoSided(uint flags)
+{
+	return (flags & MaterialMask_TwoSided) != 0;
+}
 
 SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
@@ -229,15 +296,15 @@ void makeOrthogonal(in float3 n, inout float3 t)
 }
 
 
-void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
+void fetchSurfaceMaterialParameters(inout SurfaceDefinitionRGB surfaceDef)
 {
-	surfaceDef.albedo.setFromXYZ(SHADERTABLE_EXTRADATA.albedoTransparency.xyz);
+	surfaceDef.albedo = SHADERTABLE_EXTRADATA.albedoTransparency.xyz;
 	surfaceDef.transparency = SHADERTABLE_EXTRADATA.albedoTransparency.a;
-	surfaceDef.specular.setFromXYZ(SHADERTABLE_EXTRADATA.specularMetalness.xyz);
+	surfaceDef.specular = SHADERTABLE_EXTRADATA.specularMetalness.xyz;
 	surfaceDef.metalness = SHADERTABLE_EXTRADATA.specularMetalness.a;
-	surfaceDef.absorption.setFromXYZ(SHADERTABLE_EXTRADATA.absorptionDielectricIOR.xyz);
+	surfaceDef.absorption = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.xyz;
 	surfaceDef.dielectricIOR = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.a;
-	surfaceDef.emissive.setFromXYZ(SHADERTABLE_EXTRADATA.emissiveRoughness.xyz);
+	surfaceDef.emissive = SHADERTABLE_EXTRADATA.emissiveRoughness.xyz;
 	surfaceDef.roughness = SHADERTABLE_EXTRADATA.emissiveRoughness.a;
 	surfaceDef.specularAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.x;
 	surfaceDef.clearCoatAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.y;
@@ -247,9 +314,9 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
 	surfaceDef.anisotropy = SHADERTABLE_EXTRADATA.anisotropy;
 	surfaceDef.anisotropyRotation = SHADERTABLE_EXTRADATA.anisotropyRotation;
 	surfaceDef.thinFilmThickness = SHADERTABLE_EXTRADATA.thinFilmThickness;
-	surfaceDef.isTwoSided = (SHADERTABLE_EXTRADATA.materialMask & MaterialMask_TwoSided) != 0;
+	surfaceDef.flags = SHADERTABLE_EXTRADATA.materialMask;
 	
-	surfaceDef.sheenColor.setFromXYZ(SHADERTABLE_EXTRADATA.sheenColorRoughness.rgb);
+	surfaceDef.sheenColor = SHADERTABLE_EXTRADATA.sheenColorRoughness.rgb;
 	surfaceDef.sheenRoughness = SHADERTABLE_EXTRADATA.sheenColorRoughness.a;
 	surfaceDef.sheenAmount = SHADERTABLE_EXTRADATA.sheenAmount;
 	
@@ -257,16 +324,16 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinition surfaceDef)
 
 }
 
-void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinition surfaceDef)
+void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
 {
-	//TODO
+
 	if(SHADERTABLE_EXTRADATA.albedoTexIndex != TEX_UNBOUND_INDEX)
 	{
 		float4 atex = g_textures2D[SHADERTABLE_EXTRADATA.albedoTexIndex].SampleLevel(g_colorSampler, uv, 0);
-		//surfaceDef.albedo *= atex.rgb;
+		surfaceDef.albedo *= atex.rgb;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.normalTexIndex != TEX_UNBOUND_INDEX)
+	if(SHADERTABLE_EXTRADATA.normalTexIndex != TEX_UNBOUND_INDEX) //TODO
 	{
 		float4 n = g_textures2D[SHADERTABLE_EXTRADATA.normalTexIndex].SampleLevel(g_colorSampler, uv, 0);
 		//surfaceDef.albedo = atex.rgb;
@@ -275,7 +342,7 @@ void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 norm
 	if(SHADERTABLE_EXTRADATA.ormTexIndex != TEX_UNBOUND_INDEX)
 	{
 		float4 orm = g_textures2D[SHADERTABLE_EXTRADATA.ormTexIndex].SampleLevel(g_colorSampler, uv, 0);
-		//surfaceDef.roughness = orm.x;
+		surfaceDef.roughness = orm.x;
 		surfaceDef.roughness = orm.y;
 		surfaceDef.metalness = orm.z;
 	}
@@ -283,7 +350,7 @@ void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 norm
 	if(SHADERTABLE_EXTRADATA.emissiveTexIndex != TEX_UNBOUND_INDEX)
 	{
 		float4 emissive = g_textures2D[SHADERTABLE_EXTRADATA.emissiveTexIndex].SampleLevel(g_colorSampler, uv, 0);
-		//surfaceDef.emissive *= emissive.rgb;
+		surfaceDef.emissive *= emissive.rgb;
 	}
 	
 }

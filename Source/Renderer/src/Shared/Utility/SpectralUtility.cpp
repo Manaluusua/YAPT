@@ -6,6 +6,7 @@
 #include <array>
 #include <limits>
 
+
 using dvec3 = glm::dvec3;
 using dmat3x3 = glm::dmat3x3;
 
@@ -41,7 +42,19 @@ namespace YAPT
 		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_2D, CIE_XYZ_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, CIE_SAMPLE_COUNT, 1, 1, 1);
 			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
-			m_cieXYZColorMacthingLUT.texture = pool.requestTexture(texDesc, resState, "CIEXYZColorMatchingLUT");
+			m_cieXYZColorMatchingLUT.texture = pool.requestTexture(texDesc, resState, "CIEXYZColorMatchingLUT");
+		}
+
+		{
+			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION, 1, RGB_TO_SPD_RESOLUTION);
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
+			m_srgbToSPDLUT.texture = pool.requestTexture(texDesc, resState, "SRGBToSPDLUT");
+		}
+
+		{
+			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION, 1, RGB_TO_SPD_RESOLUTION);
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
+			m_rec2020ToSPDLUT.texture = pool.requestTexture(texDesc, resState, "REC2020ToSPDLUT");
 		}
 		
 	}
@@ -63,29 +76,70 @@ namespace YAPT
 			TextureDataDefinition texData;
 			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(CIE_XYZ_FORMAT)) * CIE_SAMPLE_COUNT;
 			texData.data = cieXYZCoeffs.data();
-			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_cieXYZColorMacthingLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
-			m_cieXYZColorMacthingLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_cieXYZColorMacthingLUT.texture, { CIE_XYZ_FORMAT });
+			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_cieXYZColorMatchingLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
+			m_cieXYZColorMatchingLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_cieXYZColorMatchingLUT.texture, { CIE_XYZ_FORMAT });
 		}
 
-		//RGB to SPD
+		//RGB to SPD (SRGB)
 		{
 			std::vector<vec3> rgbToSPD;
 			rgbToSPD.resize(RGB_TO_SPD_RESOLUTION * RGB_TO_SPD_RESOLUTION * RGB_TO_SPD_RESOLUTION);
-			if (!loadRGBToSPDLUT(rgbToSPD.data()))
+			if (!loadRGBToSPDLUT(rgbToSPD.data(), ColorSpace::SRGB))
 			{
-				calculateRGBToSPDLUT(rgbToSPD.data(), true);
-				//storeRGBToSPDLUT(rgbToSPD.data());
+				calculateRGBToSPDLUT(rgbToSPD.data(), ColorSpace::SRGB, false);
+				storeRGBToSPDLUT(rgbToSPD.data(), ColorSpace::SRGB);
 			}
+
+			//upload data
+			TextureDataDefinition texData;
+			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(RGB_TO_SPD_FORMAT)) * RGB_TO_SPD_RESOLUTION;
+			texData.data = rgbToSPD.data();
+			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_srgbToSPDLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
+			m_srgbToSPDLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_srgbToSPDLUT.texture, { RGB_TO_SPD_FORMAT });
+
+		}
+
+		//RGB to SPD (REC2020)
+		{
+			std::vector<vec3> rgbToSPD;
+			rgbToSPD.resize(RGB_TO_SPD_RESOLUTION * RGB_TO_SPD_RESOLUTION * RGB_TO_SPD_RESOLUTION);
+			if (!loadRGBToSPDLUT(rgbToSPD.data(), ColorSpace::REC2020))
+			{
+				calculateRGBToSPDLUT(rgbToSPD.data(), ColorSpace::REC2020, false);
+				storeRGBToSPDLUT(rgbToSPD.data(), ColorSpace::REC2020);
+			}
+
+			//upload data
+			TextureDataDefinition texData;
+			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(RGB_TO_SPD_FORMAT)) * RGB_TO_SPD_RESOLUTION;
+			texData.data = rgbToSPD.data();
+			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_rec2020ToSPDLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
+			m_rec2020ToSPDLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_rec2020ToSPDLUT.texture, { RGB_TO_SPD_FORMAT });
+
 		}
 		
 	}
 
-	bool SpectralUtility::loadRGBToSPDLUT(vec3* lutData)
+	const char* SpectralUtility::getFilename(ColorSpace s)
 	{
-		bool success = tryToLoadFromfile("RGBTOSPD", ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, glm::uvec3(RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION), lutData);
+		switch (s)
+		{
+		case YAPT::SpectralUtility::ColorSpace::SRGB:
+			return "sRGBToSPD";
+		case YAPT::SpectralUtility::ColorSpace::REC2020:
+			return "rec2020ToSPD";
+		default:
+			return "unknown_colorspace";
+		}
+	}
+
+	bool SpectralUtility::loadRGBToSPDLUT(vec3* lutData, ColorSpace s)
+	{
+
+		bool success = tryToLoadFromfile(getFilename(s), ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, glm::uvec3(RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION), lutData);
 		return success;
 	}
-	void SpectralUtility::storeRGBToSPDLUT(vec3* lutData)
+	void SpectralUtility::storeRGBToSPDLUT(vec3* lutData, ColorSpace s)
 	{
 		RendererCacheProvider* cache = m_renderer->getCacheProvider();
 		if (!cache)
@@ -100,10 +154,10 @@ namespace YAPT
 		def.dimension = ResourceDimension::TEXTURE_3D;
 		def.mips = 1;
 
-		cache->storeImage("RGBTOSPD", def, lutData);
+		cache->storeImage(getFilename(s), def, lutData);
 	}
 
-	void SpectralUtility::calculateRGBToSPDLUT(vec3* lutDataOut, bool printError)
+	void SpectralUtility::calculateRGBToSPDLUT(vec3* lutDataOut, ColorSpace s, bool printError)
 	{
 		//generate conversion LUT
 		std::vector<dvec3> conversionLut;
@@ -115,6 +169,7 @@ namespace YAPT
 				size_t batchSize;
 				size_t batchOffsets;
 				size_t resolution;
+				const double* rgbSpace;
 				dvec3* output;
 			};
 
@@ -122,6 +177,7 @@ namespace YAPT
 			std::array<Batch, BATCHES_COUNT> batches;
 
 			uint32_t chunkSize = (CIE_SAMPLE_COUNT + BATCHES_COUNT - 1) / BATCHES_COUNT;
+			const double* rgbSpace = s == ColorSpace::REC2020 ? c_rec2020XYZToRGB : c_srgbXYZToRGB;
 
 			for (uint32_t i = 0; i < BATCHES_COUNT; ++i)
 			{
@@ -129,9 +185,10 @@ namespace YAPT
 				b.batchSize = chunkSize;
 				b.resolution = CIE_SAMPLE_COUNT;
 				b.batchOffsets = b.batchSize * i;
+				b.rgbSpace = rgbSpace;
 				b.output = conversionLut.data();
 			}
-
+			
 
 			auto calculateToRGBMapping = [](void* usrData)
 			{
@@ -142,8 +199,7 @@ namespace YAPT
 
 				dmat3x3 xyzToRGB;
 				{
-					const bool useRec2020 = true;
-					const double* conv = useRec2020 ? c_rec2020XYZToRGB : c_srgbXYZToRGB;
+					const double* conv = item->rgbSpace;
 					double* dst = glm::value_ptr(xyzToRGB);
 					for (uint32_t i = 0; i < 9; ++i)
 					{
@@ -193,9 +249,9 @@ namespace YAPT
 			for (uint32_t i = 0; i < BATCHES_COUNT; ++i)
 			{
 				Batch& b = batches[i];
-				b.batchSize = uvec3(chunkSize);
+				b.batchSize = uvec3(RGB_TO_SPD_RESOLUTION, RGB_TO_SPD_RESOLUTION, chunkSize);
 				b.resolution = uvec3(RGB_TO_SPD_RESOLUTION);
-				b.batchOffsets = b.batchSize * i;
+				b.batchOffsets = uvec3(0, 0, b.batchSize.z * i);
 				b.output = lutDataOut;
 				b.errors = lutErrors.data();
 				b.toRGBLUT = conversionLut.data();
@@ -255,7 +311,7 @@ namespace YAPT
 				printf("RGB to SPD errors min: %f, max %f", smallest, biggest);
 			}
 
-			//upload data
+			
 		}
 		
 	}
@@ -287,13 +343,29 @@ namespace YAPT
 	//RGB to SPD LUT generation
 	double sigmoid(double x) 
 	{
-		return 0.5 * x / (2.0 * std::sqrt(1.0 + x * x));
+		return 0.5 * x / std::sqrt(1.0 + x * x) + 0.5;
 	}
 
 	dvec3 calculateResiduals(dvec3 expected, dvec3 coeffs, const dvec3* toRGBLUT)
 	{
+		/*dvec3 samplePoints = {1.0f, 5.0f, 10.f};
+		dvec3 m = expected * dvec3{2, 3, -2};
+		dvec3 expectedCalculated = { 
+			m[0] * pow(samplePoints[0], 2) + m[1] * samplePoints[0] + m[2],
+			m[0] * pow(samplePoints[1], 2) + m[1] * samplePoints[1] + m[2],
+			m[0] * pow(samplePoints[2], 2) + m[1] * samplePoints[2] + m[2] };
 		dvec3 estimated = { 0.0, 0.0, 0.0 };
-
+		for (uint32_t i = 0; i < 3; ++i)
+		{
+			for (uint32_t k = 0; k < 3; ++k)
+			{
+				estimated[i] = estimated[i] * samplePoints[i] + coeffs[k];
+			}
+		}
+		return expectedCalculated - estimated;
+		*/
+		
+		dvec3 estimated = { 0.0, 0.0, 0.0 };
 		for (size_t i = 0; i < CIE_SAMPLE_COUNT; ++i)
 		{
 			double lambda = double(i) / (CIE_SAMPLE_COUNT - 1);
@@ -314,7 +386,7 @@ namespace YAPT
 
 	dmat3x3 calculateJacobian(dvec3 expected, dvec3 coeffs, const dvec3* toRGBLUT)
 	{
-		const double FINITE_DIFF_EPSILON = 1e-5;
+		const double FINITE_DIFF_EPSILON = 1e-4;
 		dvec3 residuals0;
 		dvec3 residuals1;
 
@@ -344,12 +416,13 @@ namespace YAPT
 			dvec3 residuals = calculateResiduals(expected, coeffs, toRGBLUT);
 			dmat3x3 jacobian = calculateJacobian(expected, coeffs, toRGBLUT);
 
-			dmat3x3 jacobianTranspose = glm::transpose(jacobian);
-			dmat3x3 inverse = glm::inverse(jacobianTranspose * jacobian);
+			//dmat3x3 jacobianTranspose = glm::transpose(jacobian);
+			//dmat3x3 inverse = glm::inverse(jacobianTranspose * jacobian);
+			//dvec3 iterationDelta = inverse * jacobianTranspose * residuals;
 
-			dvec3 iterationDelta = inverse * jacobianTranspose * residuals;
+			dvec3 iterationDelta = glm::inverse(jacobian) * residuals;
 
-			coeffs += iterationDelta;
+			coeffs -= iterationDelta;
 
 			sqrError = glm::dot(residuals, residuals);
 

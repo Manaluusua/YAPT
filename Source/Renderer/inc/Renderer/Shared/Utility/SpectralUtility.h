@@ -9,6 +9,12 @@ namespace YAPT
 	class SpectralUtility
 	{
 	public:
+		enum class ColorSpace
+		{
+			SRGB,
+			REC2020
+		};
+
 		SpectralUtility();
 		~SpectralUtility();
 
@@ -16,7 +22,9 @@ namespace YAPT
 		void initializeLUTContents();
 
 		
-		TextureViewHandle getXYZColorMatchingLUT() { return m_cieXYZColorMacthingLUT.textureView; }
+		TextureViewHandle getXYZColorMatchingLUT() { return m_cieXYZColorMatchingLUT.textureView; }
+		TextureViewHandle getSRGBToSPDLUT() { return m_srgbToSPDLUT.textureView; }
+		TextureViewHandle getREC2020ToSPDLUT() { return m_rec2020ToSPDLUT.textureView; }
 
 		static constexpr uint32_t getCIELUTMinLambda()
 		{
@@ -69,18 +77,22 @@ namespace YAPT
 
 	private:
 
-		bool loadRGBToSPDLUT(vec3* lutData);
-		void storeRGBToSPDLUT(vec3* lutData);
-		void calculateRGBToSPDLUT(vec3* lutData, bool printError);
+		bool loadRGBToSPDLUT(vec3* lutData, ColorSpace s);
+		void storeRGBToSPDLUT(vec3* lutData, ColorSpace s);
+		void calculateRGBToSPDLUT(vec3* lutData, ColorSpace s, bool printError);
 
 		bool tryToLoadFromfile(const char* filename, ResourceDimension dim, ResourceFormat f, const glm::uvec3& expectedDimensions, void* dataOut);
+
+		const char* getFilename(ColorSpace s);
 
 		struct TextureHandleAndView
 		{
 			TextureHandle texture;
 			TextureViewHandle textureView;
 		};
-		TextureHandleAndView m_cieXYZColorMacthingLUT;
+		TextureHandleAndView m_cieXYZColorMatchingLUT;
+		TextureHandleAndView m_srgbToSPDLUT;
+		TextureHandleAndView m_rec2020ToSPDLUT;
 
 
 		CRenderer* m_renderer;

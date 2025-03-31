@@ -21,5 +21,6 @@ namespace YAPT
 	{
 		uvec4p targetTextureOffsetScaleBias;
 		uvec2p sourceTextureDimensions;
+		uint64_t sampleCount;
 	};
 } 

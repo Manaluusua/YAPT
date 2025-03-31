@@ -44,7 +44,7 @@ float4 getSkyBoxColor()
 SpectralSamples ToSpectralSamples(float3 color)
 {
 	SpectralSamples s;
-	s.setFromXYZ(color);
+	s.setFromRGB(color);
 	return s;
 }
 

@@ -346,7 +346,8 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 			float msbrdf = getEnergyCompensationTranslucent(etaR, woBase.y, wiBase.y, surfaceDef.roughness, weight);
 			weight += msbrdf;
 			
-			bool wasTransmitted = (dot(surfaceDef.geometryNormal, wiObjSpace) * dot(surfaceDef.geometryNormal, -rayDirObjSpace) < 0.f) && !surfaceDef.isTwoSided;
+			bool twoSided = isTwoSided(surfaceDef.flags);
+			bool wasTransmitted = (dot(surfaceDef.geometryNormal, wiObjSpace) * dot(surfaceDef.geometryNormal, -rayDirObjSpace) < 0.f) && !twoSided;
 
 			if(wasTransmitted)
 			{
