@@ -78,6 +78,7 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/RaytraceStage.h
 	inc/Renderer/Shared/RenderPipeline/SwapChainStage.h
 	inc/Renderer/Shared/RenderPipeline/MeshDebugStage.h
+
 )
 
 set(SOURCE
@@ -133,6 +134,11 @@ set(SOURCE
 
 )
 
+set(SHADER_SHARED_HEADERS
+	shaders/sharedIncludes/
+
+)
+
 add_library(Renderer SHARED)
 
 #copy shader
@@ -143,7 +149,7 @@ generateVSFilters("${SOURCE}" ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_sources(Renderer PRIVATE ${SOURCE} ${HEADERS})
 
-target_include_directories(Renderer PUBLIC inc)
+target_include_directories(Renderer PUBLIC inc ${SHADER_SHARED_HEADERS})
 target_link_libraries(Renderer PUBLIC Gfx)
 
 target_compile_definitions(Renderer 

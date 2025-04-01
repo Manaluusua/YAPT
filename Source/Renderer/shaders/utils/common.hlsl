@@ -6,7 +6,7 @@
 template<typename T>
 bool isZero(T vec)
 {
-	return dot(vec, vec) == 0.f;
+	return any(vec);
 }
 
 template<typename T, typename U>

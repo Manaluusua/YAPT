@@ -1,6 +1,8 @@
 #ifndef SPECTRAL_DISTRIBUTION_HLSL_INCL
 #define SPECTRAL_DISTRIBUTION_HLSL_INCL
 
+#include "../utils/colorSpaces.hlsl"
+
 //the resources needed are defined in raytraceCommonResources.hlsl
 
 float3 getXYZCoeffsForWavelength(float lambda)
@@ -9,17 +11,66 @@ float3 getXYZCoeffsForWavelength(float lambda)
 	return sampleLUT(g_lutSampler, g_cieXYZCoeffsLUT, u).xyz;
 }
 
+float3 getRGBToSPDCoeffs(float3 color)
+{
+	return sampleLUT(g_lutSampler, g_srgbToSPDLUT, color).xyz;
+}
+
+float sigmoid(float x)
+{
+	if (isinf(x)) return x > 0 ? 1 : 0;
+	return 0.5f * x / sqrt(1.0f + x * x) + 0.5f;
+}
+
+float sigmoidInv(float x)
+{
+	if (x == 1.0f) return 1.f;
+	if (x == 0.0f) return 0.f;
+	return (x - 0.5f) / sqrt(x * (1 - x));
+}
+
 struct SpectralSamples
 {
 	float samples[SPECTRAL_SAMPLES_COUNT];
 
 	uint getSampleCount() { return SPECTRAL_SAMPLES_COUNT; }
 
+	void setFromRGBUnbounded(float3 values)
+	{
+		float m = max(max(values.x, values.y), values.z);
+		float scale = 2.f * m;
+		setFromRGB(safeDiv(values, scale));
+
+		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		{
+			samples[i] *= scale;
+		}
+	}
+
+
 	void setFromRGB(float3 values)
+	{
+		float coeffs;
+		if ((values.x == values.y) && (values.x == values.z))
+		{
+			coeffs = float3(0, 0, sigmoidInv(values.x));
+		}
+		else
+		{
+			float3 coeffs = getRGBToSPDCoeffs(values);
+		}
+		setWithPolynomialCoeffs(coeffs);
+	}
+
+	void setWithPolynomialCoeffs(float3 coeffs)
 	{
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
-			samples[i] = values[i];
+			float waveLength = g_sampledWavelengths[i];
+			float lambda = (waveLength - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN); //TODO: change the coefficients to target actual values rather than the normalized [0,1] range, can get rid of this then
+			float polynom = coeffs.x * lambda * lambda + coeffs.y * lambda + coeffs.z;
+			float v = sigmoid(polynom);
+			samples[i] = v;
 		}
 	}
 
@@ -134,22 +185,21 @@ struct SpectralSamples
 
 	float3 ToXYZ()
 	{
-		/*float3 xyz = 0;
+		float3 xyz = 0;
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
-			float2 lambdaPDF = g_sampledWavelengthAndPDF[i];
-			float3 xyzCoeffs = getXYZCoeffsForWavelength(lambdaPDF.x);
-			xyz += samples[i] * safeDiv(xyzCoeffs, lambdaPDF.y);
+			float waveLength = g_sampledWavelengths[i];
+			float pdf = g_sampledWavelengthPDFs[i];
+			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
+			xyz += samples[i] * xyzCoeffs; //* safeDiv(CIE_Y_SUM_INV, pdf);
 		}
-		return xyz / SIE_Y_SUM;*/
-
-		return float3(samples[0], samples[1], samples[2]);
+		return xyz;
 	}
 
 	float3 ToRGB()
 	{
 		float3 xyz = ToXYZ();
-		return xyz;
+		return mul(c_srgbXYZToRGB, xyz);
 	}
 
 	bool hasNan()

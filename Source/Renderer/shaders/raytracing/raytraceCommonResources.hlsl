@@ -19,15 +19,16 @@ struct RandomSamples
 	float4 samples[NUMBER_OF_RANDOM_SAMPLES];
 };
 
-struct SpectralSampleWavelengths
+struct SpectralDataConstants
 {
-	float2 lambdaPDF[SPECTRAL_SAMPLES_COUNT];
+	float spdSampleLambda[SPECTRAL_SAMPLES_COUNT];
+	float spdSamplePdf[SPECTRAL_SAMPLES_COUNT];
 };
 
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
-ConstantBuffer<SpectralSampleWavelengths> g_sampledWavelengths : register(b3, space0);
+ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 RaytracingAccelerationStructure g_accelerationStructure : register(t4, space0);
 RWTexture2D<float4> g_outputColor : register(u5, space0);
 
@@ -41,15 +42,15 @@ Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t10, space0);
 Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t11, space0);
 Texture3D g_dirAlbedoGGXSingleAndMultiScatterLUT : register(t12, space0);
 Texture2D g_avgDirAlbedoGGXSingleAndMultiScatterLUT : register(t13, space0);
-Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t14, space0);
+Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t14, space0);	
 Texture3D g_dirAlbedoGGXTranslucentLighterLUT : register(t15, space0);
 Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t16, space0);
 Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t17, space0);
 Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t18, space0);
 
 Texture1D g_cieXYZCoeffsLUT : register(t19, space0);
-Texture1D g_rec2020ToSPDLUT : register(t20, space0);
-Texture1D g_srgbToSPDLUT : register(t21, space0);
+Texture3D g_rec2020ToSPDLUT : register(t20, space0);
+Texture3D g_srgbToSPDLUT : register(t21, space0);
 
 
 
@@ -77,7 +78,8 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
 #define g_randomSamples g_randomSampleLocations.samples
 
-#define g_sampledWavelengthAndPDF g_sampledWavelengths.lambdaPDF
+#define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
+#define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
 
 //helper functions
 float4 getRandomSampleFloat4(uint offset)

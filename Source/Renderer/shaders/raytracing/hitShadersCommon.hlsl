@@ -104,7 +104,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.specular.setFromRGB(rgb.specular);
 	surfDef.albedo.setFromRGB(rgb.albedo);
 	surfDef.absorption.setFromRGB(rgb.absorption);
-	surfDef.emissive.setFromRGB(rgb.emissive);
+	surfDef.emissive.setFromRGBUnbounded(rgb.emissive);
 	surfDef.sheenColor.setFromRGB(rgb.sheenColor);
 
 	surfDef.geometryNormal = rgb.geometryNormal;

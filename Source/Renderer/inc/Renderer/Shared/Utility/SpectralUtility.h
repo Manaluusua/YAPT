@@ -33,17 +33,13 @@ namespace YAPT
 
 		static constexpr uint32_t getCIELUTMaxLambda()
 		{
-			return c_cieLambda[CIE_SAMPLE_COUNT - 1];
+			return c_cieLambda[CIE_LUT_RESOLUTION - 1];
 		}
 
-		static constexpr uint32_t getCIELUTLambdaStep()
-		{
-			return CIE_SAMPLE_LAMBDA_STEP;
-		}
 
 		static constexpr uint32_t getCIELUTSampleCount()
 		{
-			return CIE_SAMPLE_COUNT;
+			return CIE_LUT_RESOLUTION;
 		}
 
 		static constexpr float getIntegralCIEY()
@@ -51,35 +47,14 @@ namespace YAPT
 			return CIE_Y_SUM;
 		}
 
-		template<typename Vec2Type>
-		static void generateSampleLambdas(float rand, size_t sampleCount, Vec2Type* lambdaPDF, float lambdaMin, float lambdaMax)
-		{
-			assert(lambdaMax > lambdaMin);
-			float lambdaRange = lambdaMax - lambdaMin;
-			float pdf = 1.f / lambdaRange;
-			
-			float lambdaStep = lambdaRange / sampleCount;
-			float previousSample = lambdaMin + rand * lambdaRange;
-
-			lambdaPDF[0] = Vec2Type(previousSample, pdf);
-
-			for (size_t i = 1; i < sampleCount; ++i)
-			{
-				float lambda = previousSample + lambdaStep;
-				if (lambda > lambdaMax)
-				{
-					lambda = lambdaMin + (lambda - lambdaMax);
-				}
-				lambdaPDF[i] = Vec2Type(lambda, pdf);
-				previousSample = lambda;
-			}
-		}
+		
+		static void generateSampleLambdas(float rand, size_t sampleCount, float* lambdaOut, float* pdfOut, float lambdaMin, float lambdaMax);
 
 	private:
 
-		bool loadRGBToSPDLUT(vec3* lutData, ColorSpace s);
-		void storeRGBToSPDLUT(vec3* lutData, ColorSpace s);
-		void calculateRGBToSPDLUT(vec3* lutData, ColorSpace s, bool printError);
+		bool loadRGBToSPDLUT(vec3p* lutData, ColorSpace s);
+		void storeRGBToSPDLUT(vec3p* lutData, ColorSpace s);
+		void calculateRGBToSPDLUT(vec3p* lutData, ColorSpace s, bool printError);
 
 		bool tryToLoadFromfile(const char* filename, ResourceDimension dim, ResourceFormat f, const glm::uvec3& expectedDimensions, void* dataOut);
 

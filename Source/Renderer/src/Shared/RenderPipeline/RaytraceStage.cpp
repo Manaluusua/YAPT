@@ -278,7 +278,7 @@ namespace YAPT
 
 		m_rayTraceConstants.init(data.renderGraphLifetimeResources);
 		m_randomSamples.init(data.renderGraphLifetimeResources);
-		m_wavelengthSamples.init(data.renderGraphLifetimeResources);
+		m_spectralDataConstants.init(data.renderGraphLifetimeResources);
 	}
 
 	bool  RaytraceStage::doesShaderTableNeedUpdate()
@@ -584,7 +584,7 @@ namespace YAPT
 			rtConstants->viewToWorld = viewToWorld;
 
 			//update samples
-
+			updateSampledWavelengths();
 			if ((getCurrentNumberOfSamplesPerPixel() % NUMBER_OF_RANDOM_SAMPLES) == 0)
 			{
 				if (m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor) == 0)
@@ -647,7 +647,7 @@ namespace YAPT
 			DescriptorSetUpdate updates[] = {
 				{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
 				{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
-				{3, 0, 1, DescriptorPtr(m_wavelengthSamples.getViewPtr())},
+				{3, 0, 1, DescriptorPtr(m_spectralDataConstants.getViewPtr())},
 				{4, 0, 1, DescriptorPtr(&accStruct) },
 				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
 				{9, 0, 1, DescriptorPtr(&noiseTex)},
@@ -661,8 +661,8 @@ namespace YAPT
 				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
 				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
 				{19, 0, 1, DescriptorPtr(&cieLUT)},
-				{20, 0, 1, DescriptorPtr(&toSRGBLUT)},
-				{21, 0, 1, DescriptorPtr(&toREC2020LUT)},
+				{20, 0, 1, DescriptorPtr(&toREC2020LUT)},
+				{21, 0, 1, DescriptorPtr(&toSRGBLUT)},
 				
 			};
 			Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_rtDescSet, updates, countOf(updates));
@@ -784,12 +784,19 @@ namespace YAPT
 		m_randomSamples.flush();
 		
 
-		float rand = halton<float>(11, sampleOffset);
-		SpectralSampleWavelengths* data = m_wavelengthSamples.getData();
-		SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, data->lambdaPDF, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
-		m_wavelengthSamples.flush();
+		
 	}
 	
+	void RaytraceStage::updateSampledWavelengths()
+	{
+		uint64_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
+		float rand = halton<float>(11, sampleOffset);
+		SpectralDataConstants* data = m_spectralDataConstants.getData();
+
+		SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, data->spdSampleLambda, data->spdSamplePdf, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
+		m_spectralDataConstants.flush();
+	}
+
 	void RaytraceStage::initSubpixelJitterSamples()
 	{
 		MathUtils::generateHaltonSequence(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
