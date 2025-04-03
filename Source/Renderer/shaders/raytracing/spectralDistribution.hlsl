@@ -24,8 +24,8 @@ float sigmoid(float x)
 
 float sigmoidInv(float x)
 {
-	if (x == 1.0f) return 1.f;
-	if (x == 0.0f) return 0.f;
+	if (x == 1.0f) return 1.#INF;
+	if (x == 0.0f) return -1.#INF;
 	return (x - 0.5f) / sqrt(x * (1 - x));
 }
 
@@ -50,23 +50,27 @@ struct SpectralSamples
 
 	void setFromRGB(float3 values)
 	{
-		float coeffs;
+		float3 coeffs;
 		if ((values.x == values.y) && (values.x == values.z))
 		{
 			coeffs = float3(0, 0, sigmoidInv(values.x));
 		}
 		else
 		{
-			float3 coeffs = getRGBToSPDCoeffs(values);
+			coeffs = getRGBToSPDCoeffs(values);
 		}
 		setWithPolynomialCoeffs(coeffs);
 	}
 
 	void setWithPolynomialCoeffs(float3 coeffs)
 	{
+		uint sampleSetIndex = getSpectralSampleSetIndex();
+
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
-			float waveLength = g_sampledWavelengths[i];
+			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
+
+			float waveLength = getSpectralSampleLambda(sampleIndex);
 			float lambda = (waveLength - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN); //TODO: change the coefficients to target actual values rather than the normalized [0,1] range, can get rid of this then
 			float polynom = coeffs.x * lambda * lambda + coeffs.y * lambda + coeffs.z;
 			float v = sigmoid(polynom);
@@ -185,15 +189,19 @@ struct SpectralSamples
 
 	float3 ToXYZ()
 	{
+		uint sampleSetIndex = getSpectralSampleSetIndex();
+
 		float3 xyz = 0;
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
-			float waveLength = g_sampledWavelengths[i];
-			float pdf = g_sampledWavelengthPDFs[i];
+			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
+
+			float waveLength = getSpectralSampleLambda(sampleIndex);
+			float pdf = getSpectralSampleLambdaPDF(sampleIndex);
 			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
-			xyz += samples[i] * xyzCoeffs; //* safeDiv(CIE_Y_SUM_INV, pdf);
+			xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf) ;
 		}
-		return xyz;
+		return xyz / SPECTRAL_SAMPLES_COUNT;
 	}
 
 	float3 ToRGB()

@@ -198,29 +198,47 @@ namespace YAPT
 			m_rtLayout.setExplicitDescriptorSetLayout(2, &bindingBuff, 1, buffMngr->getLayout());
 			   
 		}
+
+
+		//TODO: just go through all the pipelines and map the predefined static samplers
 		{
 			ShaderPipelineReflection::NameMapping nameMapping;
-			bool found = rayMiss->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
-  
-			if (found)
 			{
-				SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
-				m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				bool found = rayMiss->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
+				if (found)
+				{
+					SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
+					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				}
 			}
-			     
-			found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_pointSampler", nameMapping);
-			if (found)
+			
 			{
-				SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-				m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
+				if (found)
+				{
+					SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
+					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				}
 			}
-			 
-			found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_lutSampler", nameMapping);
-			if(found)
+
 			{
-				SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
-				m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_pointSampler", nameMapping);
+				if (found)
+				{
+					SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
+					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				}
 			}
+			
+			{
+				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_lutSampler", nameMapping);
+				if (found)
+				{
+					SamplerHandle samplerHandle = getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
+					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
+				}
+			}
+			
 			
 		}
      
@@ -790,10 +808,24 @@ namespace YAPT
 	void RaytraceStage::updateSampledWavelengths()
 	{
 		uint64_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
-		float rand = halton<float>(11, sampleOffset);
 		SpectralDataConstants* data = m_spectralDataConstants.getData();
+		if ((sampleOffset % SPECTRAL_SAMPLESET_COUNT) == 0)
+		{
+			std::array<float, SPECTRAL_SAMPLESET_COUNT * SPECTRAL_SAMPLES_COUNT> sampleLambdas;
+			std::array<float, SPECTRAL_SAMPLESET_COUNT * SPECTRAL_SAMPLES_COUNT> samplePDFs;
 
-		SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, data->spdSampleLambda, data->spdSamplePdf, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
+			for (uint32_t i = 0; i < SPECTRAL_SAMPLESET_COUNT; ++i)
+			{
+				float rand = halton<float>(11, sampleOffset + i);
+				SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, sampleLambdas.data() + i * SPECTRAL_SAMPLES_COUNT, samplePDFs.data() + i * SPECTRAL_SAMPLES_COUNT, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
+			}
+			
+			memcpy(&data->spdSampleLambda, sampleLambdas.data(), sizeof(float) * sampleLambdas.size());
+			memcpy(&data->spdSamplePdf, samplePDFs.data(), sizeof(float) * samplePDFs.size());
+
+		}
+		
+		data->sampleSetOffset = sampleOffset % SPECTRAL_SAMPLESET_COUNT;
 		m_spectralDataConstants.flush();
 	}
 

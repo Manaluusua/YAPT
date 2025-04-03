@@ -21,8 +21,9 @@ struct RandomSamples
 
 struct SpectralDataConstants
 {
-	float spdSampleLambda[SPECTRAL_SAMPLES_COUNT];
-	float spdSamplePdf[SPECTRAL_SAMPLES_COUNT];
+	float4 spdSampleLambda[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
+	float4 spdSamplePdf[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
+	uint32_t sampleSetOffset;
 };
 
 //uniforms
@@ -95,6 +96,30 @@ float2 getRandomSampleFloat2(uint offset)
 float3 getRandomSampleFloat3(uint offset)
 {
 	return getRandomSampleFloat4(offset).xyz;
+}
+
+float getSpectralSampleLambda(uint index)
+{
+	uint ind0 = index / 4;
+	uint ind1 = index & 0x3;
+
+	return g_sampledWavelengths[ind0][ind1];
+}
+
+float getSpectralSampleLambdaPDF(uint index)
+{
+	uint ind0 = index / 4;
+	uint ind1 = index & 0x3;
+
+	return g_sampledWavelengthPDFs[ind0][ind1];
+}
+
+uint getSpectralSampleSetIndex()
+{
+	uint spectralSampleSetIndex = (DispatchRaysIndex().x % 2) + (DispatchRaysIndex().y % 2) * 2;
+	spectralSampleSetIndex += g_spectralSamplingConstants.sampleSetOffset;
+	spectralSampleSetIndex = spectralSampleSetIndex % SPECTRAL_SAMPLESET_COUNT;
+	return spectralSampleSetIndex;
 }
 
 float4 sampleLUT(in SamplerState s, in Texture1D t, float uv)

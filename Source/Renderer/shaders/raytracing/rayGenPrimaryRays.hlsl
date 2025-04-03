@@ -29,7 +29,6 @@ void rayGenPrimaryRays()
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
 	
-	
     Payload payload;
 	payload.throughput.set(1.f);
 	payload.totalLight.set(0.f);

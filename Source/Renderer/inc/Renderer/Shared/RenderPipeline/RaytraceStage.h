@@ -8,13 +8,15 @@
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/AccelerationStructureHelper.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
+#include <spectralConstants.h>
 
 namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
-	constexpr uint32_t SPECTRAL_SAMPLES_COUNT = 4;
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
+	
+
 	class Texture;
 	class RaytraceStage final : public RenderStage
 	{
@@ -56,6 +58,7 @@ namespace YAPT
 
 			uint32_t numberVolumesEntered;
 			uint32_t rayState;
+			uint32_t spectralSampleSetIndex;
 		};
 
 
@@ -76,8 +79,9 @@ namespace YAPT
 
 		struct SpectralDataConstants
 		{
-			float spdSampleLambda[SPECTRAL_SAMPLES_COUNT];
-			float spdSamplePdf[SPECTRAL_SAMPLES_COUNT];
+			vec4 spdSampleLambda[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
+			vec4 spdSamplePdf[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
+			uint32_t sampleSetOffset;
 		};
 
 		struct RayHitShaderTableConstantData
