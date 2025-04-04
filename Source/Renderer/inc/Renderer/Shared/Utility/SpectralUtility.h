@@ -28,23 +28,18 @@ namespace YAPT
 
 		static constexpr uint32_t getCIELUTMinLambda()
 		{
-			return c_cieLambda[0];
+			return CIE_LUT_LAMBDA_MIN;
 		}
 
 		static constexpr uint32_t getCIELUTMaxLambda()
 		{
-			return c_cieLambda[CIE_LUT_RESOLUTION - 1];
+			return CIE_LUT_LAMBDA_MAX;
 		}
 
 
 		static constexpr uint32_t getCIELUTSampleCount()
 		{
 			return CIE_LUT_RESOLUTION;
-		}
-
-		static constexpr float getIntegralCIEY()
-		{
-			return CIE_Y_SUM;
 		}
 
 		
@@ -55,6 +50,8 @@ namespace YAPT
 		bool loadRGBToSPDLUT(vec3p* lutData, ColorSpace s);
 		void storeRGBToSPDLUT(vec3p* lutData, ColorSpace s);
 		void calculateRGBToSPDLUT(vec3p* lutData, ColorSpace s, bool printError);
+
+		uint32_t getResolution(ColorSpace s);
 
 		bool tryToLoadFromfile(const char* filename, ResourceDimension dim, ResourceFormat f, const glm::uvec3& expectedDimensions, void* dataOut);
 
