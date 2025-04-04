@@ -21,7 +21,8 @@ namespace YAPT
 
 	constexpr uint32_t GAUSS_NEWTON_ITERATION_COUNT = 16;
 
-	double gaussNewton(dvec3 expected, dvec3& coeffsInOut, size_t iterationCount, const dvec3* toRGBLUT);
+	double gaussNewton(dvec3 expected, dvec3& coeffsInOut, size_t iterationCount, const dmat3x3& toXyz, const dvec3* toRGBLUT);
+	dmat3x3 toMatrix(const double* valArray);
 
 	SpectralUtility::SpectralUtility()
 		:m_renderer(nullptr)
@@ -249,17 +250,8 @@ namespace YAPT
 				size_t offset = item->batchOffsets;
 				size_t batchSize = item->batchSize;
 
-				dmat3x3 xyzToRGB;
-				{
-					const double* conv = item->rgbSpace;
-					double* dst = glm::value_ptr(xyzToRGB);
-					for (uint32_t i = 0; i < 9; ++i)
-					{
-						dst[i] = conv[i];
-					}
-					xyzToRGB = glm::transpose(xyzToRGB);
-					
-				}
+				dmat3x3 xyzToRGB = toMatrix(item->rgbSpace);
+				
 
 				for (size_t i = offset; i < min(offset + batchSize, resolution); ++i)
 				{
@@ -292,6 +284,7 @@ namespace YAPT
 				vec3p* output;
 				double* errors;
 				dvec3* toRGBLUT;
+				ColorSpace colorSpace;
 			};
 
 			constexpr size_t BATCHES_COUNT = 8;
@@ -308,6 +301,7 @@ namespace YAPT
 				b.output = lutDataOut;
 				b.errors = lutErrors.data();
 				b.toRGBLUT = conversionLut.data();
+				b.colorSpace = s;
 			}
 
 
@@ -319,6 +313,20 @@ namespace YAPT
 				uvec3 batchSize = item->batchSize;
 				dvec3 dresMinusOne = resolution - uvec3(1);
 
+				dmat3x3 toXyz;
+				switch (item->colorSpace)
+				{
+				case YAPT::SpectralUtility::ColorSpace::SRGB:
+					toXyz = toMatrix(c_srgbRGBToXYZ);
+					break;
+				case YAPT::SpectralUtility::ColorSpace::REC2020:
+					toXyz = toMatrix(c_rec2020RGBToXYZ);
+					break;
+				default:
+					assert(!"unknown colorspace");
+					break;
+				}
+
 				for (uint32_t z = offset.z; z < min(offset.z + batchSize.z, resolution.z); ++z)
 				{
 					for (uint32_t y = offset.y; y < min(offset.y + batchSize.y, resolution.y); ++y)
@@ -327,7 +335,7 @@ namespace YAPT
 						{
 							dvec3 rgb = dvec3(x, y, z) / dresMinusOne;
 							dvec3 res = dvec3(0.0);
-							double error = gaussNewton(rgb, res, GAUSS_NEWTON_ITERATION_COUNT, item->toRGBLUT);
+							double error = gaussNewton(rgb, res, GAUSS_NEWTON_ITERATION_COUNT, toXyz, item->toRGBLUT);
 							size_t outputIndex = z * (resolution.x * resolution.y) + y * resolution.x + x;
 
 							item->output[outputIndex] = res;
@@ -399,7 +407,46 @@ namespace YAPT
 		return 0.5 * x / std::sqrt(1.0 + x * x) + 0.5;
 	}
 
-	dvec3 calculateResiduals(dvec3 expected, dvec3 coeffs, const dvec3* toRGBLUT)
+	dmat3x3 toMatrix(const double* valArray)
+	{
+		dmat3x3 mat;
+		{
+			const double* conv = valArray;
+			double* dst = glm::value_ptr(mat);
+			for (uint32_t i = 0; i < 9; ++i)
+			{
+				dst[i] = conv[i];
+			}
+			mat = glm::transpose(mat);
+
+		}
+		return mat;
+	}
+
+	dvec3 toCIELAB(dvec3 color, dmat3x3 toXyz)
+	{
+		constexpr float Xn = 95.047, Yn = 100.0, Zn = 108.883;
+		constexpr float delta = 6.0 / 29.0;
+		constexpr float delta3 = delta * delta * delta;
+
+		dvec3 xyz = toXyz * color;
+
+		dvec3 normalized = xyz / dvec3(Xn, Yn, Zn);
+		dvec3 ft;
+
+		for (uint32_t i = 0; i < 3; ++i)
+		{
+			ft[i] = normalized[i] > delta3 ? std::pow(normalized[i], (1.0 / 3.0)) : normalized[i] / (3.0 * delta * delta) + 4.0/ 29.0;
+		}
+
+		double L = 116.0 * ft.y - 16;
+		double a = 500 * (ft.x - ft.y);
+		double b = 200 * (ft.y - ft.z);
+
+		return dvec3(L, a, b);
+	}
+
+	dvec3 calculateResiduals(dvec3 expected, dvec3 coeffs, const dmat3x3& toXYZ, const dvec3* toRGBLUT)
 	{
 		/*dvec3 samplePoints = {1.0f, 5.0f, 10.f};
 		dvec3 m = expected * dvec3{2, 3, -2};
@@ -433,11 +480,11 @@ namespace YAPT
 			estimated += s * toRGBLUT[i];
 		}
 		 //TODO: pbrt recommends transforming to cie lab colorspace before calculating residue 
-		return expected - estimated;
+		return toCIELAB(expected, toXYZ) - toCIELAB(estimated, toXYZ);
 		
 	}
 
-	dmat3x3 calculateJacobian(dvec3 expected, dvec3 coeffs, const dvec3* toRGBLUT)
+	dmat3x3 calculateJacobian(dvec3 expected, dvec3 coeffs, const dmat3x3& toXYZ, const dvec3* toRGBLUT)
 	{
 		const double FINITE_DIFF_EPSILON = 1e-4;
 		dvec3 residuals0;
@@ -451,23 +498,24 @@ namespace YAPT
 		{
 			dvec3 delta = {0.0f, 0.0f, 0.0f};
 			delta[i] = FINITE_DIFF_EPSILON;
-			residuals0 = calculateResiduals(expected, coeffs - delta, toRGBLUT);
-			residuals1 = calculateResiduals(expected, coeffs + delta, toRGBLUT);
+			residuals0 = calculateResiduals(expected, coeffs - delta, toXYZ, toRGBLUT);
+			residuals1 = calculateResiduals(expected, coeffs + delta, toXYZ, toRGBLUT);
 
 			jacobianOut[i] = (residuals1 - residuals0) * diffDenom;
 		}
 		return jacobianOut;
 	}
 
-	double gaussNewton(dvec3 expected, dvec3& coeffsInOut, size_t iterationCount, const dvec3* toRGBLUT)
+	double gaussNewton(dvec3 expected, dvec3& coeffsInOut, size_t iterationCount, const dmat3x3& toXyz, const dvec3* toRGBLUT)
 	{
 		dvec3 coeffs = coeffsInOut;
 		double sqrError = 0;
 		const double ERROR_THRESHOLD = 1e-6;
+
 		for (size_t i = 0; i < iterationCount; ++i)
 		{
-			dvec3 residuals = calculateResiduals(expected, coeffs, toRGBLUT);
-			dmat3x3 jacobian = calculateJacobian(expected, coeffs, toRGBLUT);
+			dvec3 residuals = calculateResiduals(expected, coeffs, toXyz, toRGBLUT);
+			dmat3x3 jacobian = calculateJacobian(expected, coeffs, toXyz, toRGBLUT);
 
 			//dmat3x3 jacobianTranspose = glm::transpose(jacobian);
 			//dmat3x3 inverse = glm::inverse(jacobianTranspose * jacobian);
