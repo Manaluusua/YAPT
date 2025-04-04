@@ -25,8 +25,11 @@ class ConvUtility:
         #if(channels > 2): components_str += "B"
         #if(channels > 3): components_str += "A"
         
+        assume_srgb = True
+        unorm_type = "SRGB" if assume_srgb is True else "UNORM"
+
         use_norm = True
-        uint_types = ["UNORM", "UINT"]
+        uint_types = [unorm_type, "UINT"]
         int_types = ["SNORM", "INT"]
         type_index = 0 if use_norm is True else 1
 
