@@ -400,6 +400,7 @@ namespace YAPT
 			rayHitConstants.materialMask = matParams.materialMask;
 			rayHitConstants.thinFilmThickness = matParams.thinFilmThickness;
 
+			rayHitConstants.cauchysCoefficients = matParams.cauchysCoeffs;
 			rayHitConstants.sheenAmount = matParams.sheenAmount;
 			rayHitConstants.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
 

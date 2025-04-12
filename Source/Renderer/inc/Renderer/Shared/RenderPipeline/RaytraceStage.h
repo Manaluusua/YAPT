@@ -102,10 +102,10 @@ namespace YAPT
 			uint32_t materialMask;
 			float thinFilmThickness;
 
+			vec2p cauchysCoefficients;
 			float sheenAmount;
 			float pad0;
-			float pad1;
-			float pad2;
+
 
 			vec4p sheenColorRoughness;
 			uint32_t albedoTexIndex;

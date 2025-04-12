@@ -8,7 +8,8 @@ namespace YAPT
 	enum MaterialMask
 	{
 		MaterialMask_None = 0,
-		MaterialMask_TwoSided = 0x1
+		MaterialMask_TwoSided = 1 << 0,
+		MaterialMask_Dispersion = 1 << 1
 	};
 	struct MaterialParameters
 	{
@@ -33,6 +34,8 @@ namespace YAPT
 
 			sheenAmount(0.f),
 			thinFilmThickness(0.f),
+
+			cauchysCoeffs(1.5046f, 0.00420f),
 
 			albedoTexIndex(TEX_UNBOUND_INDEX),
 			normalTexIndex(TEX_UNBOUND_INDEX),
@@ -66,6 +69,8 @@ namespace YAPT
 			sheenAmount(0.f),
 			thinFilmThickness(0.f),
 
+			cauchysCoeffs(1.5046f, 0.00420f),
+
 			albedoTexIndex(TEX_UNBOUND_INDEX),
 			normalTexIndex(TEX_UNBOUND_INDEX),
 			ormTexIndex(TEX_UNBOUND_INDEX),
@@ -96,6 +101,8 @@ namespace YAPT
 
 		float sheenAmount;
 		float thinFilmThickness;
+
+		vec2p cauchysCoeffs;
 
 		uint32_t albedoTexIndex;
 		uint32_t normalTexIndex;

@@ -219,12 +219,30 @@ namespace YAPT
         return m_material->getThinFilmThickness();
     }
 
+    void PyMaterial::setCauchysCoefficients(const vec2p& val)
+    {
+        m_material->setCauchysCoefficients(val);
+    }
+    const vec2p& PyMaterial::getCauchysCoefficients() const
+    {
+        return m_material->getCauchysCoefficients();
+    }
+
+    void PyMaterial::setEnableDispersion(bool val)
+    {
+        m_material->setEnableDispersion(val);
+    }
+    bool PyMaterial::getEnableDispersion() const
+    {
+        return m_material->getEnableDispersion();
+    }
+
 
 	BINDING_FUNC(PyMaterial, m)
 	{
 
 		auto mat = pybind11::class_<PyMaterial>(m, "Material");
-		mat.def("setFromMaterialPreset", &PyMaterial::setFromMaterialPreset)
+        mat.def("setFromMaterialPreset", &PyMaterial::setFromMaterialPreset)
             .def("getName", &PyMaterial::getName)
             .def("setTransparency", &PyMaterial::setTransparency)
             .def("getTransparency", &PyMaterial::getTransparency)
@@ -263,7 +281,11 @@ namespace YAPT
             .def("setSheenAmount", &PyMaterial::setSheenAmount)
             .def("getSheenAmount", &PyMaterial::getSheenAmount)
             .def("setThinFilmThickness", &PyMaterial::setThinFilmThickness)
-            .def("getThinFilmThickness", &PyMaterial::getThinFilmThickness);
+            .def("getThinFilmThickness", &PyMaterial::getThinFilmThickness)
+            .def("setCauchysCoefficients", &PyMaterial::setCauchysCoefficients)
+            .def("getCauchysCoefficients", &PyMaterial::getCauchysCoefficients)
+            .def("setEnableDispersion", &PyMaterial::setEnableDispersion)
+            .def("getEnableDispersion", &PyMaterial::getEnableDispersion);
 
 		pybind11::enum_<MaterialPreset>(mat, "MaterialPreset")
 			.value("BLANK", MaterialPreset::BLANK)

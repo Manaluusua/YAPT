@@ -75,6 +75,12 @@ namespace YAPT
 		void setThinFilmThickness(float val);
 		float getThinFilmThickness() const;
 
+		void setCauchysCoefficients(const vec2p& val);
+		const vec2p& getCauchysCoefficients() const;
+
+		void setEnableDispersion(bool val);
+		bool getEnableDispersion() const;
+
 	private:
 		std::string m_name;
 		RCObjectPtr<Material> m_material;

@@ -259,6 +259,33 @@ namespace YAPT
 		return m_materialParams.thinFilmThickness;
 	}
 
+	void MaterialProxy::setCauchysCoefficients(const vec2p& val)
+	{
+		m_materialParams.cauchysCoeffs = val;
+		setDirty();
+	}
+	const vec2p& MaterialProxy::getCauchysCoefficients() const
+	{
+		return m_materialParams.cauchysCoeffs;
+	}
+
+	void MaterialProxy::setEnableDispersion(bool val)
+	{
+		if (val)
+		{
+			m_materialParams.materialMask |= MaterialMask_Dispersion;
+		}
+		else
+		{
+			m_materialParams.materialMask &= ~MaterialMask_Dispersion;
+		}
+		setDirty();
+	}
+	bool MaterialProxy::getEnableDispersion() const
+	{
+		return (m_materialParams.materialMask & MaterialMask_Dispersion) != 0;
+	}
+
 	void MaterialProxy::setAlbedoTexture(RCObjectPtr<Texture>& tex)
 	{
 		m_materialParams.albedoTexIndex = getTextureViewIndex(tex.get());

@@ -256,7 +256,8 @@ namespace YAPT
 				for (size_t i = offset; i < min(offset + batchSize, resolution); ++i)
 				{
 					size_t index = CIE_LUT_ARRAY_OFFSET + i;
-					dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * c_cieD65StandardIllum[index] / CIE_D65_SUM;
+					//dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * c_cieD65StandardIllum[index] / CIE_D65_SUM; //TODO: add different illuminant lookups and have this information also in shader so the SPD -> XYZ -> RGB resolve gets correctly done
+					dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * CIE_Y_SUM_INV;
 					dvec3 rgb = xyzToRGB * xyz;
 
 					item->output[i] = rgb;
@@ -547,5 +548,6 @@ namespace YAPT
 		coeffsInOut = coeffs;
 		return sqrError;
 	}
+
 
 }

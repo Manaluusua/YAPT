@@ -3,7 +3,8 @@
 
 #include "raytraceCommonResources.hlsl"
 
-#define MaterialMask_TwoSided (0x1)
+#define MaterialMask_TwoSided (1 << 0)
+#define MaterialMask_Dispersion (1 << 1)
 #define TEX_UNBOUND_INDEX (~0)
 
 struct RayHitShaderTableConstantData
@@ -26,10 +27,9 @@ struct RayHitShaderTableConstantData
 	uint materialMask;
 	float thinFilmThickness;
 
+	float2 cauchysCoefficients;
 	float sheenAmount;
 	float pad0;
-	float pad1;
-	float pad2;
 	
 	float4 sheenColorRoughness;
 	uint albedoTexIndex;

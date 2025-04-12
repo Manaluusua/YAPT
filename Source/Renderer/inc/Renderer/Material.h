@@ -83,6 +83,12 @@ namespace YAPT
 		virtual void setThinFilmThickness(float val) = 0;
 		virtual float getThinFilmThickness() const = 0;
 
+		virtual void setCauchysCoefficients(const vec2p& val) = 0;
+		virtual const vec2p& getCauchysCoefficients() const = 0;
+
+		virtual void setEnableDispersion(bool val) = 0;
+		virtual bool getEnableDispersion() const = 0;
+
 		virtual void setAlbedoTexture(RCObjectPtr<Texture>& tex) = 0;
 		virtual void setNormalTexture(RCObjectPtr<Texture>& tex) = 0;
 		virtual void setORMTexture(RCObjectPtr<Texture>& tex) = 0; //Occlusion, Roughness, Metalness
