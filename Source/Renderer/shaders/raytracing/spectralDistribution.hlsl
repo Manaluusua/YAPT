@@ -60,6 +60,12 @@ struct SpectralSamples
 			coeffs = getRGBToSPDCoeffs(values);
 		}
 		setWithPolynomialCoeffs(coeffs);
+
+		//TEST
+		/*samples[0] = values.x;
+		samples[1] = values.y;
+		samples[2] = values.z;*/
+
 	}
 
 	void setWithPolynomialCoeffs(float3 coeffs)
@@ -208,6 +214,9 @@ struct SpectralSamples
 	{
 		float3 xyz = ToXYZ();
 		return mul(c_srgbXYZToRGB, xyz);
+
+		//TEST
+		//return float3(samples[0], samples[1], samples[2]);
 	}
 
 	bool hasNan()

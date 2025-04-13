@@ -70,7 +70,7 @@ void rayMissEnvironment(inout Payload payload)
 {
 	float4 color = getSkyBoxColor();
 #ifdef WHITE_FURNACE_TEST
-	payload.totalLight = payload.totalLight + payload.throughput * color.a;
+	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(float3(1,1,1));
 #else
 	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(color.xyz);
 #endif
