@@ -50,8 +50,9 @@ Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t17, space0);
 Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t18, space0);
 
 Texture1D g_cieXYZCoeffsLUT : register(t19, space0);
-Texture3D g_rec2020ToSPDLUT : register(t20, space0);
-Texture3D g_srgbToSPDLUT : register(t21, space0);
+Texture1D g_d65IlluminantLUT : register(t20, space0);
+Texture3D g_rec2020ToSPDLUT : register(t21, space0);
+Texture3D g_srgbToSPDLUT : register(t22, space0);
 
 
 

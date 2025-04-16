@@ -15,6 +15,7 @@
 #define CIE_Y_SUM 106.8569171
 #define CIE_Y_SUM_INV 0.00935830854
 #define CIE_D65_SUM 39187.6996
+#define CIE_D65_SUM_INV 0.00002551
 */
 
 //Values for narrower range as the full range is mostly zero on the edges due to floating point precision
@@ -25,6 +26,7 @@
 #define CIE_Y_SUM 106.7989583
 #define CIE_Y_SUM_INV 0.00936338721
 #define CIE_D65_SUM 29988.647
+#define CIE_D65_SUM_INV 0.00003334595
 
 #define SRGB_TO_SPD_RES 64
 #define REC2020_TO_SPD_RES 64

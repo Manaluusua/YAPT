@@ -6,7 +6,7 @@
 #include "fresnel.hlsl"
 
 
-
+#define USE_VISIBLE_NORMALS
 
 float smithLambdaGGX(float3 d, float ax, float ay)
 {
@@ -95,8 +95,13 @@ float3 sampleWMGGX(float3 wo, float ax, float ay, float u1, float u2)
 {
 	bool flipWo = wo.y < 0;
 	wo.y = abs(wo.y);
-	//float3 wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+
+#ifdef USE_VISIBLE_NORMALS
+	float3 wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+#else
 	float3 wh = sampleNormalsGGX(ax, ay, u1, u2);
+#endif
+
 	if(flipWo)
 	{
 		wo.y = -wo.y;
@@ -108,8 +113,12 @@ float3 sampleWMGGX(float3 wo, float ax, float ay, float u1, float u2)
 
 float pdfWMGGX(float3 wo, float3 wm, float ax, float ay)
 {
-	//return DVGGX(wo, wm, ax, ay);
+#ifdef USE_VISIBLE_NORMALS
+	return DVGGX(wo, wm, ax, ay);
+#else
 	return DGGX(wm, ax, ay) * abs(wm.y);
+#endif
+
 }
 
 #endif

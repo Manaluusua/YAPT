@@ -18,6 +18,7 @@ namespace YAPT
 	constexpr int SPECTRAL_LAMBDA_STEP = (SPECTRAL_LAMBDA_MAX - SPECTRAL_LAMBDA_MIN) / CIE_LUT_RESOLUTION;
 
 	constexpr ResourceFormat RGB_TO_SPD_FORMAT = ResourceFormat::RGB32_SFLOAT;
+	constexpr ResourceFormat D65_ILLUMINANT_FORMAT = ResourceFormat::R32_SFLOAT;
 
 	constexpr uint32_t GAUSS_NEWTON_ITERATION_COUNT = 16;
 
@@ -70,6 +71,13 @@ namespace YAPT
 		}
 
 		{
+			TextureDesc texDesc(ResourceDimension::TEXTURE_1D, D65_ILLUMINANT_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, CIE_LUT_RESOLUTION, 1, 1, 1);
+			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
+			m_d65IlluminantLUT.texture = pool.requestTexture(texDesc, resState, "D65IlluminantLUT");
+			
+		}
+
+		{
 			TextureDesc texDesc(ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_SAMPLED_TEXTURE, SRGB_TO_SPD_RES, SRGB_TO_SPD_RES, 1, SRGB_TO_SPD_RES);
 			ResourceStateDescription resState{ RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE };
 			m_srgbToSPDLUT.texture = pool.requestTexture(texDesc, resState, "SRGBToSPDLUT");
@@ -103,6 +111,24 @@ namespace YAPT
 			texData.data = cieXYZCoeffs.data();
 			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_cieXYZColorMatchingLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
 			m_cieXYZColorMatchingLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_cieXYZColorMatchingLUT.texture, { CIE_XYZ_FORMAT });
+		}
+
+		//D65 Illuminant
+		{
+
+			std::vector<float> illuminantD65;
+			illuminantD65.resize(CIE_LUT_RESOLUTION);
+			for (size_t i = 0; i < CIE_LUT_RESOLUTION; ++i)
+			{
+				size_t index = CIE_LUT_ARRAY_OFFSET + i;
+				illuminantD65[i] = (float)c_cieD65StandardIllum[index];
+			}
+
+			TextureDataDefinition texData;
+			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(D65_ILLUMINANT_FORMAT)) * CIE_LUT_RESOLUTION;
+			texData.data = illuminantD65.data();
+			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_d65IlluminantLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
+			m_d65IlluminantLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_d65IlluminantLUT.texture, { D65_ILLUMINANT_FORMAT });
 		}
 
 		//RGB to SPD (SRGB)

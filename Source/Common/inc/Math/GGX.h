@@ -4,6 +4,7 @@
 #include <Math/Fresnel.h>
 #include <Math/MathUtility.h>
 
+#define USE_VISIBLE_NORMALS
 
 namespace YAPT
 {
@@ -122,8 +123,12 @@ namespace YAPT
           
 	vec3p sampleWM(const vec3p& wo, float ax, float ay, float u1, float u2)
 	{
-		//float3 wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+#ifdef USE_VISIBLE_NORMALS
+		vec3p wh = sampleVisibleNormalsGGX(wo, ax, ay, u1, u2);
+#else
 		vec3p wh = sampleNormalsGGX(ax, ay, u1, u2);
+#endif
+
 		if (wo.y * wh.y < 0)
 		{
 			wh = -wh;
@@ -134,8 +139,11 @@ namespace YAPT
 	  
 	float pdfWM(const vec3p& wo, const vec3p& wm, float ax, float ay)
 	{ 
-		//return DVGGX(wo, wm, ax, ay);
-		return DGGX(wm, ax, ay) * glm::abs(wm.y);
+#ifdef USE_VISIBLE_NORMALS
+		return DVGGX(wo, wm, ax, ay);
+#else
+		return DGGX(wm, ax, ay)* glm::abs(wm.y);
+#endif
 	}
 	            
 	 

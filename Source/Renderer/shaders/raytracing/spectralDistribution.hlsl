@@ -5,15 +5,40 @@
 
 //the resources needed are defined in raytraceCommonResources.hlsl
 
+#define COLORSPACE_RGB 0
+#define COLORSPACE_REC2020 1
+
+#define cOLORSPACE_DEFAULT COLORSPACE_RGB
+
 float3 getXYZCoeffsForWavelength(float lambda)
 {
 	float u = (lambda - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN);
 	return sampleLUT(g_lutSampler, g_cieXYZCoeffsLUT, u).xyz;
 }
 
-float3 getRGBToSPDCoeffs(float3 color)
+float getIlluminantCoeffForWavelength(float lambda)
 {
-	return sampleLUT(g_lutSampler, g_srgbToSPDLUT, color).xyz;
+	float u = (lambda - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN);
+	return sampleLUT(g_lutSampler, g_d65IlluminantLUT, u).x;
+
+}
+
+float3 getRGBToSPDCoeffs(float3 color, int colorSpaceIndex = cOLORSPACE_DEFAULT)
+{
+	if (colorSpaceIndex == COLORSPACE_RGB)
+	{
+		return sampleLUT(g_lutSampler, g_srgbToSPDLUT, color).xyz;
+	}
+	else if (colorSpaceIndex == COLORSPACE_REC2020)
+	{
+		return sampleLUT(g_lutSampler, g_rec2020ToSPDLUT, color).xyz;
+	}
+	else
+	{
+		return 0;
+	}
+
+	
 }
 
 float sigmoid(float x)
@@ -43,8 +68,23 @@ struct SpectralSamples
 
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
+			
 			samples[i] *= scale;
 		}
+
+		bool applyIlluminant = true;
+		if (applyIlluminant)
+		{
+			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+			{
+				uint sampleSetIndex = getSpectralSampleSetIndex();
+				uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
+				float waveLength = getSpectralSampleLambda(sampleIndex);
+
+				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV;
+			}
+		}
+
 	}
 
 
@@ -210,10 +250,22 @@ struct SpectralSamples
 		return xyz / SPECTRAL_SAMPLES_COUNT;
 	}
 
-	float3 ToRGB()
+	float3 ToRGB(int colorSpaceIndex = cOLORSPACE_DEFAULT)
 	{
 		float3 xyz = ToXYZ();
-		return mul(c_srgbXYZToRGB, xyz);
+		if (colorSpaceIndex == COLORSPACE_RGB)
+		{
+			return mul(c_srgbXYZToRGB, xyz);
+		}
+		else if (colorSpaceIndex == COLORSPACE_REC2020)
+		{
+			return mul(c_rec2020XYZToRGB, xyz);
+		}
+		else
+		{
+			return 0;
+		}
+		
 
 		//TEST
 		//return float3(samples[0], samples[1], samples[2]);

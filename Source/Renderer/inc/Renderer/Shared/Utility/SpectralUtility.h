@@ -23,6 +23,7 @@ namespace YAPT
 
 		
 		TextureViewHandle getXYZColorMatchingLUT() { return m_cieXYZColorMatchingLUT.textureView; }
+		TextureViewHandle getD65IlluminantLUT() { return m_d65IlluminantLUT.textureView; }
 		TextureViewHandle getSRGBToSPDLUT() { return m_srgbToSPDLUT.textureView; }
 		TextureViewHandle getREC2020ToSPDLUT() { return m_rec2020ToSPDLUT.textureView; }
 
@@ -63,6 +64,7 @@ namespace YAPT
 			TextureViewHandle textureView;
 		};
 		TextureHandleAndView m_cieXYZColorMatchingLUT;
+		TextureHandleAndView m_d65IlluminantLUT;
 		TextureHandleAndView m_srgbToSPDLUT;
 		TextureHandleAndView m_rec2020ToSPDLUT;
 

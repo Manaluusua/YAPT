@@ -659,6 +659,7 @@ namespace YAPT
 			TextureViewHandle sheenDirectionalAlbedo = getRenderer()->getCoreResources()->getMultiScatteringLUTs().getDirectionalAlbedoSheen();
 
 			TextureViewHandle cieLUT = getRenderer()->getCoreResources()->getSpectralUtility().getXYZColorMatchingLUT();
+			TextureViewHandle d65LUT = getRenderer()->getCoreResources()->getSpectralUtility().getD65IlluminantLUT();
 			TextureViewHandle toSRGBLUT = getRenderer()->getCoreResources()->getSpectralUtility().getSRGBToSPDLUT();
 			TextureViewHandle toREC2020LUT = getRenderer()->getCoreResources()->getSpectralUtility().getREC2020ToSPDLUT();
 			
@@ -680,8 +681,9 @@ namespace YAPT
 				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
 				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
 				{19, 0, 1, DescriptorPtr(&cieLUT)},
-				{20, 0, 1, DescriptorPtr(&toREC2020LUT)},
-				{21, 0, 1, DescriptorPtr(&toSRGBLUT)},
+				{20, 0, 1, DescriptorPtr(&d65LUT)},
+				{21, 0, 1, DescriptorPtr(&toREC2020LUT)},
+				{22, 0, 1, DescriptorPtr(&toSRGBLUT)},
 				
 			};
 			Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_rtDescSet, updates, countOf(updates));

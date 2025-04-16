@@ -75,9 +75,12 @@ void rayGenPrimaryRays()
 		}
 		
 #ifdef WHITE_FURNACE_TEST_BOUNCE_LIMIT
-		if(payload.pathLength >= WHITE_FURNACE_TEST_BOUNCE_LIMIT)
+		if(payload.pathLength >= WHITE_FURNACE_TEST_BOUNCE_LIMIT && payload.rayState != RAY_STATE_TERMINATED)
 		{
-			payload.totalLight = payload.throughput;
+			SpectralSamples s;
+			s.setFromRGBUnbounded(float3(1.f, 1.f, 1.f));
+
+			payload.totalLight = payload.throughput * s;
 			payload.rayState = RAY_STATE_TERMINATED;
 			break;
 		}

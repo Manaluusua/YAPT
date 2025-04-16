@@ -1,3 +1,6 @@
+#ifndef COLORSPACES_HLSL
+#define COLORSPACES_HLSL
+
 static const float3x3 c_rec2020XYZToRGB =
 {
 	1.7166512, -0.3556708, -0.2533663,
@@ -25,3 +28,5 @@ static const float3x3 c_srgbRGBToXYZ =
 	0.2126, 0.7152, 0.0722,
 	0.0193, 0.1192, 0.9505
 };
+
+#endif
