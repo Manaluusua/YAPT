@@ -714,6 +714,10 @@ namespace YAPT
 		f.baseFeatures.features.shaderStorageImageArrayDynamicIndexing = VK_TRUE;
 		f.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing = VK_TRUE;
 		f.baseFeatures.features.shaderStorageImageReadWithoutFormat = VK_TRUE;
+		f.baseFeatures.features.shaderFloat64 = VK_TRUE;
+		f.baseFeatures.features.shaderInt64 = VK_TRUE;
+
+
 
 		//Vk 1.2 features
 		f.physicalDeviceVk12Features.bufferDeviceAddress = VK_TRUE;
