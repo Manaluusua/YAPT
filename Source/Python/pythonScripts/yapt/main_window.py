@@ -79,9 +79,12 @@ class MainWindow(QMainWindow):
             try:
                 with open(file_name, 'r') as f:
                         script_content = f.read()
-                locals_ = locals()
-                locals_["yapt_instance"] = self._app
-                exec(script_content, globals(), locals_)
+                context = { 
+                    "yapt_instance" : self._app
+                }
+                exec(script_content, context, context)
+                #locals_["yapt_instance"] = self._app
+                #exec(script_content, globals(), locals_)
             except FileNotFoundError:
                 print("The script file was not found.")
             except Exception as e:
