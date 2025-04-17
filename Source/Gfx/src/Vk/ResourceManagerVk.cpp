@@ -366,6 +366,11 @@ namespace YAPT
 
 	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut)
 	{
+		
+		//VkImageFormatProperties props;
+		//vkGetPhysicalDeviceImageFormatProperties(m_physicalDevice, desc.format, desc.imageType, desc.tiling, desc.usage, desc.flags, &props);
+		
+
 		VkResult res = vmaCreateImage(m_allocator, &desc, &allocInfo, imageOut, allocOut, nullptr);
 		return checkVkResult(res);
 	}

@@ -12,12 +12,13 @@ using dmat3x3 = glm::dmat3x3;
 
 namespace YAPT
 {
-	constexpr ResourceFormat CIE_XYZ_FORMAT = ResourceFormat::RGB32_SFLOAT;
+	constexpr ResourceFormat CIE_XYZ_FORMAT = ResourceFormat::RGBA32_SFLOAT; //A useless but RGB32 is not supported on my card on vk TODO: find a better format/truncate precision(?)
 	constexpr int SPECTRAL_LAMBDA_MIN = CIE_LUT_LAMBDA_MIN;
 	constexpr int SPECTRAL_LAMBDA_MAX = CIE_LUT_LAMBDA_MAX;
 	constexpr int SPECTRAL_LAMBDA_STEP = (SPECTRAL_LAMBDA_MAX - SPECTRAL_LAMBDA_MIN) / CIE_LUT_RESOLUTION;
 
-	constexpr ResourceFormat RGB_TO_SPD_FORMAT = ResourceFormat::RGB32_SFLOAT;
+	constexpr ResourceFormat RGB_TO_SPD_FORMAT = ResourceFormat::RGBA32_SFLOAT; //A useless but RGB32 is not supported on my card on vk TODO: find a better format/truncate precision (?)
+	constexpr ResourceFormat RGB_TO_SPD_STORAGE_FORMAT = ResourceFormat::RGB32_SFLOAT;
 	constexpr ResourceFormat D65_ILLUMINANT_FORMAT = ResourceFormat::R32_SFLOAT;
 
 	constexpr uint32_t GAUSS_NEWTON_ITERATION_COUNT = 16;
@@ -97,13 +98,14 @@ namespace YAPT
 		{
 
 			std::vector<float> cieXYZCoeffs;
-			cieXYZCoeffs.resize(CIE_LUT_RESOLUTION * 3);
+			cieXYZCoeffs.resize(CIE_LUT_RESOLUTION * 4);
 			for (size_t i = 0; i < CIE_LUT_RESOLUTION; ++i)
 			{
 				size_t index = CIE_LUT_ARRAY_OFFSET + i;
-				cieXYZCoeffs[i * 3] = (float)c_cieDeg2X[index];
-				cieXYZCoeffs[i * 3 + 1] = (float)c_cieDeg2Y[index];
-				cieXYZCoeffs[i * 3 + 2] = (float)c_cieDeg2Z[index];
+				cieXYZCoeffs[i * 4] = (float)c_cieDeg2X[index];
+				cieXYZCoeffs[i * 4 + 1] = (float)c_cieDeg2Y[index];
+				cieXYZCoeffs[i * 4 + 2] = (float)c_cieDeg2Z[index];
+				cieXYZCoeffs[i * 4 + 3] = (float)0;
 			}
 
 			TextureDataDefinition texData;
@@ -134,6 +136,7 @@ namespace YAPT
 		//RGB to SPD (SRGB)
 		{
 			std::vector<vec3p> rgbToSPD;
+			std::vector<vec4p> rgbToSPD4Components;
 			rgbToSPD.resize(SRGB_TO_SPD_RES * SRGB_TO_SPD_RES * SRGB_TO_SPD_RES);
 			if (!loadRGBToSPDLUT(rgbToSPD.data(), ColorSpace::SRGB))
 			{
@@ -142,10 +145,16 @@ namespace YAPT
 				storeRGBToSPDLUT(rgbToSPD.data(), ColorSpace::SRGB);
 			}
 
+			rgbToSPD4Components.resize(rgbToSPD.size());
+			for (size_t i = 0; i < rgbToSPD4Components.size(); ++i)
+			{
+				rgbToSPD4Components[i] = vec4p(rgbToSPD[i], 0);
+			}
+
 			//upload data
 			TextureDataDefinition texData;
 			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(RGB_TO_SPD_FORMAT)) * SRGB_TO_SPD_RES;
-			texData.data = rgbToSPD.data();
+			texData.data = rgbToSPD4Components.data();
 			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_srgbToSPDLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
 			m_srgbToSPDLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_srgbToSPDLUT.texture, { RGB_TO_SPD_FORMAT });
 
@@ -154,6 +163,7 @@ namespace YAPT
 		//RGB to SPD (REC2020)
 		{
 			std::vector<vec3p> rgbToSPD;
+			std::vector<vec4p> rgbToSPD4Components;
 			rgbToSPD.resize(REC2020_TO_SPD_RES * REC2020_TO_SPD_RES * REC2020_TO_SPD_RES);
 			if (!loadRGBToSPDLUT(rgbToSPD.data(), ColorSpace::REC2020))
 			{
@@ -162,10 +172,16 @@ namespace YAPT
 				storeRGBToSPDLUT(rgbToSPD.data(), ColorSpace::REC2020);
 			}
 
+			rgbToSPD4Components.resize(rgbToSPD.size());
+			for (size_t i = 0; i < rgbToSPD4Components.size(); ++i)
+			{
+				rgbToSPD4Components[i] = vec4p(rgbToSPD[i], 0);
+			}
+
 			//upload data
 			TextureDataDefinition texData;
 			texData.rowPitchInBytes = size_t(getFormatSizeInBytes(RGB_TO_SPD_FORMAT)) * REC2020_TO_SPD_RES;
-			texData.data = rgbToSPD.data();
+			texData.data = rgbToSPD4Components.data();
 			Gfx::uploadTexture(m_renderer->getGfxHandle(), m_rec2020ToSPDLUT.texture, 0, 1, 0, 1, &texData, GpuUploadStage::BEFORE_RENDER);
 			m_rec2020ToSPDLUT.textureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_rec2020ToSPDLUT.texture, { RGB_TO_SPD_FORMAT });
 
@@ -209,7 +225,7 @@ namespace YAPT
 
 		uint32_t res = getResolution(s);
 
-		bool success = tryToLoadFromfile(getFilename(s), ResourceDimension::TEXTURE_3D, RGB_TO_SPD_FORMAT, glm::uvec3(res, res, res), lutData);
+		bool success = tryToLoadFromfile(getFilename(s), ResourceDimension::TEXTURE_3D, RGB_TO_SPD_STORAGE_FORMAT, glm::uvec3(res, res, res), lutData);
 		return success;
 	}
 	void SpectralUtility::storeRGBToSPDLUT(vec3p* lutData, ColorSpace s)
@@ -227,7 +243,7 @@ namespace YAPT
 		def.width = res;
 		def.height = res;
 		def.depthOrSlices = res;
-		def.format = RGB_TO_SPD_FORMAT;
+		def.format = RGB_TO_SPD_STORAGE_FORMAT;
 		def.dimension = ResourceDimension::TEXTURE_3D;
 		def.mips = 1;
 

@@ -113,10 +113,14 @@ namespace YAPT
 
         case VK_FORMAT_R8G8B8A8_UNORM:
         case VK_FORMAT_R8G8B8A8_SNORM:
+        case VK_FORMAT_R8G8B8A8_SRGB:
         case VK_FORMAT_R8G8B8A8_UINT:
         case VK_FORMAT_R8G8B8A8_SINT:
         case VK_FORMAT_B8G8R8A8_UNORM:
         case VK_FORMAT_B8G8R8A8_SNORM:
+        case VK_FORMAT_B8G8R8A8_SRGB:
+        case VK_FORMAT_B8G8R8A8_UINT:
+        case VK_FORMAT_B8G8R8A8_SINT:
             return 4;
 
         case VK_FORMAT_R16_UNORM:
@@ -182,6 +186,7 @@ namespace YAPT
             return 16;
 
         default:
+            assert(!"unknown format!");
             return 0; // Unknown or unsupported format
         }
     }

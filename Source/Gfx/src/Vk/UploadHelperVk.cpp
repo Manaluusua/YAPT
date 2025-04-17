@@ -119,7 +119,7 @@ namespace YAPT
 		info->srcBuffer = uploadInfo.uploadBuffer;
 		info->copyDescs.resize(arraySliceCount * mipCount);
 		size_t currentUploadBufferOffset = align(uploadInfo.offsetToHeap, texelBlockSize);
-		size_t mappedBufferOffset = 0;
+		size_t mappedBufferOffset = currentUploadBufferOffset - uploadInfo.offsetToHeap;
 
 		for (size_t arraySlice = 0; arraySlice < arraySliceCount; ++arraySlice)
 		{
