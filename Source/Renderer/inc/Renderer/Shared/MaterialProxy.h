@@ -90,15 +90,16 @@ namespace YAPT
 		virtual void setEnableDispersion(bool val) final;
 		virtual bool getEnableDispersion() const final;
 
-		virtual void setAlbedoTexture(RCObjectPtr<Texture>& tex) final;
-		virtual void setNormalTexture(RCObjectPtr<Texture>& tex) final;
-		virtual void setORMTexture(RCObjectPtr<Texture>& tex) final;
-		virtual void setEmissiveTexture(RCObjectPtr<Texture>& tex) final;
+		virtual void setAlbedoTexture(const TextureParameter& tex) final;
+		virtual void setNormalTexture(const TextureParameter& tex) final;
+		virtual void setORMTexture(const TextureParameter& tex) final;
+		virtual void setEmissiveTexture(const TextureParameter& tex) final;
 
 	protected:
 		virtual void allReferencesReleased() final;
 
 	private:
+		void assignMaterialTextureParam(const TextureParameter& source, MaterialParameterTexture& dest);
 		uint32_t getTextureViewIndex(Texture* tex);
 
 		void setDirty();

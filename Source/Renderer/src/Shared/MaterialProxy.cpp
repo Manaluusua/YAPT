@@ -286,21 +286,28 @@ namespace YAPT
 		return (m_materialParams.materialMask & MaterialMask_Dispersion) != 0;
 	}
 
-	void MaterialProxy::setAlbedoTexture(RCObjectPtr<Texture>& tex)
+	void MaterialProxy::setAlbedoTexture(const TextureParameter& tex)
 	{
-		m_materialParams.albedoTexIndex = getTextureViewIndex(tex.get());
+		assignMaterialTextureParam(tex, m_materialParams.albedoTex);
+		 
 	}
-	void MaterialProxy::setNormalTexture(RCObjectPtr<Texture>& tex)
+	void MaterialProxy::setNormalTexture(const TextureParameter& tex)
 	{
-		m_materialParams.normalTexIndex = getTextureViewIndex(tex.get());
+		assignMaterialTextureParam(tex, m_materialParams.normalTex);
 	}
-	void MaterialProxy::setORMTexture(RCObjectPtr<Texture>& tex)
+	void MaterialProxy::setORMTexture(const TextureParameter& tex)
 	{
-		m_materialParams.ormTexIndex = getTextureViewIndex(tex.get());
+		assignMaterialTextureParam(tex, m_materialParams.ormTex);
 	}
-	void MaterialProxy::setEmissiveTexture(RCObjectPtr<Texture>& tex)
+	void MaterialProxy::setEmissiveTexture(const TextureParameter& tex)
 	{
-		m_materialParams.emissiveTexIndex = getTextureViewIndex(tex.get());
+		assignMaterialTextureParam(tex, m_materialParams.emissiveTex);
+	}
+
+	void MaterialProxy::assignMaterialTextureParam(const TextureParameter& source, MaterialParameterTexture& dest)
+	{
+		dest.textureIndex = getTextureViewIndex(source.texture.get());
+		dest.setScale(source.scale.x, source.scale.y);
 	}
 
 	uint32_t MaterialProxy::getTextureViewIndex(Texture* tex)

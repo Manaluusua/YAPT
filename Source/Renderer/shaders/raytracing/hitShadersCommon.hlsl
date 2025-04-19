@@ -32,10 +32,10 @@ struct RayHitShaderTableConstantData
 	float pad0;
 	
 	float4 sheenColorRoughness;
-	uint albedoTexIndex;
-	uint normalTexIndex;
-	uint ormTexIndex;
-	uint emissiveTexIndex;
+	uint2 albedoTexIndex;
+	uint2 normalTexIndex;
+	uint2 ormTexIndex;
+	uint2 emissiveTexIndex;
 };
 
 struct SurfaceDefinitionRGB
@@ -171,6 +171,11 @@ void unpackBufferInfo(in uint2 val, out uint bufferIndex, out uint bufferStride,
 	bufferIndex = val.y & 0xFFFF;
 	bufferStride = val.y >> 16;
 	bufferOffset = val.x;
+}
+
+float2 unpackTextureTransformScale(uint scale)
+{
+	return float2(f16tof32(scale & 0xFFFF), f16tof32(scale >> 16));
 }
 
 bool isValidPackedBufferInfo(in uint2 val)
@@ -327,29 +332,34 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinitionRGB surfaceDef)
 void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
 {
 
-	if(SHADERTABLE_EXTRADATA.albedoTexIndex != TEX_UNBOUND_INDEX)
+	if(SHADERTABLE_EXTRADATA.albedoTexIndex.x != TEX_UNBOUND_INDEX)
 	{
-		float4 atex = g_textures2D[SHADERTABLE_EXTRADATA.albedoTexIndex].SampleLevel(g_colorSampler, uv, 0);
+		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.albedoTexIndex.y);
+
+		float4 atex = g_textures2D[SHADERTABLE_EXTRADATA.albedoTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.albedo *= atex.rgb;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.normalTexIndex != TEX_UNBOUND_INDEX) //TODO
+	if(SHADERTABLE_EXTRADATA.normalTexIndex.x != TEX_UNBOUND_INDEX) //TODO
 	{
-		float4 n = g_textures2D[SHADERTABLE_EXTRADATA.normalTexIndex].SampleLevel(g_colorSampler, uv, 0);
+		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.normalTexIndex.y);
+		float4 n = g_textures2D[SHADERTABLE_EXTRADATA.normalTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		//surfaceDef.albedo = atex.rgb;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.ormTexIndex != TEX_UNBOUND_INDEX)
+	if(SHADERTABLE_EXTRADATA.ormTexIndex.x != TEX_UNBOUND_INDEX)
 	{
-		float4 orm = g_textures2D[SHADERTABLE_EXTRADATA.ormTexIndex].SampleLevel(g_colorSampler, uv, 0);
+		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.ormTexIndex.y);
+		float4 orm = g_textures2D[SHADERTABLE_EXTRADATA.ormTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.roughness = orm.x;
 		surfaceDef.roughness = orm.y;
 		surfaceDef.metalness = orm.z;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.emissiveTexIndex != TEX_UNBOUND_INDEX)
+	if(SHADERTABLE_EXTRADATA.emissiveTexIndex.x != TEX_UNBOUND_INDEX)
 	{
-		float4 emissive = g_textures2D[SHADERTABLE_EXTRADATA.emissiveTexIndex].SampleLevel(g_colorSampler, uv, 0);
+		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.emissiveTexIndex.y);
+		float4 emissive = g_textures2D[SHADERTABLE_EXTRADATA.emissiveTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.emissive *= emissive.rgb;
 	}
 	

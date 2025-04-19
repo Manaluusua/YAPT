@@ -21,9 +21,18 @@ namespace YAPT
 		PLASTIC,
 	};
 
+	
+
 	class Material : public RCObject
 	{
 	public:
+
+		struct TextureParameter
+		{
+			RCObjectPtr<Texture> texture;
+			vec2p scale = vec2p(1, 1);
+		};
+
 		virtual void setFromMaterialPreset(MaterialPreset preset) = 0;
 
 		virtual void setTransparency(float transparency) = 0;
@@ -89,10 +98,10 @@ namespace YAPT
 		virtual void setEnableDispersion(bool val) = 0;
 		virtual bool getEnableDispersion() const = 0;
 
-		virtual void setAlbedoTexture(RCObjectPtr<Texture>& tex) = 0;
-		virtual void setNormalTexture(RCObjectPtr<Texture>& tex) = 0;
-		virtual void setORMTexture(RCObjectPtr<Texture>& tex) = 0; //Occlusion, Roughness, Metalness
-		virtual void setEmissiveTexture(RCObjectPtr<Texture>& tex) = 0;
+		virtual void setAlbedoTexture(const TextureParameter& tex) = 0;
+		virtual void setNormalTexture(const TextureParameter& tex) = 0;
+		virtual void setORMTexture(const TextureParameter& tex) = 0; //Occlusion, Roughness, Metalness
+		virtual void setEmissiveTexture(const TextureParameter& tex) = 0;
 	};
 }
 

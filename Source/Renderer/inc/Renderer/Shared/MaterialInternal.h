@@ -2,6 +2,7 @@
 
 #include <Common/RCObjectPtr.h>
 #include <Math/Math.h>
+
 namespace YAPT
 {
 	static const uint32_t TEX_UNBOUND_INDEX = ~0;
@@ -11,6 +12,25 @@ namespace YAPT
 		MaterialMask_TwoSided = 1 << 0,
 		MaterialMask_Dispersion = 1 << 1
 	};
+
+	struct MaterialParameterTexture
+	{
+		MaterialParameterTexture(uint32_t texIndex, float scaleX = 1, float scaleY = 1)
+			:textureIndex(texIndex),
+			packedScale(glm::packHalf2x16(vec2p(scaleX, scaleY)))
+		{
+
+		}
+
+		void setScale(float scaleX, float scaleY)
+		{
+			packedScale = glm::packHalf2x16(vec2p(scaleX, scaleY));
+		}
+
+		uint32_t textureIndex;
+		uint32_t packedScale;
+	};
+
 	struct MaterialParameters
 	{
 		MaterialParameters()
@@ -37,10 +57,10 @@ namespace YAPT
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
-			albedoTexIndex(TEX_UNBOUND_INDEX),
-			normalTexIndex(TEX_UNBOUND_INDEX),
-			ormTexIndex(TEX_UNBOUND_INDEX),
-			emissiveTexIndex(TEX_UNBOUND_INDEX)
+			albedoTex(TEX_UNBOUND_INDEX),
+			normalTex(TEX_UNBOUND_INDEX),
+			ormTex(TEX_UNBOUND_INDEX),
+			emissiveTex(TEX_UNBOUND_INDEX)
 		{}
 
 		MaterialParameters(vec3p albedo, float transparency,
@@ -71,10 +91,10 @@ namespace YAPT
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
-			albedoTexIndex(TEX_UNBOUND_INDEX),
-			normalTexIndex(TEX_UNBOUND_INDEX),
-			ormTexIndex(TEX_UNBOUND_INDEX),
-			emissiveTexIndex(TEX_UNBOUND_INDEX)
+			albedoTex(TEX_UNBOUND_INDEX),
+			normalTex(TEX_UNBOUND_INDEX),
+			ormTex(TEX_UNBOUND_INDEX),
+			emissiveTex(TEX_UNBOUND_INDEX)
 		{}
 		
 		vec3p albedo;
@@ -104,10 +124,11 @@ namespace YAPT
 
 		vec2p cauchysCoeffs;
 
-		uint32_t albedoTexIndex;
-		uint32_t normalTexIndex;
-		uint32_t ormTexIndex;
-		uint32_t emissiveTexIndex;
+		MaterialParameterTexture albedoTex;
+		MaterialParameterTexture normalTex;
+		MaterialParameterTexture ormTex;
+		MaterialParameterTexture emissiveTex;
+
 	};
 
 

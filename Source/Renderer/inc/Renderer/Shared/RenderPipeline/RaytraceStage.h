@@ -108,10 +108,10 @@ namespace YAPT
 
 
 			vec4p sheenColorRoughness;
-			uint32_t albedoTexIndex;
-			uint32_t normalTexIndex;
-			uint32_t ormTexIndex;
-			uint32_t emissiveTexIndex;
+			uvec2p albedoTexIndexAndScale;
+			uvec2p normalTexIndexAndScale;
+			uvec2p ormTexIndexAndScale;
+			uvec2p emissiveTexIndexAndScale;
 
 		};
 

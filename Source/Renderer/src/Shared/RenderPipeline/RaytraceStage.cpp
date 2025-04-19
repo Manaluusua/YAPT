@@ -404,10 +404,10 @@ namespace YAPT
 			rayHitConstants.sheenAmount = matParams.sheenAmount;
 			rayHitConstants.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
 
-			rayHitConstants.albedoTexIndex = matParams.albedoTexIndex;
-			rayHitConstants.normalTexIndex = matParams.normalTexIndex;
-			rayHitConstants.ormTexIndex = matParams.ormTexIndex;
-			rayHitConstants.emissiveTexIndex = matParams.emissiveTexIndex;
+			rayHitConstants.albedoTexIndexAndScale = uvec2p(matParams.albedoTex.textureIndex, matParams.albedoTex.packedScale);
+			rayHitConstants.normalTexIndexAndScale = uvec2p(matParams.normalTex.textureIndex, matParams.normalTex.packedScale);
+			rayHitConstants.ormTexIndexAndScale = uvec2p(matParams.ormTex.textureIndex, matParams.ormTex.packedScale);
+			rayHitConstants.emissiveTexIndexAndScale = uvec2p(matParams.emissiveTex.textureIndex, matParams.emissiveTex.packedScale);
 		}
 
 		entry->extraDataInBytes = sizeof(RayHitShaderTableConstantData);
