@@ -31,7 +31,7 @@ namespace YAPT
 		PyBuffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size);
 
 		PyMaterial* createMaterial(const char* name);
-		PyMesh* createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, bool use16BitIndices);
+		PyMesh* createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 
 		PyRendererVar getRendererVariable(const char* varName);
 		std::vector<const char*> getAllRendererVariableNames();

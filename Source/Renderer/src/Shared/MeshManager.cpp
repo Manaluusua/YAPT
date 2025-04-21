@@ -13,9 +13,9 @@ namespace YAPT
 		XXH64_freeState(m_hashState);
 	}
 	 
-	MeshProxy* MeshManager::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices)
+	MeshProxy* MeshManager::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)
 	{
-		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount, use16BitIndices);
+		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount, submeshCount, use16BitIndices);
 		mesh->_meshState = MeshProxy::MESHSTATE_INCOMPLETE;
 		return mesh;
 	}
@@ -112,7 +112,7 @@ namespace YAPT
 	{
 		//real construction
 		MeshLayoutID layoutID = getMeshLayoutIDForLayout(obj->getMeshLayoutInfo());
-		MeshIndex id = m_meshes.addEntry(m_gfx, layoutID, obj->getMeshLayoutInfo(), obj->has16BitIndices());
+		MeshIndex id = m_meshes.addEntry(m_gfx, layoutID, obj->getMeshLayoutInfo(), obj->m_submeshes.size(), obj->has16BitIndices());
 		return id;
 	}
 
@@ -154,7 +154,13 @@ namespace YAPT
 		}
 
 		dst.setIndexBuffer(src->m_indexBuffer.buffer.get(), src->m_indexBuffer.offsetInBytes);
-		dst.setPrimitiveCount(src->m_primitiveCount);
+
+		for (size_t i = 0; i < src->m_submeshes.size(); ++i)
+		{
+			dst.setSubmesh(i, src->m_submeshes[i]);
+		}
+
+		
 	}
 
 	void MeshManager::destroyMeshEntry(MeshProxy* obj)

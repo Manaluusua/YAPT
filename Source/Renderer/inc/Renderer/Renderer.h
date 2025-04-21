@@ -50,7 +50,7 @@ namespace YAPT
 		/**
 			Creates a mesh with given layouts. Buffers bound to the mesh are assumed to be in the same order (ie. buffer bound to index 0 has the layout of the first layout in the list passed here).
 		*/
-		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices) = 0;
+		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices) = 0;
 		virtual Material* createMaterial() = 0;
 		virtual RenderObject* createRenderObject() = 0;
 

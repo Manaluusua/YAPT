@@ -38,6 +38,7 @@ namespace YAPT
 		size_t vertexBufferOffsetInBytes;
 		ResourceFormat vertexFormat;
 		size_t indexCount;
+		size_t indexBufferOffsetInBytes;
 		ResourceFormat indexFormat;
 		BufferHandle vertexBuffer;
 		BufferHandle indexBuffer;

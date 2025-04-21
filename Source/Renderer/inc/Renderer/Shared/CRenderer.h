@@ -50,7 +50,7 @@ namespace YAPT
 		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1) final;
 		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size) final;
 
-		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices) final;
+		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices) final;
 		virtual Material* createMaterial() final;
 		virtual RenderObject* createRenderObject() final;
 

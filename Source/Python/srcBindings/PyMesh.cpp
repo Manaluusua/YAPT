@@ -6,7 +6,7 @@
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyMesh);
-	PyMesh::PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, bool use16BitIndices)
+	PyMesh::PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)
 		:m_name(name)
 	{
 		std::vector<VertexBufferLayout> layoutsNative;
@@ -40,7 +40,7 @@ namespace YAPT
 
 		}
 
-		m_mesh = rend->createMesh(layoutsNative.data(), layoutsNative.size(), vertexCount, use16BitIndices);
+		m_mesh = rend->createMesh(layoutsNative.data(), layoutsNative.size(), vertexCount, submeshCount, use16BitIndices);
 		m_mesh.get()->Release();
 
 	}
@@ -58,9 +58,17 @@ namespace YAPT
 	{
 		m_mesh->setVertexBuffer(bufferIndex, buffer->getBuffer().get(), offsetInBytes);
 	}
-	void PyMesh::setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives)
+	void PyMesh::setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes)
 	{
-		m_mesh->setIndexBuffer(buffer->getBuffer().get(), offsetInBytes, numberOfPrimitives);
+		m_mesh->setIndexBuffer(buffer->getBuffer().get(), offsetInBytes);
+	}
+
+	void PyMesh::setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount)
+	{
+		SubmeshRange smRange;
+		smRange.indexOffset = indexOffset;
+		smRange.indexCount = indexCount;
+		m_mesh->setSubmesh(submeshIndex, smRange);
 	}
 
 	BINDING_FUNC(PyMesh, m)
@@ -83,7 +91,8 @@ namespace YAPT
 		pybind11::class_<PyMesh>(m, "Mesh")
 			.def("getName", &PyMesh::getName)
 			.def("setVertexBuffer", &PyMesh::setVertexBuffer)
-			.def("setIndexBuffer", &PyMesh::setIndexBuffer);
+			.def("setIndexBuffer", &PyMesh::setIndexBuffer)
+			.def("setSubmesh", &PyMesh::setSubmesh);
 
 		
 	}

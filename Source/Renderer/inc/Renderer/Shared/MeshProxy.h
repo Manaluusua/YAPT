@@ -22,10 +22,11 @@ namespace YAPT
 			MESHSTATE_DESTROYED = YAPTBIT(4)
 		};
 
-		MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, bool use16BitIndices);
+		MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, size_t submeshCount, bool use16BitIndices);
 
+		virtual void setSubmesh(size_t submeshIndex, const SubmeshRange& range) final;
 		virtual void setVertexBuffer(size_t bufferIndex, Buffer* buffer, size_t offsetInBytes) final;
-		virtual void setIndexBuffer(Buffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives) final;
+		virtual void setIndexBuffer(Buffer* buffer, size_t offsetInBytes) final;
 		virtual ~MeshProxy() override;
 
 		const MeshLayoutInfo& getMeshLayoutInfo() const { return m_data; }
@@ -34,15 +35,16 @@ namespace YAPT
 
 		bool has16BitIndices() const { return m_use16BitIndices; }
 
-		bool hasAllRequiredBuffers() const { return m_meshRequirementsNotSet == 0; }
+		bool hasAllRequiredBuffers() const { return m_vertexBuffersNotSet == 0 && m_submeshRangesNotSet == 0 && !m_indexBufferNotSet; }
 
 	protected:
 		virtual void allReferencesReleased() final;
 
 	private:
 
-		void resetRequirements(size_t numberOfBuffers, bool hasIndexbuffer);
+		void resetRequirements(size_t numberOfBuffers, size_t numberOfSubMeshes, bool hasIndexbuffer);
 		void vertexBufferBound(size_t index);
+		void submeshRangeSet(size_t index);
 		void indexBufferBound();
 
 
@@ -50,10 +52,12 @@ namespace YAPT
 
 		std::vector<MeshBufferBinding> m_vertexBuffers;
 		MeshBufferBinding m_indexBuffer;
-		size_t m_primitiveCount;
+		std::vector<SubmeshRange> m_submeshes;
 
 		MeshLayoutInfo m_data;
-		uint32_t m_meshRequirementsNotSet;
+		uint32_t m_vertexBuffersNotSet;
+		uint32_t m_submeshRangesNotSet;
+		bool m_indexBufferNotSet;
 		bool m_use16BitIndices;
 
 		//Handled by MeshManager

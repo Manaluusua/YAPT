@@ -3,6 +3,7 @@
 #include <Gfx/Vk/ResourceManagerVk.h>
 #include <Gfx/Vk/YaptToVkConversions.h>
 #include <Gfx/Vk/ResourceHandlesVk.h>
+
 #include <vector>
 
 namespace YAPT
@@ -34,7 +35,7 @@ namespace YAPT
 			triangles.vertexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.vertexBuffer->buffer) + geoDef.vertexBufferOffsetInBytes;
 			triangles.vertexStride = geoDef.vertexStrideInBytes;
 			triangles.indexType = yaptFormatToVkIndex(geoDef.indexFormat);
-			triangles.indexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.indexBuffer->buffer);
+			triangles.indexData.deviceAddress = m_resMngr.GetDeviceAddress(geoDef.indexBuffer->buffer) + geoDef.indexBufferOffsetInBytes;
 
 			triangles.maxVertex = (uint32_t)geoDef.vertexCount-1;
 

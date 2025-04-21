@@ -661,13 +661,14 @@ YAPT::RCObjectPtr<YAPT::Mesh> TestScene::loadMesh(const char* path)
 		}
 
 		//create mesh
-		mesh = m_renderer->createMesh(info.layouts, info.numberOfVertexBuffers, info.vertexCount, false);
+		mesh = m_renderer->createMesh(info.layouts, info.numberOfVertexBuffers, info.vertexCount, 1,  false);
 		for (size_t i = 0; i < info.numberOfVertexBuffers; ++i)
 		{
 			mesh->setVertexBuffer(i, vertexBuffers[i].get(), 0);
 		}
-		
-		mesh->setIndexBuffer(indexBuffer.get(), 0, info.primitiveCount);
+
+		mesh->setSubmesh(0, SubmeshRange(0, info.primitiveCount * 3));
+		mesh->setIndexBuffer(indexBuffer.get(), 0);
 		mesh->Release();
 		
 	}

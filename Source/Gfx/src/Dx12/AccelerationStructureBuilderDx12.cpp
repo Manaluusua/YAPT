@@ -187,7 +187,7 @@ namespace YAPT
 				geomDesc.Triangles.VertexBuffer.StrideInBytes = geomDef.vertexStrideInBytes;
 				geomDesc.Triangles.VertexFormat = yaptToDx12Format(geomDef.vertexFormat);
 				geomDesc.Triangles.VertexCount = static_cast<UINT>(geomDef.vertexCount);
-				geomDesc.Triangles.IndexBuffer = iBuffer->resource->GetGPUVirtualAddress();
+				geomDesc.Triangles.IndexBuffer = iBuffer->resource->GetGPUVirtualAddress() + geomDef.indexBufferOffsetInBytes;
 				geomDesc.Triangles.IndexCount = static_cast<UINT>(geomDef.indexCount);
 				geomDesc.Triangles.IndexFormat = yaptToDx12Format(geomDef.indexFormat);
 				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;

@@ -4,6 +4,7 @@
 #include <Common/RCObjectPtr.h>
 #include <vector>
 #include <Gfx/GfxApi.h>
+#include <Renderer/Mesh.h>
 
 namespace YAPT
 {
@@ -47,7 +48,7 @@ namespace YAPT
 	class MeshInternal
 	{
 	public:
-		MeshInternal(size_t id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, bool use16BitIndices = false);
+		MeshInternal(size_t id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, size_t submeshCount, bool use16BitIndices);
 
 		void setVertexBuffer(size_t bufferIndex, BufferImpl* buffer, size_t offsetInBytes);
 		void setIndexBuffer(BufferImpl* buffer, size_t offsetInBytes);
@@ -57,8 +58,17 @@ namespace YAPT
 
 		const MeshLayoutInfo& getLayoutInfo() const;
 
-		size_t getPrimitiveCount() const { return m_primitiveCount; }
-		void setPrimitiveCount(size_t prim) { m_primitiveCount = prim; }
+		size_t getSubmeshCount() const { return m_SubmeshRanges.size(); }
+		const SubmeshRange& getSubmesh(size_t subMeshIndex) const 
+		{ 
+			assert(subMeshIndex < getSubmeshCount());
+			return m_SubmeshRanges[subMeshIndex];
+		}
+		void setSubmesh(size_t subMeshIndex, const SubmeshRange& range)
+		{ 
+			assert(subMeshIndex < getSubmeshCount());
+			m_SubmeshRanges[subMeshIndex] = range;
+		}
 
 		size_t getMeshIndex() const { return m_id; }
 		
@@ -71,7 +81,7 @@ namespace YAPT
 		MeshLayoutInfo m_info;
 		std::vector<MeshBufferBinding> m_vertexBuffers;
 		MeshBufferBinding m_indexBuffer;
-		size_t m_primitiveCount;
+		std::vector<SubmeshRange> m_SubmeshRanges;
 		MeshLayoutID m_meshLayoutId;
 		ResourceFormat m_indexFormat;
 		const size_t m_id;

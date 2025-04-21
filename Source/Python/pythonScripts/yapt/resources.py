@@ -255,12 +255,13 @@ class Resources:
 
         indices = self._create_and_upload_buffer(f"{mesh_name}_indices", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.INDEX_BUFFER | ResourceUsageBits.ACCELERATION_STRUCTURE_BUILD_INPUT, faces, np.uint16 if use16BitIndices else np.uint32)
 
-        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), use16BitIndices)
+        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), 1, use16BitIndices) #for now just use one submesh
 
         for i in range(len(buffers)):
             mesh.setVertexBuffer(i, buffers[i], 0)
 
-        mesh.setIndexBuffer(indices, 0, int(faces.size / 3))
+        mesh.setIndexBuffer(indices, 0)
+        mesh.setSubmesh(0, 0, faces.size)
 
         return mesh
 

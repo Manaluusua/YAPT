@@ -44,10 +44,11 @@ namespace YAPT
 	public:
 		DECLARE_BINDING_CLASS(PyRenderer);
 
-		PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, bool use16BitIndices);
+		PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 		
 		void setVertexBuffer(size_t bufferIndex, PyBuffer* buffer, size_t offsetInBytes);
-		void setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives);
+		void setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes);
+		void setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount);
 		const char* getName() const;
 
 		Mesh* getMesh() { return m_mesh; }

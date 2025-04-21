@@ -25,7 +25,7 @@ namespace YAPT
 		MeshManager(GfxApiHandle gfx);
 		~MeshManager();
 
-		MeshProxy* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, bool use16BitIndices);
+		MeshProxy* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 		void meshReleased(MeshProxy* obj);
 
 		void replicateChanges();

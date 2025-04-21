@@ -238,7 +238,14 @@ namespace YAPT
 				size_t dynBuffOffset = drawIndex * perObjectBufferEntrySize;
 				Gfx::bindDescriptorSets(gfx, execContext.cmdBuffer,BindingPoint::BINDING_POINT_GRAPHICS, m_layout.getPipelineLayoutHandle(), &descSetBind, 0, 1, &dynBuffOffset, 1);
 
-				Gfx::drawIndexed(gfx, execContext.cmdBuffer, uint32_t(mesh->getPrimitiveCount()) * 3, 1, 0, 0, 0);
+				for (size_t submesh = 0; submesh < mesh->getSubmeshCount(); ++submesh)
+				{
+					const SubmeshRange& smRange = mesh->getSubmesh(submesh);
+
+					Gfx::drawIndexed(gfx, execContext.cmdBuffer, (uint32_t)smRange.indexCount, 1, (uint32_t)smRange.indexOffset, 0, 0);
+				}
+
+				
 
 			}
     

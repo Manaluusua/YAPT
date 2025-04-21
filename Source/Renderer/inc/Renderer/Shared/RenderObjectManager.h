@@ -19,6 +19,38 @@ namespace YAPT
 	class MeshInternal;
 	class CRenderer;
 
+	struct MaterialPerSubmeshArray
+	{
+		MaterialPerSubmeshArray()
+		{}
+
+		MaterialPerSubmeshArray(MaterialInternal** matPtr, size_t materialCount)
+		{
+			materials.resize(materialCount);
+			for (size_t i = 0; i < materialCount; ++i)
+			{
+				materials[i] = matPtr[i]; 
+			}
+			
+		}
+
+		MaterialPerSubmeshArray(MaterialInternal* material)
+		{
+			materials.push_back(material);
+		}
+
+		MaterialInternal* getMaterialForSubmeshIndex(size_t submesh) const
+		{
+			if (submesh < materials.size())
+			{
+				return materials[submesh];
+			}
+			return materials.back();
+		}
+
+		std::vector<MaterialInternal*> materials;
+	};
+
 	class RenderObjectManager
 	{
 		friend class RenderObjectProxy;
@@ -26,10 +58,8 @@ namespace YAPT
 
 		union RenderData
 		{
-
 			size_t index;
 			void* ptr;
-
 		};
 
 		RenderObjectManager(GfxApiHandle gfx);
@@ -59,14 +89,14 @@ namespace YAPT
 
 		mat4& getMatrixForId(RenderObjectId id);
 		MeshInternal* getMeshForId(RenderObjectId id);
-		MaterialInternal* getMaterialForId(RenderObjectId id);
+		MaterialPerSubmeshArray& getMaterialForId(RenderObjectId id);
 		RenderData* getRenderDataForId(RenderObjectId id, size_t renderDataIndex);
 
 		size_t getDataIndexForRenderObjectId(RenderObjectId id) const { return m_renderObjects.getDataIndex(id); }
 		size_t getNumberOfObjects();
 		mat4* getAllMatrices();
 		MeshInternal** getAllMeshes();
-		MaterialInternal** getAllMaterials();
+		MaterialPerSubmeshArray* getAllMaterials();
 		const RenderObjectId* getAllIds();
 		RenderData* getAllRenderData(size_t renderDataIndex);
 		RenderObjectId getHighestId() { return m_renderObjects.getHighestAllocatedId(); }
@@ -97,7 +127,7 @@ namespace YAPT
 			mat4 worldMatrix;
 		};
 
-		typedef TightlyPackedArray<RenderObjectId, mat4, MeshInternal*, MaterialInternal*, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
+		typedef TightlyPackedArray<RenderObjectId, mat4, MeshInternal*, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
 		static const size_t PEROBJECTDATA_GROW_COUNT;
 
 		void renderObjectChanged(RenderObjectProxy* obj);
@@ -114,7 +144,7 @@ namespace YAPT
 
 		RenderObjectContainer m_renderObjects;
 
-		DynamicSizeGpuBufferHelper< PerObjectGPUData> m_gpuData;
+		DynamicSizeGpuBufferHelper<PerObjectGPUData> m_gpuData;
 		
 
 		std::vector<RenderObjectProxy*> m_changedRenderObjects;

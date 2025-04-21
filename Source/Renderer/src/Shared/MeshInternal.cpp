@@ -2,7 +2,7 @@
 #include <assert.h>
 namespace YAPT
 {
-	MeshInternal::MeshInternal(size_t id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, bool use16BitIndices)
+	MeshInternal::MeshInternal(size_t id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, size_t submeshCount, bool use16BitIndices)
 		:m_id(id),
 		m_gfx(gfx),
 		m_meshLayoutId(id),
@@ -10,6 +10,7 @@ namespace YAPT
 		m_info(data)
 	{
 		m_vertexBuffers.resize(m_info.vertexBufferConfigurations.size());
+		m_SubmeshRanges.resize(submeshCount);
 	}
 
 	void MeshInternal::setVertexBuffer(size_t bufferIndex, BufferImpl* buffer, size_t offsetInBytes)

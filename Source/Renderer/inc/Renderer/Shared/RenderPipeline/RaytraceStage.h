@@ -138,7 +138,7 @@ namespace YAPT
 
 		bool doesShaderTableNeedUpdate();
 		void updateShaderTable();
-		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry);
+		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry);
 
 		void initSubpixelJitterSamples();
 
@@ -157,6 +157,7 @@ namespace YAPT
 
 		AccelerationStructureHelper m_accStructureHelper;
 		ShaderTableHelper m_shaderTableHelper;
+		std::vector<size_t> m_shaderTableOffsetPerRenderObject;
 
 		RaytraceNode* m_rtNode;
 		PipelineLayoutHelper m_rtLayout;

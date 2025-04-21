@@ -37,6 +37,37 @@ namespace YAPT
 		TopLevelAccelerationStructureHandle getTopLevelAccelerationStructure() const { return m_tlasHandle; }
 	private:
 		
+		struct MeshBLASArray
+		{
+			void pushToArrayAndClear(std::vector<BottomLevelAccelerationStructureHandle>& arr)
+			{
+				for (size_t k = 0; k < blasPerSubMesh.size(); ++k)
+				{
+					if (blasPerSubMesh[k] != YAPT_NULL_HANDLE)
+					{
+						arr.push_back(blasPerSubMesh[k]);
+						blasPerSubMesh[k] = YAPT_NULL_HANDLE;
+					}
+				}
+			}
+
+			void resize(size_t size)
+			{
+				blasPerSubMesh.resize(size);
+			}
+
+			size_t fill(BottomLevelAccelerationStructureHandle* dataInput)
+			{
+				memcpy(blasPerSubMesh.data(), dataInput, sizeof(BottomLevelAccelerationStructureHandle) * blasPerSubMesh.size());
+				return blasPerSubMesh.size();
+			}
+
+
+			std::vector<BottomLevelAccelerationStructureHandle> blasPerSubMesh;
+		};
+
+
+
 		bool doesTopLevelAccelerationStructureNeedRebuild();
 		void fillInstanceTransform(const mat4& src, float dst[12]);
 
@@ -63,7 +94,7 @@ namespace YAPT
 
 		CRenderer* m_renderer;
 
-		std::vector<BottomLevelAccelerationStructureHandle> m_blasPerMesh;
+		std::vector<MeshBLASArray> m_blasArrayPerMesh;
 		TopLevelAccelerationStructureHandle m_tlasHandle;
 
 		
@@ -83,7 +114,7 @@ namespace YAPT
 
 			std::vector<AccelerationStructureInstanceDefinition>& instanceDefs = m_temporaryContainers.instanceDefs;
 			size_t numberOfRenderObjects = mngr.getNumberOfObjects();
-			instanceDefs.resize(numberOfRenderObjects);
+			instanceDefs.reserve(numberOfRenderObjects);
 
 			MeshInternal** meshes = mngr.getAllMeshes();
 			mat4* transforms = mngr.getAllMatrices();
@@ -92,11 +123,19 @@ namespace YAPT
 			for (size_t i = 0; i < numberOfRenderObjects; ++i)
 			{
 				size_t meshIndex = meshes[i]->getMeshIndex();
+				const MeshBLASArray& blasArray = m_blasArrayPerMesh[meshIndex];
+				size_t instanceDefsOffset = instanceDefs.size();
+				instanceDefs.resize(instanceDefs.size() + blasArray.blasPerSubMesh.size());
 
-				AccelerationStructureInstanceDefinition& def = instanceDefs[i];
-				def.blas = m_blasPerMesh[meshIndex];
-				fillInstanceTransform(transforms[i], def.instanceToWorld);
-				paramsHandler(i, ids[i], def.instanceID, def.instanceMask, def.hitGroupShaderTableOffset);
+				for (size_t k = 0; k < blasArray.blasPerSubMesh.size(); ++k)
+				{
+					AccelerationStructureInstanceDefinition& def = instanceDefs[instanceDefsOffset + k];
+					fillInstanceTransform(transforms[i], def.instanceToWorld);
+					def.blas = blasArray.blasPerSubMesh[k];
+					paramsHandler(i, ids[i], k,  def.instanceID, def.instanceMask, def.hitGroupShaderTableOffset);
+				}
+
+				
 
 			}
 

@@ -146,7 +146,7 @@ namespace YAPT
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Mesh>(id);
 	}
-	MaterialInternal* RenderObjectManager::getMaterialForId(RenderObjectId id)
+	MaterialPerSubmeshArray& RenderObjectManager::getMaterialForId(RenderObjectId id)
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Material>(id);
 	}
@@ -191,7 +191,7 @@ namespace YAPT
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Mesh>();
 	}
-	MaterialInternal** RenderObjectManager::getAllMaterials()
+	MaterialPerSubmeshArray* RenderObjectManager::getAllMaterials()
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Material>();
 	}

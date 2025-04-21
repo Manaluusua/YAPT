@@ -5,12 +5,12 @@
 
 namespace YAPT
 {
-	MeshProxy::MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, bool use16BitIndices)
+	MeshProxy::MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, size_t submeshCount, bool use16BitIndices)
 		:m_mngr(mngr),
 		m_use16BitIndices(use16BitIndices),
 		_id(InvalidMeshIndex)
 	{
-		resetRequirements(numberOfVertexBufferLayouts, true);
+		resetRequirements(numberOfVertexBufferLayouts, submeshCount, true);
 		m_data.numberOfVertices = numberOfVertices;
 
 		AttributeSemantic positionSemantic(AttributeSemanticName::POSITION);
@@ -65,10 +65,19 @@ namespace YAPT
 		}
 
 		m_vertexBuffers.resize(numberOfVertexBufferLayouts);
+		m_submeshes.resize(submeshCount);
 	}
 	MeshProxy::~MeshProxy()
 	{
 		
+	}
+
+	void MeshProxy::setSubmesh(size_t submeshIndex, const SubmeshRange& range)
+	{
+		assert(submeshIndex < m_submeshes.size());
+		m_submeshes[submeshIndex] = range;
+		submeshRangeSet(submeshIndex);
+		m_mngr->meshChanged(this);
 	}
 
 	void MeshProxy::setVertexBuffer(size_t bufferIndex, Buffer* buffer, size_t offsetInBytes)
@@ -78,10 +87,9 @@ namespace YAPT
 		vertexBufferBound(bufferIndex);
 		m_mngr->meshChanged(this);
 	}
-	void MeshProxy::setIndexBuffer(Buffer* buffer, size_t offsetInBytes, size_t numberOfPrimitives)
+	void MeshProxy::setIndexBuffer(Buffer* buffer, size_t offsetInBytes)
 	{
 		m_indexBuffer = { static_cast<BufferImpl*>(buffer), YAPT_NULL_HANDLE, offsetInBytes };
-		m_primitiveCount = numberOfPrimitives;
 		indexBufferBound();
 		m_mngr->meshChanged(this);
 	}
@@ -91,19 +99,30 @@ namespace YAPT
 		m_mngr->meshReleased(this);
 	}
 
-	void MeshProxy::resetRequirements(size_t numberOfBuffers, bool hasIndexbuffer)
+	void MeshProxy::resetRequirements(size_t numberOfBuffers, size_t numberOfSubMeshes, bool hasIndexbuffer)
 	{
-		assert(numberOfBuffers < 32);
-		m_meshRequirementsNotSet = 0xFFFFFFFF >> (32 - numberOfBuffers);
-		m_meshRequirementsNotSet |= 1 << 31;
+		assert(numberOfBuffers < 33);
+		assert(numberOfSubMeshes < 33);
+
+		m_vertexBuffersNotSet = 0xFFFFFFFF >> (32 - numberOfBuffers);
+		m_submeshRangesNotSet = 0xFFFFFFFF >> (32 - numberOfSubMeshes);
+		m_indexBufferNotSet = true;
 	}
+
+
 	void MeshProxy::vertexBufferBound(size_t index)
 	{
-		m_meshRequirementsNotSet &= ~(1 << index);
+		m_vertexBuffersNotSet &= ~(1 << index);
 	}
+
+	void MeshProxy::submeshRangeSet(size_t index)
+	{
+		m_submeshRangesNotSet &= ~(1 << index);
+	}
+
 	void MeshProxy::indexBufferBound()
 	{
-		m_meshRequirementsNotSet &= ~(1 << 31);
+		m_indexBufferNotSet = false;
 	}
 
 }

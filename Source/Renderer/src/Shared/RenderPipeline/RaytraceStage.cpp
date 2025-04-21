@@ -20,7 +20,6 @@ using namespace YAPT::MathUtils;
 
 namespace YAPT
 {
-	const size_t SHADERTABLE_EXTRA_GROW_AMOUNT = 100;
 	const size_t ENVIRONMENT_TYPE_NONE = 0;
 	const size_t ENVIRONMENT_TYPE_CUBE = 1;
 	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
@@ -335,7 +334,7 @@ namespace YAPT
 		return v;
 	}
 	      
-	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialInternal* mat, const MeshInternal* mesh, ShaderTableEntry* entry)
+	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
 		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh)
 		{
@@ -381,7 +380,7 @@ namespace YAPT
 		   
 		//material data
 		{
-			const MaterialParameters& matParams = mat->getMaterialParams();
+			const MaterialParameters& matParams = mat.getMaterialForSubmeshIndex(submeshIndex)->getMaterialParams();
 			
 			float transparency = matParams.transparency;
 			float metalness = matParams.metalness;
@@ -424,26 +423,44 @@ namespace YAPT
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 
 		bool needToRecreateAllEntries = true;
-
-		if (roMngr.getHighestId() >= m_shaderTableHelper.getNumberOfHitGroupEntries() )
-		{
-			m_shaderTableHelper.resize(1, 1, roMngr.getNumberOfObjects() + SHADERTABLE_EXTRA_GROW_AMOUNT);
-			needToRecreateAllEntries = true;
-		}
-		 
 		if (needToRecreateAllEntries)
 		{
 			const RenderObjectId* ids = roMngr.getAllIds();
-			MaterialInternal** materials = roMngr.getAllMaterials();
+			MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
 			MeshInternal** meshes = roMngr.getAllMeshes();
 			size_t entryCount = roMngr.getNumberOfObjects();
 
+			m_shaderTableOffsetPerRenderObject.resize(entryCount);
+
+			size_t shaderTableEntries = 0;
 			for (size_t i = 0; i < entryCount; ++i)
 			{
-				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
-
-				writeShaderTableEntryAndConstantData(ids[i], materials[i], meshes[i], entry);
+				m_shaderTableOffsetPerRenderObject[i] = shaderTableEntries;
+				shaderTableEntries += meshes[i]->getSubmeshCount();
 			}
+
+			bool emptyHitGroup = shaderTableEntries == 0;
+
+			m_shaderTableHelper.resize(1, 1, max((size_t)1, shaderTableEntries));
+
+			for (size_t i = 0; i < entryCount; ++i)
+			{
+				for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
+				{
+					ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
+					writeShaderTableEntryAndConstantData(ids[i], materials[i], meshes[i], k, entry);
+				}
+				
+			}
+
+			if (emptyHitGroup)
+			{
+				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
+				entry->shaderIndexInPso = 0;
+				entry->shaderTableIndex = 0;
+				entry->extraDataInBytes = 0;
+			}
+
 			  
 			//update rayGen
 			{
@@ -625,11 +642,13 @@ namespace YAPT
 	{
 		m_accStructureHelper.updateBottomLevelStructures(exec.cmdBuffer);
 
-		auto assignPerInstanceParams = [](size_t arrayIndex, RenderObjectId id, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
+		auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
 		{
-			instanceIdOut = (uint32_t)id;
+			size_t shdTblOffset = m_shaderTableOffsetPerRenderObject[id];
+
+			instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
 			instanceMaskOut = ~0;
-			hitGroupShaderTableOffset = id;
+			hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
 		};
 		 
 		m_accStructureHelper.updateTopLevelStructures(exec.cmdBuffer, assignPerInstanceParams);

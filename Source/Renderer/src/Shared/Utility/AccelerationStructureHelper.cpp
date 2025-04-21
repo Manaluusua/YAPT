@@ -1,29 +1,36 @@
 #include <Renderer/Shared/Utility/AccelerationStructureHelper.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/MeshInternal.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 
 namespace YAPT
 {
 
-	void fillGeometryDefinition(const MeshInternal* mesh, AccelerationStructureGeometryDefinition& geom)
+	void fillGeometryDefinitions(const MeshInternal* mesh, AccelerationStructureGeometryDefinition* targetDef)
 	{
 		const MeshLayoutInfo& info = mesh->getLayoutInfo();
 		const VertexBufferConfiguration& vertexBufferConfig = info.vertexBufferConfigurations[info.position0.bufferIndex];
 		const MeshBufferBinding& vBuffer = mesh->getVertexBuffer(info.position0.bufferIndex);
 
+		for (size_t i = 0; i < mesh->getSubmeshCount(); ++i)
+		{
+			AccelerationStructureGeometryDefinition& geom = targetDef[i];
+			const SubmeshRange& sm = mesh->getSubmesh(i);
+			geom.vertexCount = info.numberOfVertices;
+			geom.vertexStrideInBytes = vertexBufferConfig.stride;
+			geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
+			geom.vertexFormat = vertexBufferConfig.attributes[info.position0.attributeIndex].format;
+			geom.indexCount = sm.indexCount;
+			geom.indexBufferOffsetInBytes = sm.indexOffset * getFormatSizeInBytes(mesh->getIndexBufferFormat());
+			geom.indexFormat = mesh->getIndexBufferFormat();
 
-		geom.vertexCount = info.numberOfVertices;
-		geom.vertexStrideInBytes = vertexBufferConfig.stride;
-		geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
-		geom.vertexFormat = vertexBufferConfig.attributes[info.position0.attributeIndex].format;
-		geom.indexCount = mesh->getPrimitiveCount() * 3; //Triangles
-		geom.indexFormat = mesh->getIndexBufferFormat(); 
+			geom.vertexBuffer = vBuffer.buffer->getResourceHandle();
+			geom.indexBuffer = mesh->getIndexBuffer().buffer->getResourceHandle();
 
-		geom.vertexBuffer = vBuffer.buffer->getResourceHandle();
-		geom.indexBuffer = mesh->getIndexBuffer().buffer->getResourceHandle();
+			geom.worldMatrixBuffer = YAPT_NULL_HANDLE;
+			geom.worldMatrixBufferOffsetInBytes = 0;
+		}
 
-		geom.worldMatrixBuffer = YAPT_NULL_HANDLE;
-		geom.worldMatrixBufferOffsetInBytes = 0;
 	}
 
 	void AccelerationStructureHelper::fillInstanceTransform(const mat4& src, float dst[12])
@@ -51,7 +58,7 @@ namespace YAPT
 		m_isFirstUpdate(true),
 		m_tlasHandle(YAPT_NULL_HANDLE)
 	{
-		m_blasPerMesh.resize(256, YAPT_NULL_HANDLE);
+		m_blasArrayPerMesh.resize(256);
 	}
 	AccelerationStructureHelper::~AccelerationStructureHelper()
 	{
@@ -62,14 +69,10 @@ namespace YAPT
 	{
 		m_temporaryContainers.clear();
 
-		for (size_t i = 0; i < m_blasPerMesh.size(); ++i)
+		for (size_t i = 0; i < m_blasArrayPerMesh.size(); ++i)
 		{
-			if (m_blasPerMesh[i] != YAPT_NULL_HANDLE)
-			{
-				m_temporaryContainers.blasHandlesToRelease.push_back(m_blasPerMesh[i]);
-				m_blasPerMesh[i] = YAPT_NULL_HANDLE;
-			}
-
+			MeshBLASArray& arr = m_blasArrayPerMesh[i];
+			arr.pushToArrayAndClear(m_temporaryContainers.blasHandlesToRelease);
 		}
 		if (m_temporaryContainers.blasHandlesToRelease.size() > 0)
 		{
@@ -98,33 +101,37 @@ namespace YAPT
 		//make sure our internal structure can hold all the potential blas handles
 		MeshManager& mngr = m_renderer->getMeshManager();
 		size_t requiredSize = mngr.getHighestAllocatedIndex() + 1;
-		if (m_blasPerMesh.size() < requiredSize)
+		if (m_blasArrayPerMesh.size() < requiredSize)
 		{
-			m_blasPerMesh.resize(requiredSize, YAPT_NULL_HANDLE);
+			m_blasArrayPerMesh.resize(requiredSize);
 		}
 
 		m_temporaryContainers.clear();
 
 		//for now put all geometry to different BLAS structures. Later on could mark meshes that could be put to the same BLAS?
 		std::vector<AccelerationStructureGeometryDefinition>& geomDefs = m_temporaryContainers.geomDefs;
-		std::vector<MeshIndex>& meshIndexOfBlas = m_temporaryContainers.meshIndexOfBlas;
+		std::vector<MeshIndex>& meshIndicesWithBLASBuilt = m_temporaryContainers.meshIndexOfBlas;
 		std::vector<BottomLevelAccelerationStructureDefinition>& blasDefs = m_temporaryContainers.blasDefs;
 		std::vector<BottomLevelAccelerationStructureHandle>& blasHandles = m_temporaryContainers.blasHandles;
 		std::vector<BottomLevelAccelerationStructureHandle>& blasHandlesToRelease = m_temporaryContainers.blasHandlesToRelease;
 
 
+
 		if (m_isFirstUpdate)
 		{
-			m_blasPerMesh.resize(m_renderer->getMeshManager().getHighestAllocatedIndex() + 1);
+			m_blasArrayPerMesh.resize(m_renderer->getMeshManager().getHighestAllocatedIndex() + 1);
 			MeshManager::MeshIterator iter = mngr.getMeshIterator();
 			const MeshInternal* mesh = iter.getCurrent();
+			
 			while (mesh != nullptr)
 			{
-				geomDefs.resize(geomDefs.size() + 1);
-				AccelerationStructureGeometryDefinition& def = geomDefs.back();
-				fillGeometryDefinition(mesh, def);
+				size_t subMeshCount = mesh->getSubmeshCount();
+				size_t offset = geomDefs.size();
+				geomDefs.resize(geomDefs.size() + subMeshCount);
+				fillGeometryDefinitions(mesh, geomDefs.data() + offset);
 				MeshIndex meshIndex = mesh->getMeshIndex();;
-				meshIndexOfBlas.push_back(meshIndex);
+				meshIndicesWithBLASBuilt.push_back(meshIndex);
+				m_blasArrayPerMesh[meshIndex].resize(subMeshCount);
 
 				mesh = iter.getNextValidEntry();
 			}
@@ -140,10 +147,13 @@ namespace YAPT
 			{
 				MeshIndex meshIndex = meshIndices[i];
 				const MeshInternal* mesh = mngr.getMeshInternal(meshIndex);
-				geomDefs.resize(geomDefs.size() + 1);
-				AccelerationStructureGeometryDefinition& def = geomDefs.back();
-				fillGeometryDefinition(mesh, def);
-				meshIndexOfBlas.push_back(meshIndex);
+				size_t subMeshCount = mesh->getSubmeshCount();
+
+				size_t offset = geomDefs.size();
+				geomDefs.resize(geomDefs.size() + subMeshCount);
+				fillGeometryDefinitions(mesh, geomDefs.data() + offset);
+				meshIndicesWithBLASBuilt.push_back(meshIndex);
+				m_blasArrayPerMesh[meshIndex].resize(subMeshCount);
 			}
 
 			//let go of old entries
@@ -152,10 +162,10 @@ namespace YAPT
 			for (size_t i = 0; i < numberOfIndices; ++i)
 			{
 				MeshIndex meshIndex = meshIndices[i];
-				BottomLevelAccelerationStructureHandle handle = m_blasPerMesh[meshIndex];
-				assert(handle != YAPT_NULL_HANDLE);
-				blasHandlesToRelease.push_back(handle);
-				m_blasPerMesh[meshIndex] = YAPT_NULL_HANDLE;
+
+				MeshBLASArray& arr = m_blasArrayPerMesh[meshIndex];
+				arr.pushToArrayAndClear(blasHandlesToRelease);
+
 			}
 
 
@@ -167,16 +177,18 @@ namespace YAPT
 				MeshIndex meshIndex = meshIndices[i];
 
 				//let go of old
-				BottomLevelAccelerationStructureHandle handle = m_blasPerMesh[meshIndex];
-				assert(handle != YAPT_NULL_HANDLE);
-				blasHandlesToRelease.push_back(handle);
-				m_blasPerMesh[meshIndex] = YAPT_NULL_HANDLE;
+				MeshBLASArray& arr = m_blasArrayPerMesh[meshIndex];
+				arr.pushToArrayAndClear(blasHandlesToRelease);
 
 				const MeshInternal* mesh = mngr.getMeshInternal(meshIndex);
-				geomDefs.resize(geomDefs.size() + 1);
-				AccelerationStructureGeometryDefinition& def = geomDefs.back();
-				fillGeometryDefinition(mesh, def);
-				meshIndexOfBlas.push_back(meshIndex);
+				size_t subMeshCount = mesh->getSubmeshCount();
+
+				size_t offset = geomDefs.size();
+				geomDefs.resize(geomDefs.size() + subMeshCount);
+				fillGeometryDefinitions(mesh, geomDefs.data() + offset);
+				meshIndicesWithBLASBuilt.push_back(meshIndex);
+				arr.resize(subMeshCount);
+
 			}
 		}
 
@@ -200,10 +212,12 @@ namespace YAPT
 			Gfx::allocateBottomLevelAccelerationStructures(m_renderer->getGfxHandle(), blasDefs.data(), blasDefs.size(), blasHandles.data());
 			Gfx::buildBottomLevelAccelerationStructures(m_renderer->getGfxHandle(), commandBuffer,  blasHandles.data(), blasDefs.size());
 
-			for (size_t i = 0; i < blasHandles.size(); ++i)
+			size_t blasOffset = 0;
+
+			for (size_t i = 0; i < meshIndicesWithBLASBuilt.size(); ++i)
 			{
-				size_t meshIndex = meshIndexOfBlas[i];
-				m_blasPerMesh[meshIndex] = blasHandles[i];
+				size_t meshIndex = meshIndicesWithBLASBuilt[i];
+				blasOffset += m_blasArrayPerMesh[meshIndex].fill(blasHandles.data() + blasOffset);
 			}
 
 			m_blasHadChanges = true;
