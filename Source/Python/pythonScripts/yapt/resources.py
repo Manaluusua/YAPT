@@ -43,13 +43,15 @@ class Resources:
         mesh_list = []
         mesh_index = 0
         for gltf_mesh in gltf.meshes:
-            for primitive in gltf_mesh.primitives:
-                name = f"{file_name}_mesh_{mesh_index}"
-                mesh = self._create_and_upload_from_gltf(gltf, name, primitive, verbose)
-                if mesh is not None:
-                    self._meshes[name] = mesh
-                    mesh_list.append(mesh)
-                    ++mesh_index
+            name = f"{file_name}_mesh_{mesh_index}"
+            mesh = self._create_and_upload_from_gltf(gltf, name, gltf_mesh, verbose)
+            if mesh is not None:
+                self._meshes[name] = mesh
+                mesh_list.append(mesh)
+                ++mesh_index
+            
+                
+                
 
         return mesh_list
 
@@ -180,39 +182,73 @@ class Resources:
         if component_count > 1:
             data_array = data_array.reshape((-1, component_count))
 
-        return data_array
+        return (entry_count, component_count, comp_size_bytes, data_array)
 
-    def _create_and_upload_from_gltf(self, gltf, mesh_name, primitive, verbose = False):
+    def _try_prim_array_merge(self, prim_data_arr, checkValidity = True):
+
+        if prim_data_arr == None or len(prim_data_arr) == 0:
+            return None
+
+        if len(prim_data_arr) == 1:
+            return prim_data_arr[0][3]
+
+        if checkValidity:
+            first = prim_data_arr[0]
+            for data in prim_data_arr:
+
+                if first[1] != data[1] or first[2] != data[2]:
+                    print(f"ignoring primitive, unexpected data layout")
+                    print(f"{first[1]}, {first[2]}")
+                    print(f"{data[1]}, {data[2]}")
+                    return None
+
+        return np.concatenate([t[3] for t in prim_data_arr])
+        
+    def _create_and_upload_from_gltf(self, gltf, mesh_name, gltf_mesh, verbose = False):
         print(f"loading {mesh_name}")
-        # Extract indices
-        faces = None
-        if primitive.indices is not None:
-            faces = self._extract_data_from_accessor(gltf, primitive.indices)
-        
-        # Extract vertices, normals, tangents, and uvs
-        vertices = None
-        normals = None
-        tangents = None
-        uvs = None
-        colors = None
-        
+
+        #go through each primitive and append the data (need to offset indices to get submesh ranges)
         #TODO: do this properly. Currently we extract all attributes to separate buffers, should accept the layout that is in the file or explicitly define it.
 
-        if primitive.attributes.POSITION is not None:
-            vertices = self._extract_data_from_accessor(gltf, primitive.attributes.POSITION)
-        
-        if primitive.attributes.NORMAL is not None:
-            normals = self._extract_data_from_accessor(gltf, primitive.attributes.NORMAL)
-        
-        if primitive.attributes.TANGENT is not None:
-            tangents = self._extract_data_from_accessor(gltf, primitive.attributes.TANGENT)
-        
-        if primitive.attributes.TEXCOORD_0 is not None:
-            uvs = self._extract_data_from_accessor(gltf, primitive.attributes.TEXCOORD_0)
-            
-        if primitive.attributes.COLOR_0 is not None:
-            colors = self._extract_data_from_accessor(gltf, primitive.attributes.COLOR_0)
+        faces_array =  []
+        vertices_array = []
+        normals_array = []
+        tangents_array = []
+        uvs_array = []
+        colors_array = []
 
+        for primitive in gltf_mesh.primitives:
+            if primitive.indices is not None:
+                faces = self._extract_data_from_accessor(gltf, primitive.indices)
+                faces_array.append(faces)
+        
+            if primitive.attributes.POSITION is not None:
+                vertices = self._extract_data_from_accessor(gltf, primitive.attributes.POSITION)
+                vertices_array.append(vertices)
+        
+            if primitive.attributes.NORMAL is not None:
+                normals = self._extract_data_from_accessor(gltf, primitive.attributes.NORMAL)
+                normals_array.append(normals)
+            
+            if primitive.attributes.TANGENT is not None:
+                tangents = self._extract_data_from_accessor(gltf, primitive.attributes.TANGENT)
+                tangents_array.append(tangents)
+            
+            if primitive.attributes.TEXCOORD_0 is not None:
+                uvs = self._extract_data_from_accessor(gltf, primitive.attributes.TEXCOORD_0)
+                uvs_array.append(uvs)
+                
+            if primitive.attributes.COLOR_0 is not None:
+                colors = self._extract_data_from_accessor(gltf, primitive.attributes.COLOR_0)
+                colors_array.append(colors)
+
+        faces = self._try_prim_array_merge(faces_array)
+        vertices = self._try_prim_array_merge(vertices_array)
+        normals = self._try_prim_array_merge(normals_array)
+        tangents = self._try_prim_array_merge(tangents_array)
+        uvs = self._try_prim_array_merge(uvs_array)
+        colors = self._try_prim_array_merge(colors_array)
+        
         if vertices is None:
             print(f"could not load mesh {mesh_name}, missing vertex positions")
             return None
@@ -223,7 +259,7 @@ class Resources:
 
         if tangents is None and uvs is not None:
             print("Warning: mesh {mesh_name} does not contain tangents. Recalculating them (this might be slow)")
-            tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals)
+            #tangents = MeshUtility.calculate_tangents(vertices, faces, uvs, normals) #TODO: need to handle submeshes, uncomment when done
 
         if tangents is None:
             print(f"could not load mesh {mesh_name}, missing vertex tangents (and no UVs to recalculate them)")
@@ -255,13 +291,23 @@ class Resources:
 
         indices = self._create_and_upload_buffer(f"{mesh_name}_indices", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.INDEX_BUFFER | ResourceUsageBits.ACCELERATION_STRUCTURE_BUILD_INPUT, faces, np.uint16 if use16BitIndices else np.uint32)
 
-        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), 1, use16BitIndices) #for now just use one submesh
+        mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), len(faces_array), use16BitIndices) #for now just use one submesh
 
         for i in range(len(buffers)):
             mesh.setVertexBuffer(i, buffers[i], 0)
 
         mesh.setIndexBuffer(indices, 0)
-        mesh.setSubmesh(0, 0, faces.size)
+
+        vertex_offset = 0
+        index_offset = 0
+        submesh_index = 0
+        for submesh in faces_array:
+            index_count = submesh[0]
+            mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset)
+            
+            vertex_offset += vertices_array[submesh_index][0]
+            index_offset += index_count
+            submesh_index += 1
 
         return mesh
 

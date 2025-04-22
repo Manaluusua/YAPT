@@ -15,10 +15,10 @@ namespace YAPT
 		for (size_t i = 0; i < mesh->getSubmeshCount(); ++i)
 		{
 			AccelerationStructureGeometryDefinition& geom = targetDef[i];
-			const SubmeshRange& sm = mesh->getSubmesh(i);
+			const SubmeshDefinition& sm = mesh->getSubmesh(i);
 			geom.vertexCount = info.numberOfVertices;
 			geom.vertexStrideInBytes = vertexBufferConfig.stride;
-			geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
+			geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + sm.vertexOffset * vertexBufferConfig.stride + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
 			geom.vertexFormat = vertexBufferConfig.attributes[info.position0.attributeIndex].format;
 			geom.indexCount = sm.indexCount;
 			geom.indexBufferOffsetInBytes = sm.indexOffset * getFormatSizeInBytes(mesh->getIndexBufferFormat());

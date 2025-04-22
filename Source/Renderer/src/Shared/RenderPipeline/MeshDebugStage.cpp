@@ -240,9 +240,9 @@ namespace YAPT
 
 				for (size_t submesh = 0; submesh < mesh->getSubmeshCount(); ++submesh)
 				{
-					const SubmeshRange& smRange = mesh->getSubmesh(submesh);
+					const SubmeshDefinition& smRange = mesh->getSubmesh(submesh);
 
-					Gfx::drawIndexed(gfx, execContext.cmdBuffer, (uint32_t)smRange.indexCount, 1, (uint32_t)smRange.indexOffset, 0, 0);
+					Gfx::drawIndexed(gfx, execContext.cmdBuffer, (uint32_t)smRange.indexCount, 1, (uint32_t)smRange.indexOffset, (uint32_t)smRange.vertexOffset, 0);
 				}
 
 				

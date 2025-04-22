@@ -63,11 +63,17 @@ namespace YAPT
 		m_mesh->setIndexBuffer(buffer->getBuffer().get(), offsetInBytes);
 	}
 
-	void PyMesh::setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount)
+	size_t PyMesh::getSubmeshCount() const
 	{
-		SubmeshRange smRange;
+		return m_mesh->getSubmeshCount();
+	}
+
+	void PyMesh::setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset)
+	{
+		SubmeshDefinition smRange;
 		smRange.indexOffset = indexOffset;
 		smRange.indexCount = indexCount;
+		smRange.vertexOffset = vertexOffset;
 		m_mesh->setSubmesh(submeshIndex, smRange);
 	}
 
@@ -92,7 +98,8 @@ namespace YAPT
 			.def("getName", &PyMesh::getName)
 			.def("setVertexBuffer", &PyMesh::setVertexBuffer)
 			.def("setIndexBuffer", &PyMesh::setIndexBuffer)
-			.def("setSubmesh", &PyMesh::setSubmesh);
+			.def("setSubmesh", &PyMesh::setSubmesh)
+			.def("getSubmeshCount", &PyMesh::getSubmeshCount);
 
 		
 	}

@@ -24,7 +24,8 @@ namespace YAPT
 
 		MeshProxy(MeshManager* mngr, const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t numberOfVertices, size_t submeshCount, bool use16BitIndices);
 
-		virtual void setSubmesh(size_t submeshIndex, const SubmeshRange& range) final;
+		virtual void setSubmesh(size_t submeshIndex, const SubmeshDefinition& range) final;
+		virtual size_t getSubmeshCount() const final { return m_submeshes.size(); }
 		virtual void setVertexBuffer(size_t bufferIndex, Buffer* buffer, size_t offsetInBytes) final;
 		virtual void setIndexBuffer(Buffer* buffer, size_t offsetInBytes) final;
 		virtual ~MeshProxy() override;
@@ -52,7 +53,7 @@ namespace YAPT
 
 		std::vector<MeshBufferBinding> m_vertexBuffers;
 		MeshBufferBinding m_indexBuffer;
-		std::vector<SubmeshRange> m_submeshes;
+		std::vector<SubmeshDefinition> m_submeshes;
 
 		MeshLayoutInfo m_data;
 		uint32_t m_vertexBuffersNotSet;

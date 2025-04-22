@@ -185,20 +185,37 @@ bool isValidPackedBufferInfo(in uint2 val)
 
 uint3 fetchIndices()
 {
-	uint primIndex = PrimitiveIndex();
-	
+
 	uint indexBufferIndex;
-	uint indexBufferStride;
+	uint indexBufferStridePacked;
 	uint indexBufferOffset;
 	
-	unpackBufferInfo(SHADERTABLE_EXTRADATA.indexBuffer, indexBufferIndex, indexBufferStride, indexBufferOffset);
+	unpackBufferInfo(SHADERTABLE_EXTRADATA.indexBuffer, indexBufferIndex, indexBufferStridePacked, indexBufferOffset);
 	
+	uint extraOffset = indexBufferStridePacked >> 8;
+	uint indexBufferStride = indexBufferStridePacked & 0xFF;
+
+	uint primIndex = PrimitiveIndex();
+
 	uint3 indices;
 
 	if (indexBufferStride == 2) //stride of 2 means 16 bit indices
 	{
 		int ind = (primIndex / 2) * 3;
 		int odd = primIndex & 0x1;
+
+		if (extraOffset > 0)
+		{
+			if (odd != 0)
+			{
+				ind += 1;
+				odd = 0;
+			}
+			else
+			{
+				odd += 1;
+			}
+		}
 
 		if (odd != 0)
 		{

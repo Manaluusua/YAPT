@@ -59,12 +59,12 @@ namespace YAPT
 		const MeshLayoutInfo& getLayoutInfo() const;
 
 		size_t getSubmeshCount() const { return m_SubmeshRanges.size(); }
-		const SubmeshRange& getSubmesh(size_t subMeshIndex) const 
+		const SubmeshDefinition& getSubmesh(size_t subMeshIndex) const
 		{ 
 			assert(subMeshIndex < getSubmeshCount());
 			return m_SubmeshRanges[subMeshIndex];
 		}
-		void setSubmesh(size_t subMeshIndex, const SubmeshRange& range)
+		void setSubmesh(size_t subMeshIndex, const SubmeshDefinition& range)
 		{ 
 			assert(subMeshIndex < getSubmeshCount());
 			m_SubmeshRanges[subMeshIndex] = range;
@@ -81,7 +81,7 @@ namespace YAPT
 		MeshLayoutInfo m_info;
 		std::vector<MeshBufferBinding> m_vertexBuffers;
 		MeshBufferBinding m_indexBuffer;
-		std::vector<SubmeshRange> m_SubmeshRanges;
+		std::vector<SubmeshDefinition> m_SubmeshRanges;
 		MeshLayoutID m_meshLayoutId;
 		ResourceFormat m_indexFormat;
 		const size_t m_id;

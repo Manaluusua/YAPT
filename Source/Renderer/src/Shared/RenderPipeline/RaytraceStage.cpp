@@ -10,6 +10,7 @@
 #include <Renderer/Shared/BindlessBufferManager.h>
 #include <Math/RandUtility.h>
 #include <Math/MathUtility.h>
+#include <Gfx/GfxBasicTypesUtility.h>
 
 #include <Renderer/Shared/TextureImpl.h>
 #include <Renderer/Shared/BufferImpl.h>
@@ -336,16 +337,17 @@ namespace YAPT
 	      
 	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
-		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh)
+		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh, const SubmeshDefinition& sm)
 		{
 			glm::uvec2 retVal;
 			if (attrMapping.bufferIndex != uint32_t(-1))
 			{
+
 				const MeshBufferBinding&  bufferBinding = mesh->getVertexBuffer(attrMapping.bufferIndex);
 				uint32_t bufferIndex = bufferBinding.buffer->getBindlessResourceArrayIndex();
 				size_t vertexBufferOffset = bufferBinding.offsetInBytes;
 				uint32_t stride = info.vertexBufferConfigurations[attrMapping.bufferIndex].stride;
-				size_t offset = vertexBufferOffset + info.vertexBufferConfigurations[attrMapping.bufferIndex].offsetFromVertexStart[attrMapping.attributeIndex];
+				size_t offset = vertexBufferOffset + sm.vertexOffset * stride + info.vertexBufferConfigurations[attrMapping.bufferIndex].offsetFromVertexStart[attrMapping.attributeIndex];
 				
 				//make sure we can fit the data in packing
 				assert(offset < 0xFFFFFFFF);
@@ -361,21 +363,26 @@ namespace YAPT
 			}
 			return retVal;
 		};
+		const SubmeshDefinition& sm = mesh->getSubmesh(submeshIndex);
+
 		RayHitShaderTableConstantData rayHitConstants;
 		//index buffer
 		{
 			const MeshBufferBinding& indexBufferBinding = mesh->getIndexBuffer();
+
 			bool use16BitIndices = mesh->getIndexBufferFormat() == ResourceFormat::R16_UINT;
-			size_t offsetInBytes = indexBufferBinding.offsetInBytes;
-			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), use16BitIndices ? 2 : 3, uint32_t(offsetInBytes) / sizeof(uint32_t)); //16bit indices marked with stride of 2. If you change this, remember to change this assumptin in the shaders too!
+			size_t offsetInBytes = indexBufferBinding.offsetInBytes + sm.indexOffset * getFormatSizeInBytes(mesh->getIndexBufferFormat());
+			uint8_t extraOffset = offsetInBytes % 4;
+			uint8_t stride = use16BitIndices ? 2 : 3;
+			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), (extraOffset << 8) | stride , uint32_t(offsetInBytes) / sizeof(uint32_t)); //16bit indices marked with stride of 2. If you change this, remember to change this assumptin in the shaders too!
 		}
 		//vertex data
 		{
 			const MeshLayoutInfo& info = mesh->getLayoutInfo();
-
-			rayHitConstants.normalBuffer = getPackedBufferInfo(info, info.normal0, mesh);
-			rayHitConstants.tangentBuffer = getPackedBufferInfo(info, info.tangent0, mesh);
-			rayHitConstants.uvBuffer = getPackedBufferInfo(info, info.uv0, mesh);
+			
+			rayHitConstants.normalBuffer = getPackedBufferInfo(info, info.normal0, mesh, sm);
+			rayHitConstants.tangentBuffer = getPackedBufferInfo(info, info.tangent0, mesh, sm);
+			rayHitConstants.uvBuffer = getPackedBufferInfo(info, info.uv0, mesh, sm);
 		}
 		   
 		//material data

@@ -31,5 +31,6 @@ if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
 createObject("groundPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", vec3([0, -50, 0]))
+createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, -50, 0]))
 
 scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 55]));
