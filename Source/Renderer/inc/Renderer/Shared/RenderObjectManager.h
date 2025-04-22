@@ -5,6 +5,7 @@
 #include <Math/Math.h>
 #include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
+#include <Common/RCObjectPtr.h>
 
 namespace YAPT
 {
@@ -18,6 +19,7 @@ namespace YAPT
 	class MaterialInternal;
 	class MeshInternal;
 	class CRenderer;
+	class Material;
 
 	struct MaterialPerSubmeshArray
 	{
@@ -135,6 +137,7 @@ namespace YAPT
 
 		RenderObjectId createRenderObjectEntry(const RenderObjectProxy* proxy);
 		void replicateChanges(RenderObjectProxy* src, size_t destinationIndex);
+		void fillMaterials(const std::vector<RCObjectPtr<Material>>& src, MaterialPerSubmeshArray& dst);
 
 		GfxApiHandle m_gfx;
 

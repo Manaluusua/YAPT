@@ -29,9 +29,22 @@ namespace YAPT
 	{
 		m_obj->setMesh(mesh->getMesh());
 	}
-	void PyRenderObject::setMaterial(PyMaterial* material)
+
+	void PyRenderObject::setMaterials(std::vector<PyMaterial*> materials)
 	{
-		m_obj->setMaterial(material->getMaterial());
+		std::vector<Material*> mat;
+		mat.resize(materials.size());
+		for (size_t i = 0; i < materials.size(); ++i)
+		{
+			mat[i] = materials[i]->getMaterial();
+		}
+
+		m_obj->setMaterials(mat.data(), mat.size());
+	}
+
+	void PyRenderObject::setMaterial(PyMaterial* material, size_t materialIndex)
+	{
+		m_obj->setMaterial(material->getMaterial(), materialIndex);
 	}
 
 	PyTransform* PyRenderObject::getTransform()
@@ -48,6 +61,7 @@ namespace YAPT
 			.def("getName", &PyRenderObject::getName)
 			.def("setMesh", &PyRenderObject::setMesh)
 			.def("setMaterial", &PyRenderObject::setMaterial)
+			.def("setMaterials", &PyRenderObject::setMaterials)
 			.def("getTransform", &PyRenderObject::getTransform, pybind11::return_value_policy::reference_internal);
 	}
 }

@@ -17,7 +17,7 @@ def createObject(name, meshPath, pos):
     mat.setRoughness(0.5)
     
     obj.setMesh(mesh);
-    obj.setMaterial(mat);
+    obj.setMaterial(mat, 0);
     
     obj.getTransform().setScale(vec3(100));
     obj.getTransform().setTranslation(pos);

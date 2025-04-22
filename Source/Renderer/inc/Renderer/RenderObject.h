@@ -12,8 +12,9 @@ namespace YAPT
 	{
 	public:
 		virtual void setMesh(Mesh* mesh) = 0;
-		virtual void setMaterial(Material* material) = 0;
 		virtual void setTransform(const mat4& transform) = 0;
+
+		virtual void setMaterials(RCObjectPtr<Material>* materials, size_t materialCount) = 0;
 
 	};
 }

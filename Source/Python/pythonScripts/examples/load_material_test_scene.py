@@ -66,7 +66,7 @@ for i in range(numberOfColumns):
 		pos = vec3([offset[0] + gap * i, offset[1] + gap * j, 0]);
 
 		model.setMesh(sphere_mesh);
-		model.setMaterial(mat);
+		model.setMaterial(mat, 0);
 
 		model.getTransform().setScale(vec3(scale));
 		model.getTransform().setTranslation(pos);

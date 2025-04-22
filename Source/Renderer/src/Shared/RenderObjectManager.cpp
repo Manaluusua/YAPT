@@ -104,17 +104,31 @@ namespace YAPT
 		}
 	}
 
+	void RenderObjectManager::fillMaterials(const std::vector<RCObjectPtr<Material>>& src, MaterialPerSubmeshArray& dst)
+	{
+		dst.materials.resize(src.size());
+
+		for (size_t i = 0; i < src.size(); ++i)
+		{
+			dst.materials[i] = static_cast<MaterialProxy*>(src[i].get())->getMaterialInternal();
+		}
+	}
+
 	RenderObjectId RenderObjectManager::createRenderObjectEntry(const RenderObjectProxy* proxy)
 	{
 		mat4 t = proxy->m_transform;
 		RenderData rData;
 		rData.index = 0;
+
+		MaterialPerSubmeshArray matArray;
+		fillMaterials(proxy->m_materials, matArray);
+
 		//this is a bit funny but have to create the entry first with dummy id (0) and after creation replace it with correct id
 		RenderObjectId id = m_renderObjects.addEntry(
 			0, 
 			t, 
 			static_cast<MeshProxy*>(proxy->m_mesh.get())->getMeshInternal(), 
-			static_cast<MaterialProxy*>(proxy->m_material.get())->getMaterialInternal(),
+			matArray,
 			rData, rData, rData, rData, rData, rData
 		);
 		m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Id>(id) = id;
@@ -124,7 +138,10 @@ namespace YAPT
 	{
 		if ((src->_renderObjectState & RenderObjectProxy::RENDEROBJECTSTATE_MATERIAL_CHANGED) != 0)
 		{
-			m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Material>(dstIndex) = static_cast<MaterialProxy*>(src->m_material.get())->getMaterialInternal();
+			MaterialPerSubmeshArray matArray;
+			fillMaterials(src->m_materials, matArray);
+
+			m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Material>(dstIndex) = matArray;
 		}
 
 		if ((src->_renderObjectState & RenderObjectProxy::RENDEROBJECTSTATE_MESH_CHANGED) != 0)

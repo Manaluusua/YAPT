@@ -27,8 +27,10 @@ namespace YAPT
 		virtual ~RenderObjectProxy();
 
 		virtual void setMesh(Mesh* mesh) final;
-		virtual void setMaterial(Material* material) final;
 		virtual void setTransform(const mat4& transform) final;
+
+		virtual void setMaterials(RCObjectPtr<Material>* materials, size_t materialCount) final;
+
 
 	protected:
 		virtual void allReferencesReleased() final;
@@ -36,7 +38,7 @@ namespace YAPT
 	private:
 
 		RCObjectPtr<Mesh> m_mesh;
-		RCObjectPtr<Material> m_material;
+		std::vector<RCObjectPtr<Material>> m_materials;
 		mat4 m_transform;
 
 		RenderObjectManager* m_mngr;

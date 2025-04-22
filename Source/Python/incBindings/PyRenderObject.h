@@ -19,7 +19,8 @@ namespace YAPT
 		~PyRenderObject();
 
 		void setMesh(PyMesh* mesh);
-		void setMaterial(PyMaterial* material);
+		void setMaterial(PyMaterial* material, size_t materialIndex);
+		void setMaterials(std::vector<PyMaterial*> materials);
 		PyTransform* getTransform();
 
 		const char* getName() const;

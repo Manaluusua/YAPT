@@ -25,11 +25,28 @@ namespace YAPT
 		m_mesh = mesh;
 		setDirty(CModelDirtyFlag_Mesh);
 	}
-	void CModel::setMaterial(Material* material)
+
+	void CModel::setMaterials(Material** material, size_t materialCount)
 	{
-		m_material = material;
+		m_materials.resize(materialCount);
+
+		for (size_t i = 0; i < materialCount; ++i)
+		{
+			m_materials[i] = material[i];
+		}
+
 		setDirty(CModelDirtyFlag_Material);
 	}
+	void CModel::setMaterial(Material* material, size_t materialIndex)
+	{
+		if (m_materials.size() <= materialIndex)
+		{
+			m_materials.resize(materialIndex + 1, nullptr);
+		}
+
+		m_materials[materialIndex] = material;
+	}
+
 
 	void CModel::setDirty(uint32_t reason)
 	{
@@ -49,13 +66,13 @@ namespace YAPT
 	{
 		if ((CModelDirtyFlag_Mesh | CModelDirtyFlag_Material) & m_dirtyMask)
 		{
-			if (m_mesh.get() && m_material.get())
+			if (m_mesh.get() && m_materials.size() > 0)
 			{
 				if (!m_rendererObject)
 				{
 					m_rendererObject = m_renderer->createRenderObject();
 					m_rendererObject->setMesh(m_mesh.get());
-					m_rendererObject->setMaterial(m_material.get());
+					m_rendererObject->setMaterials(m_materials.data(), m_materials.size());
 					m_rendererObject->setTransform(m_transform.getMatrix());
 					m_rendererObject->Release();
 				}
@@ -67,7 +84,7 @@ namespace YAPT
 					}
 					if (CModelDirtyFlag_Material & m_dirtyMask)
 					{
-						m_rendererObject->setMaterial(m_material.get());
+						m_rendererObject->setMaterials(m_materials.data(), m_materials.size());
 					}
 				}
 			}

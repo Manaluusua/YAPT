@@ -5,6 +5,7 @@
 #include <Renderer/Material.h>
 #include <Renderer/Mesh.h>
 #include <Scene/Transform.h>
+#include <vector>
 
 namespace YAPT
 {
@@ -26,7 +27,8 @@ namespace YAPT
 		~CModel();
 
 		virtual void setMesh(Mesh* mesh) final;
-		virtual void setMaterial(Material* material) final;
+		virtual void setMaterials(Material** material, size_t materialCount) final;
+		virtual void setMaterial(Material* material, size_t materialIndex) final;
 
 		virtual const Transform& getTransform() const final { return m_transform; }
 		virtual Transform& getTransform() final { return m_transform; }
@@ -44,7 +46,7 @@ namespace YAPT
 		CScene* m_scene;
 		RCObjectPtr<RenderObject> m_rendererObject;
 		RCObjectPtr<Mesh> m_mesh;
-		RCObjectPtr<Material> m_material;
+		std::vector<RCObjectPtr<Material>> m_materials;
 
 		Transform m_transform;
 		uint32_t m_dirtyMask;
