@@ -335,7 +335,7 @@ namespace YAPT
 		return v;
 	}
 	      
-	void RaytraceStage::writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
+	void RaytraceStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
 		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh, const SubmeshDefinition& sm)
 		{
@@ -420,7 +420,7 @@ namespace YAPT
 		memcpy(entry->shaderTableExtraData, &rayHitConstants, sizeof(RayHitShaderTableConstantData));
              
 		entry->shaderIndexInPso = 0;
-		entry->shaderTableIndex = id;
+		entry->shaderTableIndex = shaderTableIndex;
 	}
 	 
 	void RaytraceStage::updateShaderTable()
@@ -452,10 +452,11 @@ namespace YAPT
 
 			for (size_t i = 0; i < entryCount; ++i)
 			{
+				size_t shaderTableOffset = m_shaderTableOffsetPerRenderObject[i];
 				for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
 				{
 					ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
-					writeShaderTableEntryAndConstantData(ids[i], materials[i], meshes[i], k, entry);
+					writeShaderTableEntryAndConstantData(shaderTableOffset + k, materials[i], meshes[i], k, entry);
 				}
 				
 			}
