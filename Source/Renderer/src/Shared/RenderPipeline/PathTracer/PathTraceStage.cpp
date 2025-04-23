@@ -1,4 +1,4 @@
-#include <Renderer/Shared/RenderPipeline/RaytraceStage.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathTraceStage.h>
 #include <Gfx/RenderGraph/RenderGraph.h>
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
@@ -15,7 +15,7 @@
 #include <Renderer/Shared/TextureImpl.h>
 #include <Renderer/Shared/BufferImpl.h>
 
-#define MERGE_SAMPLES_WG_SIZE 8
+
 
 using namespace YAPT::MathUtils;
 
@@ -25,7 +25,7 @@ namespace YAPT
 	const size_t ENVIRONMENT_TYPE_CUBE = 1;
 	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
 
-	RaytraceStage::RaytraceStage()
+	PathTraceStage::PathTraceStage()
 		:m_raytracePso(YAPT_NULL_HANDLE),
 		m_rtDescSet(YAPT_NULL_HANDLE),
 		m_resolveTargetWidth(0),
@@ -36,12 +36,12 @@ namespace YAPT
 	{
 		initSubpixelJitterSamples();
 	}
-	RaytraceStage::~RaytraceStage()
+	PathTraceStage::~PathTraceStage()
 	{
 
 	}
 
-	void RaytraceStage::initialize()
+	void PathTraceStage::initialize()
 	{
 		
 		{
@@ -59,46 +59,17 @@ namespace YAPT
 			m_rtNode = getGraph()->createRayTraceNode(1, slotdefsRtNode, []
 			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 				{
-					static_cast<RaytraceStage*>(usrData)->executeRaytrace(execContext);
+					static_cast<PathTraceStage*>(usrData)->executeRaytrace(execContext);
 				},
 				this, "RaytraceNode");
 		}
 
-		{
-			 
-
-			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
-			{
-			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::RGBA32_SFLOAT,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE,
-				1,
-				1
-			}},
-			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::RGBA16_SFLOAT,
-				RESOURCE_USAGE_SAMPLED_TEXTURE,
-				ACCESS_FLAGS_READ,
-				SHADERSTAGE_FRAGMENT,
-				1,
-				1
-			}}
-			};
-
-			m_mergeNode = getGraph()->createComputeNode(2, slotdefsMergeNode, []
-			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
-				{
-					static_cast<RaytraceStage*>(usrData)->executeMergeToPrevious(execContext);
-				},
-				this, "MergeRtResultsNode");
-		}
-		 
-		getGraph()->createEdge(m_rtNode, 0, m_mergeNode, 1);
+		m_mergeStage.initialize(getRenderer(), getGraph());
+		m_mergeStage.setInput(m_rtNode, 0);
+		
 		m_accStructureHelper.init(getRenderer());
 	} 
-	void RaytraceStage::shutdown()
+	void PathTraceStage::shutdown()
 	{
 		if (m_raytracePso != YAPT_NULL_HANDLE)
 		{
@@ -107,13 +78,12 @@ namespace YAPT
 		}
 		 
 		m_shaderTableHelper.deinit();
-
-		m_clearMergeBufferPass.deinit();
-		m_mergePass.deinit();
 		m_accStructureHelper.deinit();
+
+		m_mergeStage.shutdown();
 	}
 	 
-	void RaytraceStage::onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data)
+	void PathTraceStage::onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data)
 	{
 
 	
@@ -131,28 +101,17 @@ namespace YAPT
 		}
 		
 
-		//"merge"
-		{
-
-			setupMergePass(data.resolutionDependantResourcesPool);
-			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(0);
-
-
-			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(resId);
-			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_resolveTargetWidth, m_resolveTargetHeight, 1, 1);
-			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "merged RT result");
-			getGraph()->setRenderGraphResourceTexture(resId, tex);
-		}
+		m_mergeStage.onRenderResolutionChanged(data, uvec2(m_resolveTargetWidth, m_resolveTargetHeight));
 
 		clearAccumulatedFrames();
 		updateEffectiveRaytraceResolution();
 	}
 
-	bool RaytraceStage::hasCameraMoved()
+	bool PathTraceStage::hasCameraMoved()
 	{
 		return getRenderer()->hasViewMoved();
 	}
-	bool RaytraceStage::hasSceneChanged()
+	bool PathTraceStage::hasSceneChanged()
 	{
 		bool objectsChanged =  getRenderer()->getMaterialManager().hasChanges() || getRenderer()->getMeshManager().hasChanges() || getRenderer()->getRenderObjectManager().hasChanges();
 		bool skymapChanged = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX) != m_lastEnvMap;
@@ -160,25 +119,15 @@ namespace YAPT
 		return objectsChanged || skymapChanged;
 	}
 
-	void RaytraceStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
+	void PathTraceStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
 	{
 		initRaytracePass(data);
 
-		//mergepass init (properly setup later)
-		ShaderLoader* loader = getRenderer()->getShaderLoader();
-		const ShaderLoader::ShaderPipelineInfo* merge = loader->getShaderPipeline("mergeRaytraceResults");
-
-		StaticSamplerEntry samplers[] = { {"colorSampler", getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
-		m_mergePass.init(getRenderer(), merge, samplers, countOf(samplers));
-		m_mergeSamplesConstants.init(data.renderGraphLifetimeResources);
-
-		const ShaderLoader::ShaderPipelineInfo* clearMergeBuffer = loader->getShaderPipeline("clearRaytraceMergeTarget");
-		m_clearMergeBufferPass.init(getRenderer(), clearMergeBuffer, nullptr, 0);
-		m_clearMergeBufferConstants.init(data.renderGraphLifetimeResources);
 		
+		m_mergeStage.onRenderGraphCompiled(data);
 	}
 
-	void RaytraceStage::initRaytracePass(const RenderGraphLifetimeData& data)
+	void PathTraceStage::initRaytracePass(const RenderGraphLifetimeData& data)
 	{
 		ShaderLoader* loader = getRenderer()->getShaderLoader();
 		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
@@ -299,7 +248,7 @@ namespace YAPT
 		m_spectralDataConstants.init(data.renderGraphLifetimeResources);
 	}
 
-	bool  RaytraceStage::doesShaderTableNeedUpdate()
+	bool  PathTraceStage::doesShaderTableNeedUpdate()
 	{
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 		if (m_shaderTableHelper.getShaderTable() == YAPT_NULL_HANDLE)
@@ -327,7 +276,7 @@ namespace YAPT
 
 	}
 	//stride and offset are assumed in dwords (uint32/float32) in the shader
-	uvec2p RaytraceStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
+	uvec2p PathTraceStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
 	{
 		glm::uvec2 v;
 		v.x = bufferOffset;
@@ -335,7 +284,7 @@ namespace YAPT
 		return v;
 	}
 	      
-	void RaytraceStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
+	void PathTraceStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
 		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh, const SubmeshDefinition& sm)
 		{
@@ -423,7 +372,7 @@ namespace YAPT
 		entry->shaderTableIndex = shaderTableIndex;
 	}
 	 
-	void RaytraceStage::updateShaderTable()
+	void PathTraceStage::updateShaderTable()
 	{
 		if (!doesShaderTableNeedUpdate()) return;
 		
@@ -532,71 +481,30 @@ namespace YAPT
 	}
 
 
-	void RaytraceStage::setupMergePass(RenderResourcesPool* pool)
-	{
-		m_mergePass.createPipelineState();
-		m_clearMergeBufferPass.createPipelineState();
-	}
 
-	void RaytraceStage::prepare(const PrepareData& cntx)
+	void PathTraceStage::prepare(const PrepareData& cntx)
 	{
 
 	}
-	void RaytraceStage::update(const UpdateData& cntx)
+	void PathTraceStage::update(const UpdateData& cntx)
 	{
 		if (hasSceneChanged() || hasCameraMoved())
 		{
 			clearAccumulatedFrames();
 		}
 
-		//descset shenanigans
-		bool haveTexturesChanged = getGraph()->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(0));
-		haveTexturesChanged = haveTexturesChanged || getGraph()->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(1));
-		if (haveTexturesChanged)
-		{
-			//clear accumulation buffer
-			{
-				TextureViewHandle mergeTarget = getGraph()->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
 
-				DescriptorSetUpdate updates[] = {
-					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&mergeTarget)},
-				};
-				m_clearMergeBufferPass.updateDescriptorSet(0, updates, countOf(updates));
-			}
-
-			//Merge
-			{
-				TextureViewHandle mergeTarget = getGraph()->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
-				TextureViewHandle mergeSource = getGraph()->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
-
-				DescriptorSetUpdate updates[] = {
-					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&mergeSource)},
-					{2, 0, 1, DescriptorPtr(&mergeTarget)}
-				};
-				m_mergePass.updateDescriptorSet(0, updates, countOf(updates));
-			}
-			
-		}
+		CombineSamplesSubStage::UpdateParams combineUpdate;
+		combineUpdate.clearAccumulated = m_framesAccumulated == 0;
+		combineUpdate.sourceTextureResolution = uvec2(m_raysPerFrameWidth, m_raysPerFrameHeight);
+		combineUpdate.samplesPerPixel = getCurrentNumberOfSamplesPerPixel() + 1;
+		combineUpdate.targetOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
+		m_mergeStage.update(combineUpdate);
+		
 		//update constants
 		{
 			float targetPixelWidth = 1.f / m_resolveTargetWidth;
 			float targetPixelHeight = 1.f / m_resolveTargetHeight;
-
-
-			if (m_framesAccumulated == 0)
-			{
-				ClearAccumulatedSamplesParams* params = m_clearMergeBufferConstants.getData();
-				params->targetTextureDimensions = glm::uvec4(m_resolveTargetWidth, m_resolveTargetHeight, 0, 0);
-				params->clearValue = vec4p(0.0, 0.f, 0.f, 0.f);
-				m_clearMergeBufferConstants.flush();
-			}
-
-			MergeNewSamplesParams* mergeSamplesParams = m_mergeSamplesConstants.getData();
-			mergeSamplesParams->sourceTextureDimensions = glm::uvec2(m_raysPerFrameWidth, m_raysPerFrameHeight);
-			mergeSamplesParams->targetTextureOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
-			mergeSamplesParams->sampleCount = getCurrentNumberOfSamplesPerPixel() + 1;
 
 			RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
 
@@ -638,7 +546,6 @@ namespace YAPT
 			}
 		}
 		
-		m_mergeSamplesConstants.flush();
 		m_rayTraceConstants.flush();
 
 		updateAccumulatedFrames();
@@ -646,7 +553,7 @@ namespace YAPT
 	}
 	
 	 
-	void RaytraceStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
+	void PathTraceStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
 	{
 		m_accStructureHelper.updateBottomLevelStructures(exec.cmdBuffer);
 
@@ -731,35 +638,14 @@ namespace YAPT
 		Gfx::dispatchRays(gfx, exec.cmdBuffer, m_raysPerFrameWidth, m_raysPerFrameHeight, 1, m_shaderTableHelper.getShaderTable());
 	}
 
-	void RaytraceStage::executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec)
-	{
-		if (m_framesAccumulated == 1)
-		{
-			uint32_t dispatchX = (m_resolveTargetWidth + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
-			uint32_t dispatchY = (m_resolveTargetHeight + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
-
-			m_clearMergeBufferPass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
-		}
-
-
-		uint32_t rtWidth = m_raysPerFrameWidth;
-		uint32_t rtHeight = m_raysPerFrameHeight;
-
-		uint32_t dispatchX = (rtWidth + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
-		uint32_t dispatchY = (rtHeight + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
-
-		m_mergePass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
-	}
-
-	RenderStageConnection RaytraceStage::getOutputConnection(size_t id)
+	RenderStageConnection PathTraceStage::getOutputConnection(size_t id)
 	{
 		RenderStageConnection conn;
 		switch (id)
 		{
 		case RAYTRACE_STAGE_CONNECTION_COLOR:
 		{
-			conn.node = m_mergeNode;
-			conn.slot = 0;
+			m_mergeStage.getOutput(&conn.node, conn.slot);
 			break;
 		}
 		default:
@@ -767,29 +653,29 @@ namespace YAPT
 		}
 		return conn;
 	}
-	void RaytraceStage::setInputConnection(size_t id, const RenderStageConnection& connection)
+	void PathTraceStage::setInputConnection(size_t id, const RenderStageConnection& connection)
 	{
-		assert(false && "RaytraceStage accepts nothing as input!");
+		assert(false && "PathTraceStage accepts nothing as input!");
 	}
 
-	void RaytraceStage::clearAccumulatedFrames() 
+	void PathTraceStage::clearAccumulatedFrames() 
 	{ 
 		m_framesAccumulated = 0;
 	};
 
-	void RaytraceStage::updateAccumulatedFrames()
+	void PathTraceStage::updateAccumulatedFrames()
 	{
 		++m_framesAccumulated;
 	}
 	
-	void RaytraceStage::updateEffectiveRaytraceResolution()
+	void PathTraceStage::updateEffectiveRaytraceResolution()
 	{
 		m_raysPerFrameWidth = m_resolveTargetWidth / m_raysPerFrameDivisor;
 		m_raysPerFrameHeight = m_resolveTargetHeight / m_raysPerFrameDivisor;
 	}
 
 
-	void RaytraceStage::setRayTraceResolutionReductionFactor(uint32_t factor)
+	void PathTraceStage::setRayTraceResolutionReductionFactor(uint32_t factor)
 	{
 		assert(factor < 32);
 		m_raysPerFrameDivisor = 1 << factor;
@@ -801,13 +687,13 @@ namespace YAPT
 		updateEffectiveRaytraceResolution();
 	}
 
-	uvec4p RaytraceStage::getCurrentResolveTargetTexelOffsetParams()
+	uvec4p PathTraceStage::getCurrentResolveTargetTexelOffsetParams()
 	{    
 		//scale & bias
 		uint64_t frameIndex = m_framesAccumulated % (m_raysPerFrameDivisor * m_raysPerFrameDivisor);
 		return glm::uvec4(m_raysPerFrameDivisor, m_raysPerFrameDivisor, frameIndex % m_raysPerFrameDivisor, frameIndex / m_raysPerFrameDivisor);
 	}
-	vec2p RaytraceStage::getCurrentRayGenerationOffset()
+	vec2p PathTraceStage::getCurrentRayGenerationOffset()
 	{
 		glm::uvec4 p = getCurrentResolveTargetTexelOffsetParams();
 		glm::uvec2 pixelOffset(p.z, p.w);
@@ -817,14 +703,14 @@ namespace YAPT
 		return vec2p(pixelOffset.x * targetPixelWidth, pixelOffset.y * targetPixelHeight);
 	}
 
-	uint64_t RaytraceStage::getCurrentNumberOfSamplesPerPixel()
+	uint64_t PathTraceStage::getCurrentNumberOfSamplesPerPixel()
 	{
 		uint32_t iterationsToFullResolution = m_raysPerFrameDivisor * m_raysPerFrameDivisor;
 		uint64_t v = m_framesAccumulated / iterationsToFullResolution;
 		return v;
 	}
 	
-	void RaytraceStage::updateSamples()
+	void PathTraceStage::updateSamples()
 	{       
 		uint64_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
 
@@ -835,7 +721,7 @@ namespace YAPT
 		
 	}
 	
-	void RaytraceStage::updateSampledWavelengths()
+	void PathTraceStage::updateSampledWavelengths()
 	{
 		uint64_t sampleOffset = getCurrentNumberOfSamplesPerPixel();
 		SpectralDataConstants* data = m_spectralDataConstants.getData();
@@ -859,7 +745,7 @@ namespace YAPT
 		m_spectralDataConstants.flush();
 	}
 
-	void RaytraceStage::initSubpixelJitterSamples()
+	void PathTraceStage::initSubpixelJitterSamples()
 	{
 		MathUtils::generateHaltonSequence(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
 		//[0,1] -> [-0.5, 0.5], ie offsets from pixel center

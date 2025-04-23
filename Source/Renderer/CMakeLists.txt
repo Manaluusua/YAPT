@@ -70,15 +70,16 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/RenderPipelineManager.h
 	
 	inc/Renderer/Shared/RenderPipeline/RenderStage.h
-	
-	inc/Renderer/Shared/RenderPipeline/PathTracerPipeline.h	
 	inc/Renderer/Shared/RenderPipeline/DebugDrawPipeline.h	
 	
 	inc/Renderer/Shared/RenderPipeline/TonemapStage.h
-	inc/Renderer/Shared/RenderPipeline/RaytraceStage.h
 	inc/Renderer/Shared/RenderPipeline/SwapChainStage.h
 	inc/Renderer/Shared/RenderPipeline/MeshDebugStage.h
-
+	
+	inc/Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h	
+	inc/Renderer/Shared/RenderPipeline/PathTracer/PathTraceStage.h
+	inc/Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h
+	inc/Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h	
 )
 
 set(SOURCE
@@ -123,14 +124,18 @@ set(SOURCE
 	
 	src/Shared/RenderPipeline/RenderPipelineBase.cpp
 	src/Shared/RenderPipeline/RenderStage.cpp
-	src/Shared/RenderPipeline/PathTracerPipeline.cpp
+	
 	src/Shared/RenderPipeline/DebugDrawPipeline.cpp
 	src/Shared/RenderPipeline/TonemapStage.cpp
-	src/Shared/RenderPipeline/RaytraceStage.cpp
+	
 	src/Shared/RenderPipeline/SwapChainStage.cpp
 	src/Shared/RenderPipeline/MeshDebugStage.cpp
 	src/Shared/RenderPipeline/RenderPipelineManager.cpp
 	
+	src/Shared/RenderPipeline/PathTracer/PathTracerPipeline.cpp
+	src/Shared/RenderPipeline/PathTracer/PathTraceStage.cpp
+	src/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.cpp
+	src/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.cpp
 
 )
 

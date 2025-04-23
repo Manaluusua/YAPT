@@ -11,16 +11,7 @@ namespace YAPT
 		float alpha;
 	};
 
-	struct ClearAccumulatedSamplesParams
-	{
-		uvec4p targetTextureDimensions;
-		vec4p clearValue;
-	};
 
-	struct MergeNewSamplesParams
-	{
-		uvec4p targetTextureOffsetScaleBias;
-		uvec2p sourceTextureDimensions;
-		uint64_t sampleCount;
-	};
+
+
 } 

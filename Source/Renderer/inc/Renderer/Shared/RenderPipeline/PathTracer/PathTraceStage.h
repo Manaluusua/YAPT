@@ -1,7 +1,7 @@
-#ifndef YAPT_SHARED_RAYTRACESTAGE_H
-#define YAPT_SHARED_RAYTRACESTAGE_H
+#pragma once
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h>
 #include <Gfx/RenderGraph/RaytraceNode.h>
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <Gfx/RenderGraph/GenericExecuteNode.h>
@@ -9,6 +9,7 @@
 #include <Renderer/Shared/Utility/AccelerationStructureHelper.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
 #include <spectralConstants.h>
+
 
 namespace YAPT
 {
@@ -18,7 +19,7 @@ namespace YAPT
 	
 
 	class Texture;
-	class RaytraceStage final : public RenderStage
+	class PathTraceStage final : public RenderStage
 	{
 	public:
 		 
@@ -27,8 +28,8 @@ namespace YAPT
 			RAYTRACE_STAGE_CONNECTION_COLOR
 		};
 		 
-		RaytraceStage();
-		~RaytraceStage();
+		PathTraceStage();
+		~PathTraceStage();
 
 		virtual void initialize() final;
 		virtual void shutdown() final;
@@ -143,14 +144,8 @@ namespace YAPT
 		void initSubpixelJitterSamples();
 
 		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
-
-		
-
 		void initRaytracePass(const RenderGraphLifetimeData& data);
-		void setupMergePass(RenderResourcesPool* pool);
-
 		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
-		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
 
 		void updateSamples();
 		void updateSampledWavelengths();
@@ -158,6 +153,8 @@ namespace YAPT
 		AccelerationStructureHelper m_accStructureHelper;
 		ShaderTableHelper m_shaderTableHelper;
 		std::vector<size_t> m_shaderTableOffsetPerRenderObject;
+
+		CombineSamplesSubStage m_mergeStage;
 
 		RaytraceNode* m_rtNode;
 		PipelineLayoutHelper m_rtLayout;
@@ -167,11 +164,6 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
 		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
 
-		ComputeNode* m_mergeNode;
-		PostProcessComputePassUtility m_clearMergeBufferPass;
-		PostProcessComputePassUtility m_mergePass;
-		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
-		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
 
 		uint32_t m_raysPerFrameWidth;
 		uint32_t m_raysPerFrameHeight;
@@ -190,4 +182,3 @@ namespace YAPT
 
 	};
 }
-#endif

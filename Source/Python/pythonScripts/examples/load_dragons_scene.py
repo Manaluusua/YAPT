@@ -16,6 +16,7 @@ def createObject(name, meshPath, pos, scale):
     mat.setFromMaterialPreset(Material.MaterialPreset.PLASTIC)
     mat.setRoughness(0.5)
     
+
     obj.setMesh(mesh);
     obj.setMaterial(mat, 0);
     
@@ -32,6 +33,9 @@ if(env_map != None):
 
 createObject("groundPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", vec3([0, -50, 0]), 200)
 createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, -40, 0]), 10)
-createObject("dragon", "D:/Random/3DSampleAssets/Models/xyzrgb_dragon_decimated.glb", vec3([0, -5, 0]), 10)
+obj, mesh, mat = createObject("dragon", "D:/Random/3DSampleAssets/Models/xyzrgb_dragon_decimated.glb", vec3([0, -5, 0]), 1)
+mat.setTransparency(1);
+mat.setAbsorption(vec3([0.15, 0.0, 0.3]))
+mat.setRoughness(0.05)
 
-scene.get_main_camera().getTransform().setTranslation(vec3([0, -25, 300]));
+scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 250]));

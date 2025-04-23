@@ -1,6 +1,6 @@
-#include <Renderer/Shared/RenderPipeline/PathTracerPipeline.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathTraceStage.h>
 #include <Renderer/Shared/RenderPipeline/TonemapStage.h>
-#include <Renderer/Shared/RenderPipeline/RaytraceStage.h>
 #include <Renderer/Shared/RenderPipeline/SwapChainStage.h>
 
 namespace YAPT
@@ -18,7 +18,7 @@ namespace YAPT
 
 	void PathTracerPipeline::setupRenderPipeline()
 	{
-		RaytraceStage *rtStage = new RaytraceStage;
+		PathTraceStage* rtStage = new PathTraceStage;
 		TonemapStage* tstage = new TonemapStage(true);
 		SwapChainStage* scStage = new SwapChainStage;
 
@@ -27,7 +27,7 @@ namespace YAPT
 		addRenderStage(scStage);
 		
 
-		tstage->setInputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR, rtStage->getOutputConnection(RaytraceStage::RAYTRACE_STAGE_CONNECTION_COLOR));
+		tstage->setInputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR, rtStage->getOutputConnection(PathTraceStage::RAYTRACE_STAGE_CONNECTION_COLOR));
 		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR));
 		
 		getRenderGraph()->compile();
