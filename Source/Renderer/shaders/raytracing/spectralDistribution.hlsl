@@ -8,7 +8,7 @@
 #define COLORSPACE_RGB 0
 #define COLORSPACE_REC2020 1
 
-#define cOLORSPACE_DEFAULT COLORSPACE_RGB
+#define COLORSPACE_DEFAULT COLORSPACE_RGB
 
 float3 getXYZCoeffsForWavelength(float lambda)
 {
@@ -23,7 +23,7 @@ float getIlluminantCoeffForWavelength(float lambda)
 
 }
 
-float3 getRGBToSPDCoeffs(float3 color, int colorSpaceIndex = cOLORSPACE_DEFAULT)
+float3 getRGBToSPDCoeffs(float3 color, int colorSpaceIndex = COLORSPACE_DEFAULT)
 {
 	if (colorSpaceIndex == COLORSPACE_RGB)
 	{
@@ -38,7 +38,14 @@ float3 getRGBToSPDCoeffs(float3 color, int colorSpaceIndex = cOLORSPACE_DEFAULT)
 		return 0;
 	}
 
-	
+}
+
+float getHeroSpectralLambda()
+{
+	uint sampleSetIndex = getSpectralSampleSetIndex();
+	uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT;
+	float waveLength = getSpectralSampleLambda(sampleIndex);
+	return waveLength;
 }
 
 float sigmoid(float x)
@@ -59,6 +66,18 @@ struct SpectralSamples
 	float samples[SPECTRAL_SAMPLES_COUNT];
 
 	uint getSampleCount() { return SPECTRAL_SAMPLES_COUNT; }
+
+	float getMaxSampleValue() 
+	{
+		float v = samples[0];
+		for (uint i = 1; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		{
+
+			v = max(samples[i], v);
+		}
+
+		return v;
+	}
 
 	void setFromRGBUnbounded(float3 values)
 	{
@@ -81,7 +100,7 @@ struct SpectralSamples
 				uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
 				float waveLength = getSpectralSampleLambda(sampleIndex);
 
-				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV;
+				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV * 100.f; //multiplied by 100 because currently all values become so low. Either need to think of different way to define inputs (what are we even inserting, there is no real measure) or find some more sensible value to normalize the distributions
 			}
 		}
 
@@ -233,26 +252,51 @@ struct SpectralSamples
 		return samples[x];
 	}
 
-	float3 ToXYZ()
+	void terminateSecondaryWavelengths()
+	{
+		for (uint i = 1; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		{
+			samples[i] = 0;
+		}
+
+	}
+
+	float3 ToXYZ(bool secondaryRaysTerminated = false)
 	{
 		uint sampleSetIndex = getSpectralSampleSetIndex();
 
 		float3 xyz = 0;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+
+		if (secondaryRaysTerminated)
 		{
-			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
+			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT;
 
 			float waveLength = getSpectralSampleLambda(sampleIndex);
-			float pdf = getSpectralSampleLambdaPDF(sampleIndex);
+			float pdf = getSpectralSampleLambdaPDF(sampleIndex) / SPECTRAL_SAMPLES_COUNT;
 			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
-			xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf) ;
+			xyz = samples[0] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
+			return xyz;
 		}
-		return xyz / SPECTRAL_SAMPLES_COUNT;
+		else
+		{
+			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+			{
+				uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
+
+				float waveLength = getSpectralSampleLambda(sampleIndex);
+				float pdf = getSpectralSampleLambdaPDF(sampleIndex);
+				float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
+				xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
+			}
+			return xyz / SPECTRAL_SAMPLES_COUNT;
+		}
+
+		
 	}
 
-	float3 ToRGB(int colorSpaceIndex = cOLORSPACE_DEFAULT)
+	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT, bool secondaryRaysTerminated = false)
 	{
-		float3 xyz = ToXYZ();
+		float3 xyz = ToXYZ(secondaryRaysTerminated);
 		if (colorSpaceIndex == COLORSPACE_RGB)
 		{
 			return mul(c_srgbXYZToRGB, xyz);

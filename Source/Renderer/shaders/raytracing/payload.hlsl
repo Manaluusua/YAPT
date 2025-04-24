@@ -3,6 +3,8 @@
 
 //the resources needed are defined in raytraceCommonResources.hlsl
 
+#define PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED (1 << 0)
+
 struct Payload
 {
 	SpectralSamples throughput;
@@ -16,6 +18,7 @@ struct Payload
 
 	uint numberVolumesEntered;
 	uint rayState;
+	uint flags;
 };
 
 float payloadGetCurrentIOR(in Payload payload)

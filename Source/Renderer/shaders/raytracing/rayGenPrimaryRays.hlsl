@@ -39,6 +39,7 @@ void rayGenPrimaryRays()
 	payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
 	payload.numberVolumesEntered = 0;
 	payload.absorption.set(0.0f);
+	payload.flags = 0;
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;
@@ -88,17 +89,26 @@ void rayGenPrimaryRays()
 #endif
 		
 		//russian roulette
-		/*float p = max(payload.throughput.x, max(payload.throughput.y, payload.throughput.z));
-		p = max(0.05, 1.f - p);
-		float randomSample = vanDerCorputSequence(g_currentRandomSampleIndex + payload.pathLength);
-        if (randomSample < p)
-		{
-			payload.rayState = RAY_STATE_TERMINATED;
-            break; 
-        }else
-		{
-			payload.throughput /= max(0.00001f, 1.f - p);
+		/* {
+			float throughputScale = 100.f;
+			
+			float p = payload.throughput.getMaxSampleValue();
+
+			//p = saturate(p * throughputScale);
+
+			p = max(0.05, 1.f - p);
+			float randomSample = vanDerCorputSequence(g_currentRandomSampleIndex + payload.pathLength);
+			if (randomSample < p)
+			{
+				payload.rayState = RAY_STATE_TERMINATED;
+				break;
+			}
+			else
+			{
+				payload.throughput = payload.throughput * (1.f / max(0.00001f, 1.f - p));
+			}
 		}*/
+		
        
 	}
 	
@@ -142,7 +152,7 @@ void rayGenPrimaryRays()
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
 	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight.ToRGB(), 1.f);
+		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight.ToRGB(COLORSPACE_DEFAULT, (payload.flags & PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0), 1.f);
 	} 
 	else
 	{

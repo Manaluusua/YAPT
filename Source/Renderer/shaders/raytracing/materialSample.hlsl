@@ -128,6 +128,20 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 			fromIOR = payloadGetCurrentIOR(payload); 
 			toIOR = surfaceDef.dielectricIOR;
 		}
+
+		if (hasDispersion(surfaceDef.flags))
+		{
+			if (exiting)
+			{
+				fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+			} 
+			else
+			{
+				toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+			}
+		}
+
+
 		float etaR = toIOR/fromIOR;
 		
 		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
@@ -352,10 +366,24 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 		
 	}
 
-	if(samplingProbabilities[LAYERIND_TRANSMITTED] > 0) //TODO! do properly with wave frequency dependant transmission
+	if(samplingProbabilities[LAYERIND_TRANSMITTED] > 0) 
 	{
 		if(!onSameHemisphere(woBase, wiBase))
 		{
+
+			if (hasDispersion(surfaceDef.flags))
+			{
+				if (exiting)
+				{
+					fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+				}
+				else
+				{
+					toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+				}
+
+			}
+
 			float etaR = toIOR/fromIOR;
 	
 			float pdf = pdfGGXTransmitted(etaR, woBase, wiBase, a2.x, a2.y);
@@ -389,6 +417,8 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 					}
 				}
 
+				
+
 				weightSum = weightSum + energyLeft * weight * abs(wiBase.y) * surfaceDef.transparency;
 				pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
 			}
@@ -404,6 +434,11 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	
 	nextSampleDirOut = wiObjSpace;
 	weightOut = weightSum;
+
+	if (hasDispersion(surfaceDef.flags))
+	{
+		payload.flags |= PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED;
+	}
 }
 
 

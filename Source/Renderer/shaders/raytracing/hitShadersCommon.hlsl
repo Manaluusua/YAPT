@@ -60,6 +60,7 @@ struct SurfaceDefinitionRGB
 	float anisotropy;
 	float anisotropyRotation;
 	float thinFilmThickness;
+	float2 cauchysCoeffs;
 	float3 sheenColor;
 	float sheenRoughness;
 	float sheenAmount;
@@ -92,6 +93,7 @@ struct SurfaceDefinition
 	float thinFilmThickness;
 	float sheenRoughness;
 	float sheenAmount;
+	float2 cauchysCoeffs;
 	uint flags;
 };
 
@@ -123,6 +125,8 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.anisotropyRotation = rgb.anisotropyRotation;
 	surfDef.thinFilmThickness = rgb.thinFilmThickness;
 
+	surfDef.cauchysCoeffs = rgb.cauchysCoeffs;
+
 	surfDef.sheenRoughness = rgb.sheenRoughness;
 	surfDef.sheenAmount = rgb.sheenAmount;
 	surfDef.flags = rgb.flags;
@@ -132,6 +136,11 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 bool isTwoSided(uint flags)
 {
 	return (flags & MaterialMask_TwoSided) != 0;
+}
+
+bool hasDispersion(uint flags)
+{
+	return (flags & MaterialMask_Dispersion) != 0;
 }
 
 SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
@@ -332,6 +341,7 @@ void fetchSurfaceMaterialParameters(inout SurfaceDefinitionRGB surfaceDef)
 	surfaceDef.clearCoatAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.y;
 	surfaceDef.clearCoatIOR = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.z;
 	surfaceDef.clearCoatRoughness = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.w;
+	surfaceDef.cauchysCoeffs = SHADERTABLE_EXTRADATA.cauchysCoefficients.xy;
 
 	surfaceDef.anisotropy = SHADERTABLE_EXTRADATA.anisotropy;
 	surfaceDef.anisotropyRotation = SHADERTABLE_EXTRADATA.anisotropyRotation;
@@ -381,7 +391,11 @@ void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 norm
 	}
 	
 }
-	
+
+float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLength)
+{
+	return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLength * waveLength));
+}
 
 SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)
 {
