@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h>
 #include <Gfx/RenderGraph/RaytraceNode.h>
 #include <Gfx/RenderGraph/RenderNode.h>
@@ -13,13 +14,13 @@
 
 namespace YAPT
 {
-	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
-	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
-	constexpr uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
+	
+	
+	
 	
 
 	class Texture;
-	class PathTraceStage final : public RenderStage
+	class PathTraceStage final : public RenderStage, PathIntegratorSubStage::AccelerationStructureProvider
 	{
 	public:
 		 
@@ -31,6 +32,7 @@ namespace YAPT
 		PathTraceStage();
 		~PathTraceStage();
 
+		//RenderStage
 		virtual void initialize() final;
 		virtual void shutdown() final;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) final;
@@ -41,129 +43,29 @@ namespace YAPT
 		virtual RenderStageConnection getOutputConnection(size_t id) final;
 		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) final;
 
-		
+		//AccelerationStructureProvider
+		virtual TopLevelAccelerationStructureHandle getAccelerationStructure(CommandBufferHandle cmd) final;
+
 		void setRayTraceResolutionReductionFactor(uint32_t factor); //0 fullres, 1 is dimensions/2^1, 2 is dimensions/2^2 etc 
 
 	private:
 		
-		struct RaytracePayload
-		{
-			float throughput[SPECTRAL_SAMPLES_COUNT];
-			float absorption[SPECTRAL_SAMPLES_COUNT];
-			float totalLight[SPECTRAL_SAMPLES_COUNT];
-			float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
-			vec3p rayOrigin;
-			uint32_t rayIndex;
-			vec3p rayDirection;
-			uint32_t pathLength;
-
-			uint32_t numberVolumesEntered;
-			uint32_t rayState;
-			uint32_t spectralSampleSetIndex;
-		};
-
-
-		struct RaytraceConstantData
-		{
-			mat4p uvToView;
-			mat4p viewToWorld;
-			vec4p cameraPosition;
-			vec2p rayUVOffset;
-			uint32_t currentSampleIndex;
-			uint32_t maxRayDepth;
-		};
-
-		struct RandomSamples
-		{
-			vec4p samples[NUMBER_OF_RANDOM_SAMPLES];
-		};
-
-		struct SpectralDataConstants
-		{
-			vec4 spdSampleLambda[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
-			vec4 spdSamplePdf[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
-			uint32_t sampleSetOffset;
-		};
-
-		struct RayHitShaderTableConstantData
-		{
-			uvec2p indexBuffer;
-			uvec2p normalBuffer;
-			uvec2p tangentBuffer;
-			uvec2p uvBuffer;
-
-			vec4p specAmountClearCoatAmountIORRoughness;
-			vec4p albedoTransparency;
-			vec4p specularMetalness;
-			vec4p absorptionDielectricIOR;
-			vec4p emissiveRoughness;
-
-			float anisotropy;
-			float anisotropyRotation;
-			uint32_t materialMask;
-			float thinFilmThickness;
-
-			vec2p cauchysCoefficients;
-			float sheenAmount;
-			float pad0;
-
-
-			vec4p sheenColorRoughness;
-			uvec2p albedoTexIndexAndScale;
-			uvec2p normalTexIndexAndScale;
-			uvec2p ormTexIndexAndScale;
-			uvec2p emissiveTexIndexAndScale;
-
-		};
-
-
-		struct RayMissShaderTableConstantData
-		{
-			uint32_t envTextureIndex;
-			uint32_t envType;
-		};
-
 		bool hasCameraMoved();
 		bool hasSceneChanged();
-
 		void clearAccumulatedFrames();
-
 		void updateEffectiveRaytraceResolution();
-
 		void updateAccumulatedFrames();
-
 		uvec4p getCurrentResolveTargetTexelOffsetParams();
 		vec2p getCurrentRayGenerationOffset();
-
 		uint64_t getCurrentNumberOfSamplesPerPixel();
-
-		bool doesShaderTableNeedUpdate();
-		void updateShaderTable();
-		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry);
-
-		void initSubpixelJitterSamples();
-
-		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
-		void initRaytracePass(const RenderGraphLifetimeData& data);
-		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
-
-		void updateSamples();
-		void updateSampledWavelengths();
+		void updateInstanceOffsets();
 
 		AccelerationStructureHelper m_accStructureHelper;
-		ShaderTableHelper m_shaderTableHelper;
-		std::vector<size_t> m_shaderTableOffsetPerRenderObject;
+		std::vector<size_t> m_instanceOffsetPerRenderObject;
+		size_t m_totalInstanceCount;
 
+		PathIntegratorSubStage m_rtStage;
 		CombineSamplesSubStage m_mergeStage;
-
-		RaytraceNode* m_rtNode;
-		PipelineLayoutHelper m_rtLayout;
-		RaytracePipelineStateHandle m_raytracePso;
-		DescriptorSetHandle m_rtDescSet;
-		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
-		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
-		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
-
 
 		uint32_t m_raysPerFrameWidth;
 		uint32_t m_raysPerFrameHeight;
@@ -174,11 +76,10 @@ namespace YAPT
 		uint64_t m_framesAccumulated;
 		uint32_t m_raysPerFrameDivisor;
 
+
 		Texture* m_lastEnvMap;
 
-		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
-
-		bool m_applySubpixelJitter;
-
+		bool m_accelerationStructureNeedsRebuild;
+		bool m_firstTimeUpdate;
 	};
 }

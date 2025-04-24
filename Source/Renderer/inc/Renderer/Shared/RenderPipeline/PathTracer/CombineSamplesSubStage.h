@@ -1,7 +1,5 @@
 #pragma once
 
-#pragma once
-
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
