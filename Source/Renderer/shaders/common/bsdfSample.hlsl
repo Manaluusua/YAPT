@@ -1,11 +1,8 @@
 
 #ifndef BSDFSAMPLE_HLSL_INCL
 #define BSDFSAMPLE_HLSL_INCL
-#include "raytraceCommonResources.hlsl"
-#include "hitShadersCommon.hlsl"
-#include "../utils/ggx.hlsl"
-#include "../utils/miscBrdf.hlsl"
-#include "../utils/multiScatter.hlsl"
+#include "ggx.hlsl"
+#include "miscBrdf.hlsl"
 
 
 

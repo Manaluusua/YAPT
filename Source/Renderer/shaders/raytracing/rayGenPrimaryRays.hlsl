@@ -1,8 +1,8 @@
 
 #include "raytraceCommonResources.hlsl"
-#include "../utils/common.hlsl"
-#include "../utils/random.hlsl"
-#include "../utils/commonMath.hlsl"
+#include "../common/common.hlsl"
+#include "../common/random.hlsl"
+#include "../common/commonMath.hlsl"
 
 float3 generateRayDirection(float2 uv)
 {

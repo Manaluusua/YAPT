@@ -33,8 +33,8 @@ def createGround():
 
 
 def createLight():
-    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, 60, 0]), 60)
-    mat.setEmission(vec3([100, 100, 100]))
+    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, 400, 0]), 100)
+    mat.setEmission(vec3([1000, 1000, 1000]))
 
 def letThereBeDragons():
 
@@ -50,7 +50,7 @@ def letThereBeDragons():
         c = math.cos(angle)
 
         x,y,z = center[0] + c * radius, center[1], center[2] + s * radius
-        print(f"x:{x}, y:{y}, z:{z}")
+
         obj, mesh, mat = createObject("dragon", "D:/Random/3DSampleAssets/Models/xyzrgb_dragon_decimated.glb", vec3([x, y, z]), 1)
 
         rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))

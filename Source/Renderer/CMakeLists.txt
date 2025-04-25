@@ -166,6 +166,7 @@ target_compile_definitions(Renderer
 set(SHADER_FOLDER "shaders")
 #shader sources (TODO: check if there is a better way to have shaders show up in IDE. It seems that if they are just added as sources to renderer, FXC is actually invoked on them :/
 file(GLOB_RECURSE SHADERS_SOURCES ${SHADER_FOLDER}/*.*)
+
 add_custom_target( Shaders SOURCES ${SHADERS_SOURCES})
 add_custom_target(CopyShadersToBin ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/shaders ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders

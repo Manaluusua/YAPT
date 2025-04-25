@@ -1,5 +1,5 @@
 #include "../globalDefinitions.hlsl"
-#include "../utils/common.hlsl"
+#include "../common/common.hlsl"
 
 struct MergeNewSamplesParams
 {

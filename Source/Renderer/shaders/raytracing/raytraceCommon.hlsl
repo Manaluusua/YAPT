@@ -1,6 +1,6 @@
 
 #include "../globalDefinitions.hlsl"
-#include "../utils/commonMath.hlsl"
+#include "../common/commonMath.hlsl"
 
 //keep in sync with SpectralData.h
 #include "../sharedIncludes/spectralConstants.h"

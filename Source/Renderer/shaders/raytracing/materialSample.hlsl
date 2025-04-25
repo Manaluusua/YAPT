@@ -1,6 +1,7 @@
 #ifndef MATERIALSAMPLE_HLSL_INCL
 #define MATERIALSAMPLE_HLSL_INCL
-#include "bsdfSample.hlsl"
+
+#include "materialLayers.hlsl"
 
 #define LAYERIND_COATING_GGX 0
 #define LAYERIND_COATING_SHEEN 1
@@ -205,226 +206,129 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	wiCoating = normalize(wiCoating);
 	wiBase = normalize(wiBase);
 	
-	SpectralSamples energyLeft;
-	energyLeft.set(1.f);
+	float energyLeft = 1.f;
 	
 	if(samplingProbabilities[LAYERIND_COATING_GGX] > 0)
 	{
-		if(onSameHemisphere(woCoating, wiCoating))
+		float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
+		ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
+		float pdf = coating.pdf(woCoating, wiCoating);
+
+		if(pdf > 0)
 		{
-			float etaR = surfaceDef.clearCoatIOR / fromIOR;
-
-			//singleScatter
-			float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
-			
-			float pdf = pdfGGXReflectionDielectric(woCoating, wiCoating, a2CC.x, a2CC.y);
-
-			if(pdf > 0)
-			{
-				float weight = evaluateGGXReflectionDielectric(etaR, a2CC.x, a2CC.y, woCoating, wiCoating);
-
-				//multiscatter
-				float3 wm = normalize(woCoating + wiCoating);
-				float fms = getFmsDielectric(etaR, abs(dot(woCoating, wm)));
-				float msbrdf = getEnergyCompensation(fms, abs(woCoating.y), abs(wiCoating.y), surfaceDef.clearCoatRoughness, weight);
-
-				weight += msbrdf;
-				weight *= surfaceDef.clearCoatAmount;
-
-				weightSum = weightSum + energyLeft * weight * abs(wiCoating.y);
-				pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
-
-				float amountOfEnergyAfterSpecular = getEnergyRemainingAfterSpecular(etaR, woCoating.y, wiCoating.y, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatAmount);
-				energyLeft = energyLeft * amountOfEnergyAfterSpecular;
-			}
+			weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft);
+			energyLeft *= coating.getEnergyLeftAfterLayer(woCoating, wiCoating, surfaceDef.clearCoatAmount);
+			pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
 		}
 	}
 	
 	if(samplingProbabilities[LAYERIND_COATING_SHEEN] > 0)
 	{
-		if(onSameHemisphere(woBase, wiBase))
+		ReflectionSheen sheen = ReflectionSheen::init(surfaceDef.sheenColor, surfaceDef.sheenRoughness);
+		float pdf = sheen.pdf(woBase, wiBase);
+
+		if (pdf > 0)
 		{
-			//singleScatter
-			float pdf = pdfSheen(woBase, wiBase, surfaceDef.sheenRoughness);
-			
-
-			if(pdf > 0)
-			{
-				SpectralSamples weight = evaluateSheen(surfaceDef.sheenColor, surfaceDef.sheenRoughness, woBase, wiBase);
-				weight = weight * surfaceDef.sheenAmount;
-
-				weightSum = weightSum + weight * energyLeft * abs(wiBase.y);
-				pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
-
-				energyLeft = energyLeft * getEnergyRemainingAfterSheen(woBase.y, wiBase.y, surfaceDef.sheenRoughness, surfaceDef.sheenAmount);
-			}
-			
+			weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft);
+			energyLeft *= sheen.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.sheenAmount);
+			pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
 		}
 	}
 	
 	if(samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0)
 	{
-		if (onSameHemisphere(woBase, wiBase))
+		ReflectionConductor conductor = ReflectionConductor::init(surfaceDef.albedo, surfaceDef.specular, a2, surfaceDef.roughness, fromIOR);
+		float pdf = conductor.pdf(woBase, wiBase);
+
+		if (pdf > 0)
 		{
-
-			float pdf = pdfGGXReflectionConductor(woBase, wiBase, a2.x, a2.y);
-
-			if(pdf > 0)
-			{
-				SpectralSamples real;
-				SpectralSamples img;
-
-				for (uint i = 0; i < surfaceDef.albedo.getSampleCount(); ++i)
-				{
-					float2 v = getConductorRefractiveIndexAndExtinctionthroughputSquared(surfaceDef.albedo[i], surfaceDef.specular[i]);
-					real.setInd(i, v.x);
-					img.setInd(i, sqrt(v.y));
-				}
-
-				SpectralSamples etaR = real / fromIOR;
-				SpectralSamples etaK = img / fromIOR;
-
-				//single scatter
-
-				SpectralSamples weight = evaluateGGXReflectionConductor(etaR, etaK, a2.x, a2.y, woBase, wiBase);
-
-				//multiscatter
-				float3 wm = normalize(woBase + wiBase);
-				SpectralSamples fms = getFmsConductor(etaR, etaK, dot(woBase, wm));
-				SpectralSamples msbrdf = getEnergyCompensation(fms, woBase.y, wiBase.y, surfaceDef.roughness, weight);
-				weight = weight + msbrdf;
-				weight = weight * surfaceDef.metalness;
-
-				weightSum = weightSum + weight * energyLeft * abs(wiBase.y);
-				pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
-
-				energyLeft = energyLeft * (1.f - surfaceDef.metalness);
-			}
-			
-			
+			weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft);
+			energyLeft *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
+			pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
 		}
 	} 
 	
 	
 	if(samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0)
 	{
-		//the ray could also be coming from inside the object, need to take reflection into account in that case (translucent)
-		if(onSameHemisphere(woBase, wiBase))
+		ReflectionDielectric spec = ReflectionDielectric::init(a2, surfaceDef.roughness, toIOR / fromIOR);
+		float pdf = spec.pdf(woBase, wiBase);
+
+		if (pdf > 0)
 		{
-			float etaR = toIOR/fromIOR;
-
-			float pdf = pdfGGXReflectionDielectric(woBase, wiBase, a2.x, a2.y);
-			
-			
-			if(pdf > 0)
-			{
-				float weight = evaluateGGXReflectionDielectric(etaR, a2.x, a2.y, woBase, wiBase);
-
-
-				//multiscatter
-				float3 wm = normalize(woBase + wiBase);
-				float fms = getFmsDielectric(etaR, abs(dot(woBase, wm)));
-				float msbrdf = getEnergyCompensation(fms, abs(woBase.y), abs(wiBase.y), surfaceDef.roughness, weight);
-				weight += msbrdf;
-				weight *= surfaceDef.specularAmount * (1.f - surfaceDef.metalness);
-
-				weightSum = weightSum + energyLeft * weight * abs(wiBase.y);
-				pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
-
-				float amountOfEnergyAfterSpecular = getEnergyRemainingAfterSpecular(etaR, woBase.y, wiBase.y, surfaceDef.roughness, surfaceDef.specularAmount);
-				energyLeft = energyLeft * amountOfEnergyAfterSpecular;
-			}
-			
-			
-			
+			weightSum = weightSum + evaluateLayer(spec, woBase, wiBase, surfaceDef.specularAmount * energyLeft);
+			energyLeft *= spec.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.specularAmount);
+			pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
 		}
 		
 	}
 	
 	if(samplingProbabilities[LAYERIND_DIFFUSE_REFL] > 0)
 	{
-		if(onSameHemisphere(woBase, wiBase))
+		DiffuseLayer diff = DiffuseLayer::init(surfaceDef.albedo, a2);
+		float pdf = diff.pdf(woBase, wiBase);
+
+		if (pdf > 0)
 		{
-			float diffuseAmount = 1.f - surfaceDef.transparency; 
-			
-			float pdf = pdfDiffuseLambertian(woBase, wiBase, a2.x, a2.y);
-			
-
-			if(pdf > 0)
-			{
-				SpectralSamples weight = evaluateDiffuseLambertian(surfaceDef.albedo, a2.x, a2.y, woBase, wiBase);
-				weight = weight * diffuseAmount;
-
-				weightSum = weightSum + energyLeft * weight * abs(wiBase.y);
-				pdfSum += samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf;
-
-				energyLeft = energyLeft * (1.f - diffuseAmount);
-			}
-			
-			
+			float diffuseAmount = 1.f - surfaceDef.transparency;
+			weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft);
+			energyLeft *= diff.getEnergyLeftAfterLayer(woBase, wiBase, diffuseAmount);
+			pdfSum += samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf;
 		}
 		
 	}
 
 	if(samplingProbabilities[LAYERIND_TRANSMITTED] > 0) 
 	{
-		if(!onSameHemisphere(woBase, wiBase))
+		if (hasDispersion(surfaceDef.flags))
 		{
-
-			if (hasDispersion(surfaceDef.flags))
+			if (exiting)
 			{
+				fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+			}
+			else
+			{
+				toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+			}
+
+		}
+
+		float etaR = toIOR / fromIOR;
+
+		TransmittedLayer transmitted = TransmittedLayer::init(a2, surfaceDef.roughness, etaR);
+		float pdf = transmitted.pdf(woBase, wiBase);
+
+		if (pdf > 0)
+		{
+			
+			pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
+
+			bool twoSided = isTwoSided(surfaceDef.flags);
+			bool wasTransmitted = (dot(surfaceDef.geometryNormal, wiObjSpace) * dot(surfaceDef.geometryNormal, -rayDirObjSpace) < 0.f) && !twoSided;
+
+			float solidAngleCompression = 1.f;
+
+			if (wasTransmitted)
+			{
+				//if transmitted, handle solid angle compression (btdf asymmetry)
+				solidAngleCompression *= sqr(1.f / etaR);
+
+				//went in or exited?
 				if (exiting)
 				{
-					fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+					payloadRayExitedVolume(payload);
+
 				}
 				else
 				{
-					toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+					payloadRayEnteredVolume(payload, surfaceDef.dielectricIOR);
+					payload.absorption = surfaceDef.absorption;
 				}
-
 			}
 
-			float etaR = toIOR/fromIOR;
-	
-			float pdf = pdfGGXTransmitted(etaR, woBase, wiBase, a2.x, a2.y);
-			
-
-			if(pdf > 0.f)
-			{
-				float weight = evaluateGGXTransmitted(etaR, a2.x, a2.y, woBase, wiBase);
-
-				float msbrdf = getEnergyCompensationTranslucent(etaR, woBase.y, wiBase.y, surfaceDef.roughness, weight);
-				weight += msbrdf;
-
-				bool twoSided = isTwoSided(surfaceDef.flags);
-				bool wasTransmitted = (dot(surfaceDef.geometryNormal, wiObjSpace) * dot(surfaceDef.geometryNormal, -rayDirObjSpace) < 0.f) && !twoSided;
-
-				if (wasTransmitted)
-				{
-					//if transmitted, handle solid angle compression (btdf asymmetry)
-					weight *= sqr(1.f / etaR);
-
-					//went in or exited?
-					if (exiting)
-					{
-						payloadRayExitedVolume(payload);
-
-					}
-					else
-					{
-						payloadRayEnteredVolume(payload, surfaceDef.dielectricIOR);
-						payload.absorption = surfaceDef.absorption;
-					}
-				}
-
-				
-
-				weightSum = weightSum + energyLeft * weight * abs(wiBase.y) * surfaceDef.transparency;
-				pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
-			}
+			weightSum = weightSum + evaluateLayer(transmitted, woBase, wiBase, surfaceDef.transparency * energyLeft) * solidAngleCompression;
+			energyLeft *= transmitted.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.transparency);
 		}
-		
-		
 	}
 	
 	if(pdfSum > 0.f)

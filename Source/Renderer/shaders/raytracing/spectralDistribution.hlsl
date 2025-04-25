@@ -1,7 +1,7 @@
 #ifndef SPECTRAL_DISTRIBUTION_HLSL_INCL
 #define SPECTRAL_DISTRIBUTION_HLSL_INCL
 
-#include "../utils/colorSpaces.hlsl"
+#include "../common/colorSpaces.hlsl"
 
 //the resources needed are defined in raytraceCommonResources.hlsl
 
