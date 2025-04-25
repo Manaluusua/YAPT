@@ -21,7 +21,7 @@ sphere_mesh = resources.load_meshes_from_path("D:/Random/3DSampleAssets/Sphere/s
 
 scale = 3;
 numberOfColumns = 6;
-numberOfRows = 6;
+numberOfRows = 7;
 gap = 10;
 offset = [-gap * numberOfColumns * 0.5, -gap * numberOfRows * 0.5];
 
@@ -50,10 +50,14 @@ for i in range(numberOfColumns):
 			mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
 			mat.setDielectricIOR(1.5);
 		elif j == 4:
+			mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
+			mat.setDielectricIOR(1.5);
+			mat.setEnableDispersion(True)
+		elif j == 5:
 			mat.setFromMaterialPreset(Material.MaterialPreset.PLASTIC)
 			mat.setClearCoatAmount(1);
 			mat.setClearCoatIOR(2.0);
-		elif j == 5:
+		elif j == 6:
 			mat.setFromMaterialPreset(Material.MaterialPreset.METAL_ALUMINIUM)
 			mat.setClearCoatAmount(1);
 		else:
@@ -71,4 +75,4 @@ for i in range(numberOfColumns):
 		model.getTransform().setScale(vec3(scale));
 		model.getTransform().setTranslation(pos);
 	
-scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 55]));
+scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 70]));

@@ -22,6 +22,11 @@ class Resources:
     def load_texture_from_path(self, tex_path, verbose = False):
         path = Path(tex_path)
         path_str = str(path)
+
+        if path_str in self._textures:
+            print(f"found texture {path_str} from cache, reusing")
+            return self._textures[path_str]
+
         img_name = path.stem
         if(verbose):
             print(f"loading {path_str} as {img_name}")
@@ -29,12 +34,17 @@ class Resources:
         tex = self.__load_tex_with_oiio(path_str, img_name, verbose)
         #tex = self.__load_tex_with_iio(path_str, img_name)
         if(tex):
-            self._textures[img_name] = self.__load_tex_with_oiio(path_str, img_name, verbose)
+            self._textures[path_str] = self.__load_tex_with_oiio(path_str, img_name, verbose)
         return tex
 
     def load_meshes_from_path(self, mesh_path, verbose = False):
         path = Path(mesh_path)
         path_str = str(path)
+
+        if path_str in self._meshes:
+            print(f"found mesh {path_str} from cache, reusing")
+            return self._meshes[path_str]
+
         file_name = path.stem
 
         gltf = GLTF2().load(path_str)
@@ -46,13 +56,10 @@ class Resources:
             name = f"{file_name}_mesh_{mesh_index}"
             mesh = self._create_and_upload_from_gltf(gltf, name, gltf_mesh, verbose)
             if mesh is not None:
-                self._meshes[name] = mesh
                 mesh_list.append(mesh)
                 ++mesh_index
-            
-                
-                
 
+        self._meshes[path_str] = mesh_list
         return mesh_list
 
     ###TEXTURES INTERNAL###

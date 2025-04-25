@@ -272,7 +272,7 @@ struct SpectralSamples
 			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT;
 
 			float waveLength = getSpectralSampleLambda(sampleIndex);
-			float pdf = getSpectralSampleLambdaPDF(sampleIndex) / SPECTRAL_SAMPLES_COUNT;
+			float pdf = getSpectralSampleLambdaPDF(sampleIndex);
 			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
 			xyz = samples[0] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
 			return xyz;
