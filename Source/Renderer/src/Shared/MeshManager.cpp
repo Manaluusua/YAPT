@@ -4,7 +4,8 @@
 namespace YAPT
 {
 	MeshManager::MeshManager(GfxApiHandle gfx)
-		:m_gfx(gfx)
+		:m_gfx(gfx),
+		m_totalSubmeshCount(0)
 	{
 		m_hashState = XXH64_createState();
 	}
@@ -17,6 +18,7 @@ namespace YAPT
 	{
 		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount, submeshCount, use16BitIndices);
 		mesh->_meshState = MeshProxy::MESHSTATE_INCOMPLETE;
+		m_totalSubmeshCount += submeshCount;
 		return mesh;
 	}
 	void MeshManager::meshReleased(MeshProxy* obj)
@@ -167,6 +169,7 @@ namespace YAPT
 	{
 		//release resources
 		MeshInternal& mesh = m_meshes.getDataEntryWithId(obj->_id);
+		m_totalSubmeshCount -= mesh.getSubmeshCount();
 		
 	}
 }

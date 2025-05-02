@@ -23,8 +23,10 @@ namespace YAPT
 {
 
 
-	PathTraceStage::PathTraceStage()
-		:m_resolveTargetWidth(0),
+	PathTraceStage::PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
+		:m_matMngr(matMngr),
+		m_meshMngr(meshMngr),
+		m_resolveTargetWidth(0),
 		m_resolveTargetHeight(0),
 		m_raysPerFrameDivisor(1),
 		m_accelerationStructureNeedsRebuild(true),
@@ -38,7 +40,7 @@ namespace YAPT
 
 	void PathTraceStage::initialize()
 	{
-		m_rtStage.initialize(this, getRenderer(), getGraph());
+		m_rtStage.initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr);
 		RenderGraphNode* rtNode;
 		size_t rtSlot;
 		m_rtStage.getOutput(&rtNode, rtSlot);

@@ -46,7 +46,8 @@ namespace YAPT
 
 		MaterialIterator getMaterialIterator() { return m_materials.getIterator(); }
 		ConstMaterialIterator getMaterialIterator() const { return m_materials.getConstIterator(); }
-		size_t getHighestAllocatedIndex() const { m_materials.getHighestIndexAllocated(); }
+		size_t getHighestAllocatedIndex() const { return m_materials.getHighestIndexAllocated(); }
+		size_t getActiveEntriesCount() const { return m_materials.getNumberOfActiveEntries(); }
 
 		bool hasChanges() const { return m_modifiedEntries.size() > 0 || m_destroyedEntries.size() > 0 || m_createdEntries.size() > 0; }
 

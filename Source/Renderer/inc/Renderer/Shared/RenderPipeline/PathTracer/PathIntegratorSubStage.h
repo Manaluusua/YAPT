@@ -13,6 +13,8 @@ namespace YAPT
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	class RenderGraph;
+	class BindlessMaterialManager;
+	class BindlessMeshManager;
 	class PathIntegratorSubStage
 	{
 	public:
@@ -33,7 +35,7 @@ namespace YAPT
 		PathIntegratorSubStage();
 		~PathIntegratorSubStage();
 
-		void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph);
+		void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
 		void shutdown();
 		void onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data);
 		void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution);
@@ -88,33 +90,7 @@ namespace YAPT
 
 		struct RayHitShaderTableConstantData
 		{
-			uvec2p indexBuffer;
-			uvec2p normalBuffer;
-			uvec2p tangentBuffer;
-			uvec2p uvBuffer;
-
-			vec4p specAmountClearCoatAmountIORRoughness;
-			vec4p albedoTransparency;
-			vec4p specularMetalness;
-			vec4p absorptionDielectricIOR;
-			vec4p emissiveRoughness;
-
-			float anisotropy;
-			float anisotropyRotation;
-			uint32_t materialMask;
-			float thinFilmThickness;
-
-			vec2p cauchysCoefficients;
-			float sheenAmount;
-			float pad0;
-
-
-			vec4p sheenColorRoughness;
-			uvec2p albedoTexIndexAndScale;
-			uvec2p normalTexIndexAndScale;
-			uvec2p ormTexIndexAndScale;
-			uvec2p emissiveTexIndexAndScale;
-
+			uvec2p materialAndMeshIndices;
 		};
 
 
@@ -137,9 +113,10 @@ namespace YAPT
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
 		AccelerationStructureProvider* m_accStructProvider;
+		BindlessMaterialManager* m_materialMngr;
+		BindlessMeshManager* m_meshMngr;
 
 		ShaderTableHelper m_shaderTableHelper;
-		
 
 		RaytraceNode* m_rtNode;
 		PipelineLayoutHelper m_rtLayout;

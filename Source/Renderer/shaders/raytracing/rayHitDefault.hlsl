@@ -1,28 +1,40 @@
 
 #include "materialSample.hlsl"
 #include "materialModifiers.hlsl"
+#include "payload.hlsl"
+
+struct RayHitShaderTableConstantData
+{
+	uint2 materialAndMeshIndices;
+};
+SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
 [shader("closesthit")]
 void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
+	uint2 materialAndMeshIndices = SHADERTABLE_EXTRADATA.materialAndMeshIndices;
+	MeshEntryGPU meshEntry = getMeshEntry(materialAndMeshIndices.y);
+
+
 	//Initial surface setup
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
-	uint3 indices = fetchIndices();
-	float3 geometryNormal = fetchMeshNormal(indices, barycentrics);
-	float3 tangent = meshHasValidTangents() ? fetchMeshTangent(indices, barycentrics) : float3(1.f, 0.f, 0.f);
-	float2 uv = meshHasValidUVs() ? fetchMeshUV(indices, barycentrics) : float2(0.5f, 0.5f);
-	
-	
-	//fetch surface material parameters
-	SurfaceDefinitionRGB surfaceDefRGB;
-	fetchSurfaceMaterialParameters(surfaceDefRGB);
+	uint3 indices = fetchIndices(meshEntry.indexBuffer, PrimitiveIndex());
+	float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+	float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
+	float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
 	
 	
 	float3 rayDir = ObjectRayDirection();
 	rayDir = normalize(rayDir); //ObjectRayDirection() contains scaling (if present)
 
 	float3 normal = geometryNormal;
-	modifySurfaceMaterialParametersWithTextures(uv, normal, tangent, surfaceDefRGB);
+
+	//fetch surface material parameters
+	MaterialEntryGPU matEntry = getMaterialEntry(materialAndMeshIndices.x);
+	SurfaceDefinitionRGB surfaceDefRGB;
+	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+
+	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
 	//if two sided, flip normal if view ray hitting from backside

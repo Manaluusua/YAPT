@@ -140,6 +140,7 @@ namespace YAPT
 
 		void setMaterialParams(const MaterialParameters& params);
 		const MaterialParameters& getMaterialParams() const;
+		size_t getID() const { return m_id; }
 
 	private:
 		MaterialParameters m_materialParams;

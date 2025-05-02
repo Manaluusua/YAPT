@@ -2,11 +2,10 @@
 #define MATERIAL_LAYERS_HLSL_INCL
 
 #include "../common/bsdfSample.hlsl"
-#include "raytraceCommonResources.hlsl"
 #include "hitshadersCommon.hlsl"
 #include "../common/multiscatter.hlsl"
 
-struct MaterialLayer
+interface MaterialLayer
 {
 	float3 sampleWi(float3 wo, float rand);
 	SpectralSamples evaluate(float3 wo, float3 wi);

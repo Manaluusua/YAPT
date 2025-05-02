@@ -12,6 +12,9 @@
 #include <Math/RandUtility.h>
 #include <Math/MathUtility.h>
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
+#include <Renderer/Shared/BindlessMaterialManager.h>
+#include <Renderer/Shared/BindlessMeshManager.h>
+
 namespace YAPT
 {
 	const size_t ENVIRONMENT_TYPE_NONE = 0;
@@ -31,11 +34,13 @@ namespace YAPT
 
 	}
 
-	void PathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph)
+	void PathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
 	{
 		m_graph = graph;
 		m_renderer = rend;
 		m_accStructProvider = accStructProvider;
+		m_materialMngr = matMngr;
+		m_meshMngr = meshMngr;
 
 		RenderGraphNodeSlotDefinition slotdefsRtNode[] =
 		{ {ResourceDimension::TEXTURE_2D,
@@ -260,84 +265,16 @@ namespace YAPT
 
 	void PathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
-		auto getPackedBufferInfo = [](const MeshLayoutInfo& info, const AttributeMapping& attrMapping, const MeshInternal* mesh, const SubmeshDefinition& sm)
-		{
-			glm::uvec2 retVal;
-			if (attrMapping.bufferIndex != uint32_t(-1))
-			{
 
-				const MeshBufferBinding& bufferBinding = mesh->getVertexBuffer(attrMapping.bufferIndex);
-				uint32_t bufferIndex = bufferBinding.buffer->getBindlessResourceArrayIndex();
-				size_t vertexBufferOffset = bufferBinding.offsetInBytes;
-				uint32_t stride = info.vertexBufferConfigurations[attrMapping.bufferIndex].stride;
-				size_t offset = vertexBufferOffset + sm.vertexOffset * stride + info.vertexBufferConfigurations[attrMapping.bufferIndex].offsetFromVertexStart[attrMapping.attributeIndex];
+		size_t matId = mat.getMaterialForSubmeshIndex(submeshIndex)->getID();
+		size_t meshId = mesh->getMeshIndex();
 
-				//make sure we can fit the data in packing
-				assert(offset < 0xFFFFFFFF);
-				assert(bufferIndex < 0xFFFF);
-				assert(stride < 0xFFFF);
-
-				//from byteoffset to float/uint offset
-				retVal = packBufferInfo(bufferIndex, stride / 4, (uint32_t)offset / 4);
-			}
-			else
-			{
-				retVal = glm::uvec2(-1, -1);
-			}
-			return retVal;
-		};
-		const SubmeshDefinition& sm = mesh->getSubmesh(submeshIndex);
+		size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
+		size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, submeshIndex);
 
 		RayHitShaderTableConstantData rayHitConstants;
-		//index buffer
-		{
-			const MeshBufferBinding& indexBufferBinding = mesh->getIndexBuffer();
+		rayHitConstants.materialAndMeshIndices = uvec2p(matIndex, meshIndex);
 
-			bool use16BitIndices = mesh->getIndexBufferFormat() == ResourceFormat::R16_UINT;
-			size_t offsetInBytes = indexBufferBinding.offsetInBytes + sm.indexOffset * getFormatSizeInBytes(mesh->getIndexBufferFormat());
-			uint8_t extraOffset = offsetInBytes % 4;
-			uint8_t stride = use16BitIndices ? 2 : 3;
-			rayHitConstants.indexBuffer = packBufferInfo(indexBufferBinding.buffer->getBindlessResourceArrayIndex(), (extraOffset << 8) | stride, uint32_t(offsetInBytes) / sizeof(uint32_t)); //16bit indices marked with stride of 2. If you change this, remember to change this assumptin in the shaders too!
-		}
-		//vertex data
-		{
-			const MeshLayoutInfo& info = mesh->getLayoutInfo();
-
-			rayHitConstants.normalBuffer = getPackedBufferInfo(info, info.normal0, mesh, sm);
-			rayHitConstants.tangentBuffer = getPackedBufferInfo(info, info.tangent0, mesh, sm);
-			rayHitConstants.uvBuffer = getPackedBufferInfo(info, info.uv0, mesh, sm);
-		}
-
-		//material data
-		{
-			const MaterialParameters& matParams = mat.getMaterialForSubmeshIndex(submeshIndex)->getMaterialParams();
-
-			float transparency = matParams.transparency;
-			float metalness = matParams.metalness;
-
-
-			rayHitConstants.specAmountClearCoatAmountIORRoughness = vec4p(MathUtils::saturate(matParams.specularAmount),
-				MathUtils::saturate(matParams.clearCoatAmount), matParams.clearCoatIOR, MathUtils::saturate(matParams.clearCoatRoughness));
-
-			rayHitConstants.albedoTransparency = vec4p(matParams.albedo, matParams.transparency);
-			rayHitConstants.specularMetalness = vec4p(matParams.specular, matParams.metalness);
-			rayHitConstants.absorptionDielectricIOR = vec4p(matParams.absorption, glm::clamp(matParams.dielectricIOR, 0.3f, 3.0f));
-			rayHitConstants.emissiveRoughness = vec4p(matParams.emissive, MathUtils::saturate(matParams.roughness));
-			rayHitConstants.anisotropy = MathUtils::saturate(matParams.anisotropy);
-			rayHitConstants.anisotropyRotation = matParams.anisotropyRotation;
-
-			rayHitConstants.materialMask = matParams.materialMask;
-			rayHitConstants.thinFilmThickness = matParams.thinFilmThickness;
-
-			rayHitConstants.cauchysCoefficients = matParams.cauchysCoeffs;
-			rayHitConstants.sheenAmount = matParams.sheenAmount;
-			rayHitConstants.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
-
-			rayHitConstants.albedoTexIndexAndScale = uvec2p(matParams.albedoTex.textureIndex, matParams.albedoTex.packedScale);
-			rayHitConstants.normalTexIndexAndScale = uvec2p(matParams.normalTex.textureIndex, matParams.normalTex.packedScale);
-			rayHitConstants.ormTexIndexAndScale = uvec2p(matParams.ormTex.textureIndex, matParams.ormTex.packedScale);
-			rayHitConstants.emissiveTexIndexAndScale = uvec2p(matParams.emissiveTex.textureIndex, matParams.emissiveTex.packedScale);
-		}
 
 		entry->extraDataInBytes = sizeof(RayHitShaderTableConstantData);
 		memcpy(entry->shaderTableExtraData, &rayHitConstants, sizeof(RayHitShaderTableConstantData));
@@ -348,8 +285,6 @@ namespace YAPT
 
 	void PathIntegratorSubStage::updateShaderTable(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
-
-		RenderObjectManager& roMngr = m_renderer->getRenderObjectManager();
 
 		bool emptyHitGroup = instancesCount == 0;
 
@@ -481,6 +416,9 @@ namespace YAPT
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure(exec.cmdBuffer);
 
+			BufferViewHandle meshEntriesBuffer = m_meshMngr->getBufferViewHandle();
+			BufferViewHandle materialEntriesBuffer = m_materialMngr->getBufferViewHandle();
+
 			TextureViewHandle noiseTex = m_renderer->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
 
 			TextureViewHandle singleScatterAlbedoNoFresnel = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoNoFresnel();
@@ -505,22 +443,27 @@ namespace YAPT
 				{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
 				{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
 				{3, 0, 1, DescriptorPtr(m_spectralDataConstants.getViewPtr())},
-				{4, 0, 1, DescriptorPtr(&accStruct) },
-				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
-				{9, 0, 1, DescriptorPtr(&noiseTex)},
-				{10, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
-				{11, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
-				{12, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
-				{13, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
-				{14, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
-				{15, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
-				{16, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
-				{17, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
-				{18, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
-				{19, 0, 1, DescriptorPtr(&cieLUT)},
-				{20, 0, 1, DescriptorPtr(&d65LUT)},
-				{21, 0, 1, DescriptorPtr(&toREC2020LUT)},
-				{22, 0, 1, DescriptorPtr(&toSRGBLUT)},
+				{4, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
+				{5, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
+				
+				{6, 0, 1, DescriptorPtr(&accStruct) },
+				{7, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{11, 0, 1, DescriptorPtr(&noiseTex)},
+
+				{12, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
+				{13, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
+				{14, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
+				{15, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
+				{16, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
+				{17, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
+				{18, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
+				{19, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
+				{20, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
+
+				{21, 0, 1, DescriptorPtr(&cieLUT)},
+				{22, 0, 1, DescriptorPtr(&d65LUT)},
+				{23, 0, 1, DescriptorPtr(&toREC2020LUT)},
+				{24, 0, 1, DescriptorPtr(&toSRGBLUT)},
 
 			};
 			Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_rtDescSet, updates, countOf(updates));

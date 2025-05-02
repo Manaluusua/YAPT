@@ -51,8 +51,11 @@ namespace YAPT
 		MeshIterator getMeshIterator() { return m_meshes.getIterator(); }
 		ConstMeshIterator getMeshIterator() const { return m_meshes.getConstIterator(); }
 		size_t getHighestAllocatedIndex() const { return m_meshes.getHighestIndexAllocated(); }
+		size_t getActiveEntriesCount() const { return m_meshes.getNumberOfActiveEntries(); }
 
 		bool hasChanges() const { return m_modifiedEntries.size() > 0 || m_destroyedEntries.size() > 0 || m_createdEntries.size() > 0; }
+
+		size_t getTotalSubmeshCount() const { return m_totalSubmeshCount; }
 
 	private:
 		void meshChanged(MeshProxy* obj);
@@ -75,6 +78,6 @@ namespace YAPT
 		std::vector<MeshProxy*> m_changedMeshes;
 
 		XXH64_state_t* m_hashState;
-
+		size_t m_totalSubmeshCount;
 	};
 }

@@ -55,7 +55,7 @@ namespace YAPT
 				continue;
 			}
 			m_bufferHandles[i]->heapType = D3D12_HEAP_TYPE_UPLOAD;
-			m_bufferHandles[i]->allocBlock = m_resMngr.allocate(resourceDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(&m_bufferHandles[i]->resource));
+			m_bufferHandles[i]->allocBlock = m_resMngr.allocate(resourceDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_bufferHandles[i]->resource));
 
 			bufferHandlesToAllocate[numberOfBufferHandlesToAllocate] = m_bufferHandles[i];
 			++numberOfBufferHandlesToAllocate;

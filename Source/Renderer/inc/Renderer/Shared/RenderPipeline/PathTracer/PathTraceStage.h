@@ -14,12 +14,9 @@
 
 namespace YAPT
 {
-	
-	
-	
-	
-
 	class Texture;
+	class BindlessMaterialManager;
+	class BindlessMeshManager;
 	class PathTraceStage final : public RenderStage, PathIntegratorSubStage::AccelerationStructureProvider
 	{
 	public:
@@ -29,7 +26,7 @@ namespace YAPT
 			RAYTRACE_STAGE_CONNECTION_COLOR
 		};
 		 
-		PathTraceStage();
+		PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
 		~PathTraceStage();
 
 		//RenderStage
@@ -59,6 +56,10 @@ namespace YAPT
 		vec2p getCurrentRayGenerationOffset();
 		uint64_t getCurrentNumberOfSamplesPerPixel();
 		void updateInstanceOffsets();
+
+
+		BindlessMaterialManager* m_matMngr;
+		BindlessMeshManager* m_meshMngr;
 
 		AccelerationStructureHelper m_accStructureHelper;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;

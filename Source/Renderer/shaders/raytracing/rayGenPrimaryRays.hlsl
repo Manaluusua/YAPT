@@ -3,7 +3,7 @@
 #include "../common/common.hlsl"
 #include "../common/random.hlsl"
 #include "../common/commonMath.hlsl"
-
+#include "payload.hlsl"
 float3 generateRayDirection(float2 uv)
 {
 	
@@ -152,7 +152,7 @@ void rayGenPrimaryRays()
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
 	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight.ToRGB(COLORSPACE_DEFAULT, (payload.flags & PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0), 1.f);
+		g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight.ToRGB(COLORSPACE_DEFAULT, (payload.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0), 1.f);
 	} 
 	else
 	{

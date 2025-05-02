@@ -14,7 +14,7 @@
 
 #define MAT_SAMPLING_ADD_LAYER(layer, probability) samplingProbabilities[layer] = (probability); sampleSum += (probability);
 
-void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, in Payload payload, 
+void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, 
 	in float3 woBase,in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, in float4 rand, 
 	out float samplingProbabilities[LAYER_COUNT])
 {
@@ -53,7 +53,8 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 
 }
 
-float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, in float3 woBase, in float3 woCoating, in float2 a2, in float4 rand, in float samplingProbabilities[LAYER_COUNT])
+template<typename RayState>
+float3 getSampleDirection(in SurfaceDefinition surfaceDef, in RayState rayState, in float3 woBase, in float3 woCoating, in float2 a2, in float4 rand, in float samplingProbabilities[LAYER_COUNT])
 {	
 	float materialTypeRand = max(0, rand.w + 0.00001f);
 	float3 randSampleBrdf = rand.xyz;
@@ -121,12 +122,12 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 
 		if(exiting)
 		{
-			fromIOR = payloadGetCurrentIOR(payload); 
-			toIOR = payloadGetBeforeCurrentIOR(payload); 
+			fromIOR = rayState.getCurrentIOR();
+			toIOR = rayState.getPreviousIOR();
 		}
 		else
 		{
-			fromIOR = payloadGetCurrentIOR(payload); 
+			fromIOR = rayState.getCurrentIOR();
 			toIOR = surfaceDef.dielectricIOR;
 		}
 
@@ -159,10 +160,10 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in Payload payload, i
 	return wi;
 }
 
-
-void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in float3 rayDirObjSpace,  out SpectralSamples weightOut, out float3 nextSampleDirOut)
+template<typename RayState>
+void sampleMaterial(in SurfaceDefinition surfaceDef, inout RayState rayState, in float3 rayDirObjSpace,  out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
-	uint sampleIndex = g_currentRandomSampleIndex + payload.pathLength * 7 + payload.rayIndex * 11;
+	uint sampleIndex = g_currentRandomSampleIndex + rayState.getPathLength() * 7 + rayState.getRayIndex() * 11;
 	float4 randomSamples = getRandomSampleFloat4(sampleIndex);
 	float2 a2 = calculateRoughnessParams(surfaceDef.roughness, surfaceDef.anisotropy);
 	
@@ -177,18 +178,18 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 	bool exiting = !(HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE);
 	if(exiting)
 	{
-		fromIOR = payloadGetCurrentIOR(payload); 
-		toIOR = payloadGetBeforeCurrentIOR(payload); 
+		fromIOR = rayState.getCurrentIOR();
+		toIOR = rayState.getPreviousIOR();
 	}
 	else
 	{
-		fromIOR = payloadGetCurrentIOR(payload); 
+		fromIOR = rayState.getCurrentIOR();
 		toIOR = surfaceDef.dielectricIOR;
 	}
 
 	float samplingProbabilities[LAYER_COUNT];
-	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, payload, woBase, woCoating, fromIOR, toIOR, a2,randomSamples, samplingProbabilities);
-	float3 wiObjSpace = getSampleDirection(surfaceDef, payload, woBase, woCoating, a2, randomSamples, samplingProbabilities);
+	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, woBase, woCoating, fromIOR, toIOR, a2,randomSamples, samplingProbabilities);
+	float3 wiObjSpace = getSampleDirection(surfaceDef, rayState, woBase, woCoating, a2, randomSamples, samplingProbabilities);
 	
 	SpectralSamples weightSum = (SpectralSamples)0.f;
 	float pdfSum = 0.f;
@@ -316,13 +317,12 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 				//went in or exited?
 				if (exiting)
 				{
-					payloadRayExitedVolume(payload);
+					rayState.exitedVolume();
 
 				}
 				else
 				{
-					payloadRayEnteredVolume(payload, surfaceDef.dielectricIOR);
-					payload.absorption = surfaceDef.absorption;
+					rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
 				}
 			}
 
@@ -341,7 +341,7 @@ void sampleMaterial(in SurfaceDefinition surfaceDef, inout Payload payload, in f
 
 	if (hasDispersion(surfaceDef.flags))
 	{
-		payload.flags |= PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED;
+		rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
 	}
 }
 

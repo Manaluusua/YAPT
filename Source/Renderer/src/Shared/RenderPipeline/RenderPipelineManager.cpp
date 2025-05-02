@@ -1,5 +1,5 @@
 #include <Renderer/Shared/RenderPipeline/RenderPipelineManager.h>
-#include <Renderer/Shared/RenderPipeline/PathTracerPipeline.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h>
 #include <Renderer/Shared/RenderPipeline/DebugDrawPipeline.h>
 namespace YAPT
 {

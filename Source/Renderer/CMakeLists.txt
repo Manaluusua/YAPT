@@ -37,8 +37,12 @@ set(HEADERS
 	inc/Renderer/Shared/BufferImpl.h
 	inc/Renderer/Shared/TextureImpl.h
 	inc/Renderer/Shared/CRenderer.h
+	
+	
 	inc/Renderer/Shared/BindlessTextureManager.h
 	inc/Renderer/Shared/BindlessBufferManager.h
+	inc/Renderer/Shared/BindlessMaterialManager.h
+	inc/Renderer/Shared/BindlessMeshManager.h
 	
 	inc/Renderer/Shared/RendererVarsList.h
 	inc/Renderer/Shared/RenderView.h
@@ -55,10 +59,9 @@ set(HEADERS
 	inc/Renderer/Shared/Utility/PostProcessUtility.h
 	inc/Renderer/Shared/Utility/GpuBufferHelper.h
 	inc/Renderer/Shared/Utility/CommonGpuBufferStructs.h
-	inc/Renderer/Shared/Utility/BindlessResourceUtility.h
 	inc/Renderer/Shared/Utility/AccelerationStructureHelper.h
 	inc/Renderer/Shared/Utility/ShaderTableHelper.h
-	
+	inc/Renderer/Shared/Utility/BindlessResourceUtility.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUT.h
 	inc/Renderer/Shared/Utility/MultipleScatterLUTUtility.h
 	
@@ -102,9 +105,11 @@ set(SOURCE
 	src/Shared/BufferImpl.cpp
 	src/Shared/TextureImpl.cpp
 	src/Shared/CRenderer.cpp
+	src/Shared/RenderView.cpp
 	src/Shared/BindlessTextureManager.cpp
 	src/Shared/BindlessBufferManager.cpp
-	src/Shared/RenderView.cpp
+	src/Shared/BindlessMaterialManager.cpp
+	src/Shared/BindlessMeshManager.cpp
 
 	src/Shared/Utility/RenderUtility.cpp
 	src/Shared/Utility/PipelineStateDescriptionUtility.cpp

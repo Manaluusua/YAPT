@@ -1,6 +1,6 @@
 
 #include "raytraceCommonResources.hlsl"
-
+#include "payload.hlsl"
 
 struct RayMissShaderTableConstantData
 {

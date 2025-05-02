@@ -2,11 +2,59 @@
 #define PAYLOAD_HLSL_INCL
 
 //the resources needed are defined in raytraceCommonResources.hlsl
+#include "RayState.hlsl"
 
-#define PAYLOAD_FLAGS_SECONDARY_LAMBDAS_TERMINATED (1 << 0)
-
-struct Payload
+struct Payload : RayStateInterface
 {
+	uint getRayIndex()
+	{
+		return rayIndex;
+	}
+	uint getPathLength()
+	{
+		return pathLength;
+	}
+
+	float getCurrentIOR()
+	{
+		float currentIOR = IOR_DEFAULT; //air if not entered volume
+		if (numberVolumesEntered != 0)
+		{
+			currentIOR = volumesEntered[numberVolumesEntered - 1];
+		}
+		return currentIOR;
+	}
+	float getPreviousIOR()
+	{
+		float beforeCurrentIOR = IOR_DEFAULT;
+		if (numberVolumesEntered > 1)
+		{
+			beforeCurrentIOR = volumesEntered[numberVolumesEntered - 2];
+		}
+		return beforeCurrentIOR;
+	}
+
+	void enteredVolume(float IOR, SpectralSamples absorptionParam)
+	{
+		numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
+		volumesEntered[numberVolumesEntered - 1] = IOR;
+		absorption = absorptionParam;
+	}
+	void exitedVolume()
+	{
+		numberVolumesEntered = max(0, numberVolumesEntered - 1);
+	}
+
+	uint getStateFlags()
+	{
+		return flags;
+	}
+	void setStateFlags(uint flagsIn)
+	{
+		flags = flagsIn;
+	}
+
+
 	SpectralSamples throughput;
 	SpectralSamples absorption;
 	SpectralSamples totalLight;
@@ -21,35 +69,6 @@ struct Payload
 	uint flags;
 };
 
-float payloadGetCurrentIOR(in Payload payload)
-{
-	float currentIOR = IOR_DEFAULT; //air if not entered volume
-	if (payload.numberVolumesEntered != 0)
-	{
-		currentIOR = payload.volumesEntered[payload.numberVolumesEntered - 1];
-	}
-	return currentIOR;
-}
 
-float payloadGetBeforeCurrentIOR(in Payload payload)
-{
-	float beforeCurrentIOR = IOR_DEFAULT;
-	if (payload.numberVolumesEntered > 1)
-	{
-		beforeCurrentIOR = payload.volumesEntered[payload.numberVolumesEntered - 2];
-	}
-	return beforeCurrentIOR;
-}
-
-void payloadRayEnteredVolume(inout Payload payload, in float IOROfEnteredVolume)
-{
-	payload.numberVolumesEntered = min(payload.numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
-	payload.volumesEntered[payload.numberVolumesEntered - 1] = IOROfEnteredVolume;
-}
-
-void payloadRayExitedVolume(inout Payload payload)
-{
-	payload.numberVolumesEntered = max(0, payload.numberVolumesEntered - 1);
-}
 
 #endif

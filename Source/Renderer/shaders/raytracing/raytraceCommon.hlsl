@@ -1,3 +1,5 @@
+#ifndef RAYTRACE_COMMON_HLSL_INCL
+#define RAYTRACE_COMMON_HLSL_INCL
 
 #include "../globalDefinitions.hlsl"
 #include "../common/commonMath.hlsl"
@@ -17,3 +19,5 @@
 
 //#define WHITE_FURNACE_TEST
 //#define WHITE_FURNACE_TEST_BOUNCE_LIMIT 64
+
+#endif

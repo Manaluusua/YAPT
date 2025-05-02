@@ -7,37 +7,6 @@
 #define MaterialMask_Dispersion (1 << 1)
 #define TEX_UNBOUND_INDEX (~0)
 
-struct RayHitShaderTableConstantData
-{
-	//vertex data
-	uint2 indexBuffer;
-	uint2 normalBuffer;
-	uint2 tangentBuffer;
-	uint2 uvBuffer;
-	
-	//material data
-	float4 specAmountClearCoatAmountIORRoughness;
-	float4 albedoTransparency;
-	float4 specularMetalness;
-	float4 absorptionDielectricIOR;
-	float4 emissiveRoughness;
-	
-	float anisotropy;
-	float anisotropyRotation;
-	uint materialMask;
-	float thinFilmThickness;
-
-	float2 cauchysCoefficients;
-	float sheenAmount;
-	float pad0;
-	
-	float4 sheenColorRoughness;
-	uint2 albedoTexIndex;
-	uint2 normalTexIndex;
-	uint2 ormTexIndex;
-	uint2 emissiveTexIndex;
-};
-
 struct SurfaceDefinitionRGB
 {
 	float3x3 toCoatingLayerTangentSpace;
@@ -97,6 +66,8 @@ struct SurfaceDefinition
 	uint flags;
 };
 
+
+
 SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 {
 	SurfaceDefinition surfDef;
@@ -143,7 +114,7 @@ bool hasDispersion(uint flags)
 	return (flags & MaterialMask_Dispersion) != 0;
 }
 
-SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
+
 
 float bbLoadFloat(in uint bufferIndex, in uint bufferOffset)
 {
@@ -192,19 +163,17 @@ bool isValidPackedBufferInfo(in uint2 val)
 	return val.x != uint(-1) && val.y != uint(-1);
 }
 
-uint3 fetchIndices()
+uint3 fetchIndices(uint2 indexBuffer, uint primIndex)
 {
 
 	uint indexBufferIndex;
 	uint indexBufferStridePacked;
 	uint indexBufferOffset;
 	
-	unpackBufferInfo(SHADERTABLE_EXTRADATA.indexBuffer, indexBufferIndex, indexBufferStridePacked, indexBufferOffset);
+	unpackBufferInfo(indexBuffer, indexBufferIndex, indexBufferStridePacked, indexBufferOffset);
 	
 	uint extraOffset = indexBufferStridePacked >> 8;
 	uint indexBufferStride = indexBufferStridePacked & 0xFF;
-
-	uint primIndex = PrimitiveIndex();
 
 	uint3 indices;
 
@@ -261,13 +230,13 @@ uint3 fetchIndices()
 	return indices;
 }
 
-float3 fetchMeshNormal(in uint3 indices, in float3 barycentrics)
+float3 fetchMeshNormal(in uint2 normalBuffer, in uint3 indices, in float3 barycentrics)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
 	
-	unpackBufferInfo(SHADERTABLE_EXTRADATA.normalBuffer, bufferIndex, bufferStride, bufferOffset);
+	unpackBufferInfo(normalBuffer, bufferIndex, bufferStride, bufferOffset);
 	
 	float3 n1 = bbLoadFloat3(bufferIndex, bufferOffset + indices.x * bufferStride);
 	float3 n2 = bbLoadFloat3(bufferIndex, bufferOffset + indices.y * bufferStride);
@@ -276,18 +245,18 @@ float3 fetchMeshNormal(in uint3 indices, in float3 barycentrics)
 	return normalize(barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3);
 }
 
-bool meshHasValidTangents()
+bool meshHasValidTangents(in uint2 tangentBuffer)
 {
-	return isValidPackedBufferInfo(SHADERTABLE_EXTRADATA.tangentBuffer);
+	return isValidPackedBufferInfo(tangentBuffer);
 }
 
-float3 fetchMeshTangent(in uint3 indices, in float3 barycentrics)
+float3 fetchMeshTangent(in uint2 tangentBuffer, in uint3 indices, in float3 barycentrics)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
 	
-	unpackBufferInfo(SHADERTABLE_EXTRADATA.tangentBuffer, bufferIndex, bufferStride, bufferOffset);
+	unpackBufferInfo(tangentBuffer, bufferIndex, bufferStride, bufferOffset);
 	
 	float4 t1 = bbLoadFloat4(bufferIndex, bufferOffset + indices.x * bufferStride);
 	float4 t2 = bbLoadFloat4(bufferIndex, bufferOffset + indices.y * bufferStride);
@@ -300,18 +269,18 @@ float3 fetchMeshTangent(in uint3 indices, in float3 barycentrics)
 	return normalize(barycentrics.x * t1.xyz + barycentrics.y * t2.xyz + barycentrics.z * t3.xyz);
 }
 
-bool meshHasValidUVs()
+bool meshHasValidUVs(in uint2 uvBuffer)
 {
-	return isValidPackedBufferInfo(SHADERTABLE_EXTRADATA.uvBuffer);
+	return isValidPackedBufferInfo(uvBuffer);
 }
 
-float2 fetchMeshUV(in uint3 indices, in float3 barycentrics)
+float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
 	
-	unpackBufferInfo(SHADERTABLE_EXTRADATA.uvBuffer, bufferIndex, bufferStride, bufferOffset);
+	unpackBufferInfo(uvBuffer, bufferIndex, bufferStride, bufferOffset);
 	
 	float2 uv1 = bbLoadFloat2(bufferIndex, bufferOffset + indices.x * bufferStride);
 	float2 uv2 = bbLoadFloat2(bufferIndex, bufferOffset + indices.y * bufferStride);
@@ -327,66 +296,68 @@ void makeOrthogonal(in float3 n, inout float3 t)
 }
 
 
-void fetchSurfaceMaterialParameters(inout SurfaceDefinitionRGB surfaceDef)
+void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceDefinitionRGB surfaceDef)
 {
-	surfaceDef.albedo = SHADERTABLE_EXTRADATA.albedoTransparency.xyz;
-	surfaceDef.transparency = SHADERTABLE_EXTRADATA.albedoTransparency.a;
-	surfaceDef.specular = SHADERTABLE_EXTRADATA.specularMetalness.xyz;
-	surfaceDef.metalness = SHADERTABLE_EXTRADATA.specularMetalness.a;
-	surfaceDef.absorption = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.xyz;
-	surfaceDef.dielectricIOR = SHADERTABLE_EXTRADATA.absorptionDielectricIOR.a;
-	surfaceDef.emissive = SHADERTABLE_EXTRADATA.emissiveRoughness.xyz;
-	surfaceDef.roughness = SHADERTABLE_EXTRADATA.emissiveRoughness.a;
-	surfaceDef.specularAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.x;
-	surfaceDef.clearCoatAmount = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.y;
-	surfaceDef.clearCoatIOR = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.z;
-	surfaceDef.clearCoatRoughness = SHADERTABLE_EXTRADATA.specAmountClearCoatAmountIORRoughness.w;
-	surfaceDef.cauchysCoeffs = SHADERTABLE_EXTRADATA.cauchysCoefficients.xy;
-
-	surfaceDef.anisotropy = SHADERTABLE_EXTRADATA.anisotropy;
-	surfaceDef.anisotropyRotation = SHADERTABLE_EXTRADATA.anisotropyRotation;
-	surfaceDef.thinFilmThickness = SHADERTABLE_EXTRADATA.thinFilmThickness;
-	surfaceDef.flags = SHADERTABLE_EXTRADATA.materialMask;
 	
-	surfaceDef.sheenColor = SHADERTABLE_EXTRADATA.sheenColorRoughness.rgb;
-	surfaceDef.sheenRoughness = SHADERTABLE_EXTRADATA.sheenColorRoughness.a;
-	surfaceDef.sheenAmount = SHADERTABLE_EXTRADATA.sheenAmount;
+
+	surfaceDef.albedo = matEntry.albedoTransparency.xyz;
+	surfaceDef.transparency = matEntry.albedoTransparency.a;
+	surfaceDef.specular = matEntry.specularMetalness.xyz;
+	surfaceDef.metalness = matEntry.specularMetalness.a;
+	surfaceDef.absorption = matEntry.absorptionDielectricIOR.xyz;
+	surfaceDef.dielectricIOR = matEntry.absorptionDielectricIOR.a;
+	surfaceDef.emissive = matEntry.emissiveRoughness.xyz;
+	surfaceDef.roughness = matEntry.emissiveRoughness.a;
+	surfaceDef.specularAmount = matEntry.specAmountClearCoatAmountIORRoughness.x;
+	surfaceDef.clearCoatAmount = matEntry.specAmountClearCoatAmountIORRoughness.y;
+	surfaceDef.clearCoatIOR = matEntry.specAmountClearCoatAmountIORRoughness.z;
+	surfaceDef.clearCoatRoughness = matEntry.specAmountClearCoatAmountIORRoughness.w;
+	surfaceDef.cauchysCoeffs = matEntry.cauchysCoefficients.xy;
+
+	surfaceDef.anisotropy = matEntry.anisotropy;
+	surfaceDef.anisotropyRotation = matEntry.anisotropyRotation;
+	surfaceDef.thinFilmThickness = matEntry.thinFilmThickness;
+	surfaceDef.flags = matEntry.materialMask;
+	
+	surfaceDef.sheenColor = matEntry.sheenColorRoughness.rgb;
+	surfaceDef.sheenRoughness = matEntry.sheenColorRoughness.a;
+	surfaceDef.sheenAmount = matEntry.sheenAmount;
 	
 	surfaceDef.sheenRoughness = max(surfaceDef.sheenRoughness, 0.07f); //minimum sheen roughness is 0.07
 
 }
 
-void modifySurfaceMaterialParametersWithTextures(in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
+void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, in float2 uv, inout float3 normal, inout float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
 {
 
-	if(SHADERTABLE_EXTRADATA.albedoTexIndex.x != TEX_UNBOUND_INDEX)
+	if(matEntry.albedoTexIndexAndScale.x != TEX_UNBOUND_INDEX)
 	{
-		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.albedoTexIndex.y);
+		float2 uvScale = unpackTextureTransformScale(matEntry.albedoTexIndexAndScale.y);
 
-		float4 atex = g_textures2D[SHADERTABLE_EXTRADATA.albedoTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
+		float4 atex = g_textures2D[matEntry.albedoTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.albedo *= atex.rgb;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.normalTexIndex.x != TEX_UNBOUND_INDEX) //TODO
+	if(matEntry.normalTexIndexAndScale.x != TEX_UNBOUND_INDEX) //TODO
 	{
-		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.normalTexIndex.y);
-		float4 n = g_textures2D[SHADERTABLE_EXTRADATA.normalTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
+		float2 uvScale = unpackTextureTransformScale(matEntry.normalTexIndexAndScale.y);
+		float4 n = g_textures2D[matEntry.normalTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		//surfaceDef.albedo = atex.rgb;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.ormTexIndex.x != TEX_UNBOUND_INDEX)
+	if(matEntry.ormTexIndexAndScale.x != TEX_UNBOUND_INDEX)
 	{
-		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.ormTexIndex.y);
-		float4 orm = g_textures2D[SHADERTABLE_EXTRADATA.ormTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
+		float2 uvScale = unpackTextureTransformScale(matEntry.ormTexIndexAndScale.y);
+		float4 orm = g_textures2D[matEntry.ormTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.roughness = orm.x;
 		surfaceDef.roughness = orm.y;
 		surfaceDef.metalness = orm.z;
 	}
 	
-	if(SHADERTABLE_EXTRADATA.emissiveTexIndex.x != TEX_UNBOUND_INDEX)
+	if(matEntry.emissiveTexIndexAndScale.x != TEX_UNBOUND_INDEX)
 	{
-		float2 uvScale = unpackTextureTransformScale(SHADERTABLE_EXTRADATA.emissiveTexIndex.y);
-		float4 emissive = g_textures2D[SHADERTABLE_EXTRADATA.emissiveTexIndex.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
+		float2 uvScale = unpackTextureTransformScale(matEntry.emissiveTexIndexAndScale.y);
+		float4 emissive = g_textures2D[matEntry.emissiveTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.emissive *= emissive.rgb;
 	}
 	
