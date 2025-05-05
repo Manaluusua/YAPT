@@ -12,64 +12,93 @@ namespace YAPT
 	{
 		FLOAT,
 		INT,
-
-		VEC2,
-		VEC3,
-		VEC4,
-		IVEC2,
-		IVEC3,
-		IVEC4,
-
+		OPTIONS,
 		TEXTURE,
 		BUFFER
 	};
 	class RendererVariable
 	{
 	public:
-		virtual void set(const float& val) = 0;
-		virtual void set(const int32_t& val) = 0;
-
-		virtual void set(const vec2p& val) = 0;
-		virtual void set(const vec3p& val) = 0;
-		virtual void set(const vec4p& val) = 0;
-
-		virtual void set(const ivec2p& val) = 0;
-		virtual void set(const ivec3p& val) = 0;
-		virtual void set(const ivec4p& val) = 0;
-
-		virtual void set(const RCPtr<Texture>& val) = 0;
-		virtual void set(const RCPtr<Buffer>& val) = 0;
-
-
-		virtual bool get(float& val) = 0;
-		virtual bool get(int32_t& val) = 0;
-					 
-		virtual bool get(vec2p& val) = 0;
-		virtual bool get(vec3p& val) = 0;
-		virtual bool get(vec4p& val) = 0;
-
-		virtual bool get(ivec2p& val) = 0;
-		virtual bool get(ivec3p& val) = 0;
-		virtual bool get(ivec4p& val) = 0;
-					 
-		virtual bool get(RCPtr<Texture>& val) = 0;
-		virtual bool get(RCPtr<Buffer>& val) = 0;
-
-		virtual bool getLimits(float& min, float& max) = 0;
-		virtual bool getLimits(int32_t& min, int32_t& max) = 0;
-
-		virtual bool getLimits(vec2p& min, vec2p& max) = 0;
-		virtual bool getLimits(vec3p& min, vec3p& max) = 0;
-		virtual bool getLimits(vec4p& min, vec4p& max) = 0;
-		
-		virtual bool getLimits(ivec2p& min, ivec2p& max) = 0;
-		virtual bool getLimits(ivec3p& min, ivec3p& max) = 0;
-		virtual bool getLimits(ivec4p& min, ivec4p& max) = 0;
-
 		virtual RendererVariableType getType() const = 0;
-
 		virtual ~RendererVariable(){}
 
+		template<typename T>
+		T* as()
+		{
+			if (getType() == T::getTypeStatic())
+			{
+				return static_cast<T*>(this);
+			}
+
+			return nullptr;
+		}
+
+	};
+
+	class RenderVariableFloat : public RendererVariable
+	{
+	public:
+		virtual void set(const float* values) = 0;
+		virtual const float* get() const = 0;
+		virtual bool getLimits(const float*& min, const float*& max) const = 0;
+		virtual size_t getComponentCount() const = 0;
+
+		static RendererVariableType getTypeStatic() { return RendererVariableType::FLOAT; }
+
+	protected:
+		virtual ~RenderVariableFloat() {}
+	};
+
+	class RenderVariableInt : public RendererVariable
+	{
+	public:
+		virtual void set(const int32_t* values) = 0;
+		virtual const int32_t* get() const = 0;
+		virtual bool getLimits(const int32_t*& min, const int32_t*& max) const = 0;
+		virtual size_t getComponentCount() const = 0;
+
+		static RendererVariableType getTypeStatic() { return RendererVariableType::INT; }
+
+	protected:
+		virtual ~RenderVariableInt() {}
+	};
+
+	class RenderVariableOptions : public RendererVariable
+	{
+	public:
+		virtual void set(const uint32_t val) = 0;
+		virtual uint32_t get() const = 0;
+		virtual const char* const* getOptions() const = 0;
+		virtual size_t getOptionsCount() const = 0;
+
+		static RendererVariableType getTypeStatic() { return RendererVariableType::OPTIONS; }
+
+	protected:
+		virtual ~RenderVariableOptions() {}
+	};
+
+	class RenderVariableTexture : public RendererVariable
+	{
+	public:
+		virtual void set(const RCPtr<Texture>& val) = 0;
+		virtual const RCPtr<Texture>& get() const = 0;
+
+		static RendererVariableType getTypeStatic() { return RendererVariableType::TEXTURE; }
+
+	protected:
+		virtual ~RenderVariableTexture() {}
+	};
+
+	class RenderVariableBuffer : public RendererVariable
+	{
+	public:
+		virtual void set(const RCPtr<Buffer>& val) = 0;
+		virtual const RCPtr<Buffer>& get() const = 0;
+
+		static RendererVariableType getTypeStatic() { return RendererVariableType::BUFFER; }
+
+	protected:
+		virtual ~RenderVariableBuffer() {}
 	};
 
 	class RendererConfiguration

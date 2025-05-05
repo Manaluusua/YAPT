@@ -321,7 +321,7 @@ namespace YAPT
 
 		//update miss
 		{
-			RCPtr<Texture> skymap = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX);
+			RCPtr<Texture> skymap = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
 			RayMissShaderTableConstantData missConstantData;
 
 			bool hasValidEnvtex = false;

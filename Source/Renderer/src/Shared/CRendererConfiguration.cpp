@@ -13,7 +13,7 @@ namespace YAPT
 	}
 	CRendererConfiguration::~CRendererConfiguration()
 	{
-		clear();
+
 	}
 
 
@@ -70,67 +70,24 @@ namespace YAPT
 		m_dirtyVariables.push_back(cb);
 	}
 
-	RendererVariable* CRendererConfiguration::registerVariable(const char* name, RendererVariableType type)
+
+	void CRendererConfiguration::registerVariable(const char* name, RendererVariable* var)
 	{
 		std::string str(name);
 		auto iter = m_vars.find(str);
 
-		RendererVariable* retVal = nullptr;
 		if (iter != m_vars.end())
 		{
-			if (iter->second->getType() != type)
+			if (iter->second->getType() != var->getType())
 			{
 				YAPT_LOG_FATAL_ERROR("Trying to register render configuration variable %s with different type than what is already registered", name);
-				return retVal;
 			}
-			
-		}
-		else
-		{
-			switch (type)
-			{
-			case YAPT::RendererVariableType::FLOAT:
-				retVal = new CRendererVariable<float, RendererVariableType::FLOAT>(this);
-				break;
-			case YAPT::RendererVariableType::INT:
-				retVal = new CRendererVariable<int32_t, RendererVariableType::INT>(this);
-				break;
-			case YAPT::RendererVariableType::VEC2:
-				retVal = new CRendererVariable<vec2p, RendererVariableType::VEC2>(this);
-				break;
-			case YAPT::RendererVariableType::VEC3:
-				retVal = new CRendererVariable<vec3p, RendererVariableType::VEC3>(this);
-				break;
-			case YAPT::RendererVariableType::VEC4:
-				retVal = new CRendererVariable<vec4p, RendererVariableType::VEC4>(this);
-				break;
-			case YAPT::RendererVariableType::IVEC2:
-				retVal = new CRendererVariable<ivec2p, RendererVariableType::IVEC2>(this);
-				break;
-			case YAPT::RendererVariableType::IVEC3:
-				retVal = new CRendererVariable<ivec3p, RendererVariableType::IVEC3>(this);
-				break;
-			case YAPT::RendererVariableType::IVEC4:
-				retVal = new CRendererVariable<ivec4p, RendererVariableType::IVEC4>(this);
-				break;
-			case YAPT::RendererVariableType::TEXTURE:
-				retVal = new CRendererVariable<RCPtr<Texture>, RendererVariableType::TEXTURE>(this);
-				break;
-			case YAPT::RendererVariableType::BUFFER:
-				retVal = new CRendererVariable<RCPtr<Buffer>, RendererVariableType::BUFFER>(this);
-				break;
-			default:
-				YAPT_LOG_FATAL_ERROR("Tried to instantiate unknown renderer variable type");
-				break;
-			}
+			delete var;
 		}
 
-		if (retVal)
-		{
-			m_vars[str] = retVal;
-		}
 
-		return retVal;
+		m_vars[str] = var;
+
 	}
 
 }

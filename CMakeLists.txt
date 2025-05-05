@@ -77,7 +77,6 @@ add_subdirectory(${YAPT_SRC_DIR}/Common)
 add_subdirectory(${YAPT_SRC_DIR}/Gfx)
 add_subdirectory(${YAPT_SRC_DIR}/Renderer)
 add_subdirectory(${YAPT_SRC_DIR}/Scene)
-add_subdirectory(${YAPT_SRC_DIR}/Gui)
 add_subdirectory(${YAPT_SRC_DIR}/AssetLoader)
 add_subdirectory(${YAPT_SRC_DIR}/Python)
 

@@ -82,7 +82,7 @@ namespace YAPT
 	bool PathTraceStage::hasSceneChanged()
 	{
 		bool objectsChanged =  getRenderer()->getMaterialManager().hasChanges() || getRenderer()->getMeshManager().hasChanges() || getRenderer()->getRenderObjectManager().hasChanges();
-		bool skymapChanged = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX) != m_lastEnvMap;
+		bool skymapChanged = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX) != m_lastEnvMap;
 		
 		return objectsChanged || skymapChanged;
 	}
@@ -123,7 +123,7 @@ namespace YAPT
 			m_firstTimeUpdate = false;
 			m_accelerationStructureNeedsRebuild = true;
 
-			m_lastEnvMap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<RCPtr<Texture>>(RVARNAME_SKYBOX);
+			m_lastEnvMap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
 		}
 
 		CombineSamplesSubStage::UpdateParams combineUpdate;
