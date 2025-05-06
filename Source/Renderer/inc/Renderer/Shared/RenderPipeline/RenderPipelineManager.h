@@ -19,10 +19,12 @@ namespace YAPT
 		void activatePipeline(RenderPipeline* p);
 		void deactivatePipeline(RenderPipeline* p);
 
+		void checkPipelineChange();
+
 		std::vector<RenderPipeline*> m_pipelines;
 		RenderPipeline* m_activePipeline;
 		CRenderer* m_renderer;
-
+		int32_t m_lastSelectedRenderPipelineIndex;
 	};
 	
 }

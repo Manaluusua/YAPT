@@ -2,9 +2,9 @@
 #define PAYLOAD_HLSL_INCL
 
 //the resources needed are defined in raytraceCommonResources.hlsl
-#include "RayState.hlsl"
+#include "rayState.hlsl"
 
-struct Payload : RayStateInterface
+struct Payload //: RayStateInterface
 {
 	uint getRayIndex()
 	{

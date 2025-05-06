@@ -126,7 +126,7 @@ namespace YAPT
 			free();
 
 			BufferDesc desc;
-			desc.resourceUsage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER;
+			desc.resourceUsage = m_usage;
 			desc.sizeInBytes = numberOfEntries * m_alignedEntrySize;
 			ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
 			m_bufferHandle = Gfx::createBuffer(m_gfxHandle, desc, state, "PerObjectData");

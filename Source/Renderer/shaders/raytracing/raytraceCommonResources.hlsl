@@ -210,6 +210,6 @@ MeshEntryGPU getMeshEntry(uint index)
 }
 
 #include "spectralDistribution.hlsl"
-#include "RayState.hlsl"
+#include "rayState.hlsl"
 
 #endif
