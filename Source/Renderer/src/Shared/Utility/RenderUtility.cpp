@@ -33,41 +33,41 @@ namespace YAPT
 
 		if (mappings.size() != numberOfAttributes) return false;
 
-		m_attributes.resize(numberOfAttributes);
-
-		m_vertexBufferDefs.resize(info.vertexBufferConfigurations.size());
-		for (size_t i = 0; i < m_vertexBufferDefs.size(); ++i)
-		{
-			m_vertexBufferDefs[i].numberOfVertexAttributes = 0;
-			m_vertexBufferDefs[i].vertexInputRate = 0;
-			m_vertexBufferDefs[i].stride = info.vertexBufferConfigurations[i].stride;
-		}
-
-
 		std::sort(mappings.data(), mappings.data() + mappings.size(), [](const FoundMapping& a, const FoundMapping& b)
+		{
+			if (a.bufferIndex == b.bufferIndex)
 			{
-				if (a.bufferIndex == b.bufferIndex)
-				{
-					return a.attributeIndex < b.attributeIndex;
-				}
-				else
-				{
-					return a.bufferIndex < b.bufferIndex;
-				}
-			});
+				return a.attributeIndex < b.attributeIndex;
+			}
+			else
+			{
+				return a.bufferIndex < b.bufferIndex;
+			}
+		});
+		
 
-		size_t currentBufferIndex = 0;
-		m_vertexBufferDefs[0].attributes = m_attributes.data();
+		m_attributes.resize(numberOfAttributes);
+		m_vertexBufferDefs.reserve(info.vertexBufferConfigurations.size());
+
+		size_t currentBufferIndex = size_t(-1);
+		//m_vertexBufferDefs[0].attributes = m_attributes.data();
 		for (size_t i = 0; i < mappings.size(); ++i)
 		{
 			const FoundMapping& mapping = mappings[i];
 			if (mapping.bufferIndex != currentBufferIndex)
 			{
-				m_vertexBufferDefs[mapping.bufferIndex].attributes = &m_attributes[i];
+				VertexBufferDefinition def;
+				def.numberOfVertexAttributes = 0;
+				def.vertexInputRate = 0;
+				def.stride = info.vertexBufferConfigurations[mapping.bufferIndex].stride;
+				def.attributes = &m_attributes[i];
+				m_vertexBufferDefs.push_back(def);
+				m_vertexBufferDefinitionToBufferIndexMapping.push_back(mapping.bufferIndex);
+
 				currentBufferIndex = mapping.bufferIndex;
 			}
 			
-			m_vertexBufferDefs[mapping.bufferIndex].numberOfVertexAttributes += 1;
+			m_vertexBufferDefs.back().numberOfVertexAttributes += 1;
 			VertexInputAttribute& attrib = m_attributes[i];
 			attrib.format = info.vertexBufferConfigurations[mapping.bufferIndex].attributes[mapping.attributeIndex].format;
 			attrib.perVertexOffset = info.vertexBufferConfigurations[mapping.bufferIndex].offsetFromVertexStart[mapping.attributeIndex];

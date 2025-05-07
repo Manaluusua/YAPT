@@ -221,13 +221,11 @@ namespace YAPT
 				if (mesh != lastMesh)
 				{
 					buffers.clear();
-					for (size_t vbuff = 0; vbuff < mesh->getLayoutInfo().vertexBufferConfigurations.size(); ++vbuff)
+
+					for (size_t vBuffDefIndex = 0; vBuffDefIndex < meshMappingUtility.getNumberOfVertexBufferDefinitions(); ++vBuffDefIndex)
 					{
-						assert(vbuff < meshMappingUtility.getNumberOfVertexBufferDefinitions());
-						if (meshMappingUtility.getVertexBufferDefinitions()[vbuff].numberOfVertexAttributes > 0)
-						{
-							buffers.push_back(mesh->getVertexBuffer(vbuff).bufferView);
-						}
+						size_t vBuffIndex = meshMappingUtility.getBufferIndexForDefinitionAtIndex(vBuffDefIndex);
+						buffers.push_back(mesh->getVertexBuffer(vBuffIndex).bufferView);
 					}
 
 					Gfx::setVertexBuffers(gfx, execContext.cmdBuffer, buffers.data(), buffers.size(), 0);
