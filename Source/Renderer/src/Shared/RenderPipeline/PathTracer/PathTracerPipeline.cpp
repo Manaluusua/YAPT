@@ -6,7 +6,8 @@
 namespace YAPT
 {
 
-	PathTracerPipeline::PathTracerPipeline()
+	PathTracerPipeline::PathTracerPipeline(PathTraceStage::PathIntegratorType type)
+		:m_pathTraceType(type)
 	{
 
 	}
@@ -33,7 +34,7 @@ namespace YAPT
 
 	void PathTracerPipeline::setupRenderPipeline()
 	{
-		PathTraceStage* rtStage = new PathTraceStage(&m_matManager, &m_meshManager);
+		PathTraceStage* rtStage = new PathTraceStage(&m_matManager, &m_meshManager, m_pathTraceType);
 		TonemapStage* tstage = new TonemapStage(true);
 		SwapChainStage* scStage = new SwapChainStage;
 

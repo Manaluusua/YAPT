@@ -32,6 +32,8 @@ namespace YAPT
 		m_graph = Gfx::createRenderGraph(m_renderer->getGfxHandle());
 		m_renderResolutionDependantResources = new RenderResourcesPool(m_renderer->getGfxHandle());
 		m_renderGraphLifetimeResources = new RenderResourcesPool(m_renderer->getGfxHandle());
+		
+		
 		setupRenderPipeline();
 
 		m_firstPrepareAfterInit = true;
@@ -55,6 +57,8 @@ namespace YAPT
 			delete m_stages[i];
 		}
 		m_stages.clear();
+
+
 
 		m_renderResolutionDependantResources->deallocate();
 		delete m_renderResolutionDependantResources;

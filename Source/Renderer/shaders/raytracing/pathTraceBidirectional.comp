@@ -1,0 +1,21 @@
+#include "../globalDefinitions.hlsl"
+#include "materialSample.hlsl"
+#include "materialModifiers.hlsl"
+
+[numthreads(8, 8, 1)]
+void traceCameraRays( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	
+}
+
+[numthreads(8, 8, 1)]
+void traceLightRays( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	
+}

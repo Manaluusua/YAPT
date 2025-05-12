@@ -20,6 +20,9 @@ float3 generateRayDirection(float2 uv)
 }
 
 
+RaytracingAccelerationStructure g_accelerationStructure : register(t0, space3);
+RWTexture2D<float4> g_outputColor : register(u1, space3);
+
 [shader("raygeneration")]
 void rayGenPrimaryRays()
 {
@@ -59,7 +62,7 @@ void rayGenPrimaryRays()
 			ray.TMin = 0.0001f;
 			ray.TMax = 1000.0;
 		
-			TraceRay(g_scene,
+			TraceRay(g_accelerationStructure,
 			rayFlags,
 			InstanceInclusionMask,
 			RayContributionToHitGroupIndex,

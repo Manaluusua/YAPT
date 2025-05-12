@@ -424,45 +424,18 @@ namespace YAPT
 		delete m;
 	}
 
-	CommandBufferPoolVk* ResourceManagerVk::createAutoResetCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId)
+	CommandBufferPoolVk* ResourceManagerVk::createCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId)
 	{
 		CommandBufferPoolVk* pool = new CommandBufferPoolVk(m_device);
 		pool->initialize(m_pipelineLength, numberOfBuffersPerFrame, (uint32_t)queueId);
-		{
-			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
-			m_commandBufferPools.push_back(pool);
-		}
+
 		
 		return pool;
 	}
-	void ResourceManagerVk::destroyAutoResetCommandBufferPool(CommandBufferPoolVk* pool)
+	void ResourceManagerVk::destroyCommandBufferPool(CommandBufferPoolVk* pool)
 	{
-		{
-			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
-			//removing by traversing the list, inefficint, fix later
-			auto iter = std::find(m_commandBufferPools.begin(), m_commandBufferPools.end(), pool);
-			if (iter != m_commandBufferPools.end())
-			{
-				std::iter_swap(iter, m_commandBufferPools.end() - 1);
-				m_commandBufferPools.pop_back();
-			}
-			
-		}
-
 		pool->deinitialize();
 		delete pool;
-
-	}
-	void ResourceManagerVk::resetCommandBufferPools(size_t frameIndex)
-	{
-		//reset command buffer pools
-		{
-			std::unique_lock<std::mutex> lock(m_commandBufferPoolsMutex);
-			for (size_t i = 0; i < m_commandBufferPools.size(); ++i)
-			{
-				m_commandBufferPools[i]->resetPool(frameIndex);
-			}
-		}
 	}
 
 }

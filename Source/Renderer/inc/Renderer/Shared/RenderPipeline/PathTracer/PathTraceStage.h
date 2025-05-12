@@ -1,7 +1,7 @@
 #pragma once
 
+#include <Renderer/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.h>
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
-#include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h>
 #include <Gfx/RenderGraph/RaytraceNode.h>
 #include <Gfx/RenderGraph/RenderNode.h>
@@ -17,17 +17,23 @@ namespace YAPT
 	class Texture;
 	class BindlessMaterialManager;
 	class BindlessMeshManager;
-	class PathTraceStage final : public RenderStage, PathIntegratorSubStage::AccelerationStructureProvider
+	class PathIntegratorSubStage;
+	class PathTraceStage final : public RenderStage, AccelerationStructureProvider
 	{
 	public:
-		 
+		enum class PathIntegratorType
+		{
+			BACKWARDS,
+			BIDIRECTIONAL
+		};
+
 		enum RaytraceStageConnection
 		{
 			RAYTRACE_STAGE_CONNECTION_COLOR
 		};
 		 
-		PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
-		~PathTraceStage();
+		PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, PathIntegratorType type);
+		virtual ~PathTraceStage();
 
 		//RenderStage
 		virtual void initialize() final;
@@ -41,7 +47,8 @@ namespace YAPT
 		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) final;
 
 		//AccelerationStructureProvider
-		virtual TopLevelAccelerationStructureHandle getAccelerationStructure(CommandBufferHandle cmd) final;
+		virtual void prepareAccelerationStructure() final;
+		virtual TopLevelAccelerationStructureHandle getAccelerationStructure() final;
 
 		void setRayTraceResolutionReductionFactor(uint32_t factor); //0 fullres, 1 is dimensions/2^1, 2 is dimensions/2^2 etc 
 
@@ -57,6 +64,7 @@ namespace YAPT
 		uint64_t getCurrentNumberOfSamplesPerPixel();
 		void updateInstanceOffsets();
 
+		CommandBufferPoolHandle m_cmdBufferPool;
 
 		BindlessMaterialManager* m_matMngr;
 		BindlessMeshManager* m_meshMngr;
@@ -65,7 +73,7 @@ namespace YAPT
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 		size_t m_totalInstanceCount;
 
-		PathIntegratorSubStage m_rtStage;
+		PathIntegratorSubStage* m_rtStage;
 		CombineSamplesSubStage m_mergeStage;
 
 		uint32_t m_raysPerFrameWidth;

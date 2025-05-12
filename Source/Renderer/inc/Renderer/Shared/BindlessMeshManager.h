@@ -32,6 +32,8 @@ namespace YAPT
 		size_t getEntryIndexForMeshIdAndSubmesh(MeshIndex id, size_t submeshIndex) { return m_meshIDToBufferIndex[id] + submeshIndex; }
 
 	private:
+
+		void syncMeshStateToGPU();
 		CRenderer* m_renderer;
 		DynamicSizeGpuBufferHelper<MeshEntryGPU> m_gpuBuffer;
 		std::vector<size_t> m_meshIDToBufferIndex;

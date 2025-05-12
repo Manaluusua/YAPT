@@ -70,6 +70,7 @@ namespace YAPT
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name);
 		void destroyCommandBufferPool(GfxApiHandle h, CommandBufferPoolHandle group);
 
+		void resetCommandPool(GfxApiHandle h, CommandBufferPoolHandle pool);
 		CommandBufferHandle startRecording(GfxApiHandle h, CommandBufferPoolHandle pool, size_t bufferIndex);
 		void stopRecording(GfxApiHandle h, CommandBufferHandle buff);
 

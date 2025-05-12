@@ -27,7 +27,6 @@ namespace YAPT
 			BottomLevelAccelerationStructure* blas = new BottomLevelAccelerationStructure(m_resourceMngr, def);
 			blas->allocate(VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR, VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR);
 			blasArrayOut[blasInd] = blas;
-			
 		}
 
 
@@ -54,7 +53,7 @@ namespace YAPT
 		//ensure scratch
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchBuffer.memoryRequirements.alignment);
 			ensureScratch(scratchSize);
 		}
 
@@ -63,9 +62,9 @@ namespace YAPT
 		size_t batchOffset = 0;
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchBuffer.memoryRequirements.alignment);
 
-			if (usedScratchMemory + scratchSize >= m_scratchMemoryReqs.size)
+			if (usedScratchMemory + scratchSize >= m_scratchBuffer.memoryRequirements.size)
 			{
 				//flush
 				flush(batchOffset, i - batchOffset);
@@ -129,7 +128,7 @@ namespace YAPT
 		//ensure scratch
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchBuffer.memoryRequirements.alignment);
 			ensureScratch(scratchSize);
 		}
 
@@ -138,9 +137,9 @@ namespace YAPT
 		size_t batchOffset = 0;
 		for (size_t i = 0; i < numberOfStructures; ++i)
 		{
-			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchMemoryReqs.alignment);
+			VkDeviceSize scratchSize = align(tlasArray[i]->getSizesInfo().buildScratchSize, m_scratchBuffer.memoryRequirements.alignment);
 
-			if (usedScratchMemory + scratchSize >= m_scratchMemoryReqs.size)
+			if (usedScratchMemory + scratchSize >= m_scratchBuffer.memoryRequirements.size)
 			{
 				//flush
 				flush(batchOffset, i - batchOffset);
@@ -171,19 +170,18 @@ namespace YAPT
 		if (m_scratchBuffer.buffer != VK_NULL_HANDLE)
 		{
 			m_scratchBuffer.dealloc(m_resourceMngr);
-			m_scratchMemoryReqs.size = 0;
+			m_scratchBuffer.memoryRequirements.size = 0;
 		}
 		
 	}
 	void AccelerationStructureBuilder::allocateScratch(VkDeviceSize sizeInBytes)
 	{
-
 		m_scratchBuffer.alloc(m_resourceMngr, sizeInBytes, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		
 	}
 	void AccelerationStructureBuilder::ensureScratch(VkDeviceSize sizeInBytes)
 	{
-		if (m_scratchMemoryReqs.size < sizeInBytes)
+		if (m_scratchBuffer.memoryRequirements.size < sizeInBytes)
 		{
 			freeScratch();
 			allocateScratch(sizeInBytes);

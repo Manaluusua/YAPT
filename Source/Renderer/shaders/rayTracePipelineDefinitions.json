@@ -24,6 +24,23 @@
 				}
 			]
 		},
+		"cameraRaysBDPT": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "raytracing/pathTraceBidirectional.comp",
+					"entryPoint": "traceCameraRays"
+				}
+			]
+		},
+		"lightRaysBDPT": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "raytracing/pathTraceBidirectional.comp",
+					"entryPoint": "traceLightRays"
+				}
+			]
+		},
+		
 		"clearRaytraceMergeTarget": {
 			"stages": [{
 					"type": "compute",

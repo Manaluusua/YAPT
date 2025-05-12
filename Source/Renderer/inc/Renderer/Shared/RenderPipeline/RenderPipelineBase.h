@@ -43,7 +43,7 @@ namespace YAPT
 		RenderResourcesPool* m_renderGraphLifetimeResources;
 
 		std::vector<RenderStage*> m_stages;
-
+		
 
 		bool m_firstPrepareAfterInit;
 

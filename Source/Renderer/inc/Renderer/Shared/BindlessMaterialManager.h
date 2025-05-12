@@ -45,6 +45,9 @@ namespace YAPT
 		BufferViewHandle getBufferViewHandle() const { return m_gpuBuffer.getBufferViewHandle(); }
 
 	private:
+
+		void syncMaterialStateToGPU();
+
 		CRenderer* m_renderer;
 		DynamicSizeGpuBufferHelper<MaterialEntryGPU> m_gpuBuffer;
 		std::vector<size_t> m_materialIDToBufferIndex;

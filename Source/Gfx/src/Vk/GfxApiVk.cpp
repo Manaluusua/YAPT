@@ -300,11 +300,16 @@ namespace YAPT
 
 		CommandBufferPoolHandle createCommandBufferPool(GfxApiHandle h, size_t numberOfBuffersPerFrame, size_t queueId, const char* name)
 		{
-			return h->getResourceManager()->createAutoResetCommandBufferPool(numberOfBuffersPerFrame, queueId);
+			return h->getResourceManager()->createCommandBufferPool(numberOfBuffersPerFrame, queueId);
 		}
 		void destroyCommandBufferPool(GfxApiHandle h, CommandBufferPoolHandle pool)
 		{
-			h->getResourceManager()->destroyAutoResetCommandBufferPool(pool);
+			h->getResourceManager()->destroyCommandBufferPool(pool);
+		}
+
+		void resetCommandPool(GfxApiHandle h, CommandBufferPoolHandle pool)
+		{
+			pool->resetPool(h->getFramePipelineIndex());
 		}
 
 		CommandBufferHandle startRecording(GfxApiHandle h, CommandBufferPoolHandle grp, size_t bufferIndex)

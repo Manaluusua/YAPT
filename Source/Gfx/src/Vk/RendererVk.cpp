@@ -114,7 +114,6 @@ namespace YAPT
 	{
 		m_resourceManager->flushFrameUploads();
 		m_syncUtility.waitForNextFrame();
-		m_resourceManager->resetCommandBufferPools(m_syncUtility.getFrameIndex());
 	}
 	void RendererVk::executeEnd()
 	{

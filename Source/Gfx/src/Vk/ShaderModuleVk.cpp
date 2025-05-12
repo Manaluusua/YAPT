@@ -248,7 +248,9 @@ namespace YAPT
 
 				for (size_t i = 0; i < descSets.size(); ++i)
 				{
-					std::vector<ResourceBinding>& bindings = m_sortedBindings[i];
+					size_t descSetIndex = descSets[i]->set;
+
+					std::vector<ResourceBinding>& bindings = m_sortedBindings[descSetIndex];
 					SpvReflectDescriptorSet& descSetRefl = *descSets[i];
 
 					bindings.resize(descSetRefl.binding_count);

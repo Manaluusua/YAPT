@@ -57,9 +57,8 @@ namespace YAPT
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
 
-		CommandBufferPoolVk* createAutoResetCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId);
-		void destroyAutoResetCommandBufferPool(CommandBufferPoolVk* pool);
-		void resetCommandBufferPools(size_t pipelineFrameIndex);
+		CommandBufferPoolVk* createCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId);
+		void destroyCommandBufferPool(CommandBufferPoolVk* pool);
 
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 		AccelerationStructureBuilder* getAccelerationStructureBuilder() { return m_accStructBuilder; }
@@ -144,9 +143,6 @@ namespace YAPT
 
 		VmaAllocator m_allocator;
 
-		//command buffer pools
-		std::vector<CommandBufferPoolVk*> m_commandBufferPools;
-		std::mutex m_commandBufferPoolsMutex;
 
 		//pending destruction lists
 		std::vector<std::vector<DestroyResourceEntry>> m_pendingDestroyedObjects;

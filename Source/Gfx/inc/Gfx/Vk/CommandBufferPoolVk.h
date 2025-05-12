@@ -32,7 +32,6 @@ namespace YAPT
 		};
 
 		std::vector<CommandBufferPoolEntry> m_pools;
-
 		VkDevice m_device;
 		bool m_secondary;
 	};

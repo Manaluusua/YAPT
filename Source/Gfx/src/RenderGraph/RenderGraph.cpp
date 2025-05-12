@@ -476,6 +476,7 @@ namespace YAPT
 		beginExecution();
 
 		//execute nodes (TODO: multithreaded)
+		Gfx::resetCommandPool(m_gfxHandle, m_cmdBufferPool);
 
 		for (size_t cmdBufInd = 0; cmdBufInd < m_numberOfCmdBuffersPerFrame; ++cmdBufInd)
 		{

@@ -79,10 +79,13 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/SwapChainStage.h
 	inc/Renderer/Shared/RenderPipeline/MeshDebugStage.h
 	
+	inc/Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h
 	inc/Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h	
 	inc/Renderer/Shared/RenderPipeline/PathTracer/PathTraceStage.h
+	inc/Renderer/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.h	
 	inc/Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h
-	inc/Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h	
+	inc/Renderer/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.h	
+	inc/Renderer/Shared/RenderPipeline/PathTracer/BidirectionalPathIntegratorSubStage.h	
 )
 
 set(SOURCE
@@ -139,8 +142,10 @@ set(SOURCE
 	
 	src/Shared/RenderPipeline/PathTracer/PathTracerPipeline.cpp
 	src/Shared/RenderPipeline/PathTracer/PathTraceStage.cpp
+	src/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.cpp
 	src/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.cpp
-	src/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.cpp
+	src/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.cpp
+	src/Shared/RenderPipeline/PathTracer/BidirectionalPathIntegratorSubStage.cpp
 
 )
 

@@ -10,8 +10,8 @@ namespace YAPT
 
 	void RenderPipelineManager::initialize(const RenderPipeline::InitializeContext& cntx)
 	{
-		m_pipelines.push_back(new PathTracerPipeline());
-		m_pipelines.push_back(new PathTracerPipeline());
+		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BACKWARDS));
+		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BIDIRECTIONAL));
 		m_pipelines.push_back(new DebugDrawPipeline());
 
 		m_renderer = cntx.renderer;

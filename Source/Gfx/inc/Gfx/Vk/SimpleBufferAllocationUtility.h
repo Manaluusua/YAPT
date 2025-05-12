@@ -23,6 +23,7 @@ namespace YAPT
 		VkBuffer buffer;
 		Allocation deviceMemory;
 		VkDeviceAddress deviceAddress;
+		VkMemoryRequirements memoryRequirements;
 	};
 
 }

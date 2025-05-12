@@ -1,4 +1,4 @@
-#include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.h>
 #include <Gfx/RenderGraph/RenderGraph.h>
 
 #include <Renderer/Shared/BindlessTextureManager.h>
@@ -21,20 +21,20 @@ namespace YAPT
 	const size_t ENVIRONMENT_TYPE_CUBE = 1;
 	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
 
-	PathIntegratorSubStage::PathIntegratorSubStage()
+	BackwardsPathIntegratorSubStage::BackwardsPathIntegratorSubStage()
 		:m_raytracePso(YAPT_NULL_HANDLE),
-		m_rtDescSet(YAPT_NULL_HANDLE),
-		m_applySubpixelJitter(true)
+		m_rtCommonResourcesDescSet(YAPT_NULL_HANDLE),
+		m_rtMiscResourcesDescSet(YAPT_NULL_HANDLE)
 		
 	{
-		initSubpixelJitterSamples();
+
 	}
-	PathIntegratorSubStage::~PathIntegratorSubStage()
+	BackwardsPathIntegratorSubStage::~BackwardsPathIntegratorSubStage()
 	{
 
 	}
 
-	void PathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
+	void BackwardsPathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
 	{
 		m_graph = graph;
 		m_renderer = rend;
@@ -56,12 +56,13 @@ namespace YAPT
 		m_rtNode = m_graph->createRayTraceNode(1, slotdefsRtNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
-				static_cast<PathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
+				static_cast<BackwardsPathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
 			},
 			this, "RaytraceNode");
 	}
-	void PathIntegratorSubStage::shutdown()
+	void BackwardsPathIntegratorSubStage::shutdown()
 	{
+		m_raytraceCommon.shutdown();
 		if (m_raytracePso != YAPT_NULL_HANDLE)
 		{
 			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
@@ -70,7 +71,7 @@ namespace YAPT
 
 		m_shaderTableHelper.deinit();
 	}
-	void PathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
+	void BackwardsPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
 	{
 		ShaderLoader* loader = m_renderer->getShaderLoader();
 		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
@@ -185,12 +186,10 @@ namespace YAPT
 		m_shaderTableHelper.init(m_renderer, m_raytracePso, desc.rayGenShaderTableConstantsSizeInBytes,
 			desc.missShaderTableConstantsSizeInBytes, desc.hitGroupShaderTableConstantsSizeInBytes);
 
+		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 
-		m_rayTraceConstants.init(data.renderGraphLifetimeResources);
-		m_randomSamples.init(data.renderGraphLifetimeResources);
-		m_spectralDataConstants.init(data.renderGraphLifetimeResources);
 	}
-	void PathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
+	void BackwardsPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 		m_renderResolution = newResolution;
 
@@ -203,59 +202,32 @@ namespace YAPT
 		
 	}
 
-	void PathIntegratorSubStage::update(const PathIntegratorSubStage::UpdateParams& params)
+	void BackwardsPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
 	{
-		RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
-		float targetPixelWidth = 1.f / m_renderResolution.x;
-		float targetPixelHeight = 1.f / m_renderResolution.y;
-
-		//ray offset
-		vec2p rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
-		rayUVOffset += params.rayGenOffsetInTexels; //move to (target) pixel being updated (will be 0 if doing fullres rt)
-
-		//apply subpixel jitter
-		if (m_applySubpixelJitter)
-		{
-			uint32_t subpixelJitterSampleIndex = params.sampleOffset % NUMBER_OF_SUBPIXEL_JITTER_SAMPLES;
-			vec2p jitterSample = m_subpixelJitterSamples[subpixelJitterSampleIndex];
-			rayUVOffset.x += jitterSample.x * targetPixelWidth;
-			rayUVOffset.y += jitterSample.y * targetPixelHeight;
-		}
-
-		vec4 camPos(0.f, 0.f, 0.f, 1.f);
-		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
-		camPos = viewToWorld * camPos;
-
-		rtConstants->currentSampleIndex = uint32_t(params.sampleOffset % 0xFFFFFFFF);
-		rtConstants->maxRayDepth = 16;
-		rtConstants->rayUVOffset = rayUVOffset;
-		rtConstants->cameraPosition = camPos;
-
-		mat4 uvToViewTransform = glm::inverse(fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform());
-
-		rtConstants->uvToView = uvToViewTransform;
-		rtConstants->viewToWorld = viewToWorld;
-
-		//update samples
-		updateSampledWavelengths(params.sampleOffset);
-		if ((params.sampleOffset % NUMBER_OF_RANDOM_SAMPLES) == 0)
-		{
-			updateSamples(params.sampleOffset);
-		}
-
-		m_rayTraceConstants.flush();
-		
-		m_lastUpdateParams = params;
+		m_accStructProvider->prepareAccelerationStructure();
 	}
 
-	void PathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
+	void BackwardsPathIntegratorSubStage::update(const BackwardsPathIntegratorSubStage::UpdateParams& params)
+	{
+		RaytraceCommonResources::UpdateParams p;
+		p.rayGenOffsetInTexels = params.rayGenOffsetInTexels;
+		p.raysPerFrame = params.raysPerFrame;
+		p.renderResolution = m_renderResolution;
+		p.sampleOffset = params.sampleOffset;
+		m_raytraceCommon.update(p);
+		
+		m_lastUpdateParams = params;
+
+	}
+
+	void BackwardsPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
 	{
 		*node = m_rtNode;
 		slotOut = 0;
 	}
 
 	//stride and offset are assumed in dwords (uint32/float32) in the shader
-	uvec2p PathIntegratorSubStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
+	uvec2p BackwardsPathIntegratorSubStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
 	{
 		glm::uvec2 v;
 		v.x = bufferOffset;
@@ -263,7 +235,7 @@ namespace YAPT
 		return v;
 	}
 
-	void PathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
+	void BackwardsPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
 	{
 
 		size_t matId = mat.getMaterialForSubmeshIndex(submeshIndex)->getID();
@@ -283,7 +255,7 @@ namespace YAPT
 		entry->shaderTableIndex = shaderTableIndex;
 	}
 
-	void PathIntegratorSubStage::updateShaderTable(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void BackwardsPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
 
 		bool emptyHitGroup = instancesCount == 0;
@@ -362,111 +334,35 @@ namespace YAPT
 		m_shaderTableHelper.flush();
 	}
 
-	void PathIntegratorSubStage::updateSamples(size_t sampleOffset)
-	{
-		MathUtils::generateHaltonSequence(NUMBER_OF_RANDOM_SAMPLES, m_randomSamples.getData()->samples, sampleOffset);
-		m_randomSamples.flush();
-	}
-
-	void PathIntegratorSubStage::updateSampledWavelengths(size_t sampleOffset)
-	{
-		SpectralDataConstants* data = m_spectralDataConstants.getData();
-		if ((sampleOffset % SPECTRAL_SAMPLESET_COUNT) == 0)
-		{
-			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> sampleLambdas;
-			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> samplePDFs;
-
-			for (uint32_t i = 0; i < SPECTRAL_SAMPLESET_COUNT; ++i)
-			{
-				float rand = MathUtils::halton<float>(11, sampleOffset + i);
-				SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, sampleLambdas.data() + i * SPECTRAL_SAMPLES_COUNT, samplePDFs.data() + i * SPECTRAL_SAMPLES_COUNT, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
-			}
-
-			memcpy(&data->spdSampleLambda, sampleLambdas.data(), sizeof(float) * sampleLambdas.size());
-			memcpy(&data->spdSamplePdf, samplePDFs.data(), sizeof(float) * samplePDFs.size());
-
-		}
-
-		data->sampleSetOffset = sampleOffset % SPECTRAL_SAMPLESET_COUNT;
-		m_spectralDataConstants.flush();
-	}
-
-	void PathIntegratorSubStage::initSubpixelJitterSamples()
-	{
-		MathUtils::generateHaltonSequence(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
-		//[0,1] -> [-0.5, 0.5], ie offsets from pixel center
-		for (size_t i = 0; i < NUMBER_OF_SUBPIXEL_JITTER_SAMPLES; ++i)
-		{
-			m_subpixelJitterSamples[i] = (m_subpixelJitterSamples[i] - vec2p(0.5f, 0.5f));
-		}
-
-	}
 
 
-	void PathIntegratorSubStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
+	void BackwardsPathIntegratorSubStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
 	{
 		//we will create the descset here since we need to acceleration structures done before this
 		{
-			if (m_rtDescSet != YAPT_NULL_HANDLE)
+			if (m_rtCommonResourcesDescSet != YAPT_NULL_HANDLE)
 			{
-				m_rtLayout.getDescriptorSetUtility(0).freeDescriptorSet(m_rtDescSet);
+				m_rtLayout.getDescriptorSetUtility(0).freeDescriptorSet(m_rtCommonResourcesDescSet);
 			}
+			m_rtCommonResourcesDescSet = m_rtLayout.getDescriptorSetUtility(0).getNewDescriptorSet();
 
-			m_rtDescSet = m_rtLayout.getDescriptorSetUtility(0).getNewDescriptorSet();
+			if (m_rtMiscResourcesDescSet != YAPT_NULL_HANDLE)
+			{
+				m_rtLayout.getDescriptorSetUtility(3).freeDescriptorSet(m_rtMiscResourcesDescSet);
+			}
+			m_rtMiscResourcesDescSet = m_rtLayout.getDescriptorSetUtility(3).getNewDescriptorSet();
+
+			m_raytraceCommon.updateCommonResourcesToDescriptorSet(m_rtCommonResourcesDescSet);
+
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
-			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure(exec.cmdBuffer);
-
-			BufferViewHandle meshEntriesBuffer = m_meshMngr->getBufferViewHandle();
-			BufferViewHandle materialEntriesBuffer = m_materialMngr->getBufferViewHandle();
-
-			TextureViewHandle noiseTex = m_renderer->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
-
-			TextureViewHandle singleScatterAlbedoNoFresnel = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoNoFresnel();
-			TextureViewHandle singleScatterAverageAlbedoNoFresnel = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterAverageDirectionalAlbedoNoFresnel();
-			TextureViewHandle singleAndMultiScatterAlbedo = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleAndMultiScatterDirectionalAlbedo();
-			TextureViewHandle singleAndMultiScatterAverageAlbedo = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleAndMultiScatterAverageDirectionalAlbedo();
-			TextureViewHandle singleScatterAlbedoTranslucentDenser = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoTranslucentToDenser();
-			TextureViewHandle singleScatterAverageAlbedoTranslucentLighter = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterDirectionalAlbedoTranslucentToLighter();
-
-			TextureViewHandle singleScatterAvgAlbedoTranslucentDenser = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterAverageAlbedoTranslucentToDenser();
-			TextureViewHandle singleScatterAvgAverageAlbedoTranslucentLighter = m_renderer->getCoreResources()->getMultiScatteringLUTs().getSingleScatterAverageAlbedoTranslucentToLighter();
-
-			TextureViewHandle sheenDirectionalAlbedo = m_renderer->getCoreResources()->getMultiScatteringLUTs().getDirectionalAlbedoSheen();
-
-			TextureViewHandle cieLUT = m_renderer->getCoreResources()->getSpectralUtility().getXYZColorMatchingLUT();
-			TextureViewHandle d65LUT = m_renderer->getCoreResources()->getSpectralUtility().getD65IlluminantLUT();
-			TextureViewHandle toSRGBLUT = m_renderer->getCoreResources()->getSpectralUtility().getSRGBToSPDLUT();
-			TextureViewHandle toREC2020LUT = m_renderer->getCoreResources()->getSpectralUtility().getREC2020ToSPDLUT();
-
+			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
 
 			DescriptorSetUpdate updates[] = {
-				{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
-				{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
-				{3, 0, 1, DescriptorPtr(m_spectralDataConstants.getViewPtr())},
-				{4, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
-				{5, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
-				
-				{6, 0, 1, DescriptorPtr(&accStruct) },
-				{7, 0, 1, DescriptorPtr(&rtOutputUav)},
-				{11, 0, 1, DescriptorPtr(&noiseTex)},
-
-				{12, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
-				{13, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
-				{14, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
-				{15, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
-				{16, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
-				{17, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
-				{18, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
-				{19, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
-				{20, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
-
-				{21, 0, 1, DescriptorPtr(&cieLUT)},
-				{22, 0, 1, DescriptorPtr(&d65LUT)},
-				{23, 0, 1, DescriptorPtr(&toREC2020LUT)},
-				{24, 0, 1, DescriptorPtr(&toSRGBLUT)},
-
+			{0, 0, 1, DescriptorPtr(&accStruct)},
+			{1, 0, 1, DescriptorPtr(&rtOutputUav)},
 			};
-			Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_rtDescSet, updates, countOf(updates));
+
+			Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_rtMiscResourcesDescSet, updates, countOf(updates));
 		}
 
 		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
@@ -475,9 +371,10 @@ namespace YAPT
 		Gfx::setRaytracePipelineState(gfx, exec.cmdBuffer, m_raytracePso);
 
 		DescriptorSetHandle bindings[] = {
-			 m_rtDescSet,
+			 m_rtCommonResourcesDescSet,
 			 texMngr->getTextureArrayDescSet(),
-			 buffMngr->getBufferArrayDescSet()
+			 buffMngr->getBufferArrayDescSet(),
+			 m_rtMiscResourcesDescSet
 		};
 		Gfx::bindDescriptorSets(gfx, exec.cmdBuffer, BindingPoint::BINDING_POINT_RAYTRACE, m_rtLayout.getPipelineLayoutHandle(), bindings, 0, countOf(bindings), nullptr, 0);
 

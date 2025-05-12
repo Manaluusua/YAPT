@@ -30,7 +30,6 @@ namespace YAPT
 
 		ResourceManagerVk& m_resourceMngr;
 		SimpleBufferAllocationUtility m_scratchBuffer;
-		VkMemoryRequirements m_scratchMemoryReqs;
 	};
 }
 

@@ -15,7 +15,8 @@
 #include <Renderer/Shared/TextureImpl.h>
 #include <Renderer/Shared/BufferImpl.h>
 
-
+#include <Renderer/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/BidirectionalPathIntegratorSubStage.h>
 
 using namespace YAPT::MathUtils;
 
@@ -23,7 +24,7 @@ namespace YAPT
 {
 
 
-	PathTraceStage::PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
+	PathTraceStage::PathTraceStage(BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, PathIntegratorType type)
 		:m_matMngr(matMngr),
 		m_meshMngr(meshMngr),
 		m_resolveTargetWidth(0),
@@ -32,18 +33,32 @@ namespace YAPT
 		m_accelerationStructureNeedsRebuild(true),
 		m_lastEnvMap(nullptr)
 	{
+		switch (type)
+		{
+		case YAPT::PathTraceStage::PathIntegratorType::BACKWARDS:
+			m_rtStage = new BackwardsPathIntegratorSubStage();
+			break;
+		case YAPT::PathTraceStage::PathIntegratorType::BIDIRECTIONAL:
+			m_rtStage = new BidirectionalPathIntegratorSubStage();
+			break;
+		default:
+			assert(!"Unknown PathIntegrator type");
+
+		}
 	}
 	PathTraceStage::~PathTraceStage()
 	{
-
+		delete m_rtStage;
 	}
 
 	void PathTraceStage::initialize()
 	{
-		m_rtStage.initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr);
+		m_cmdBufferPool = Gfx::createCommandBufferPool(getRenderer()->getGfxHandle(), 1, Gfx::getQueueId(getRenderer()->getGfxHandle(), QueueType::QUEUE_TYPE_GRAPHICS), nullptr);
+
+		m_rtStage->initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr);
 		RenderGraphNode* rtNode;
 		size_t rtSlot;
-		m_rtStage.getOutput(&rtNode, rtSlot);
+		m_rtStage->getOutput(&rtNode, rtSlot);
 
 		m_mergeStage.initialize(getRenderer(), getGraph());
 		m_mergeStage.setInput(rtNode, rtSlot);
@@ -54,7 +69,9 @@ namespace YAPT
 	} 
 	void PathTraceStage::shutdown()
 	{
-		m_rtStage.shutdown();
+		Gfx::destroyCommandBufferPool(getRenderer()->getGfxHandle(), m_cmdBufferPool);
+
+		m_rtStage->shutdown();
 		m_mergeStage.shutdown();
 		m_accStructureHelper.deinit();
 	}
@@ -68,7 +85,7 @@ namespace YAPT
 
 		uvec2 newRes = uvec2(m_resolveTargetWidth, m_resolveTargetHeight);
 
-		m_rtStage.onRenderResolutionChanged(data, newRes);
+		m_rtStage->onRenderResolutionChanged(data, newRes);
 		m_mergeStage.onRenderResolutionChanged(data, newRes);
 
 		clearAccumulatedFrames();
@@ -89,7 +106,7 @@ namespace YAPT
 
 	void PathTraceStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
 	{
-		m_rtStage.onRenderGraphCompiled(data);
+		m_rtStage->onRenderGraphCompiled(data);
 		m_mergeStage.onRenderGraphCompiled(data);
 	}
 
@@ -97,31 +114,54 @@ namespace YAPT
 
 	void PathTraceStage::prepare(const PrepareData& cntx)
 	{
+		
+		m_rtStage->prepare(cntx);
+		
 
 	}
 	void PathTraceStage::update(const UpdateData& cntx)
 	{
-		bool sceneHasChanges = hasSceneChanged();
-
-		if (sceneHasChanges || hasCameraMoved())
+		if (m_accelerationStructureNeedsRebuild || hasCameraMoved())
 		{
 			clearAccumulatedFrames();
 		}
 
-		if (sceneHasChanges || m_firstTimeUpdate)
+
+		if (m_accelerationStructureNeedsRebuild || m_firstTimeUpdate)
 		{
 			updateInstanceOffsets();
+
+			Gfx::resetCommandPool(getRenderer()->getGfxHandle(), m_cmdBufferPool);
+			CommandBufferHandle buff = Gfx::startRecording(getRenderer()->getGfxHandle(), m_cmdBufferPool, 0);
+			
+			m_accStructureHelper.updateBottomLevelStructures(buff);
+			
+			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
+			{
+				size_t shdTblOffset = m_instanceOffsetPerRenderObject[id];
+			
+				instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
+				instanceMaskOut = ~0;
+				hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
+			};
+			
+			m_accStructureHelper.updateTopLevelStructures(buff, assignPerInstanceParams);
+			m_accelerationStructureNeedsRebuild = false;
+			
+			
+			Gfx::stopRecording(getRenderer()->getGfxHandle(), buff);
+			Gfx::submitCommandBuffers(getRenderer()->getGfxHandle(), &buff, 1);
+
 			{
 				RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 				const RenderObjectId* ids = roMngr.getAllIds();
 				MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
 				MeshInternal** meshes = roMngr.getAllMeshes();
 				size_t entryCount = roMngr.getNumberOfObjects();
-				m_rtStage.updateShaderTable(ids, materials, meshes, m_instanceOffsetPerRenderObject.data(), entryCount, m_totalInstanceCount);
+				m_rtStage->sceneChanged(ids, materials, meshes, m_instanceOffsetPerRenderObject.data(), entryCount, m_totalInstanceCount);
 			}
 			
 			m_firstTimeUpdate = false;
-			m_accelerationStructureNeedsRebuild = true;
 
 			m_lastEnvMap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
 		}
@@ -137,7 +177,7 @@ namespace YAPT
 		integratorUpdate.sampleOffset = getCurrentNumberOfSamplesPerPixel();
 		integratorUpdate.rayGenOffsetInTexels = getCurrentRayGenerationOffset();
 		integratorUpdate.raysPerFrame = uvec2p(m_raysPerFrameWidth, m_raysPerFrameHeight);
-		m_rtStage.update(integratorUpdate);
+		m_rtStage->update(integratorUpdate);
 
 
 		updateAccumulatedFrames();
@@ -163,24 +203,17 @@ namespace YAPT
 		m_totalInstanceCount = instanceCount;
 	}
 
-
-	TopLevelAccelerationStructureHandle PathTraceStage::getAccelerationStructure(CommandBufferHandle cmd)
+	void PathTraceStage::prepareAccelerationStructure()
 	{
-		if (m_accelerationStructureNeedsRebuild)
-		{
-			m_accStructureHelper.updateBottomLevelStructures(cmd);
+		bool sceneHasChanges = hasSceneChanged() || m_firstTimeUpdate;
+		bool accelerationStructureShouldBeRebuilt = sceneHasChanges;
 
-			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
-			{
-				size_t shdTblOffset = m_instanceOffsetPerRenderObject[id];
+		m_accelerationStructureNeedsRebuild = m_accelerationStructureNeedsRebuild || accelerationStructureShouldBeRebuilt;
 
-				instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
-				instanceMaskOut = ~0;
-				hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
-			};
+	}
 
-			m_accStructureHelper.updateTopLevelStructures(cmd, assignPerInstanceParams);
-		}
+	TopLevelAccelerationStructureHandle PathTraceStage::getAccelerationStructure()
+	{
 		return m_accStructureHelper.getTopLevelAccelerationStructure();
 	}
 

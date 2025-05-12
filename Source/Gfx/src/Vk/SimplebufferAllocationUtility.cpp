@@ -30,6 +30,8 @@ namespace YAPT
 		assert(success);
 
 		deviceAddress = mngr.GetDeviceAddress(buffer);
+
+		vkGetBufferMemoryRequirements(mngr.getDevice(), buffer, &memoryRequirements);
 	}
 	void SimpleBufferAllocationUtility::dealloc(ResourceManagerVk& mngr)
 	{
