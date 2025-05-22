@@ -16,7 +16,7 @@ namespace YAPT
 		{
 			AccelerationStructureGeometryDefinition& geom = targetDef[i];
 			const SubmeshDefinition& sm = mesh->getSubmesh(i);
-			geom.vertexCount = info.numberOfVertices;
+			geom.vertexCount = info.numberOfVertices - sm.vertexOffset;
 			geom.vertexStrideInBytes = vertexBufferConfig.stride;
 			geom.vertexBufferOffsetInBytes = vBuffer.offsetInBytes + sm.vertexOffset * vertexBufferConfig.stride + vertexBufferConfig.offsetFromVertexStart[info.position0.attributeIndex];
 			geom.vertexFormat = vertexBufferConfig.attributes[info.position0.attributeIndex].format;

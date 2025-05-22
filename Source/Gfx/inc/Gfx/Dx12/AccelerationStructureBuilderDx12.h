@@ -26,8 +26,6 @@ namespace YAPT
 
 		AccelerationStructureBuilder(ResourceManagerDx12& resMngr);
 
-		
-
 		void allocateBottomLevelAccelerationStructures( const BottomLevelAccelerationStructureDefinition* definitions, size_t numberOfDefinitions, BottomLevelAccelerationStructureHandle* blasArrayOut);
 		void buildBottomLevelAccelerationStructures(GraphicsCommandListDx12* cmdList, BottomLevelAccelerationStructureHandle* blasArrayOut, size_t numberOfDefinitions);
 		void destroyBottomLevelAccelerationStructures(BottomLevelAccelerationStructureHandle* structures, size_t numberOfStructures);

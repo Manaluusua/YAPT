@@ -84,8 +84,8 @@ if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
 
-createGround()
+#createGround()
 createLight()
-letThereBeDragons()
+#letThereBeDragons()
 
 scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 250]));

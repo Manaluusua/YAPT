@@ -309,6 +309,11 @@ namespace YAPT
 			h->destroyCommandListPooler(pool);
 		}
 
+		void resetCommandPool(GfxApiHandle h, CommandBufferPoolHandle pool)
+		{
+			//NO OP on dx12
+		}
+
 		CommandBufferHandle startRecording(GfxApiHandle h, CommandBufferPoolHandle grp, size_t bufferIndex)
 		{
 			RCPtr<ID3D12CommandAllocator>& allocator = grp->getAllocator(bufferIndex);
