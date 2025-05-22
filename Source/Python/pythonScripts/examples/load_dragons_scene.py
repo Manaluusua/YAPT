@@ -83,9 +83,8 @@ env_map = resources.load_texture_from_path("D:/Random/3DSampleAssets/EnvMaps/env
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
-
-#createGround()
+createGround()
 createLight()
-#letThereBeDragons()
+letThereBeDragons()
 
 scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 250]));
