@@ -294,7 +294,7 @@ namespace YAPT
 			DescriptorSetUpdate updates[] = {
 				{2, 0, 1, DescriptorPtr(&generateHistogramBufferView)}
 			};
-			m_clearHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
+			m_clearHistogramPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 
 		}
 		//histogram generate
@@ -312,7 +312,7 @@ namespace YAPT
 				{1, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
 				{2, 0, 1, DescriptorPtr(&generateHistogramBufferView)}
 			};
-			m_generateHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
+			m_generateHistogramPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 
 			histogramConstants* histogramConstants = &m_tonemapConstants.getData()->histogramConstants;
 			histogramConstants->resolution = glm::uvec2(m_renderWidth, m_renderHeight);
@@ -340,7 +340,7 @@ namespace YAPT
 				{1, 0, 1,DescriptorPtr(m_tonemapConstants.getViewPtr())},
 				{2, 0, 1,DescriptorPtr(&analyzeResultsBufferView)}
 			};
-			m_analyzeHistogramPass.updateDescriptorSet(0, updates, countOf(updates));
+			m_analyzeHistogramPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 		}
 
 		//tonemapdata prepare
@@ -359,7 +359,7 @@ namespace YAPT
 				{1, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
 				{2, 0, 1, DescriptorPtr(&exposureInfoBufferView)}
 			};
-			m_preparetonemapDataPass.updateDescriptorSet(0, updates, countOf(updates));
+			m_preparetonemapDataPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 		}
 		 
 		//tonemap
@@ -378,7 +378,7 @@ namespace YAPT
 				{2, 0, 1, DescriptorPtr(m_tonemapConstants.getViewPtr())},
 				{3, 0, 1, DescriptorPtr(&exposureBufferViewHandle)}
 			};
-			m_tonemapPass.updateDescriptorSet(0, updates, countOf(updates));
+			m_tonemapPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 		}
 		
 

@@ -2,13 +2,171 @@
 #include "materialSample.hlsl"
 #include "materialModifiers.hlsl"
 
+struct BidirectionalPathTraceConstants
+{
+    uint envTextureIndex;
+	uint envType;
+};
+
+struct RenderObjectEntry
+{
+    uint2 meshAndMaterialIndices;
+};
+
+struct LightPathNode
+{
+	float4 normalPDF;
+	float4 positionDummy;
+};
+
+ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, space3);
+StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t1, space3);
+RaytracingAccelerationStructure g_accelerationStructure : register(t2, space3);
+RWTexture2D<float4> g_outputColor : register(u3, space3);
+
+RenderObjectEntry getRenderObject(uint index)
+{
+	return g_renderObjects[index];
+}
+
+float3 generateRayDirection(float2 uv)
+{
+	
+	float4 pointOnNearPlane = float4(uv, 0.0f, 1.0f);
+	
+	pointOnNearPlane = mul(g_uvToViewTransform, pointOnNearPlane);
+	pointOnNearPlane /= pointOnNearPlane.w;
+	pointOnNearPlane.w = 0;
+	
+	float3 worldDir = mul(g_viewToWorldTransform, pointOnNearPlane).xyz;
+	
+	float3 rayDir = normalize(worldDir);
+	return rayDir;
+}
+
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+
+	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
+    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
+	float3 rayOrigin = g_cameraPosition;
 	
+
+	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
+	uint InstanceInclusionMask = ~0;
+
+	RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+
+	RayDesc ray;
+	ray.Origin = rayOrigin;
+	ray.Direction = rayDir;
+	ray.TMin = 0.0001f;
+	ray.TMax = 1000.0;
+
+	q.TraceRayInline(
+        g_accelerationStructure,
+        rayFlags, 
+        InstanceInclusionMask,
+        ray);
+
+    q.Proceed();
+
+	float4 color = 0;
+    if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+		uint instanceInd = q.CommittedInstanceID();
+		uint primitiveIndex = q.CommittedPrimitiveIndex();
+		float t = q.CommittedRayT();
+		float2 barycentrics2 = q.CommittedTriangleBarycentrics();
+
+		RenderObjectEntry ro = getRenderObject(instanceInd);
+		MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
+
+
+		//Initial surface setup
+		float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
+		uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+		float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+		float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
+		float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
+
+		float3 rayDir = ObjectRayDirection();
+		rayDir = normalize(rayDir); //ObjectRayDirection() contains scaling (if present)
+
+		float3 normal = geometryNormal;
+
+		//fetch surface material parameters
+		MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
+		SurfaceDefinitionRGB surfaceDefRGB;
+		fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+
+		modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+		SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+		color.xyz = surfaceDef.albedo.ToRGB(COLORSPACE_DEFAULT, false);
+		color.a = 1.f;
+    }
+    else 
+    {
+        color = float4(0, 0, 0, 1);
+    }
+
+    
+	/*
+	if(payload.pathLength == 1)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+	} else if(payload.pathLength < 3)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+	} else if(payload.pathLength < 6)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 1.0f,  10.f);
+	} else if(payload.pathLength < 15)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 1.0f,  20.f);
+	}
+	else 
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 1.0f, 1.0f,  1.f);
+	}
+	return;
+	*/
+	
+	
+	/*
+	if(payload.numberVolumesEntered == 0 || payload.rayState == RAY_STATE_CANCELLED)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+	} else if(payload.numberVolumesEntered < 2)
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+	} else
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 1.0f,  1.f);
+	}
+	return;
+	*/
+	
+	/*
+	bool resultsValid = !payload.totalLight.hasNan();
+	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
+	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
+	{
+		g_outputColor[dispatchThreadId.xy] = color;
+	} 
+	else
+	{
+		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		//g_outputColor[dispatchThreadId.xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
+		//g_outputColor[dispatchThreadId.xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
+	}
+	*/
+	
+
 }
 
 [numthreads(8, 8, 1)]

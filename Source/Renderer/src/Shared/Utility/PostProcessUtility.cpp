@@ -16,7 +16,7 @@ namespace YAPT
 	{
 		deinit();
 	}
-	void PostProcessGraphicsPassUtility::init(CRenderer* r, RenderPassHandle renderPass, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers)
+	void PostProcessGraphicsPassUtility::init(CRenderer* r, RenderPassHandle renderPass, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs , size_t numberOfExplicitDescSetDefs)
 	{
 		m_renderer = r;
 		m_layout.initFromShaderReflection(m_renderer->getGfxHandle(), pipelineInfo->reflection);
@@ -33,6 +33,11 @@ namespace YAPT
 			}
 			SamplerHandle sampler = s.sampler;
 			m_layout.setStaticSamplers(nameMapping, &sampler);
+		}
+
+		for (size_t i = 0; i < numberOfExplicitDescSetDefs; ++i)
+		{
+			m_layout.setExplicitDescriptorSetLayout(explicitDescSetDefs[i].descSetIndex, explicitDescSetDefs[i].bindings, explicitDescSetDefs[i].bindingCount, explicitDescSetDefs[i].layoutHandle);
 		}
 
 		m_layout.compile();
@@ -68,18 +73,24 @@ namespace YAPT
 		}
 	}
 
-	void PostProcessGraphicsPassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	void PostProcessGraphicsPassUtility::reserveNewDescriptorSet(size_t index)
 	{
-		if (m_descSetHandles[index] != YAPT_NULL_HANDLE)
-		{
-			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
-		}
-		
+		freeDescSet(index);
 		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
-
 		m_descSetHandles[index] = newDescSet;
+	}
 
-		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
+	void PostProcessGraphicsPassUtility::reserveAndUpdateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	{
+		
+		reserveNewDescriptorSet(index);
+		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_descSetHandles[index], updates, updateCount);
+	}
+
+	void PostProcessGraphicsPassUtility::setExternallyOwnedDescriptorSet(size_t index, DescriptorSetHandle handle)
+	{
+		m_descSetHandles[index] = handle;
+		m_externallyOwnedDescSets |= 1ull << index;
 	}
 
 	void PostProcessGraphicsPassUtility::drawFullscreenPass(CommandBufferHandle commandBuffer)
@@ -98,6 +109,22 @@ namespace YAPT
 		Gfx::drawIndexed(gfx, commandBuffer, 3, 1, 0, 0, 0);
 	}
 
+	void PostProcessGraphicsPassUtility::freeDescSet(size_t index)
+	{
+		if (m_descSetHandles[index] == YAPT_NULL_HANDLE) return;
+
+		uint64_t descSetMask = (1ull << index);
+		if ((m_externallyOwnedDescSets & descSetMask) == 0)
+		{
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
+		}
+		else
+		{
+			m_externallyOwnedDescSets &= ~descSetMask;
+		}
+
+	}
+
 
 	////////////////////////////////////////////////////////////////////////////// PostProcessComputePassUtility Impl //////////////////////////////////////////////////////////////////////////////
 
@@ -111,7 +138,7 @@ namespace YAPT
 	{
 		deinit();
 	}
-	void PostProcessComputePassUtility::init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers)
+	void PostProcessComputePassUtility::init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs, size_t numberOfExplicitDescSetDefs)
 	{
 		m_renderer = r;
 		m_layout.initFromShaderReflection(m_renderer->getGfxHandle(), pipelineInfo->reflection);
@@ -128,6 +155,11 @@ namespace YAPT
 			}
 			SamplerHandle sampler = s.sampler;
 			m_layout.setStaticSamplers(nameMapping, &sampler);
+		}
+
+		for (size_t i = 0; i < numberOfExplicitDescSetDefs; ++i)
+		{
+			m_layout.setExplicitDescriptorSetLayout(explicitDescSetDefs[i].descSetIndex, explicitDescSetDefs[i].bindings, explicitDescSetDefs[i].bindingCount, explicitDescSetDefs[i].layoutHandle);
 		}
 
 		m_layout.compile();
@@ -160,18 +192,23 @@ namespace YAPT
 		}
 	}
 
-	void PostProcessComputePassUtility::updateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	void PostProcessComputePassUtility::reserveNewDescriptorSet(size_t index)
 	{
-		if (m_descSetHandles[index] != YAPT_NULL_HANDLE)
-		{
-			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
-		}
-
+		freeDescSet(index);
 		DescriptorSetHandle newDescSet = m_layout.getDescriptorSetUtility(index).getNewDescriptorSet();
-
 		m_descSetHandles[index] = newDescSet;
+	}
 
-		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), newDescSet, updates, updateCount);
+	void PostProcessComputePassUtility::reserveAndUpdateDescriptorSet(size_t index, const DescriptorSetUpdate* updates, size_t updateCount)
+	{
+		reserveNewDescriptorSet(index);
+		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_descSetHandles[index], updates, updateCount);
+	}
+
+	void PostProcessComputePassUtility::setExternallyOwnedDescriptorSet(size_t index, DescriptorSetHandle handle)
+	{
+		m_descSetHandles[index] = handle;
+		m_externallyOwnedDescSets |= 1ull << index;
 	}
 
 	void PostProcessComputePassUtility::dispatch(CommandBufferHandle commandBuffer, uint32_t x, uint32_t y, uint32_t z)
@@ -182,5 +219,21 @@ namespace YAPT
 		Gfx::bindDescriptorSets(gfx, commandBuffer, BindingPoint::BINDING_POINT_COMPUTE, m_layout.getPipelineLayoutHandle(), m_descSetHandles.data(), 0, m_descSetHandles.size(), nullptr, 0);
 
 		Gfx::dispatch(gfx, commandBuffer, x,y,z);
+	}
+
+	void PostProcessComputePassUtility::freeDescSet(size_t index)
+	{
+		if (m_descSetHandles[index] == YAPT_NULL_HANDLE) return;
+
+		uint64_t descSetMask = (1ull << index);
+		if ((m_externallyOwnedDescSets & descSetMask) == 0)
+		{
+			m_layout.getDescriptorSetUtility(index).freeDescriptorSet(m_descSetHandles[index]);
+		}
+		else
+		{
+			m_externallyOwnedDescSets &= ~descSetMask;
+		}
+
 	}
 }

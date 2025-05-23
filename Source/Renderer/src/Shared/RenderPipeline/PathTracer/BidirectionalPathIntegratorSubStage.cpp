@@ -17,15 +17,12 @@
 
 namespace YAPT
 {
-	const size_t ENVIRONMENT_TYPE_NONE = 0;
-	const size_t ENVIRONMENT_TYPE_CUBE = 1;
-	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
+	constexpr glm::uvec3 WG_SIZE = glm::uvec3(8, 8, 1);
 
 	BidirectionalPathIntegratorSubStage::BidirectionalPathIntegratorSubStage()
-		:m_raytracePso(YAPT_NULL_HANDLE),
-		m_rtCommonResourcesDescSet(YAPT_NULL_HANDLE),
-		m_rtMiscResourcesDescSet(YAPT_NULL_HANDLE)
-
+		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
+		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
+		m_lightPaths(RESOURCE_USAGE_STORAGE_BUFFER)
 	{
 
 	}
@@ -42,158 +39,121 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
-		RenderGraphNodeSlotDefinition slotdefsRtNode[] =
-		{ {ResourceDimension::TEXTURE_2D,
-			ResourceFormat::RGBA16_SFLOAT,
-			RESOURCE_USAGE_STORAGE_TEXTURE,
-			ACCESS_FLAGS_READ_WRITE,
-			SHADERSTAGE_RT_RAYGENERATION,
-			1,
-			1}
+		RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
+		{
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE)
+			},
+		};
+
+		RenderGraphNodeSlotDefinition slotdefsCameraRaysNode[] =
+		{ 
+			{
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::RGBA16_SFLOAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_RT_RAYGENERATION,
+				1,
+				1
+			},
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE)
+			}
 		};
 
 
-		m_rtNode = m_graph->createRayTraceNode(1, slotdefsRtNode, []
+		m_lightPathsNode = m_graph->createComputeNode(1, slotdefsLightPaths, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
+				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
 			},
-			this, "RaytraceNode");
+			this, "LightPathsNode");
+
+		m_cameraPathsNode = m_graph->createComputeNode(2, slotdefsCameraRaysNode, []
+		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+			{
+				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
+			},
+			this, "CameraPathsNode");
+
+		m_graph->createEdge(m_lightPathsNode, 0, m_cameraPathsNode, 1);
+
+		
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
-		if (m_raytracePso != YAPT_NULL_HANDLE)
-		{
-			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
-			m_raytracePso = YAPT_NULL_HANDLE;
-		}
+		m_lightPathHelperUtility.deinit();
+		m_cameraPathHelperUtility.deinit();
+		m_renderObjectsGPU.free();
+		m_lightPaths.free();
 
-		m_shaderTableHelper.deinit();
+
 	}
 	void BidirectionalPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
 	{
 		ShaderLoader* loader = m_renderer->getShaderLoader();
-		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
-		const ShaderLoader::ShaderPipelineInfo* rayHit = loader->getShaderPipeline("rayHitDefault");
-		const ShaderLoader::ShaderPipelineInfo* rayMiss = loader->getShaderPipeline("rayMissEnvironment");
 
-		ShaderPipelineReflection* reflArray[] = { rayGen->reflection, rayHit->reflection, rayMiss->reflection };
-		m_rtLayout.initRaytraceLayoutFromShaderReflections(m_renderer->getGfxHandle(), reflArray, countOf(reflArray));
+		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
+		BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
+		const DescriptorSetLayoutBinding& bindingTex = texMngr->getBindingDefinition();
+		const DescriptorSetLayoutBinding& bindingBuff = buffMngr->getBindingDefinition();
 
-		//texture and buffer array setup
+		ExplicitDescriptorSetDefinition explicitDescSetDefs[] =
 		{
-			BindlessTextureManager* texMngr = m_renderer->getTextureManager();
-			BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
-			const DescriptorSetLayoutBinding& bindingTex = texMngr->getBindingDefinition();
-			const DescriptorSetLayoutBinding& bindingBuff = buffMngr->getBindingDefinition();
-			m_rtLayout.setExplicitDescriptorSetLayout(1, &bindingTex, 1, texMngr->getLayout());
-			m_rtLayout.setExplicitDescriptorSetLayout(2, &bindingBuff, 1, buffMngr->getLayout());
+			{
+				1,
+				&bindingTex,
+				1,
+				texMngr->getLayout()
+			},
+			{
+				2,
+				&bindingBuff,
+				1,
+				buffMngr->getLayout()
+			}
+		};
 
-		}
 
-
-		//TODO: just go through all the pipelines and map the predefined static samplers
 		{
-			ShaderPipelineReflection::NameMapping nameMapping;
-			{
-				bool found = rayMiss->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_pointSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_lutSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
+			/*const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
+			m_lightPathHelperUtility.init(m_renderer, lightRays, nullptr, 0, explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_lightPathHelperUtility.createPipelineState();*/
 
 
 		}
 
-		m_rtLayout.compile();
-
-
-		if (m_raytracePso != YAPT_NULL_HANDLE)
 		{
-			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
+			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
+			m_cameraPathHelperUtility.init(m_renderer, cameraRays, nullptr, 0, explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_cameraPathHelperUtility.createPipelineState();
 		}
-		RaytracePipelineStateDesc desc;
-		RayTraceShaderConfig config;
 
-		ShaderStageCreateInfo shaderStages[3];
-
-
-		fillShaderModuleCreateInfo(rayGen->shaderModules[0], shaderStages[0]);
-		fillShaderModuleCreateInfo(rayHit->shaderModules[0], shaderStages[1]);
-		fillShaderModuleCreateInfo(rayMiss->shaderModules[0], shaderStages[2]);
-
-		RayGenerationDescription rayGenDescs[1] = { {0, 0} };
-		RayHitGroupDescription hitGroupDescs[] = { {"defaultHitGroup", 1, YAPT_NULL_INDEX, YAPT_NULL_INDEX, 0, HitGroupType::TRIANGLE} };
-		RayMissDescription rayMissDescs[1] = { {2, 0} };;
-
-		config.maxAttributeSizeInBytes = sizeof(float) * 2;
-		config.maxPayloadSizeInBytes = sizeof(RaytracePayload);
-
-		desc.numberOfShaders = countOf(shaderStages);
-		desc.shaders = shaderStages;
-
-		desc.layout = m_rtLayout.getPipelineLayoutHandle();
-
-		desc.configs = &config;
-		desc.numberOfConfigs = 1;
-
-		desc.hitGroupDescriptions = hitGroupDescs;
-		desc.numberOfHitGroupDescription = countOf(hitGroupDescs);
-		desc.hitGroupShaderTableConstantsSizeInBytes = sizeof(RayHitShaderTableConstantData);
-
-		desc.rayGenerationDescriptions = rayGenDescs;
-		desc.numberOfRayGenerationDescription = countOf(rayGenDescs);
-		desc.missShaderTableConstantsSizeInBytes = sizeof(RayMissShaderTableConstantData);
-
-		desc.rayMissDescriptions = rayMissDescs;
-		desc.numberOfRayMissDescription = countOf(rayMissDescs);
-		desc.rayGenShaderTableConstantsSizeInBytes = 0;
-
-		desc.maxTraceRecursionDepth = 2;
-
-		m_raytracePso = Gfx::createRaytracePipelineState(m_renderer->getGfxHandle(), desc);
-
-		m_shaderTableHelper.init(m_renderer, m_raytracePso, desc.rayGenShaderTableConstantsSizeInBytes,
-			desc.missShaderTableConstantsSizeInBytes, desc.hitGroupShaderTableConstantsSizeInBytes);
-
+		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
+		m_constantsGPU.init(data.renderGraphLifetimeResources);
+		m_lightPaths.init(m_renderer->getGfxHandle());
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
+
+		//dummy for now
+		{
+			RenderGraphResourceId lightPathsBuffer = m_lightPathsNode->getRenderGraphResourceIdForSlot(0);
+			m_lightPaths.allocate(1, "dummylightpaths");
+			m_graph->setRenderGraphResourceBuffer(lightPathsBuffer, m_lightPaths.getBufferHandle());
+		}
+		
 
 	}
 	void BidirectionalPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 		m_renderResolution = newResolution;
 
-		RenderGraphResourceId rtTarget = m_rtNode->getRenderGraphResourceIdForSlot(0);
+		RenderGraphResourceId rtTarget = m_cameraPathsNode->getRenderGraphResourceIdForSlot(0);
 		const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(rtTarget);
 
 		TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
@@ -222,79 +182,58 @@ namespace YAPT
 
 	void BidirectionalPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
 	{
-		*node = m_rtNode;
+		*node = m_cameraPathsNode;
 		slotOut = 0;
 	}
 
-	//stride and offset are assumed in dwords (uint32/float32) in the shader
-	uvec2p BidirectionalPathIntegratorSubStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
-	{
-		glm::uvec2 v;
-		v.x = bufferOffset;
-		v.y = bufferStride << 16 | (bufferIndex & 0xFFFF);
-		return v;
-	}
-
-	void BidirectionalPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
-	{
-
-		size_t matId = mat.getMaterialForSubmeshIndex(submeshIndex)->getID();
-		size_t meshId = mesh->getMeshIndex();
-
-		size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
-		size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, submeshIndex);
-
-		RayHitShaderTableConstantData rayHitConstants;
-		rayHitConstants.materialAndMeshIndices = uvec2p(matIndex, meshIndex);
-
-
-		entry->extraDataInBytes = sizeof(RayHitShaderTableConstantData);
-		memcpy(entry->shaderTableExtraData, &rayHitConstants, sizeof(RayHitShaderTableConstantData));
-
-		entry->shaderIndexInPso = 0;
-		entry->shaderTableIndex = shaderTableIndex;
-	}
 
 	void BidirectionalPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
 
-		bool emptyHitGroup = instancesCount == 0;
+		bool emptyScene = instancesCount == 0;
+		size_t numberOfEntriesNeeded = max((size_t)1, instancesCount);
 
-		m_shaderTableHelper.resize(1, 1, max((size_t)1, instancesCount));
+		m_renderObjectsGPU.allocate(numberOfEntriesNeeded, "RenderObjectsBuffer");
+		char* data = m_renderObjectsGPU.map(0, numberOfEntriesNeeded);
 
-		for (size_t i = 0; i < objectCount; ++i)
+		if (!emptyScene)
 		{
-			size_t shaderTableOffset = instanceOffsets[i];
-			for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
+			for (size_t i = 0; i < objectCount; ++i)
 			{
-				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
-				writeShaderTableEntryAndConstantData(shaderTableOffset + k, materials[i], meshes[i], k, entry);
+				size_t entryOffset = instanceOffsets[i];
+				for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
+				{
+					const MaterialPerSubmeshArray& mat = materials[i];
+					const MeshInternal* mesh = meshes[i];
+
+					size_t matId = mat.getMaterialForSubmeshIndex(k)->getID();
+					size_t meshId = mesh->getMeshIndex();
+
+					size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
+					size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, k);
+
+					RenderObjectEntry entry;
+					entry.materialAndMeshIndices = uvec2p(matIndex, meshIndex);
+
+					memcpy(data + (entryOffset + k) * m_renderObjectsGPU.getAlignedEntrySize(), &entry, sizeof(RenderObjectEntry));
+
+				}
+
 			}
-
 		}
-
-		if (emptyHitGroup)
+		else
 		{
-			ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
-			entry->shaderIndexInPso = 0;
-			entry->shaderTableIndex = 0;
-			entry->extraDataInBytes = 0;
+			RenderObjectEntry dummy;
+			dummy.materialAndMeshIndices = uvec2p(0, 0);
+			memcpy(data, &dummy, sizeof(dummy));
 		}
 
-
-		//update rayGen
-		{
-			ShaderTableEntry* entry = m_shaderTableHelper.appendRayGenUpdate();
-			entry->shaderIndexInPso = 0;
-			entry->shaderTableIndex = 0;
-			entry->extraDataInBytes = 0;
-		}
-
+		m_renderObjectsGPU.unmap();
 
 		//update miss
 		{
 			RCPtr<Texture> skymap = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
-			RayMissShaderTableConstantData missConstantData;
+			BidirectionalPathTraceConstants* constants = m_constantsGPU.getData();
 
 			bool hasValidEnvtex = false;
 
@@ -303,82 +242,70 @@ namespace YAPT
 				if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_CUBEMAP)
 				{
 					hasValidEnvtex = true;
-					missConstantData.envType = ENVIRONMENT_TYPE_CUBE;
+					constants->envType = ENVIRONMENT_TYPE_CUBE;
 
 				}
 				else if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_2D)
 				{
 					hasValidEnvtex = true;
-					missConstantData.envType = ENVIRONMENT_TYPE_LONGLAT;
+					constants->envType = ENVIRONMENT_TYPE_LONGLAT;
 				}
 			}
 
 			if (hasValidEnvtex)
 			{
-				missConstantData.envTextureIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
+				constants->envTextureIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
 			}
 			else
 			{
-				missConstantData.envType = ENVIRONMENT_TYPE_NONE;
-				missConstantData.envTextureIndex = uint32_t(-1);
+				constants->envType = ENVIRONMENT_TYPE_NONE;
+				constants->envTextureIndex = uint32_t(-1);
 			}
 
-			ShaderTableEntry* entry = m_shaderTableHelper.appendMissShaderUpdate();
-			entry->shaderIndexInPso = 0;
-			entry->shaderTableIndex = 0;
-			entry->extraDataInBytes = sizeof(RayMissShaderTableConstantData);
-			memcpy(entry->shaderTableExtraData, &missConstantData, sizeof(RayMissShaderTableConstantData));
+			m_constantsGPU.flush();
 		}
 
-
-		m_shaderTableHelper.flush();
 	}
 
 
-
-	void BidirectionalPathIntegratorSubStage::executeRaytrace(const RenderGraphNodeExecutionContext& exec)
+	void BidirectionalPathIntegratorSubStage::executeLightPathPass(const RenderGraphNodeExecutionContext& exec)
 	{
-		//we will create the descset here since we need to acceleration structures done before this
+
+	}
+	void BidirectionalPathIntegratorSubStage::executeCameraPathPass(const RenderGraphNodeExecutionContext& exec)
+	{
 		{
-			if (m_rtCommonResourcesDescSet != YAPT_NULL_HANDLE)
-			{
-				m_rtLayout.getDescriptorSetUtility(0).freeDescriptorSet(m_rtCommonResourcesDescSet);
-			}
-			m_rtCommonResourcesDescSet = m_rtLayout.getDescriptorSetUtility(0).getNewDescriptorSet();
+			m_cameraPathHelperUtility.reserveNewDescriptorSet(0);
+			DescriptorSetHandle descSetCommon = m_cameraPathHelperUtility.getDescriptorSet(0);
+			m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
 
-			if (m_rtMiscResourcesDescSet != YAPT_NULL_HANDLE)
-			{
-				m_rtLayout.getDescriptorSetUtility(3).freeDescriptorSet(m_rtMiscResourcesDescSet);
-			}
-			m_rtMiscResourcesDescSet = m_rtLayout.getDescriptorSetUtility(3).getNewDescriptorSet();
-
-			m_raytraceCommon.updateCommonResourcesToDescriptorSet(m_rtCommonResourcesDescSet);
-
-			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
+			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
-
+			BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
 			DescriptorSetUpdate updates[] = {
-			{0, 0, 1, DescriptorPtr(&accStruct)},
-			{1, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
+				{1, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
+				{2, 0, 1, DescriptorPtr(&accStruct)},
+				{3, 0, 1, DescriptorPtr(&rtOutputUav)},
 			};
 
-			Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_rtMiscResourcesDescSet, updates, countOf(updates));
+			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
+
+			BindlessTextureManager* texMngr = m_renderer->getTextureManager();
+			BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
+
+			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(1, texMngr->getTextureArrayDescSet());
+			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(2, buffMngr->getBufferArrayDescSet());
+
 		}
 
-		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
-		BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
-		GfxApiHandle gfx = m_renderer->getGfxHandle();
-		Gfx::setRaytracePipelineState(gfx, exec.cmdBuffer, m_raytracePso);
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE);
 
-		DescriptorSetHandle bindings[] = {
-			 m_rtCommonResourcesDescSet,
-			 texMngr->getTextureArrayDescSet(),
-			 buffMngr->getBufferArrayDescSet(),
-			 m_rtMiscResourcesDescSet
-		};
-		Gfx::bindDescriptorSets(gfx, exec.cmdBuffer, BindingPoint::BINDING_POINT_RAYTRACE, m_rtLayout.getPipelineLayoutHandle(), bindings, 0, countOf(bindings), nullptr, 0);
+		m_cameraPathHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);;
+		
 
-		Gfx::dispatchRays(gfx, exec.cmdBuffer, m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1, m_shaderTableHelper.getShaderTable());
 	}
+
+
 
 }

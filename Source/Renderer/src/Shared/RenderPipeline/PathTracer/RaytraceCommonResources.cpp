@@ -56,6 +56,7 @@ namespace YAPT
 		rtConstants->maxRayDepth = 16;
 		rtConstants->rayUVOffset = rayUVOffset;
 		rtConstants->cameraPosition = camPos;
+		rtConstants->targetTexDimensions = vec4p(params.renderResolution.x, params.renderResolution.y, targetPixelWidth, targetPixelHeight);
 
 		mat4 uvToViewTransform = glm::inverse(fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform());
 

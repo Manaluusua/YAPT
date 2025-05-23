@@ -63,5 +63,11 @@ namespace YAPT
 		};
 		return MultiplyDeBruijnBitPosition[((uint32_t)((value & -int32_t(value)) * 0x077CB531U)) >> 27];
 	}
+
+	template<typename T>
+	constexpr T DivRoundUp(T nom, T denom)
+	{
+		return (nom + (denom - T(1))) / denom;
+	}
 }
 

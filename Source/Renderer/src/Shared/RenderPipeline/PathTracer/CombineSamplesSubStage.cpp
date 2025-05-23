@@ -108,7 +108,7 @@ namespace YAPT
 					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&mergeTarget)},
 				};
-				m_clearMergeBufferPass.updateDescriptorSet(0, updates, countOf(updates));
+				m_clearMergeBufferPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
 
 			//Merge
@@ -121,7 +121,7 @@ namespace YAPT
 					{1, 0, 1, DescriptorPtr(&mergeSource)},
 					{2, 0, 1, DescriptorPtr(&mergeTarget)}
 				};
-				m_mergePass.updateDescriptorSet(0, updates, countOf(updates));
+				m_mergePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
 
 		}

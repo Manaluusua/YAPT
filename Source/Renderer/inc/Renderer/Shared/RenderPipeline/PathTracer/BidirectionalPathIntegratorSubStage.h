@@ -4,7 +4,7 @@
 #include <Renderer/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
-#include <Gfx/RenderGraph/RaytraceNode.h>
+#include <Gfx/RenderGraph/ComputeNode.h>
 
 namespace YAPT
 {
@@ -34,44 +34,26 @@ namespace YAPT
 
 	private:
 
-		struct RaytracePayload
-		{
-			float throughput[SPECTRAL_SAMPLES_COUNT];
-			float absorption[SPECTRAL_SAMPLES_COUNT];
-			float totalLight[SPECTRAL_SAMPLES_COUNT];
-			float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
-			vec3p rayOrigin;
-			uint32_t rayIndex;
-			vec3p rayDirection;
-			uint32_t pathLength;
-
-			uint32_t numberVolumesEntered;
-			uint32_t rayState;
-			uint32_t spectralSampleSetIndex;
-			uint32_t flags;
-		};
-
-		struct RayHitShaderTableConstantData
-		{
-			uvec2p materialAndMeshIndices;
-		};
-
-
-		struct RayMissShaderTableConstantData
+		struct BidirectionalPathTraceConstants
 		{
 			uint32_t envTextureIndex;
 			uint32_t envType;
 		};
-		//stride and offset are assumed in dwords (uint32/float32) in the shader
-		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
-		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry);
 
-		void initSubpixelJitterSamples();
+		struct RenderObjectEntry
+		{
+			uvec2p materialAndMeshIndices;
+		};
 
-		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
+		struct LightPathNode
+		{
+			vec4 normalPDF;
+			vec4 positionDummy;
+		};
 
-		void updateSamples(size_t sampleOffset);
-		void updateSampledWavelengths(size_t sampleOffset);
+		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
+		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
+
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
@@ -80,13 +62,16 @@ namespace YAPT
 		BindlessMaterialManager* m_materialMngr;
 		BindlessMeshManager* m_meshMngr;
 
-		ShaderTableHelper m_shaderTableHelper;
+		ComputeNode* m_lightPathsNode;
+		PostProcessComputePassUtility m_lightPathHelperUtility;
 
-		RaytraceNode* m_rtNode;
-		PipelineLayoutHelper m_rtLayout;
-		RaytracePipelineStateHandle m_raytracePso;
-		DescriptorSetHandle m_rtCommonResourcesDescSet;
-		DescriptorSetHandle m_rtMiscResourcesDescSet;
+		ComputeNode* m_cameraPathsNode;
+		PostProcessComputePassUtility m_cameraPathHelperUtility;
+
+		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
+		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
+
+		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPaths;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

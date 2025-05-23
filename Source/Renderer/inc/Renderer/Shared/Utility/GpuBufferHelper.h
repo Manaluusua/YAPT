@@ -153,6 +153,7 @@ namespace YAPT
 		}
 
 		BufferViewHandle getBufferViewHandle() const { return m_bufferView; }
+		BufferHandle getBufferHandle() const { return m_bufferHandle; }
 
 		char* map(size_t entryOffset, size_t entryCount)
 		{

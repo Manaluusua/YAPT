@@ -10,12 +10,16 @@ namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
+	constexpr size_t ENVIRONMENT_TYPE_NONE = 0;
+	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
+	constexpr size_t ENVIRONMENT_TYPE_LONGLAT = 2;
 
 	struct RaytraceConstantData
 	{
 		mat4p uvToView;
 		mat4p viewToWorld;
 		vec4p cameraPosition;
+		vec4p targetTexDimensions;
 		vec2p rayUVOffset;
 		uint32_t currentSampleIndex;
 		uint32_t maxRayDepth;

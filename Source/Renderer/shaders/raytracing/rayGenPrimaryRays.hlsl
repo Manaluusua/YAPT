@@ -28,7 +28,7 @@ void rayGenPrimaryRays()
 {
 
 	
-	float2 uv = (float2)DispatchRaysIndex() / ((float2)DispatchRaysDimensions());
+	float2 uv = (float2)DispatchRaysIndex() * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
 	

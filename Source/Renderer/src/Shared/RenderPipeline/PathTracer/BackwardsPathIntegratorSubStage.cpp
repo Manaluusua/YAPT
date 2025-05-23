@@ -17,9 +17,7 @@
 
 namespace YAPT
 {
-	const size_t ENVIRONMENT_TYPE_NONE = 0;
-	const size_t ENVIRONMENT_TYPE_CUBE = 1;
-	const size_t ENVIRONMENT_TYPE_LONGLAT = 2;
+	
 
 	BackwardsPathIntegratorSubStage::BackwardsPathIntegratorSubStage()
 		:m_raytracePso(YAPT_NULL_HANDLE),
@@ -224,15 +222,6 @@ namespace YAPT
 	{
 		*node = m_rtNode;
 		slotOut = 0;
-	}
-
-	//stride and offset are assumed in dwords (uint32/float32) in the shader
-	uvec2p BackwardsPathIntegratorSubStage::packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset)
-	{
-		glm::uvec2 v;
-		v.x = bufferOffset;
-		v.y = bufferStride << 16 | (bufferIndex & 0xFFFF);
-		return v;
 	}
 
 	void BackwardsPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)

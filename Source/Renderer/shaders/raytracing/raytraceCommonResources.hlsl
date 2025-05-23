@@ -9,6 +9,7 @@ struct RaytraceConstantData
 	float4x4 uvToView;
 	float4x4 viewToWorld;
 	float4 cameraPosition;
+	float4 targetTexDimensions;
 	float2 rayUVOffset;
 	uint currentSampleIndex;
 	uint maxRayDepth;
@@ -109,12 +110,14 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_cameraPosition g_rayGenConstants.cameraPosition.xyz
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
+#define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
 
 #define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
 #define g_randomSamples g_randomSampleLocations.samples
 
 #define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
 #define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
+
 
 //helper functions
 float4 getRandomSampleFloat4(uint offset)
@@ -203,6 +206,51 @@ MaterialEntryGPU getMaterialEntry(uint index)
 MeshEntryGPU getMeshEntry(uint index)
 {
 	return g_meshEntries[index];
+}
+
+float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)
+{
+	//keep in sync with c++
+	const uint ENVIRONMENT_TYPE_NONE = 0;
+	const uint ENVIRONMENT_TYPE_CUBE = 1;
+	const uint ENVIRONMENT_TYPE_LONGLAT = 2;
+
+
+
+	float4 color;
+
+	if (envType == ENVIRONMENT_TYPE_LONGLAT)
+	{
+		float2 uv = 0; //TODO: calculate from raydir
+		color = g_textures2D[NonUniformResourceIndex(texIndex)].SampleLevel(g_colorSampler, uv, 0);
+	}
+	else if (envType == ENVIRONMENT_TYPE_CUBE)
+	{
+		color = g_texturesCube[NonUniformResourceIndex(texIndex)].SampleLevel(g_colorSampler, rayDir, 0);
+	}
+	else
+	{
+		/*if (abs(dot(rayDir, float3(0, 1, 0))) > 0.707f)
+		{
+			color = float4(0, 0, 1, 1);
+		}
+		else
+		{
+			if (dot(rayDir, float3(1, 0, 0)) > 0)
+			{
+				color = float4(1, 0, 0, 1);
+			}
+			else
+			{
+				color = float4(0, 1, 0, 1);
+			}
+		}*/
+		
+		color = float4(abs(rayDir), 1);
+		
+	}
+	return color;
+	
 }
 
 #include "spectralDistribution.hlsl"

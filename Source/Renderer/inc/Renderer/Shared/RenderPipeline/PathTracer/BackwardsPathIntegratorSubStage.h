@@ -61,15 +61,9 @@ namespace YAPT
 			uint32_t envType;
 		};	
 		//stride and offset are assumed in dwords (uint32/float32) in the shader
-		static uvec2p packBufferInfo(uint32_t bufferIndex, uint32_t bufferStride, uint32_t bufferOffset);
 		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry);
 
-		void initSubpixelJitterSamples();
-
 		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
-
-		void updateSamples(size_t sampleOffset);
-		void updateSampledWavelengths(size_t sampleOffset);
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
