@@ -153,8 +153,7 @@ float getSpectralSampleLambdaPDF(uint index)
 
 uint getSpectralSampleSetIndex()
 {
-	uint spectralSampleSetIndex = (DispatchRaysIndex().x % 2) + (DispatchRaysIndex().y % 2) * 2;
-	spectralSampleSetIndex += g_spectralSamplingConstants.sampleSetOffset;
+	uint spectralSampleSetIndex = g_spectralSamplingConstants.sampleSetOffset;
 	spectralSampleSetIndex = spectralSampleSetIndex % SPECTRAL_SAMPLESET_COUNT;
 	return spectralSampleSetIndex;
 }

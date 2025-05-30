@@ -104,6 +104,10 @@ namespace YAPT
 		const DescriptorSetLayoutBinding& bindingTex = texMngr->getBindingDefinition();
 		const DescriptorSetLayoutBinding& bindingBuff = buffMngr->getBindingDefinition();
 
+		SamplerHandle samplerHandleLinRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
+		SamplerHandle samplerHandleNearestRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
+		SamplerHandle samplerHandleLinClamp = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
+
 		ExplicitDescriptorSetDefinition explicitDescSetDefs[] =
 		{
 			{
@@ -121,9 +125,28 @@ namespace YAPT
 		};
 
 
+		StaticSamplerEntry staticSamplers[] =
+		{
+			{
+				"g_colorSampler",
+				samplerHandleLinRep
+			},
+			{
+				"g_pointSampler",
+				samplerHandleNearestRep
+			},
+			{
+				"g_lutSampler",
+				samplerHandleLinClamp
+			},
+		};
+
+		
+
+
 		{
 			/*const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
-			m_lightPathHelperUtility.init(m_renderer, lightRays, nullptr, 0, explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_lightPathHelperUtility.init(m_renderer, lightRays,staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
 			m_lightPathHelperUtility.createPipelineState();*/
 
 
@@ -131,7 +154,7 @@ namespace YAPT
 
 		{
 			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
-			m_cameraPathHelperUtility.init(m_renderer, cameraRays, nullptr, 0, explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_cameraPathHelperUtility.init(m_renderer, cameraRays, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
 			m_cameraPathHelperUtility.createPipelineState();
 		}
 

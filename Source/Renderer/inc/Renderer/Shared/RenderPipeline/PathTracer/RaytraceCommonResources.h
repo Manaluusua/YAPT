@@ -63,10 +63,14 @@ namespace YAPT
 			uvec2p renderResolution;
 		};
 
+		static void setupCommonSamplers(CRenderer* rend, PipelineLayoutHelper& helper, const ShaderPipelineReflection& refl, ShaderModuleType module);
+
 		void initialize(CRenderer* rend, RenderResourcesPool* resourcesPool, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
 		void shutdown();
 		void updateCommonResourcesToDescriptorSet(DescriptorSetHandle handle);
 		void update(const RaytraceCommonResources::UpdateParams& params);
+
+		
 
 	private:
 		void initSubpixelJitterSamples();

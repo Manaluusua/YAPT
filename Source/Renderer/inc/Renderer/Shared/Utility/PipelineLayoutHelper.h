@@ -17,6 +17,7 @@ namespace YAPT
 
 		void setStaticSamplers(uint32_t descSetInd, uint32_t bindingDefinitionIndex, SamplerHandle* samplers);
 		void setStaticSamplers(const ShaderPipelineReflection::NameMapping& mapping, SamplerHandle* samplers);
+		bool setStaticSamplers(const char* name, const ShaderPipelineReflection& refl, ShaderModuleType module, SamplerHandle* samplers);
 
 		void setExplicitDescriptorSetLayout(size_t descSetIndex, const DescriptorSetLayoutBinding* bindings, size_t bindingCount, DescriptorSetLayoutHandle layoutHandle);
 

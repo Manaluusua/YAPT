@@ -198,6 +198,17 @@ namespace YAPT
 		
 	}
 
+	bool PipelineLayoutHelper::setStaticSamplers(const char* name, const ShaderPipelineReflection& refl, ShaderModuleType module, SamplerHandle* samplers)
+	{
+		ShaderPipelineReflection::NameMapping mapping;
+		bool found = refl.getNameMapping(module, name, mapping);
+		if (found)
+		{
+			setStaticSamplers(mapping, samplers);
+		}
+		return found;
+	}
+
 	void PipelineLayoutHelper::setDynamic(size_t descSetIndex, size_t bindingPointIndex)
 	{
 		if (descSetIndex >= m_descriptorSetLayoutDefinitions.size()) return;

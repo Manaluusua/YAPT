@@ -91,46 +91,10 @@ namespace YAPT
 		}
 
 
-		//TODO: just go through all the pipelines and map the predefined static samplers
+
 		{
-			ShaderPipelineReflection::NameMapping nameMapping;
-			{
-				bool found = rayMiss->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_colorSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_pointSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-			{
-				bool found = rayHit->reflection->getNameMapping(ShaderModuleType::LIBRARY_MODULE, "g_lutSampler", nameMapping);
-				if (found)
-				{
-					SamplerHandle samplerHandle = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
-					m_rtLayout.setStaticSamplers(nameMapping, &samplerHandle);
-				}
-			}
-
-
+			m_raytraceCommon.setupCommonSamplers(m_renderer, m_rtLayout, *rayMiss->reflection, ShaderModuleType::LIBRARY_MODULE);
+			m_raytraceCommon.setupCommonSamplers(m_renderer, m_rtLayout, *rayHit->reflection, ShaderModuleType::LIBRARY_MODULE);
 		}
 
 		m_rtLayout.compile();

@@ -75,6 +75,19 @@ namespace YAPT
 		
 	}
 
+	void RaytraceCommonResources::setupCommonSamplers(CRenderer* rend, PipelineLayoutHelper& helper, const ShaderPipelineReflection& refl, ShaderModuleType mod)
+	{
+		{
+			SamplerHandle samplerHandleLinRep = rend->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
+			SamplerHandle samplerHandleNearestRep = rend->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
+			SamplerHandle samplerHandleLinClamp = rend->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
+
+			helper.setStaticSamplers("g_colorSampler", refl, mod, &samplerHandleLinRep);
+			helper.setStaticSamplers("g_pointSampler", refl, mod, &samplerHandleNearestRep);
+			helper.setStaticSamplers("g_lutSampler", refl, mod, &samplerHandleLinClamp);
+		}
+	}
+
 	void RaytraceCommonResources::updateCommonResourcesToDescriptorSet(DescriptorSetHandle handle)
 	{
 		BufferViewHandle meshEntriesBuffer = m_meshMngr->getBufferViewHandle();
