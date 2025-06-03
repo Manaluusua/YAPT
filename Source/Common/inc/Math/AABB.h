@@ -27,6 +27,11 @@ namespace YAPT
 			max = maximum;
 		}
 
+		void append(vec3 p)
+		{
+			min = glm::min(p, min);
+			max = glm::max(p, max);
+		}
 
 		bool isEmpty()
 		{

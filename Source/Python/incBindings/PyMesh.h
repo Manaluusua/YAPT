@@ -3,6 +3,7 @@
 #include <Gfx/GfxTypes.h>
 #include <Renderer/Mesh.h>
 #include <Common/RCObjectPtr.h>
+#include <tuple>
 
 namespace YAPT
 {
@@ -46,6 +47,8 @@ namespace YAPT
 
 		PyMesh(Renderer* rend, const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 		
+		static std::tuple<vec3p, vec3p> calculateBoundsFromVertexBuffer(uintptr_t vertexData, uintptr_t indexData, size_t indexOffset, size_t indexCount, size_t vertexOffset, size_t vertexStride, bool use16BitIndices);
+
 		void setVertexBuffer(size_t bufferIndex, PyBuffer* buffer, size_t offsetInBytes);
 		void setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes);
 		void setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset, const vec3p& min, const vec3p& max);

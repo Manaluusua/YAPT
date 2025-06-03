@@ -54,6 +54,28 @@ namespace YAPT
 		return m_name.c_str();
 	}
 
+	std::tuple<vec3p, vec3p> PyMesh::calculateBoundsFromVertexBuffer(uintptr_t vertexData, uintptr_t indexData, size_t indexOffset, size_t indexCount, size_t vertexOffset, size_t vertexStride, bool use16BitIndices)
+	{
+		char* vertexDataPtr = reinterpret_cast<char*>(vertexData);
+		char* indexDataPtr = reinterpret_cast<char*>(indexData);
+
+		
+		vec3p p;
+		AABB bounds = AABB::createEmpty();
+
+		int32_t indexSizeInBytes = use16BitIndices ? 2 : 4;
+
+		for (size_t i = 0; i < indexCount; ++i)
+		{
+			uint32_t index = 0;
+			memcpy(&index, indexDataPtr + (i + indexOffset) * indexSizeInBytes, indexSizeInBytes);
+			memcpy(&p, vertexDataPtr + (index + vertexOffset) * vertexStride, sizeof(vec3p));
+			bounds.append(p);
+
+		}
+		return std::make_tuple(bounds.min, bounds.max);
+	}
+
 	void PyMesh::setVertexBuffer(size_t bufferIndex, PyBuffer* buffer, size_t offsetInBytes)
 	{
 		m_mesh->setVertexBuffer(bufferIndex, buffer->getBuffer().get(), offsetInBytes);
@@ -101,7 +123,8 @@ namespace YAPT
 			.def("setVertexBuffer", &PyMesh::setVertexBuffer)
 			.def("setIndexBuffer", &PyMesh::setIndexBuffer)
 			.def("setSubmesh", &PyMesh::setSubmesh)
-			.def("getSubmeshCount", &PyMesh::getSubmeshCount);
+			.def("getSubmeshCount", &PyMesh::getSubmeshCount)
+			.def_static("calculateBoundsFromVertexBuffer", &PyMesh::calculateBoundsFromVertexBuffer);
 
 		
 	}

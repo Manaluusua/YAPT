@@ -1,4 +1,4 @@
-from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName, vec3
+from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName, Mesh
 from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility
 from pathlib import Path
@@ -299,7 +299,7 @@ class Resources:
         indices = self._create_and_upload_buffer(f"{mesh_name}_indices", ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.INDEX_BUFFER | ResourceUsageBits.ACCELERATION_STRUCTURE_BUILD_INPUT, faces, np.uint16 if use16BitIndices else np.uint32)
 
         mesh = self._renderer.createMesh(mesh_name, layout, len(vertices), len(faces_array), use16BitIndices) #for now just use one submesh
-
+        print(faces)
         for i in range(len(buffers)):
             mesh.setVertexBuffer(i, buffers[i], 0)
 
@@ -310,7 +310,10 @@ class Resources:
         submesh_index = 0
         for submesh in faces_array:
             index_count = submesh[0]
-            mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset, vec3([0, 0, 0]), vec3([0, 0, 0]))
+
+            boundsMin, boundsMax = Mesh.calculateBoundsFromVertexBuffer(vertices.ctypes.data, faces.ctypes.data, index_offset, index_count, vertex_offset, 3 * 4, use16BitIndices)
+
+            mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset, boundsMin, boundsMax)
             
             vertex_offset += vertices_array[submesh_index][0]
             index_offset += index_count
