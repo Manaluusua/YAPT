@@ -3,6 +3,7 @@
 
 #include <Common/RCObject.h>
 #include <Gfx/GfxBasicTypes.h>
+#include <Math/AABB.h>
 
 namespace YAPT
 {
@@ -20,13 +21,17 @@ namespace YAPT
 		SubmeshDefinition()
 			:indexOffset(0),
 			indexCount(0),
-			vertexOffset(0)
+			vertexOffset(0),
+			bounds(vec3(0.f), vec3(0.f))
 		{}
-		SubmeshDefinition(size_t indexOffset, size_t indexCount, size_t vertexOffset)
+		SubmeshDefinition(size_t indexOffset, size_t indexCount, size_t vertexOffset, const vec3p& min, const vec3p& max)
 			:indexOffset(indexOffset),
 			indexCount(indexCount),
-			vertexOffset(vertexOffset)
+			vertexOffset(vertexOffset),
+			bounds(min, max)
 		{}
+
+		AABB bounds;
 		size_t indexOffset;
 		size_t indexCount;
 		size_t vertexOffset;
@@ -36,7 +41,7 @@ namespace YAPT
 	class Mesh : public RCObject 
 	{
 	public:
-		virtual void setSubmesh(size_t submeshIndex, const SubmeshDefinition& range) = 0;
+		virtual void setSubmesh(size_t submeshIndex, const SubmeshDefinition& submeshDef) = 0;
 		virtual size_t getSubmeshCount() const = 0;
 		virtual void setVertexBuffer(size_t bufferIndex, Buffer* buffer, size_t offsetInBytes) = 0;
 		virtual void setIndexBuffer(Buffer* buffer, size_t offsetInBytes) = 0;

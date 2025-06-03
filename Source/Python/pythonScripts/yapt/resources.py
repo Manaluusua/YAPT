@@ -1,4 +1,4 @@
-from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName
+from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName, vec3
 from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility
 from pathlib import Path
@@ -310,7 +310,7 @@ class Resources:
         submesh_index = 0
         for submesh in faces_array:
             index_count = submesh[0]
-            mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset)
+            mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset, vec3([0, 0, 0]), vec3([0, 0, 0]))
             
             vertex_offset += vertices_array[submesh_index][0]
             index_offset += index_count

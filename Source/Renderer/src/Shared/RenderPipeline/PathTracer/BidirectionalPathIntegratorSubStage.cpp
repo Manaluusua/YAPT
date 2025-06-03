@@ -21,8 +21,7 @@ namespace YAPT
 
 	BidirectionalPathIntegratorSubStage::BidirectionalPathIntegratorSubStage()
 		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
-		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
-		m_lightPaths(RESOURCE_USAGE_STORAGE_BUFFER)
+		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
 	{
 
 	}
@@ -38,15 +37,6 @@ namespace YAPT
 		m_accStructProvider = accStructProvider;
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
-
-		RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
-		{
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-		};
 
 		RenderGraphNodeSlotDefinition slotdefsCameraRaysNode[] =
 		{ 
@@ -66,32 +56,19 @@ namespace YAPT
 			}
 		};
 
-
-		m_lightPathsNode = m_graph->createComputeNode(1, slotdefsLightPaths, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
-			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
-			},
-			this, "LightPathsNode");
-
 		m_cameraPathsNode = m_graph->createComputeNode(2, slotdefsCameraRaysNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
 			},
 			this, "CameraPathsNode");
-
-		m_graph->createEdge(m_lightPathsNode, 0, m_cameraPathsNode, 1);
-
 		
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
-		m_lightPathHelperUtility.deinit();
 		m_cameraPathHelperUtility.deinit();
 		m_renderObjectsGPU.free();
-		m_lightPaths.free();
 
 
 	}
@@ -144,13 +121,6 @@ namespace YAPT
 		
 
 
-		{
-			/*const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
-			m_lightPathHelperUtility.init(m_renderer, lightRays,staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
-			m_lightPathHelperUtility.createPipelineState();*/
-
-
-		}
 
 		{
 			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
@@ -160,16 +130,7 @@ namespace YAPT
 
 		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
 		m_constantsGPU.init(data.renderGraphLifetimeResources);
-		m_lightPaths.init(m_renderer->getGfxHandle());
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
-
-		//dummy for now
-		{
-			RenderGraphResourceId lightPathsBuffer = m_lightPathsNode->getRenderGraphResourceIdForSlot(0);
-			m_lightPaths.allocate(1, "dummylightpaths");
-			m_graph->setRenderGraphResourceBuffer(lightPathsBuffer, m_lightPaths.getBufferHandle());
-		}
-		
 
 	}
 	void BidirectionalPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
@@ -291,10 +252,6 @@ namespace YAPT
 	}
 
 
-	void BidirectionalPathIntegratorSubStage::executeLightPathPass(const RenderGraphNodeExecutionContext& exec)
-	{
-
-	}
 	void BidirectionalPathIntegratorSubStage::executeCameraPathPass(const RenderGraphNodeExecutionContext& exec)
 	{
 		{

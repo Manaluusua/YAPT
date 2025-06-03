@@ -72,10 +72,10 @@ namespace YAPT
 		
 	}
 
-	void MeshProxy::setSubmesh(size_t submeshIndex, const SubmeshDefinition& range)
+	void MeshProxy::setSubmesh(size_t submeshIndex, const SubmeshDefinition& def)
 	{
 		assert(submeshIndex < m_submeshes.size());
-		m_submeshes[submeshIndex] = range;
+		m_submeshes[submeshIndex] = def;
 		submeshRangeSet(submeshIndex);
 		m_mngr->meshChanged(this);
 	}

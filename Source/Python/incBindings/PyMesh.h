@@ -48,7 +48,7 @@ namespace YAPT
 		
 		void setVertexBuffer(size_t bufferIndex, PyBuffer* buffer, size_t offsetInBytes);
 		void setIndexBuffer(PyBuffer* buffer, size_t offsetInBytes);
-		void setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset);
+		void setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset, const vec3p& min, const vec3p& max);
 		const char* getName() const;
 
 		size_t getSubmeshCount() const;

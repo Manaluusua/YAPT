@@ -45,13 +45,6 @@ namespace YAPT
 			uvec2p materialAndMeshIndices;
 		};
 
-		struct LightPathNode
-		{
-			vec4 normalPDF;
-			vec4 positionDummy;
-		};
-
-		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
 
 
@@ -62,16 +55,12 @@ namespace YAPT
 		BindlessMaterialManager* m_materialMngr;
 		BindlessMeshManager* m_meshMngr;
 
-		ComputeNode* m_lightPathsNode;
-		PostProcessComputePassUtility m_lightPathHelperUtility;
-
 		ComputeNode* m_cameraPathsNode;
 		PostProcessComputePassUtility m_cameraPathHelperUtility;
 
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
 		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
 
-		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPaths;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

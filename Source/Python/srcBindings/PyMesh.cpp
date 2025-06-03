@@ -68,12 +68,14 @@ namespace YAPT
 		return m_mesh->getSubmeshCount();
 	}
 
-	void PyMesh::setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset)
+	void PyMesh::setSubmesh(size_t submeshIndex, size_t indexOffset, size_t indexCount, size_t vertexOffset, const vec3p& min, const vec3p& max)
 	{
 		SubmeshDefinition smRange;
 		smRange.indexOffset = indexOffset;
 		smRange.indexCount = indexCount;
 		smRange.vertexOffset = vertexOffset;
+		smRange.bounds.min = min;
+		smRange.bounds.max = max;
 		m_mesh->setSubmesh(submeshIndex, smRange);
 	}
 

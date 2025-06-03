@@ -27,7 +27,7 @@ set(HEADERS
 	inc/Math/GGX.h
 	inc/Math/MiscBrdf.h
 	inc/Math/Fresnel.h
-	
+	inc/Math/AABB.h
 )
 
 set(SOURCE
