@@ -5,6 +5,8 @@
 #include <Renderer/Shared/MeshInternal.h>
 #include <Renderer/Shared/MaterialInternal.h>
 #include <Common/CommonUtilities.h>
+#include <Common/ThreadPool.h>
+
 namespace YAPT
 {
 	const size_t RenderObjectManager::PEROBJECTDATA_GROW_COUNT = 256;
@@ -127,6 +129,7 @@ namespace YAPT
 		RenderObjectId id = m_renderObjects.addEntry(
 			0, 
 			t, 
+			AABB::createEmpty(),
 			static_cast<MeshProxy*>(proxy->m_mesh.get())->getMeshInternal(), 
 			matArray,
 			rData, rData, rData, rData, rData, rData
@@ -166,6 +169,11 @@ namespace YAPT
 	MaterialPerSubmeshArray& RenderObjectManager::getMaterialForId(RenderObjectId id)
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Material>(id);
+	}
+
+	AABB& RenderObjectManager::getBoundsForId(RenderObjectId id)
+	{
+		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Bounds>(id);
 	}
 
 	RenderObjectManager::RenderData* RenderObjectManager::getRenderDataForId(RenderObjectId id, size_t renderDataIndex)
@@ -211,6 +219,11 @@ namespace YAPT
 	MaterialPerSubmeshArray* RenderObjectManager::getAllMaterials()
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Material>();
+	}
+
+	AABB* RenderObjectManager::getAllBounds()
+	{
+		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Bounds>();
 	}
 
 	const RenderObjectId* RenderObjectManager::getAllIds()
@@ -267,6 +280,76 @@ namespace YAPT
 		m_freeRenderDataIndices[index] = true;
 	}
 
+	void RenderObjectManager::issueBoundsUpdateJobs(ThreadPool& pool)
+	{
+		constexpr size_t MAX_JOBS = 4;
+		YAPT::mat4* wMat = getAllMatrices();
+		MeshInternal** meshes = getAllMeshes();
+		AABB* bounds = getAllBounds();
+		size_t count = getNumberOfObjects();
+		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / 10u));
+		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
+
+		if (count == 0)
+		{
+			return;
+		}
+
+		m_updateBoundsJobItems.resize(numberOfJobs);
+
+		auto updateBoundsFunc = [](void* usrData)
+		{
+			UpdateBoundsItem* item = static_cast<UpdateBoundsItem*>(usrData);
+			for (size_t i = 0; i < item->entryCount; ++i)
+			{
+				size_t index = item->entryOffset + i;
+				const MeshInternal* mesh = item->meshes[index];
+				const mat4& t = *item->transforms;
+
+				AABB meshBounds = AABB::createEmpty();
+
+				for (size_t sm = 0; sm < mesh->getSubmeshCount(); ++sm)
+				{
+					const AABB& submeshBounds = mesh->getSubmesh(sm).bounds;
+					meshBounds.append(submeshBounds);
+				}
+
+				AABB transformedBounds = AABB::createEmpty();
+
+				for (size_t c = 0; c < 8; ++c)
+				{
+					float x = (c % 2) == 0 ? meshBounds.min.x : meshBounds.max.x;
+					float y = ((c / 2) % 2) == 0 ? meshBounds.min.y : meshBounds.max.y;
+					float z = c < 4 ? meshBounds.min.z : meshBounds.max.z;
+
+					transformedBounds.append(t * glm::vec4(x, y, z, 1.f));
+				}
+
+				item->bounds[index] = transformedBounds;
+			}
+
+
+
+		};
+
+		size_t offset = 0;
+		for (size_t i = 0; i < numberOfJobs; ++i)
+		{
+			UpdateBoundsItem& item = m_updateBoundsJobItems[i];
+			item.bounds = bounds;
+			item.meshes = meshes;
+			item.transforms = wMat;
+			item.entryCount = min(operationsPerJob, count - offset);
+			offset += item.entryCount;
+
+		}
+
+
+		for (size_t i = 0; i < numberOfJobs; ++i)
+		{
+			pool.addTask(updateBoundsFunc, &m_updateBoundsJobItems[i]);
+		}
+	}
 
 
 	void RenderObjectManager::updatePerObjectGPUData()

@@ -3,6 +3,7 @@
 
 #include <Common/TightlyPackedArray.h>
 #include <Math/Math.h>
+#include <Math/AABB.h>
 #include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 #include <Common/RCObjectPtr.h>
@@ -20,6 +21,7 @@ namespace YAPT
 	class MeshInternal;
 	class CRenderer;
 	class Material;
+	class ThreadPool;
 
 	struct MaterialPerSubmeshArray
 	{
@@ -92,6 +94,7 @@ namespace YAPT
 		mat4& getMatrixForId(RenderObjectId id);
 		MeshInternal* getMeshForId(RenderObjectId id);
 		MaterialPerSubmeshArray& getMaterialForId(RenderObjectId id);
+		AABB& getBoundsForId(RenderObjectId id);
 		RenderData* getRenderDataForId(RenderObjectId id, size_t renderDataIndex);
 
 		size_t getDataIndexForRenderObjectId(RenderObjectId id) const { return m_renderObjects.getDataIndex(id); }
@@ -99,6 +102,7 @@ namespace YAPT
 		mat4* getAllMatrices();
 		MeshInternal** getAllMeshes();
 		MaterialPerSubmeshArray* getAllMaterials();
+		AABB* getAllBounds();
 		const RenderObjectId* getAllIds();
 		RenderData* getAllRenderData(size_t renderDataIndex);
 		RenderObjectId getHighestId() { return m_renderObjects.getHighestAllocatedId(); }
@@ -109,11 +113,15 @@ namespace YAPT
 		void freeRenderDataIndex(size_t index);
 		constexpr bool isValidRenderDataIndex(size_t index) { return index != INVALID_RENDERDATA_INDEX && index < RENDEROBJECT_RENDERDATA_BUCKETS_COUNT; }
 
+		void issueBoundsUpdateJobs(ThreadPool& pool);
+		
+
 	private:
 		enum class RenderObjectPropertyIndex
 		{
 			Id,
 			Transform,
+			Bounds,
 			Mesh,
 			Material,
 			RenderData0,
@@ -129,7 +137,16 @@ namespace YAPT
 			mat4 worldMatrix;
 		};
 
-		typedef TightlyPackedArray<RenderObjectId, mat4, MeshInternal*, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
+		struct UpdateBoundsItem
+		{
+			size_t entryOffset;
+			size_t entryCount;
+			const MeshInternal* const * meshes;
+			const mat4* transforms;
+			AABB* bounds;
+		};
+
+		typedef TightlyPackedArray<RenderObjectId, mat4, AABB, MeshInternal*, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
 		static const size_t PEROBJECTDATA_GROW_COUNT;
 
 		void renderObjectChanged(RenderObjectProxy* obj);
@@ -149,6 +166,7 @@ namespace YAPT
 
 		DynamicSizeGpuBufferHelper<PerObjectGPUData> m_gpuData;
 		
+		std::vector<UpdateBoundsItem> m_updateBoundsJobItems;
 
 		std::vector<RenderObjectProxy*> m_changedRenderObjects;
 		bool m_freeRenderDataIndices[RENDEROBJECT_RENDERDATA_BUCKETS_COUNT];

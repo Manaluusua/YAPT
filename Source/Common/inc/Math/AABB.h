@@ -21,16 +21,22 @@ namespace YAPT
 
 		AABB() = default;
 
-		AABB(vec3 minimum, vec3 maximum)
+		AABB(const vec3& minimum, const vec3& maximum)
 		{
 			min = minimum;
 			max = maximum;
 		}
 
-		void append(vec3 p)
+		void append(const vec3& p)
 		{
 			min = glm::min(p, min);
 			max = glm::max(p, max);
+		}
+
+		void append(const AABB& b)
+		{
+			min = glm::min(b.min, min);
+			max = glm::max(b.max, max);
 		}
 
 		bool isEmpty()
@@ -40,7 +46,7 @@ namespace YAPT
 
 		vec3 center()
 		{
-			(min + max) * 0.5f;
+			return (min + max) * 0.5f;
 		}
 
 		vec3 size()

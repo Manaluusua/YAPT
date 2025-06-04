@@ -11,7 +11,7 @@
 #include <Renderer/Shared/BindlessTextureManager.h>
 #include <Renderer/Shared/BindlessBufferManager.h>
 #include <Renderer/Shared/RendererVarsList.h>
-
+#include <Common/ThreadPool.h>
 #define MAX_BINDLESS_TEXTURES_COUNT 16384
 #define MAX_BINDLESS_BUFFERS_COUNT 16384
 
@@ -346,6 +346,7 @@ namespace YAPT
 	{
 
 		m_renderObjectManager->updatePerObjectGPUData();
+		m_renderObjectManager->issueBoundsUpdateJobs(getThreadPool());
 
 		if (m_renderPipelineMngr)
 		{
@@ -367,9 +368,9 @@ namespace YAPT
 			RenderPipeline::UpdateContext updateContext;
 			updateContext.updateTasksPool = &getThreadPool();
 			m_renderPipelineMngr->update(updateContext);
-
-			updateContext.updateTasksPool->waitForAllTasksCompleted();
 		}
+
+		getThreadPool().waitForAllTasksCompleted();
 
 		Gfx::executeBegin(m_gfxHandle);
 		if (m_renderPipelineMngr)
