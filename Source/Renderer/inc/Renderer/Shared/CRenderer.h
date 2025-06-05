@@ -35,6 +35,7 @@ namespace YAPT
 	class BufferImpl;
 	class BindlessTextureManager;
 	class BindlessBufferManager;
+	class LightManager;
 
 	class CRenderer : public Renderer
 	{
@@ -113,6 +114,7 @@ namespace YAPT
 		MeshManager* m_meshMngr;
 		MaterialManager* m_materialMngr;
 		RenderObjectManager* m_renderObjectManager;
+		LightManager* m_lightManager;
 		BindlessTextureManager* m_textureManager;
 		BindlessBufferManager* m_bufferManager;
 

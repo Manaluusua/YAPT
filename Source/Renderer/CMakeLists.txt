@@ -43,6 +43,7 @@ set(HEADERS
 	inc/Renderer/Shared/BindlessBufferManager.h
 	inc/Renderer/Shared/BindlessMaterialManager.h
 	inc/Renderer/Shared/BindlessMeshManager.h
+	inc/Renderer/Shared/LightManager.h
 	
 	inc/Renderer/Shared/RendererVarsList.h
 	inc/Renderer/Shared/RenderView.h
@@ -104,6 +105,8 @@ set(SOURCE
 	src/Shared/MaterialManager.cpp
 	src/Shared/MaterialProxy.cpp
 	src/Shared/MaterialInternal.cpp
+	
+	src/Shared/LightManager.cpp
 	
 	src/Shared/BufferImpl.cpp
 	src/Shared/TextureImpl.cpp

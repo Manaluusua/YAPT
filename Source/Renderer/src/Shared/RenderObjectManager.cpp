@@ -282,12 +282,13 @@ namespace YAPT
 
 	void RenderObjectManager::issueBoundsUpdateJobs(ThreadPool& pool)
 	{
-		constexpr size_t MAX_JOBS = 4;
+		constexpr size_t MAX_JOBS = 16;
+		constexpr size_t MIN_ITEMS_PER_JOB = 100;
 		YAPT::mat4* wMat = getAllMatrices();
 		MeshInternal** meshes = getAllMeshes();
 		AABB* bounds = getAllBounds();
 		size_t count = getNumberOfObjects();
-		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / 10u));
+		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / MIN_ITEMS_PER_JOB));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
 
 		if (count == 0)

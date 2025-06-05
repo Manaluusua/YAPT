@@ -10,6 +10,7 @@
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Renderer/Shared/BindlessTextureManager.h>
 #include <Renderer/Shared/BindlessBufferManager.h>
+#include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/RendererVarsList.h>
 #include <Common/ThreadPool.h>
 #define MAX_BINDLESS_TEXTURES_COUNT 16384
@@ -137,6 +138,8 @@ namespace YAPT
 		m_bufferManager = new BindlessBufferManager(this);
 		m_bufferManager->init(MAX_BINDLESS_BUFFERS_COUNT);
 
+		m_lightManager = new LightManager(this);
+
 		m_currentRenderView = new RenderView(m_gfxHandle);
 
 		RenderPipeline::InitializeContext initContext;
@@ -179,7 +182,9 @@ namespace YAPT
 		m_renderObjectManager->replicateChanges();
 		m_meshMngr->replicateChanges();
 		m_materialMngr->replicateChanges();
-		
+
+		delete m_lightManager;
+		m_lightManager = nullptr;
 		delete m_currentRenderView;
 		m_currentRenderView = nullptr;
 		delete m_renderObjectManager;
@@ -347,6 +352,7 @@ namespace YAPT
 
 		m_renderObjectManager->updatePerObjectGPUData();
 		m_renderObjectManager->issueBoundsUpdateJobs(getThreadPool());
+		m_lightManager->update(getThreadPool());
 
 		if (m_renderPipelineMngr)
 		{
