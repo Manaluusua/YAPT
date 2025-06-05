@@ -113,6 +113,7 @@ namespace YAPT
 	void RenderPipelineBase::update(const UpdateContext& cntx)
 	{
 		RenderStage::UpdateData stageUpdateContext;
+		stageUpdateContext.updateTasksPool = cntx.updateTasksPool;
 
 		//execute nodes (TODO: multithreaded)
 		for (size_t i = 0; i < m_stages.size(); ++i)

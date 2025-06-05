@@ -10,6 +10,7 @@ namespace YAPT
 	class RenderGraph;
 	class RenderGraphNode;
 	class RenderResourcesPool;
+	class ThreadPool;
 
 	struct RenderStageConnection
 	{
@@ -40,7 +41,7 @@ namespace YAPT
 
 		struct UpdateData
 		{
-
+			ThreadPool* updateTasksPool;
 		};
 
 		void setup(CRenderer* renderer, RenderGraph* renderGraph)

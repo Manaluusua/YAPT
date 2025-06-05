@@ -32,6 +32,10 @@ namespace YAPT
 
 		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount) final;
 
+		void setWorldBounds(AABB bounds)
+		{
+			m_worldBounds = bounds;
+		}
 	private:
 
 		struct BidirectionalPathTraceConstants
@@ -44,6 +48,14 @@ namespace YAPT
 		{
 			uvec2p materialAndMeshIndices;
 		};
+
+		struct LightEntryGPU
+		{
+
+		};
+
+		void setupWorldBoundsJob(ThreadPool* threadPool);
+		void setupLightDataJob(ThreadPool* threadPool);
 
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
 
@@ -61,6 +73,8 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
 		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
 
+		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
+		AABB m_worldBounds;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

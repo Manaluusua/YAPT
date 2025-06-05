@@ -14,6 +14,7 @@ namespace YAPT
 	public:
 		struct UpdateParams
 		{
+			const RenderStage::UpdateData* stageUpdateContext;
 			size_t sampleOffset;
 			uvec2p rayGenOffsetInTexels;
 			uvec2p raysPerFrame;

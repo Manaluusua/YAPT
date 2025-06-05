@@ -174,6 +174,7 @@ namespace YAPT
 		m_mergeStage.update(combineUpdate);
 
 		PathIntegratorSubStage::UpdateParams integratorUpdate;
+		integratorUpdate.stageUpdateContext = &cntx;
 		integratorUpdate.sampleOffset = getCurrentNumberOfSamplesPerPixel();
 		integratorUpdate.rayGenOffsetInTexels = getCurrentRayGenerationOffset();
 		integratorUpdate.raysPerFrame = uvec2p(m_raysPerFrameWidth, m_raysPerFrameHeight);

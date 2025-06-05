@@ -63,6 +63,7 @@ namespace YAPT
 			},
 			this, "CameraPathsNode");
 		
+
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
@@ -162,6 +163,9 @@ namespace YAPT
 
 		m_lastUpdateParams = params;
 
+
+		setupWorldBoundsJob(params.stageUpdateContext->updateTasksPool);
+		setupLightDataJob(params.stageUpdateContext->updateTasksPool);
 	}
 
 	void BidirectionalPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
@@ -286,6 +290,13 @@ namespace YAPT
 
 	}
 
+	void BidirectionalPathIntegratorSubStage::setupWorldBoundsJob(ThreadPool* threadPool)
+	{
 
+	}
+	void BidirectionalPathIntegratorSubStage::setupLightDataJob(ThreadPool* threadPool)
+	{
+
+	}
 
 }
