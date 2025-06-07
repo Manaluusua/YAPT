@@ -19,6 +19,7 @@ namespace YAPT
 
 		struct PrepareContext
 		{
+			ThreadPool* prepareTasksPool;
 			SwapChainHandle swapChain;
 			size_t renderWidth;
 			size_t renderHeight;

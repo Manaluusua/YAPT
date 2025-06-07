@@ -14,6 +14,7 @@
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Renderer/Shared/BindlessMaterialManager.h>
 #include <Renderer/Shared/BindlessMeshManager.h>
+#include <Renderer/Shared/LightManager.h>
 
 namespace YAPT
 {
@@ -70,6 +71,7 @@ namespace YAPT
 		m_raytraceCommon.shutdown();
 		m_cameraPathHelperUtility.deinit();
 		m_renderObjectsGPU.free();
+		m_lightDataGPU.free();
 
 
 	}
@@ -130,6 +132,7 @@ namespace YAPT
 		}
 
 		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
+		m_lightDataGPU.init(m_renderer->getGfxHandle());
 		m_constantsGPU.init(data.renderGraphLifetimeResources);
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 
@@ -150,6 +153,7 @@ namespace YAPT
 	void BidirectionalPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
 	{
 		m_accStructProvider->prepareAccelerationStructure();
+		setupWorldBoundsJob(params.prepareTasksPool);
 	}
 
 	void BidirectionalPathIntegratorSubStage::update(const BidirectionalPathIntegratorSubStage::UpdateParams& params)
@@ -164,7 +168,7 @@ namespace YAPT
 		m_lastUpdateParams = params;
 
 
-		setupWorldBoundsJob(params.stageUpdateContext->updateTasksPool);
+		
 		setupLightDataJob(params.stageUpdateContext->updateTasksPool);
 	}
 
@@ -292,11 +296,96 @@ namespace YAPT
 
 	void BidirectionalPathIntegratorSubStage::setupWorldBoundsJob(ThreadPool* threadPool)
 	{
+		constexpr size_t MIN_ITEMS_PER_JOB = 100;
+		const AABB* objectBounds = m_renderer->getRenderObjectManager().getAllBounds();
+		size_t count = m_renderer->getRenderObjectManager().getNumberOfObjects();
+		size_t numberOfJobs = max(size_t(1), min(size_t(m_combineBoundsJobs.size()), count / MIN_ITEMS_PER_JOB));
+		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
 
+		if (count == 0)
+		{
+			return;
+		}
+
+		auto combineBoundsJob = [](void* usrData)
+		{
+			CombineBoundsJobItem* item = static_cast<CombineBoundsJobItem*>(usrData);
+			AABB combinedBounds = AABB::createEmpty();
+			for (size_t i = 0; i < item->boundsCount; ++i)
+			{
+				size_t index = item->boundsOffset + i;
+				const AABB& b = item->objectBounds[index];
+
+				combinedBounds.encapsulate(b);
+			}
+
+			item->combinedBounds = combinedBounds;
+
+		};
+
+		size_t offset = 0;
+		for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
+		{
+			CombineBoundsJobItem& item = m_combineBoundsJobs[i];
+			item.objectBounds = objectBounds;
+			item.boundsOffset = offset;
+			item.boundsCount = min(operationsPerJob, count - offset);
+			item.combinedBounds = AABB::createEmpty();
+			offset += item.boundsCount;
+
+		}
+
+
+		for (size_t i = 0; i < numberOfJobs; ++i)
+		{
+			threadPool->addTask(combineBoundsJob, &m_combineBoundsJobs[i]);
+		}
 	}
 	void BidirectionalPathIntegratorSubStage::setupLightDataJob(ThreadPool* threadPool)
 	{
+		
+		auto uploadLightDataJob = [](void* usrData)
+		{
+			BidirectionalPathIntegratorSubStage* subStage = static_cast<BidirectionalPathIntegratorSubStage*>(usrData);
+			LightManager* lightManager = subStage->m_renderer->getLightManager();
+			DynamicSizeGpuBufferHelper<LightEntryGPU> lightDataGPU = subStage->m_lightDataGPU;
+			RenderObjectManager& roMngr = subStage->m_renderer->getRenderObjectManager();
+			BindlessMeshManager* meshMngr = subStage->m_meshMngr;
+			BindlessMaterialManager* matMngr = subStage->m_materialMngr;
 
+			size_t lightCount = lightManager->getLightReferenceCount();
+			if (lightCount == 0) return;
+
+			if (lightCount > lightDataGPU.getAllocatedEntryCount())
+			{
+				lightDataGPU.allocate(lightCount, "EmissiveObjectsReferences");
+			}
+
+			char* dstPtr = lightDataGPU.map(0, lightCount);
+			const LightManager::LightReference* refs = lightManager->getAllLightReferences();
+			for (size_t i = 0; i < lightCount; ++i)
+			{
+				const LightManager::LightReference& ref = refs[i];
+				const mat4& t = roMngr.getMatrixForId(ref.objectId);
+				size_t meshIndex = meshMngr->getEntryIndexForMeshIdAndSubmesh(ref.objectId, ref.submeshIndex);
+				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialForSubmeshIndex(ref.submeshIndex)->getID());
+
+				LightEntryGPU gpuEntry;
+				gpuEntry.transform = t;
+				gpuEntry.meshIndex = (uint32_t)meshIndex;
+				gpuEntry.matIndex = (uint32_t)matIndex;
+				
+
+				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
+			}
+
+
+			lightDataGPU.unmap();
+		};
+
+		
+		threadPool->addTask(uploadLightDataJob, this);
+		
 	}
 
 }

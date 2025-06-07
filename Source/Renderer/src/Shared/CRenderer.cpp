@@ -362,6 +362,7 @@ namespace YAPT
 			m_currentRenderView->issueViewDependantRenderObjectJobs(getThreadPool(), *m_renderObjectManager);
 
 			RenderPipeline::PrepareContext prepareContext;
+			prepareContext.prepareTasksPool = &getThreadPool();
 			prepareContext.swapChain = m_swapChain;
 			prepareContext.renderWidth = res.x;
 			prepareContext.renderHeight = res.y;

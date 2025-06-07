@@ -36,6 +36,7 @@ namespace YAPT
 
 		struct PrepareData
 		{
+			ThreadPool* prepareTasksPool;
 			SwapChainHandle swapChain;
 		};
 

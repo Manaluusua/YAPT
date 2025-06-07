@@ -102,6 +102,7 @@ namespace YAPT
 
 		RenderStage::PrepareData stagePrepareContext;
 		stagePrepareContext.swapChain = cntx.swapChain;
+		stagePrepareContext.prepareTasksPool = cntx.prepareTasksPool;
 		for (size_t i = 0; i < m_stages.size(); ++i)
 		{
 			m_stages[i]->prepare(stagePrepareContext);

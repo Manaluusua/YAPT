@@ -80,6 +80,7 @@ namespace YAPT
 
 		BindlessTextureManager* getTextureManager() { return m_textureManager; }
 		BindlessBufferManager* getBufferManager() { return m_bufferManager; }
+		LightManager* getLightManager() { return m_lightManager; }
 		CRendererConfiguration& getConcreteRendererConfiguration() { return m_rendererConfig; }
 
 		uint64_t getFrameIndex() const { return m_frameIndex; }

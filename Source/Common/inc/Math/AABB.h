@@ -27,13 +27,13 @@ namespace YAPT
 			max = maximum;
 		}
 
-		void append(const vec3& p)
+		void encapsulate(const vec3& p)
 		{
 			min = glm::min(p, min);
 			max = glm::max(p, max);
 		}
 
-		void append(const AABB& b)
+		void encapsulate(const AABB& b)
 		{
 			min = glm::min(b.min, min);
 			max = glm::max(b.max, max);

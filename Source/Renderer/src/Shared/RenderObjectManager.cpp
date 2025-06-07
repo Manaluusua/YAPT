@@ -312,7 +312,7 @@ namespace YAPT
 				for (size_t sm = 0; sm < mesh->getSubmeshCount(); ++sm)
 				{
 					const AABB& submeshBounds = mesh->getSubmesh(sm).bounds;
-					meshBounds.append(submeshBounds);
+					meshBounds.encapsulate(submeshBounds);
 				}
 
 				AABB transformedBounds = AABB::createEmpty();
@@ -323,7 +323,7 @@ namespace YAPT
 					float y = ((c / 2) % 2) == 0 ? meshBounds.min.y : meshBounds.max.y;
 					float z = c < 4 ? meshBounds.min.z : meshBounds.max.z;
 
-					transformedBounds.append(t * glm::vec4(x, y, z, 1.f));
+					transformedBounds.encapsulate(t * glm::vec4(x, y, z, 1.f));
 				}
 
 				item->bounds[index] = transformedBounds;

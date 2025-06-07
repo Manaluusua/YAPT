@@ -5,6 +5,7 @@
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
 #include <Gfx/RenderGraph/ComputeNode.h>
+#include <array>
 
 namespace YAPT
 {
@@ -51,7 +52,17 @@ namespace YAPT
 
 		struct LightEntryGPU
 		{
+			mat4p transform;
+			uint32_t meshIndex;
+			uint32_t matIndex;
+		};
 
+		struct CombineBoundsJobItem
+		{
+			const AABB* objectBounds;
+			size_t boundsOffset;
+			size_t boundsCount;
+			AABB combinedBounds;
 		};
 
 		void setupWorldBoundsJob(ThreadPool* threadPool);
@@ -75,6 +86,8 @@ namespace YAPT
 
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		AABB m_worldBounds;
+
+		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

@@ -70,7 +70,7 @@ namespace YAPT
 			uint32_t index = 0;
 			memcpy(&index, indexDataPtr + (i + indexOffset) * indexSizeInBytes, indexSizeInBytes);
 			memcpy(&p, vertexDataPtr + (index + vertexOffset) * vertexStride, sizeof(vec3p));
-			bounds.append(p);
+			bounds.encapsulate(p);
 
 		}
 		return std::make_tuple(bounds.min, bounds.max);
