@@ -33,14 +33,12 @@ namespace YAPT
 
 		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount) final;
 
-		void setWorldBounds(AABB bounds)
-		{
-			m_worldBounds = bounds;
-		}
 	private:
 
 		struct BidirectionalPathTraceConstants
 		{
+			vec4p worldBoundsMin;
+			vec4p worldBoundsMax;
 			uint32_t envTextureIndex;
 			uint32_t envType;
 		};
@@ -85,7 +83,6 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
 
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
-		AABB m_worldBounds;
 
 		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
 

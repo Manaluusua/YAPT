@@ -122,9 +122,6 @@ namespace YAPT
 		};
 
 		
-
-
-
 		{
 			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
 			m_cameraPathHelperUtility.init(m_renderer, cameraRays, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
@@ -167,8 +164,22 @@ namespace YAPT
 
 		m_lastUpdateParams = params;
 
+		{
+			AABB worldBounds = AABB::createEmpty();
+			for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
+			{
+				worldBounds.encapsulate(m_combineBoundsJobs[i].combinedBounds);
+			}
 
+			BidirectionalPathTraceConstants* constants = m_constantsGPU.getData();
+			constants->worldBoundsMax = vec4p(worldBounds.max, 0.f);
+			constants->worldBoundsMin = vec4p(worldBounds.min, 0.f);
+			m_constantsGPU.flush();
+		}
 		
+		
+
+
 		setupLightDataJob(params.stageUpdateContext->updateTasksPool);
 	}
 
@@ -253,8 +264,6 @@ namespace YAPT
 				constants->envType = ENVIRONMENT_TYPE_NONE;
 				constants->envTextureIndex = uint32_t(-1);
 			}
-
-			m_constantsGPU.flush();
 		}
 
 	}
@@ -270,11 +279,14 @@ namespace YAPT
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
 			BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
+			BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
+
 			DescriptorSetUpdate updates[] = {
 				{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
 				{1, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
-				{2, 0, 1, DescriptorPtr(&accStruct)},
-				{3, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{2, 0, 1, DescriptorPtr(&lightsBufferHandle)},
+				{3, 0, 1, DescriptorPtr(&accStruct)},
+				{4, 0, 1, DescriptorPtr(&rtOutputUav)},
 			};
 
 			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
@@ -354,7 +366,14 @@ namespace YAPT
 			BindlessMaterialManager* matMngr = subStage->m_materialMngr;
 
 			size_t lightCount = lightManager->getLightReferenceCount();
-			if (lightCount == 0) return;
+			if (lightCount == 0)
+			{
+				if (lightDataGPU.getAllocatedEntryCount() == 0)
+				{
+					lightDataGPU.allocate(1, "EmissiveObjectsReferences");
+				}
+				return;
+			}
 
 			if (lightCount > lightDataGPU.getAllocatedEntryCount())
 			{
