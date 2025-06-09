@@ -3,6 +3,8 @@
 #include "common.hlsl"
 
 #define PI 3.14159265
+#define PI_OVER_2 1.57079633f
+#define PI_OVER_4 0.785398163f
 #define sqr(x) (x*x)
 
 
@@ -51,6 +53,39 @@ bool onSameHemisphere(float3 referenceDir, float3 dir)
 float3 forceSameHemisphere(float3 referenceDir, float3 dir)
 {
 	return onSameHemisphere(referenceDir, dir) ? dir : -dir;
+}
+
+float2 sampleConcentricDisk(float2 u)
+{
+	float2 unitSquare = 2.f * u - float2(1, 1);
+
+	if (unitSquare.x == 0 && unitSquare.y == 0)
+		return float2(0, 0);
+
+	float theta, r;
+	if (abs(unitSquare.x) > abs(unitSquare.y)) {
+		r = unitSquare.x;
+		theta = PI_OVER_4 * (unitSquare.y / unitSquare.x);
+	}
+	else {
+		r = unitSquare.y;
+		theta = PI_OVER_2 - PI_OVER_4 * (unitSquare.x / unitSquare.y);
+	}
+
+	float cosTheta;
+	float sinTheta;
+	sincos(theta, sinTheta, cosTheta);
+
+	return r * float2(cosTheta, sinTheta);
+}
+
+
+void constructVectorBase(float3 v, out float3 v2Out, out float3 v3Out) {
+	if (abs(v.x) > abs(v.y))
+		v2Out = float3(-v.z, 0, v.x) / sqrt(v.x * v.x + v.z * v.z);
+	else
+		v2Out = float3(0, v.z, -v.y) / sqrt(v.y * v.y + v.z * v.z);
+	v3Out = cross(v, v2Out);
 }
 
 #endif

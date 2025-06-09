@@ -386,11 +386,13 @@ namespace YAPT
 			{
 				const LightManager::LightReference& ref = refs[i];
 				const mat4& t = roMngr.getMatrixForId(ref.objectId);
+				mat4p invTransp = glm::transpose(glm::inverse(t));
 				size_t meshIndex = meshMngr->getEntryIndexForMeshIdAndSubmesh(ref.objectId, ref.submeshIndex);
 				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialForSubmeshIndex(ref.submeshIndex)->getID());
 
 				LightEntryGPU gpuEntry;
 				gpuEntry.transform = t;
+				gpuEntry.transformInvTransp = invTransp;
 				gpuEntry.meshIndex = (uint32_t)meshIndex;
 				gpuEntry.matIndex = (uint32_t)matIndex;
 				

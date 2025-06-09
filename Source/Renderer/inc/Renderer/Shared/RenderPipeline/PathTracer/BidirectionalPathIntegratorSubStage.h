@@ -51,6 +51,7 @@ namespace YAPT
 		struct LightEntryGPU
 		{
 			mat4p transform;
+			mat4p transformInvTransp;
 			uint32_t meshIndex;
 			uint32_t matIndex;
 		};
