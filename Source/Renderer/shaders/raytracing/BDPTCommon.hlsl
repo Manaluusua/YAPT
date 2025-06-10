@@ -9,8 +9,11 @@ struct BidirectionalPathTraceConstants
 {
 	float4 worldBoundsMin;
 	float4 worldBoundsMax;
+	uint2 lightPathsPerDim;
 	uint envTextureIndex;
 	uint envType;
+	uint maxVerticesPerLightPath;
+	uint maxAllocatedVertices;
 };
 
 struct RenderObjectEntry
@@ -26,17 +29,35 @@ struct LightEntryGPU
 	uint meshIndex;
 	uint matIndex;
 };
+
+struct LightPathHeader
+{
+	uint2 offsetAndCount;
+};
+
 struct LightPathNode
 {
 	float4 normalPDF;
-	float4 positionDummy;
+	float4 positionMISSum;
 };
 
 ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, space3);
 StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t1, space3);
 StructuredBuffer<LightEntryGPU> g_lights : register(t2, space3);
 RaytracingAccelerationStructure g_accelerationStructure : register(t3, space3);
-RWTexture2D<float4> g_outputColor : register(u4, space3);
+
+#ifdef WRITABLE_LIGHT_DATA
+RWStructuredBuffer<LightPathHeader> g_lightPathHeaders : register(u4, space3);
+RWStructuredBuffer<LightPathNode> g_lightPathVertices : register(u5, space3);
+RWByteAddressBuffer g_counters : register(u6, space3);
+#else
+StructuredBuffer<LightPathHeader> g_lightPathHeaders : register(t4, space3);
+StructuredBuffer<LightPathNode> g_lightPathVertices : register(t5, space3);
+ByteAddressBuffer g_counters : register(t6, space3);
+#endif
+
+#define COUNTER_LIGHT_HEADERS_INDEX 0
+#define COUNTER_LIGHT_VERTICES_INDEX 1
 
 #define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
 #define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf

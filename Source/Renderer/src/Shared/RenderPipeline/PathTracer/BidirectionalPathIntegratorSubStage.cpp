@@ -19,10 +19,19 @@
 namespace YAPT
 {
 	constexpr glm::uvec3 WG_SIZE = glm::uvec3(8, 8, 1);
+	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 8;
+	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
+	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
 
 	BidirectionalPathIntegratorSubStage::BidirectionalPathIntegratorSubStage()
 		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
-		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
+		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
+		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
+		m_lightPathsGPU(RESOURCE_USAGE_STORAGE_BUFFER),
+		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_COPY_DESTINATION),
+		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
+		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
+
 	{
 
 	}
@@ -39,6 +48,25 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
+		RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
+		{
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE)
+			},
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE)
+			},
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_COMPUTE)
+			},
+		};
+
 		RenderGraphNodeSlotDefinition slotdefsCameraRaysNode[] =
 		{ 
 			{
@@ -54,25 +82,47 @@ namespace YAPT
 				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
 				ACCESS_FLAGS_READ,
 				SHADERSTAGE_COMPUTE)
+			},
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE)
+			},
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE)
 			}
 		};
 
-		m_cameraPathsNode = m_graph->createComputeNode(2, slotdefsCameraRaysNode, []
+		m_lightPathsNode = m_graph->createComputeNode(3, slotdefsLightPaths, []
+		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+			{
+				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
+			},
+			this, "LightPathsNode");
+
+		m_cameraPathsNode = m_graph->createComputeNode(4, slotdefsCameraRaysNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
 			},
 			this, "CameraPathsNode");
 		
-
+		m_graph->createEdge(m_lightPathsNode, 0, m_cameraPathsNode, 1);
+		m_graph->createEdge(m_lightPathsNode, 1, m_cameraPathsNode, 2);
+		m_graph->createEdge(m_lightPathsNode, 2, m_cameraPathsNode, 3);
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
 		m_cameraPathHelperUtility.deinit();
+		m_lightPathHelperUtility.deinit();
 		m_renderObjectsGPU.free();
 		m_lightDataGPU.free();
 
+		m_lightPathHeadersGPU.free();
+		m_lightPathsGPU.free();
 
 	}
 	void BidirectionalPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
@@ -123,6 +173,12 @@ namespace YAPT
 
 		
 		{
+			const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
+			//m_lightPathHelperUtility.init(m_renderer, lightRays,staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
+			//m_lightPathHelperUtility.createPipelineState();
+		}
+
+		{
 			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
 			m_cameraPathHelperUtility.init(m_renderer, cameraRays, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
 			m_cameraPathHelperUtility.createPipelineState();
@@ -131,6 +187,11 @@ namespace YAPT
 		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
 		m_lightDataGPU.init(m_renderer->getGfxHandle());
 		m_constantsGPU.init(data.renderGraphLifetimeResources);
+
+		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
+		m_lightPathsGPU.init(m_renderer->getGfxHandle());
+		m_countersGPU.init(data.renderGraphLifetimeResources);
+
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 
 	}
@@ -144,6 +205,27 @@ namespace YAPT
 		TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
 		TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
 		m_graph->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
+
+		//dummy for now
+		{
+			RenderGraphResourceId lightPathHeadersId = m_lightPathsNode->getRenderGraphResourceIdForSlot(0);
+			RenderGraphResourceId lightPathsNodesId = m_lightPathsNode->getRenderGraphResourceIdForSlot(1);
+			RenderGraphResourceId countersBufferId = m_lightPathsNode->getRenderGraphResourceIdForSlot(2);
+
+			uvec2 lightPathCountPerDim = (m_renderResolution + m_pixelsPerLightPath - uvec2(1, 1)) / m_pixelsPerLightPath;
+			uint32_t allocatedVertices = lightPathCountPerDim.x * lightPathCountPerDim.y * (uint32_t)glm::round(m_maxVerticesPerLightPath * ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO);
+
+			m_constantsGPU.getData()->maxVerticesPerLightPath = m_maxVerticesPerLightPath;
+			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
+			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
+
+			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y, "lightPathHeaders");
+			m_lightPathsGPU.allocate(allocatedVertices, "lightPathNodes");
+
+			m_graph->setRenderGraphResourceBuffer(lightPathHeadersId, m_lightPathHeadersGPU.getBufferHandle());
+			m_graph->setRenderGraphResourceBuffer(lightPathsNodesId, m_lightPathsGPU.getBufferHandle());
+			m_graph->setRenderGraphResourceBuffer(countersBufferId, m_countersGPU.getBufferHandle());
+		}
 
 	}
 
@@ -177,7 +259,8 @@ namespace YAPT
 			m_constantsGPU.flush();
 		}
 		
-		
+		m_countersGPU.getData()[0] = uvec2(0, 0);
+		m_countersGPU.flush();
 
 
 		setupLightDataJob(params.stageUpdateContext->updateTasksPool);
@@ -267,45 +350,7 @@ namespace YAPT
 		}
 
 	}
-
-
-	void BidirectionalPathIntegratorSubStage::executeCameraPathPass(const RenderGraphNodeExecutionContext& exec)
-	{
-		{
-			m_cameraPathHelperUtility.reserveNewDescriptorSet(0);
-			DescriptorSetHandle descSetCommon = m_cameraPathHelperUtility.getDescriptorSet(0);
-			m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
-
-			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
-			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
-			BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
-			BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
-
-			DescriptorSetUpdate updates[] = {
-				{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
-				{1, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
-				{2, 0, 1, DescriptorPtr(&lightsBufferHandle)},
-				{3, 0, 1, DescriptorPtr(&accStruct)},
-				{4, 0, 1, DescriptorPtr(&rtOutputUav)},
-			};
-
-			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
-
-			BindlessTextureManager* texMngr = m_renderer->getTextureManager();
-			BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
-
-			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(1, texMngr->getTextureArrayDescSet());
-			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(2, buffMngr->getBufferArrayDescSet());
-
-		}
-
-		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE);
-
-		m_cameraPathHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);;
-		
-
-	}
-
+	
 	void BidirectionalPathIntegratorSubStage::setupWorldBoundsJob(ThreadPool* threadPool)
 	{
 		constexpr size_t MIN_ITEMS_PER_JOB = 100;
@@ -408,5 +453,56 @@ namespace YAPT
 		threadPool->addTask(uploadLightDataJob, this);
 		
 	}
+
+
+	void BidirectionalPathIntegratorSubStage::executeLightPathPass(const RenderGraphNodeExecutionContext& exec)
+	{
+
+	}
+
+	void BidirectionalPathIntegratorSubStage::executeCameraPathPass(const RenderGraphNodeExecutionContext& exec)
+	{
+		{
+			m_cameraPathHelperUtility.reserveNewDescriptorSet(0);
+			DescriptorSetHandle descSetCommon = m_cameraPathHelperUtility.getDescriptorSet(0);
+			m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
+
+			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
+			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
+			BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
+			BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
+
+			BufferViewHandle lightPathHeaders = m_lightPathHeadersGPU.getBufferViewHandle();
+			BufferViewHandle lightPathVertices = m_lightPathsGPU.getBufferViewHandle();
+			BufferViewHandle counters = m_countersGPU.getView();
+
+			DescriptorSetUpdate updates[] = {
+				{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
+				{1, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
+				{2, 0, 1, DescriptorPtr(&lightsBufferHandle)},
+				{3, 0, 1, DescriptorPtr(&accStruct)},
+				{4, 0, 1, DescriptorPtr(&lightPathHeaders)},
+				{5, 0, 1, DescriptorPtr(&lightPathVertices)},
+				{6, 0, 1, DescriptorPtr(&counters)},
+				{7, 0, 1, DescriptorPtr(&rtOutputUav)},
+			};
+
+			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
+
+			BindlessTextureManager* texMngr = m_renderer->getTextureManager();
+			BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
+
+			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(1, texMngr->getTextureArrayDescSet());
+			m_cameraPathHelperUtility.setExternallyOwnedDescriptorSet(2, buffMngr->getBufferArrayDescSet());
+
+		}
+
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE);
+
+		m_cameraPathHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);;
+
+
+	}
+
 
 }

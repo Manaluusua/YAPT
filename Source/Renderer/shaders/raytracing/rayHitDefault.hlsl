@@ -135,8 +135,9 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	}
 	else
 	{
-		
-		sampleMaterial(surfaceDef, payload, rayDir,  w, lightDir);
+		uint sampleIndex = g_currentRandomSampleIndex + payload.getPathLength() * 7 + payload.getRayIndex() * 11;
+		float4 randomSamples = getRandomSampleFloat4(sampleIndex);
+		evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rayDir, randomSamples, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE,  w, lightDir);
 	}
 	
 	payload.throughput = payload.throughput * w;

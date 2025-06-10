@@ -28,10 +28,22 @@
 			"stages": [{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "traceCameraRays"
+					"entryPoint": "traceCameraRays",
+					"defines": [["CAMERA_RAYS_STAGE", "1"]]
 				}
 			]
 		},
+		
+		"lightRaysBDPT": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "traceLightRays",
+					"defines": [["LIGHT_RAYS_STAGE", "1"]]
+				}
+			]
+		},
+		
 		"clearRaytraceMergeTarget": {
 			"stages": [{
 					"type": "compute",

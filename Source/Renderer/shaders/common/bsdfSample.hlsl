@@ -7,7 +7,7 @@
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
-float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float3 s)
+float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float2 s)
 {
 	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
@@ -46,7 +46,7 @@ T evaluateGGXReflectionConductor(in T etaR, in T etaK,in float ax ,in float ay, 
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
-float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float3 s)
+float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float2 s)
 {
 	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
@@ -117,12 +117,12 @@ float3 getWMTranslucent(in float3 wo,in float3 wi, in float etaR)
 	return wm;
 }
 
-float3 sampleGGXTransmitted(in float etaR, in float ax ,in float ay, in float3 wo, in float3 sample)
+float3 sampleGGXTransmitted(in float etaR, in float ax ,in float ay, in float3 wo, in float2 s)
 {
 	float3 wm;
 	float3 wi;
 
-	wm = sampleWMGGX(wo, ax, ay, sample.x, sample.y);
+	wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
 	
 	if(dot(wo, wm) < 0.f)
 	{
@@ -205,9 +205,9 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-float3 sampleDiffuseLambertian(in float ax ,in float ay, in float3 wo, in float3 sample)
+float3 sampleDiffuseLambertian(in float ax ,in float ay, in float3 wo, in float2 s)
 {
-	float3 wi = sampleHemisphere(sample.xy);
+	float3 wi = sampleHemisphere(s.xy);
 	if(wi.y < 0.f)
 	{
 		return 0.f;
@@ -234,10 +234,10 @@ T evaluateDiffuseLambertian(in T albedo, in float ax, in float ay, in float3 wo,
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////
-float3 sampleSheen(in float r, in float3 wo, in float3 sample)
+float3 sampleSheen(in float r, in float3 wo, in float2 s)
 {
 	float3 wi;
-	wi = sampleHemisphere(sample.xy);
+	wi = sampleHemisphere(s.xy);
 	if(wi.y < 0.f)
 	{
 		return 0.f;

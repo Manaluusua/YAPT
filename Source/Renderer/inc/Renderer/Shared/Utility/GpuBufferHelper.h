@@ -46,6 +46,11 @@ namespace YAPT
 			return *getViewPtr();
 		}
 
+		BufferHandle getBufferHandle()
+		{
+			return m_bufferHandle;
+		}
+
 
 		void flush()
 		{

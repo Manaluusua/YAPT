@@ -1,5 +1,14 @@
+
+
+#ifdef CAMERA_RAYS_STAGE
+RWTexture2D<float4> g_outputColor : register(u7, space3);
+#elif LIGHT_RAYS_STAGE
+#define WRITABLE_LIGHT_DATA
+#endif
+
 #include "BDPTCommon.hlsl"
 
+#ifdef CAMERA_RAYS_STAGE
 
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
@@ -127,6 +136,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 }
 
+#endif
+
+
+#ifdef LIGHT_RAYS_STAGE
+
 [numthreads(8, 8, 1)]
 void traceLightRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -135,3 +149,5 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 {
 	
 }
+
+#endif

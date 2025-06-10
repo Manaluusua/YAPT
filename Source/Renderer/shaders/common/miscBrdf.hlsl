@@ -3,11 +3,11 @@
 #include "commonMath.hlsl"
 
 
-float3 sampleHemisphere(in float2 sample)
+float3 sampleHemisphere(in float2 s)
 {
-	float z = sample.x;
+	float z = s.x;
     float r = sqrt(1.f - sqr(z));
-    float phi = 2.f * PI * sample.y;
+    float phi = 2.f * PI * s.y;
     return float3(r * cos(phi), z,  r * sin(phi));
 }
 

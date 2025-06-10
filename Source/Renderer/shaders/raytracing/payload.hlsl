@@ -54,6 +54,11 @@ struct Payload //: RayStateInterface
 		flags = flagsIn;
 	}
 
+	void addFlags(uint flags)
+	{
+		setStateFlags(getStateFlags() | flags);
+	}
+
 
 	SpectralSamples throughput;
 	SpectralSamples absorption;
