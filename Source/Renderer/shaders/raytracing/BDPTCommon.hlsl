@@ -14,6 +14,7 @@ struct BidirectionalPathTraceConstants
 	uint envType;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
+	uint lightCount;
 };
 
 struct RenderObjectEntry
@@ -59,11 +60,15 @@ ByteAddressBuffer g_counters : register(t6, space3);
 #define COUNTER_LIGHT_HEADERS_INDEX 0
 #define COUNTER_LIGHT_VERTICES_INDEX 1
 
-#define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
-#define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
-
 #define g_worldBoundsMin g_bdptConstants.worldBoundsMin.xyz
 #define g_worldBoundsMax g_bdptConstants.worldBoundsMax.xyz
+#define g_maxVerticesPerLightPath g_bdptConstants.maxVerticesPerLightPath
+#define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
+#define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
+#define g_lightCount g_bdptConstants.lightCount
+
+#define g_envType g_bdptConstants.envType
+#define g_envTexIndex g_bdptConstants.envTextureIndex
 
 float4 getWorldCenterAndRadiusSqr()
 {
@@ -92,7 +97,7 @@ float3 generateRayDirection(float2 uv)
 }
 
 
-void sampleEnvironmentLighting(float4 randValues, out float3 posOut, out float3 dirOut, out float pdfOut)
+void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
 {
 	//sample direction
 	float pdfDir;
@@ -125,10 +130,46 @@ void sampleEnvironmentLighting(float4 randValues, out float3 posOut, out float3 
 		pdfPos = 1 / (PI * worldCenterRad.w);
 	}
 
+	radianceOut.setFromRGBUnbounded(getSkyBoxColor(-lightDir, g_envType, g_envTexIndex).xyz);
 	posOut = lightPos;
 	dirOut = lightDir;
 	pdfOut = pdfDir * pdfPos;
 	
+}
+
+void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
+{
+	LightEntryGPU lightEntry = g_lights[lightIndex];
+	MeshEntryGPU meshEntry = getMeshEntry(lightEntry.meshIndex);
+
+	uint primCount = (meshEntry.indexCount / 3);
+	uint primitiveIndex = min(primCount * randValues.z, primCount - 1);
+
+	float3 barycentrics = float3(1 - randValues.x - randValues.y, randValues.x, randValues.y);
+	uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+
+	float3 p1, p2, p3;
+	fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
+	float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
+	float3 pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
+
+	float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+	float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
+	float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
+
+
+	MaterialEntryGPU matEntry = getMaterialEntry(lightEntry.matIndex);
+	SurfaceDefinitionRGB surfaceDefRGB;
+	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+
+	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+
+
+	radianceOut.setFromRGBUnbounded(surfaceDefRGB.emissive);
+	pdfOut = 1.f / (primCount * area);
+	posOut = pos;
+	dirOut = normal; 
+
 }
 
 float convertSolidAngleToSurfaceArea(float solidAnglePDF, float3 fromToUnnormalized, float3 toNormal)  
@@ -136,6 +177,28 @@ float convertSolidAngleToSurfaceArea(float solidAnglePDF, float3 fromToUnnormali
 	float invDistSqr = 1.f/dot(fromToUnnormalized, fromToUnnormalized);
 	float pdf = solidAnglePDF * abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
 	return pdf * invDistSqr;
+}
+
+
+void sampleLight(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
+{
+	if (g_lightCount == 0)
+	{
+		sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfOut);
+	}
+
+	float lightProb = g_lightCount + envSampleRelativeProbability;
+	float s = lightPickRand * lightProb;
+	if (s > g_lightCount)
+	{
+		sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfOut);
+	}
+	else
+	{
+		uint lightIndex = min((uint)floor(lightPickRand * g_lightCount), g_lightCount - 1);
+		sampleLight(lightIndex, lightSampleRand, radianceOut,  posOut, dirOut, pdfOut);
+	}
+
 }
 
 #endif

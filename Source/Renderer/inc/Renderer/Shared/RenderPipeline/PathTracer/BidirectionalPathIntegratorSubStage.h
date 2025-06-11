@@ -44,6 +44,7 @@ namespace YAPT
 			uint32_t envType;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;
+			uint32_t lightCount;
 		};
 
 		struct RenderObjectEntry
@@ -82,8 +83,6 @@ namespace YAPT
 		void setupLightDataJob(ThreadPool* threadPool);
 
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
-		
-
 		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
 
 

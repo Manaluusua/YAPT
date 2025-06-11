@@ -4,6 +4,11 @@
 #include "raytraceCommon.hlsl"
 //data structs, keep in sync with raytracestage
 
+//macro extensions (default to these if not present)
+#ifndef RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET
+#error "RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET not set! You need to include definition for this macro before including raytraceCommonResources.hlsl"
+#endif
+
 struct RaytraceConstantData
 {
 	float4x4 uvToView;
@@ -59,7 +64,8 @@ struct MeshEntryGPU
 	uint2 normalBuffer;
 	uint2 tangentBuffer;
 	uint2 uvBuffer;
-	uint2 pad0;
+	uint indexCount;
+	uint pad0;
 };
 
 //uniforms
@@ -126,15 +132,6 @@ float4 getRandomSampleFloat4(uint offset)
 	return g_randomSamples[index];
 }
 
-float2 getRandomSampleFloat2(uint offset)
-{
-	return getRandomSampleFloat4(offset).xy;
-}
-float3 getRandomSampleFloat3(uint offset)
-{
-	return getRandomSampleFloat4(offset).xyz;
-}
-
 float getSpectralSampleLambda(uint index)
 {
 	uint ind0 = index / 4;
@@ -153,7 +150,8 @@ float getSpectralSampleLambdaPDF(uint index)
 
 uint getSpectralSampleSetIndex()
 {
-	uint spectralSampleSetIndex = g_spectralSamplingConstants.sampleSetOffset;
+	uint offset = RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET;
+	uint spectralSampleSetIndex = g_spectralSamplingConstants.sampleSetOffset + offset;
 	spectralSampleSetIndex = spectralSampleSetIndex % SPECTRAL_SAMPLESET_COUNT;
 	return spectralSampleSetIndex;
 }

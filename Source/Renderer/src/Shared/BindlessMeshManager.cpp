@@ -105,6 +105,7 @@ namespace YAPT
 				MeshEntryGPU dst;
 
 				const SubmeshDefinition& sm = mesh->getSubmesh(i);
+				dst.indexCount = (uint32_t)sm.indexCount;
 				//index buffer
 				{
 					const MeshBufferBinding& indexBufferBinding = mesh->getIndexBuffer();

@@ -1,4 +1,4 @@
-
+#include "BPTShared.hlsl"
 #include "raytraceCommonResources.hlsl"
 #include "payload.hlsl"
 

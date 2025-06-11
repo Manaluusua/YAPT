@@ -58,6 +58,7 @@ namespace YAPT
 		struct  UpdateParams
 		{
 			size_t sampleOffset;
+			size_t spectralSampleOffset;
 			uvec2p rayGenOffsetInTexels;
 			uvec2p raysPerFrame;
 			uvec2p renderResolution;

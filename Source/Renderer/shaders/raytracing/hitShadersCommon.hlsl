@@ -224,23 +224,53 @@ uint3 fetchIndices(uint2 indexBuffer, uint primIndex)
 		indices.z = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 2];
 	}
 
-	
-
-
 	return indices;
 }
 
-float3 fetchMeshNormal(in uint2 normalBuffer, in uint3 indices, in float3 barycentrics)
+void fetchMeshPositions(in uint2 posBuffer, in uint3 indices, out float3 p1, out float3 p2, out float3 p3)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
+
+	unpackBufferInfo(posBuffer, bufferIndex, bufferStride, bufferOffset);
+
+	p1 = bbLoadFloat3(bufferIndex, bufferOffset + indices.x * bufferStride);
+	p2 = bbLoadFloat3(bufferIndex, bufferOffset + indices.y * bufferStride);
+	p3 = bbLoadFloat3(bufferIndex, bufferOffset + indices.z * bufferStride);
+}
+
+float3 fetchMeshPosition(in uint2 posBuffer, in uint3 indices, in float3 barycentrics)
+{
 	
+	float3 p1;
+	float3 p2;
+	float3 p3;
+	fetchMeshPositions(posBuffer, indices, p1, p2, p3);
+	return barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
+}
+
+void fetchMeshNormals(in uint2 normalBuffer, in uint3 indices, out float3 n1, out float3 n2, out float3 n3)
+{
+	uint bufferIndex;
+	uint bufferStride;
+	uint bufferOffset;
+
 	unpackBufferInfo(normalBuffer, bufferIndex, bufferStride, bufferOffset);
-	
-	float3 n1 = bbLoadFloat3(bufferIndex, bufferOffset + indices.x * bufferStride);
-	float3 n2 = bbLoadFloat3(bufferIndex, bufferOffset + indices.y * bufferStride);
-	float3 n3 = bbLoadFloat3(bufferIndex, bufferOffset + indices.z * bufferStride);
+
+	n1 = bbLoadFloat3(bufferIndex, bufferOffset + indices.x * bufferStride);
+	n2 = bbLoadFloat3(bufferIndex, bufferOffset + indices.y * bufferStride);
+	n3 = bbLoadFloat3(bufferIndex, bufferOffset + indices.z * bufferStride);
+
+}
+
+float3 fetchMeshNormal(in uint2 normalBuffer, in uint3 indices, in float3 barycentrics)
+{
+	float3 n1;
+	float3 n2;
+	float3 n3;
+
+	fetchMeshNormals(normalBuffer, indices, n1, n2, n3);
 
 	return normalize(barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3);
 }
@@ -250,21 +280,29 @@ bool meshHasValidTangents(in uint2 tangentBuffer)
 	return isValidPackedBufferInfo(tangentBuffer);
 }
 
-float3 fetchMeshTangent(in uint2 tangentBuffer, in uint3 indices, in float3 barycentrics)
+void fetchMeshTangents(in uint2 tangentBuffer, in uint3 indices, out float3 t1, out float3 t2, out float3 t3)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
-	
-	unpackBufferInfo(tangentBuffer, bufferIndex, bufferStride, bufferOffset);
-	
-	float4 t1 = bbLoadFloat4(bufferIndex, bufferOffset + indices.x * bufferStride);
-	float4 t2 = bbLoadFloat4(bufferIndex, bufferOffset + indices.y * bufferStride);
-	float4 t3 = bbLoadFloat4(bufferIndex, bufferOffset + indices.z * bufferStride);
 
-	t1.xyz *= t1.w;
-	t2.xyz *= t2.w;
-	t3.xyz *= t3.w;
+	unpackBufferInfo(tangentBuffer, bufferIndex, bufferStride, bufferOffset);
+
+	float4 tan1 = bbLoadFloat4(bufferIndex, bufferOffset + indices.x * bufferStride);
+	float4 tan2 = bbLoadFloat4(bufferIndex, bufferOffset + indices.y * bufferStride);
+	float4 tan3 = bbLoadFloat4(bufferIndex, bufferOffset + indices.z * bufferStride);
+
+	t1 = tan1.xyz * tan1.w;
+	t2 = tan2.xyz * tan2.w;
+	t3 = tan3.xyz * tan3.w;
+}
+
+float3 fetchMeshTangent(in uint2 tangentBuffer, in uint3 indices, in float3 barycentrics)
+{
+	float3 t1;
+	float3 t2;
+	float3 t3;
+	fetchMeshTangents(tangentBuffer, indices, t1, t2, t3);
 
 	return normalize(barycentrics.x * t1.xyz + barycentrics.y * t2.xyz + barycentrics.z * t3.xyz);
 }
@@ -274,18 +312,26 @@ bool meshHasValidUVs(in uint2 uvBuffer)
 	return isValidPackedBufferInfo(uvBuffer);
 }
 
-float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)
+void fetchMeshUVs(in uint2 uvBuffer, in uint3 indices, out float2 uv1, out float2 uv2, out float2 uv3)
 {
 	uint bufferIndex;
 	uint bufferStride;
 	uint bufferOffset;
-	
-	unpackBufferInfo(uvBuffer, bufferIndex, bufferStride, bufferOffset);
-	
-	float2 uv1 = bbLoadFloat2(bufferIndex, bufferOffset + indices.x * bufferStride);
-	float2 uv2 = bbLoadFloat2(bufferIndex, bufferOffset + indices.y * bufferStride);
-	float2 uv3 = bbLoadFloat2(bufferIndex, bufferOffset + indices.z * bufferStride);
 
+	unpackBufferInfo(uvBuffer, bufferIndex, bufferStride, bufferOffset);
+
+	uv1 = bbLoadFloat2(bufferIndex, bufferOffset + indices.x * bufferStride);
+	uv2 = bbLoadFloat2(bufferIndex, bufferOffset + indices.y * bufferStride);
+	uv3 = bbLoadFloat2(bufferIndex, bufferOffset + indices.z * bufferStride);
+}
+
+float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)
+{
+
+	float2 uv1;
+	float2 uv2;
+	float2 uv3;
+	fetchMeshUVs(uvBuffer, indices, uv1, uv2, uv3);
 	return barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
 }
 

@@ -64,7 +64,7 @@ namespace YAPT
 		rtConstants->viewToWorld = viewToWorld;
 
 		//update samples
-		updateSampledWavelengths(params.sampleOffset);
+		updateSampledWavelengths(params.spectralSampleOffset);
 		if ((params.sampleOffset % NUMBER_OF_RANDOM_SAMPLES) == 0)
 		{
 			updateSamples(params.sampleOffset);

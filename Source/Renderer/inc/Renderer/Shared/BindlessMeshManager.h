@@ -13,7 +13,8 @@ namespace YAPT
 		uvec2p normalBuffer;
 		uvec2p tangentBuffer;
 		uvec2p uvBuffer;
-		uvec2p pad0;
+		uint32_t indexCount;
+		uint32_t pad0;
 	};
 
 	class CRenderer;

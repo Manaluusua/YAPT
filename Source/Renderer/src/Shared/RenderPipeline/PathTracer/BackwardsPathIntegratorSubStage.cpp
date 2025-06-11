@@ -176,6 +176,7 @@ namespace YAPT
 		p.raysPerFrame = params.raysPerFrame;
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;
+		p.spectralSampleOffset = params.sampleOffset;
 		m_raytraceCommon.update(p);
 		
 		m_lastUpdateParams = params;

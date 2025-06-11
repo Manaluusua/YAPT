@@ -18,7 +18,8 @@
 
 namespace YAPT
 {
-	constexpr glm::uvec3 WG_SIZE = glm::uvec3(8, 8, 1);
+	constexpr glm::uvec3 WG_SIZE_CAM_STAGE = glm::uvec3(8, 8, 1);
+	constexpr glm::uvec3 WG_SIZE_LIGHT_STAGE = glm::uvec3(64, 1, 1);
 	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 8;
 	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
 	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
@@ -242,6 +243,7 @@ namespace YAPT
 		p.raysPerFrame = params.raysPerFrame;
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;
+		p.spectralSampleOffset = params.sampleOffset; //TODO: should make sure that light paths and camera paths share the same wavelength sampleset and maybe try reuse some (?)
 		m_raytraceCommon.update(p);
 
 		m_lastUpdateParams = params;
@@ -256,6 +258,12 @@ namespace YAPT
 			BidirectionalPathTraceConstants* constants = m_constantsGPU.getData();
 			constants->worldBoundsMax = vec4p(worldBounds.max, 0.f);
 			constants->worldBoundsMin = vec4p(worldBounds.min, 0.f);
+
+			LightManager* lightManager = m_renderer->getLightManager();
+			size_t lightCount = lightManager->getLightReferenceCount();
+
+			constants->lightCount = (uint32_t)lightCount;
+
 			m_constantsGPU.flush();
 		}
 		
@@ -497,7 +505,7 @@ namespace YAPT
 
 		}
 
-		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE);
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE_CAM_STAGE);
 
 		m_cameraPathHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);;
 

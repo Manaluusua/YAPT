@@ -1,6 +1,5 @@
-
+#include "BPTShared.hlsl"
 #include "materialSample.hlsl"
-#include "materialModifiers.hlsl"
 #include "payload.hlsl"
 
 struct RayHitShaderTableConstantData

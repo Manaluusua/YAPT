@@ -6,6 +6,10 @@ RWTexture2D<float4> g_outputColor : register(u7, space3);
 #define WRITABLE_LIGHT_DATA
 #endif
 
+static uint g_spectralSampleOffset;
+
+#define RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET g_spectralSampleOffset
+
 #include "BDPTCommon.hlsl"
 
 #ifdef CAMERA_RAYS_STAGE
@@ -16,6 +20,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+
+	g_spectralSampleOffset = (dispatchThreadId.y % 2) * 2 + (dispatchThreadId.x % 2);
 
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
@@ -60,18 +66,16 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
 		float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
 
-		float3 rayDir = ObjectRayDirection();
-		rayDir = normalize(rayDir); //ObjectRayDirection() contains scaling (if present)
-
 		float3 normal = geometryNormal;
 
 		//fetch surface material parameters
 		MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
 		SurfaceDefinitionRGB surfaceDefRGB;
 		fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-
 		modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
 		SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+
+
 		color.xyz = surfaceDef.albedo.ToRGB(COLORSPACE_DEFAULT, false);
 		color.a = 1.f;
     }
@@ -141,13 +145,19 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 #ifdef LIGHT_RAYS_STAGE
 
-[numthreads(8, 8, 1)]
+[numthreads(64, 1, 1)]
 void traceLightRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	
+
+	g_spectralSampleOffset = 0;
+
+	uint sampleIndex = g_currentRandomSampleIndex + dispatchThreadId.y * g_lightPathsPerDim.x;
+	float4 randomSamples = getRandomSampleFloat4(sampleIndex);
+
+
 }
 
 #endif
