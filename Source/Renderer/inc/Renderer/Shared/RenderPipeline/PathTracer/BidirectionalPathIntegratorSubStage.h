@@ -44,21 +44,9 @@ namespace YAPT
 			uint32_t envType;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;
-			uint32_t lightCount;
 		};
 
-		struct RenderObjectEntry
-		{
-			uvec2p materialAndMeshIndices;
-		};
-
-		struct LightEntryGPU
-		{
-			mat4p transform;
-			mat4p transformInvTransp;
-			uint32_t meshIndex;
-			uint32_t matIndex;
-		};
+		
 
 		struct CombineBoundsJobItem
 		{
@@ -82,7 +70,7 @@ namespace YAPT
 		};
 
 		void setupWorldBoundsJob(ThreadPool* threadPool);
-		void setupLightDataJob(ThreadPool* threadPool);
+		
 
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
@@ -102,8 +90,7 @@ namespace YAPT
 		PostProcessComputePassUtility m_cameraPathHelperUtility;
 
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
-		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
-		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
+		
 
 		DynamicSizeGpuBufferHelper<LightPathHeader> m_lightPathHeadersGPU;
 		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPathsGPU;

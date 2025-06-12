@@ -25,8 +25,7 @@ namespace YAPT
 	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
 
 	BidirectionalPathIntegratorSubStage::BidirectionalPathIntegratorSubStage()
-		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
-		m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
+		:m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
 		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
 		m_lightPathsGPU(RESOURCE_USAGE_STORAGE_BUFFER),
 		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_COPY_DESTINATION),
@@ -119,9 +118,6 @@ namespace YAPT
 		m_raytraceCommon.shutdown();
 		m_cameraPathHelperUtility.deinit();
 		m_lightPathHelperUtility.deinit();
-		m_renderObjectsGPU.free();
-		m_lightDataGPU.free();
-
 		m_lightPathHeadersGPU.free();
 		m_lightPathsGPU.free();
 
@@ -185,8 +181,6 @@ namespace YAPT
 			m_cameraPathHelperUtility.createPipelineState();
 		}
 
-		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
-		m_lightDataGPU.init(m_renderer->getGfxHandle());
 		m_constantsGPU.init(data.renderGraphLifetimeResources);
 
 		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
@@ -234,6 +228,10 @@ namespace YAPT
 	{
 		m_accStructProvider->prepareAccelerationStructure();
 		setupWorldBoundsJob(params.prepareTasksPool);
+
+		RaytraceCommonResources::PrepareParams prepareParams;
+		prepareParams.prepareTasksPool = params.prepareTasksPool;
+		m_raytraceCommon.prepare(prepareParams);
 	}
 
 	void BidirectionalPathIntegratorSubStage::update(const BidirectionalPathIntegratorSubStage::UpdateParams& params)
@@ -244,6 +242,7 @@ namespace YAPT
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;
 		p.spectralSampleOffset = params.sampleOffset; //TODO: should make sure that light paths and camera paths share the same wavelength sampleset and maybe try reuse some (?)
+		p.updateTasksPool = params.stageUpdateContext->updateTasksPool;
 		m_raytraceCommon.update(p);
 
 		m_lastUpdateParams = params;
@@ -259,11 +258,6 @@ namespace YAPT
 			constants->worldBoundsMax = vec4p(worldBounds.max, 0.f);
 			constants->worldBoundsMin = vec4p(worldBounds.min, 0.f);
 
-			LightManager* lightManager = m_renderer->getLightManager();
-			size_t lightCount = lightManager->getLightReferenceCount();
-
-			constants->lightCount = (uint32_t)lightCount;
-
 			m_constantsGPU.flush();
 		}
 		
@@ -271,7 +265,7 @@ namespace YAPT
 		m_countersGPU.flush();
 
 
-		setupLightDataJob(params.stageUpdateContext->updateTasksPool);
+		
 	}
 
 	void BidirectionalPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
@@ -284,45 +278,7 @@ namespace YAPT
 	void BidirectionalPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
 
-		bool emptyScene = instancesCount == 0;
-		size_t numberOfEntriesNeeded = max((size_t)1, instancesCount);
-
-		m_renderObjectsGPU.allocate(numberOfEntriesNeeded, "RenderObjectsBuffer");
-		char* data = m_renderObjectsGPU.map(0, numberOfEntriesNeeded);
-
-		if (!emptyScene)
-		{
-			for (size_t i = 0; i < objectCount; ++i)
-			{
-				size_t entryOffset = instanceOffsets[i];
-				for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
-				{
-					const MaterialPerSubmeshArray& mat = materials[i];
-					const MeshInternal* mesh = meshes[i];
-
-					size_t matId = mat.getMaterialForSubmeshIndex(k)->getID();
-					size_t meshId = mesh->getMeshIndex();
-
-					size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
-					size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, k);
-
-					RenderObjectEntry entry;
-					entry.materialAndMeshIndices = uvec2p(matIndex, meshIndex);
-
-					memcpy(data + (entryOffset + k) * m_renderObjectsGPU.getAlignedEntrySize(), &entry, sizeof(RenderObjectEntry));
-
-				}
-
-			}
-		}
-		else
-		{
-			RenderObjectEntry dummy;
-			dummy.materialAndMeshIndices = uvec2p(0, 0);
-			memcpy(data, &dummy, sizeof(dummy));
-		}
-
-		m_renderObjectsGPU.unmap();
+		m_raytraceCommon.sceneChanged(ids, materials, meshes, instanceOffsets, objectCount, instancesCount);
 
 		//update miss
 		{
@@ -406,61 +362,7 @@ namespace YAPT
 			threadPool->addTask(combineBoundsJob, &m_combineBoundsJobs[i]);
 		}
 	}
-	void BidirectionalPathIntegratorSubStage::setupLightDataJob(ThreadPool* threadPool)
-	{
-		
-		auto uploadLightDataJob = [](void* usrData)
-		{
-			BidirectionalPathIntegratorSubStage* subStage = static_cast<BidirectionalPathIntegratorSubStage*>(usrData);
-			LightManager* lightManager = subStage->m_renderer->getLightManager();
-			DynamicSizeGpuBufferHelper<LightEntryGPU> lightDataGPU = subStage->m_lightDataGPU;
-			RenderObjectManager& roMngr = subStage->m_renderer->getRenderObjectManager();
-			BindlessMeshManager* meshMngr = subStage->m_meshMngr;
-			BindlessMaterialManager* matMngr = subStage->m_materialMngr;
-
-			size_t lightCount = lightManager->getLightReferenceCount();
-			if (lightCount == 0)
-			{
-				if (lightDataGPU.getAllocatedEntryCount() == 0)
-				{
-					lightDataGPU.allocate(1, "EmissiveObjectsReferences");
-				}
-				return;
-			}
-
-			if (lightCount > lightDataGPU.getAllocatedEntryCount())
-			{
-				lightDataGPU.allocate(lightCount, "EmissiveObjectsReferences");
-			}
-
-			char* dstPtr = lightDataGPU.map(0, lightCount);
-			const LightManager::LightReference* refs = lightManager->getAllLightReferences();
-			for (size_t i = 0; i < lightCount; ++i)
-			{
-				const LightManager::LightReference& ref = refs[i];
-				const mat4& t = roMngr.getMatrixForId(ref.objectId);
-				mat4p invTransp = glm::transpose(glm::inverse(t));
-				size_t meshIndex = meshMngr->getEntryIndexForMeshIdAndSubmesh(ref.objectId, ref.submeshIndex);
-				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialForSubmeshIndex(ref.submeshIndex)->getID());
-
-				LightEntryGPU gpuEntry;
-				gpuEntry.transform = t;
-				gpuEntry.transformInvTransp = invTransp;
-				gpuEntry.meshIndex = (uint32_t)meshIndex;
-				gpuEntry.matIndex = (uint32_t)matIndex;
-				
-
-				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
-			}
-
-
-			lightDataGPU.unmap();
-		};
-
-		
-		threadPool->addTask(uploadLightDataJob, this);
-		
-	}
+	
 
 
 	void BidirectionalPathIntegratorSubStage::executeLightPathPass(const RenderGraphNodeExecutionContext& exec)
@@ -477,8 +379,7 @@ namespace YAPT
 
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
-			BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
-			BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
+			
 
 			BufferViewHandle lightPathHeaders = m_lightPathHeadersGPU.getBufferViewHandle();
 			BufferViewHandle lightPathVertices = m_lightPathsGPU.getBufferViewHandle();
@@ -486,13 +387,11 @@ namespace YAPT
 
 			DescriptorSetUpdate updates[] = {
 				{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
-				{1, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
-				{2, 0, 1, DescriptorPtr(&lightsBufferHandle)},
-				{3, 0, 1, DescriptorPtr(&accStruct)},
-				{4, 0, 1, DescriptorPtr(&lightPathHeaders)},
-				{5, 0, 1, DescriptorPtr(&lightPathVertices)},
-				{6, 0, 1, DescriptorPtr(&counters)},
-				{7, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{1, 0, 1, DescriptorPtr(&accStruct)},
+				{2, 0, 1, DescriptorPtr(&lightPathHeaders)},
+				{3, 0, 1, DescriptorPtr(&lightPathVertices)},
+				{4, 0, 1, DescriptorPtr(&counters)},
+				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
 			};
 
 			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));

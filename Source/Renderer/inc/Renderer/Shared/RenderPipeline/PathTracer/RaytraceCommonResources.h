@@ -24,6 +24,7 @@ namespace YAPT
 		vec2p rayUVOffset;
 		uint32_t currentSampleIndex;
 		uint32_t maxRayDepth;
+		uint32_t lightCount;
 	};
 
 	struct RandomSamples
@@ -56,8 +57,28 @@ namespace YAPT
 	{
 	public:
 
+		struct RenderObjectEntry
+		{
+			uvec2p materialAndMeshIndices;
+		};
+
+		struct LightEntryGPU
+		{
+			mat4p transform;
+			mat4p transformInvTransp;
+			uint32_t meshIndex;
+			uint32_t matIndex;
+		};
+
+		struct PrepareParams
+		{
+			ThreadPool* prepareTasksPool;
+
+		};
+
 		struct  UpdateParams
 		{
+			ThreadPool* updateTasksPool;
 			size_t sampleOffset;
 			size_t spectralSampleOffset;
 			uvec2p rayGenOffsetInTexels;
@@ -65,19 +86,24 @@ namespace YAPT
 			uvec2p renderResolution;
 		};
 
+		RaytraceCommonResources();
+		~RaytraceCommonResources();
+
 		static void setupCommonSamplers(CRenderer* rend, PipelineLayoutHelper& helper, const ShaderPipelineReflection& refl, ShaderModuleType module);
 
 		void initialize(CRenderer* rend, RenderResourcesPool* resourcesPool, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
 		void shutdown();
 		void updateCommonResourcesToDescriptorSet(DescriptorSetHandle handle);
+		void prepare(const RaytraceCommonResources::PrepareParams& params);
 		void update(const RaytraceCommonResources::UpdateParams& params);
 
-		
+		void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount);
 
 	private:
 		void initSubpixelJitterSamples();
 		void updateSamples(size_t sampleOffset);
 		void updateSampledWavelengths(size_t sampleOffset);
+		void setupLightDataJob(ThreadPool* threadPool);
 
 		CRenderer* m_renderer;
 		BindlessMaterialManager* m_materialMngr;
@@ -85,6 +111,8 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
 		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
+		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
+		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 
 		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 		bool m_applySubpixelJitter;

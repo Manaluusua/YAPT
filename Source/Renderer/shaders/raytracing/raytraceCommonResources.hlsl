@@ -18,6 +18,7 @@ struct RaytraceConstantData
 	float2 rayUVOffset;
 	uint currentSampleIndex;
 	uint maxRayDepth;
+    uint lightCount;
 };
 
 struct RandomSamples
@@ -68,34 +69,50 @@ struct MeshEntryGPU
 	uint pad0;
 };
 
+struct RenderObjectEntry
+{
+    uint2 meshAndMaterialIndices;
+};
+
+
+struct LightEntryGPU
+{
+    float4x4 transform;
+    float4x4 transformInvTransp;
+    uint meshIndex;
+    uint matIndex;
+};
+
+
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
 ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 StructuredBuffer<MaterialEntryGPU> g_materialEntries : register(t4, space0);
 StructuredBuffer<MeshEntryGPU> g_meshEntries : register(t5, space0);
+StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t6, space0);
+StructuredBuffer<LightEntryGPU> g_lights : register(t7, space0);
+
+SamplerState g_colorSampler : register(s8, space0);
+SamplerState g_pointSampler: register(s9, space0);
+SamplerState g_lutSampler : register(s10, space0);
+Texture2D g_NoiseTex : register(t11, space0);
 
 
-SamplerState g_colorSampler : register(s6, space0);
-SamplerState g_pointSampler: register(s7, space0);
-SamplerState g_lutSampler : register(s8, space0);
-Texture2D g_NoiseTex : register(t9, space0);
+Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t12, space0);
+Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t13, space0);
+Texture3D g_dirAlbedoGGXSingleAndMultiScatterLUT : register(t14, space0);
+Texture2D g_avgDirAlbedoGGXSingleAndMultiScatterLUT : register(t15, space0);
+Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t16, space0);	
+Texture3D g_dirAlbedoGGXTranslucentLighterLUT : register(t17, space0);
+Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t18, space0);
+Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t19, space0);
+Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t20, space0);
 
-
-Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t10, space0);
-Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t11, space0);
-Texture3D g_dirAlbedoGGXSingleAndMultiScatterLUT : register(t12, space0);
-Texture2D g_avgDirAlbedoGGXSingleAndMultiScatterLUT : register(t13, space0);
-Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t14, space0);	
-Texture3D g_dirAlbedoGGXTranslucentLighterLUT : register(t15, space0);
-Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t16, space0);
-Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t17, space0);
-Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t18, space0);
-
-Texture1D g_cieXYZCoeffsLUT : register(t19, space0);
-Texture1D g_d65IlluminantLUT : register(t20, space0);
-Texture3D g_rec2020ToSPDLUT : register(t21, space0);
-Texture3D g_srgbToSPDLUT : register(t22, space0);
+Texture1D g_cieXYZCoeffsLUT : register(t21, space0);
+Texture1D g_d65IlluminantLUT : register(t22, space0);
+Texture3D g_rec2020ToSPDLUT : register(t23, space0);
+Texture3D g_srgbToSPDLUT : register(t24, space0);
 
 //bindless texture aliases
 [[vk::binding(0, 1)]]
@@ -117,12 +134,14 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
 #define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
+#define g_lightCount g_rayGenConstants.lightCount
 
 #define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
 #define g_randomSamples g_randomSampleLocations.samples
 
 #define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
 #define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
+
 
 
 //helper functions

@@ -14,22 +14,8 @@ struct BidirectionalPathTraceConstants
 	uint envType;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
-	uint lightCount;
 };
 
-struct RenderObjectEntry
-{
-	uint2 meshAndMaterialIndices;
-};
-
-
-struct LightEntryGPU
-{
-	float4x4 transform;
-	float4x4 transformInvTransp;
-	uint meshIndex;
-	uint matIndex;
-};
 
 struct LightPathHeader
 {
@@ -100,18 +86,17 @@ struct BDPTRayState //: RayStateInterface
 
 
 ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, space3);
-StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t1, space3);
-StructuredBuffer<LightEntryGPU> g_lights : register(t2, space3);
-RaytracingAccelerationStructure g_accelerationStructure : register(t3, space3);
+
+RaytracingAccelerationStructure g_accelerationStructure : register(t1, space3);
 
 #ifdef WRITABLE_LIGHT_DATA
-RWStructuredBuffer<LightPathHeader> g_lightPathHeaders : register(u4, space3);
-RWStructuredBuffer<LightPathNode> g_lightPathVertices : register(u5, space3);
-RWByteAddressBuffer g_counters : register(u6, space3);
+RWStructuredBuffer<LightPathHeader> g_lightPathHeaders : register(u2, space3);
+RWStructuredBuffer<LightPathNode> g_lightPathVertices : register(u3, space3);
+RWByteAddressBuffer g_counters : register(u4, space3);
 #else
-StructuredBuffer<LightPathHeader> g_lightPathHeaders : register(t4, space3);
-StructuredBuffer<LightPathNode> g_lightPathVertices : register(t5, space3);
-ByteAddressBuffer g_counters : register(t6, space3);
+StructuredBuffer<LightPathHeader> g_lightPathHeaders : register(t2, space3);
+StructuredBuffer<LightPathNode> g_lightPathVertices : register(t3, space3);
+ByteAddressBuffer g_counters : register(t4, space3);
 #endif
 
 #define COUNTER_LIGHT_HEADERS_INDEX 0
@@ -122,7 +107,7 @@ ByteAddressBuffer g_counters : register(t6, space3);
 #define g_maxVerticesPerLightPath g_bdptConstants.maxVerticesPerLightPath
 #define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
-#define g_lightCount g_bdptConstants.lightCount
+
 
 #define g_envType g_bdptConstants.envType
 #define g_envTexIndex g_bdptConstants.envTextureIndex
@@ -134,10 +119,6 @@ float4 getWorldCenterAndRadiusSqr()
 	return float4(c, dot(ext, ext));
 }
 
-RenderObjectEntry getRenderObject(uint index)
-{
-	return g_renderObjects[index];
-}
 
 float3 generateRayDirection(float2 uv)
 {
@@ -167,7 +148,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
-    RenderObjectEntry ro = getRenderObject(instanceIndex);
+    RenderObjectEntry ro = g_renderObjects[instanceIndex];
     MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
 
 	//Initial surface setup

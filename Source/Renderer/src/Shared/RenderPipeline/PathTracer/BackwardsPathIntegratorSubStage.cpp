@@ -167,6 +167,10 @@ namespace YAPT
 	void BackwardsPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
 	{
 		m_accStructProvider->prepareAccelerationStructure();
+
+		RaytraceCommonResources::PrepareParams p;
+		p.prepareTasksPool = params.prepareTasksPool;
+		m_raytraceCommon.prepare(p);
 	}
 
 	void BackwardsPathIntegratorSubStage::update(const BackwardsPathIntegratorSubStage::UpdateParams& params)
@@ -177,6 +181,7 @@ namespace YAPT
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;
 		p.spectralSampleOffset = params.sampleOffset;
+		p.updateTasksPool = params.stageUpdateContext->updateTasksPool;
 		m_raytraceCommon.update(p);
 		
 		m_lastUpdateParams = params;
@@ -211,6 +216,7 @@ namespace YAPT
 
 	void BackwardsPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
+		m_raytraceCommon.sceneChanged(ids, materials, meshes, instanceOffsets, objectCount, instancesCount);
 
 		bool emptyHitGroup = instancesCount == 0;
 

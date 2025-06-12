@@ -1,7 +1,7 @@
 
 
 #ifdef CAMERA_RAYS_STAGE
-RWTexture2D<float4> g_outputColor : register(u7, space3);
+RWTexture2D<float4> g_outputColor : register(u5, space3);
 #elif LIGHT_RAYS_STAGE
 #define WRITABLE_LIGHT_DATA
 #endif
@@ -55,7 +55,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		float t = q.CommittedRayT();
 		float2 barycentrics2 = q.CommittedTriangleBarycentrics();
 
-		RenderObjectEntry ro = getRenderObject(instanceInd);
+		RenderObjectEntry ro = g_renderObjects[instanceInd];
 		MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
 
 
