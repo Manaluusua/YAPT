@@ -142,7 +142,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 #endif
 
-
+//#define LIGHT_RAYS_STAGE //DONT FORGET TO REMOVE/DISABLE
 #ifdef LIGHT_RAYS_STAGE
 
 [numthreads(64, 1, 1)]
@@ -155,8 +155,111 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	g_spectralSampleOffset = 0;
 
 	uint sampleIndex = g_currentRandomSampleIndex + dispatchThreadId.y * g_lightPathsPerDim.x;
-	float4 randomSamples = getRandomSampleFloat4(sampleIndex);
 
+	SpectralSamples throughPut;
+	float3 lightPos;
+	float3 lightDir;
+	float lightSamplePDF;
+
+	//sample light
+	{
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
+		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
+
+		sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, throughPut, lightPos, lightDir, lightSamplePDF);
+	}
+
+
+	if(throughPut.allSamplesEqual(0.f)) return;
+
+	BDPTRayState rayState;
+	rayState.absorption.set(0);
+    rayState.setStateFlags(0);
+    rayState.numberVolumesEntered = 0;
+
+    float pdfSumRatio = 1;
+	
+	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
+	{
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex + i, 0);
+
+		uint rayFlags = RAY_FLAG_NONE;
+		uint InstanceInclusionMask = ~0;
+
+		RayQuery<RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+
+		RayDesc ray;
+		ray.Origin = lightPos;
+		ray.Direction = lightDir;
+		ray.TMin = 0.0001f;
+		ray.TMax = 1000.0;
+
+		q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags, 
+		    InstanceInclusionMask,
+		    ray);
+
+		q.Proceed();
+
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			
+            SurfaceDefinition surfaceDef;
+            PrecalculatedSurfaceData precalculatedSurfaceData;
+            float samplingProbabilities[LAYER_COUNT];
+            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            float3 woOS = -q.CommittedObjectRayDirection();
+            uint instId = q.CommittedInstanceID();
+            uint primIndex = q.CommittedPrimitiveIndex();
+            float2 bary = q.CommittedTriangleBarycentrics();
+			
+			
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
+            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+
+            float3 wiOS = getSampleDirectionOS(surfaceDef, rayState, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
+
+            float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
+            transformNormal = transpose(transformNormal);
+			
+            float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
+            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+			
+
+            LightPathNode pathNode;
+            pathNode.instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
+            pathNode.normalWSPDF.xyz = normalWS;
+            pathNode.throughput = throughPut.toFloat4();
+            pathNode.positionWSMISSum = float4(posWS, pdfSumRatio);
+			
+            if (isZero(wiOS))
+            {
+                break;
+            }
+                
+            SpectralSamples w;
+            float pdfForward;
+            float pdfBackward;
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+
+            float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+			
+            pdfForward *= areaMultiplier;
+            pdfBackward *= areaMultiplier;
+			
+            pdfSumRatio *= pdfForward / pdfBackward;
+            throughPut = throughPut * w;
+
+        }
+		else 
+		{
+		    //end path
+		}
+
+
+	}
+	
 
 }
 

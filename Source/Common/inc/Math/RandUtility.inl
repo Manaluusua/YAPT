@@ -39,7 +39,19 @@ namespace YAPT
 
 		}
 
+		template<typename RES_TYPE>
+		void generateHaltonSequenceWithBases(size_t numberOfSamplesToGenerate, uint32_t numberOfComponents, const uint32_t* bases, RES_TYPE* samplesOut, size_t indexOffset)
+		{
+			size_t sampleIndex = 0;
+			for (size_t i = 0; i < numberOfSamplesToGenerate; ++i)
+			{
+				for (size_t k = 0 ; k < numberOfComponents; ++k)
+				{
+					samplesOut[sampleIndex++] = halton<RES_TYPE>(bases[k], i + indexOffset);
+				}
+			}
 
+		}
 
 	}
 }

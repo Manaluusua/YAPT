@@ -47,6 +47,9 @@ namespace YAPT
 		template<typename RES_TYPE, glm::precision PRECISION, size_t... BASES>
 		void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec<sizeof...(BASES), RES_TYPE, PRECISION>* samplesOut, size_t indexOffset);
 
+		template<typename RES_TYPE>
+		void generateHaltonSequenceWithBases(size_t numberOfSamplesToGenerate, uint32_t numberOfComponents, const uint32_t* bases, RES_TYPE* samplesOut, size_t indexOffset);
+
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec2* samplesOut, size_t indexOffset)
 		{
 			generateHaltonSequence<float, glm::precision::aligned_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
@@ -74,6 +77,11 @@ namespace YAPT
 			generateHaltonSequence<float, glm::precision::packed_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1], PRIME_NUMBERS[2], PRIME_NUMBERS[3]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		
+		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, uint32_t numberOfDimensions, float* samplesOut, size_t indexOffset)
+		{
+			generateHaltonSequenceWithBases(numberOfSamplesToGenerate, numberOfDimensions, PRIME_NUMBERS, samplesOut, indexOffset);
+		}
+
 	}
 }
 

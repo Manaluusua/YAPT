@@ -5,9 +5,6 @@
 
 class RayStateInterface
 {
-	uint getRayIndex();
-	uint getPathLength();
-
 	float getCurrentIOR();
 	float getPreviousIOR();
 

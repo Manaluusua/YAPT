@@ -69,7 +69,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 template<typename RayState>
-float3 getSampleDirection(in SurfaceDefinition surfaceDef, in RayState rayState, in float3 woBase, in float3 woCoating, in float2 a2, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayState, in float3 woBase, in float3 woCoating, in float2 a2, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], in bool exiting)
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
@@ -132,7 +132,6 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in RayState rayState,
 	{
 		float fromIOR;
 		float toIOR;
-		bool exiting = !(HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE);
 
 		if(exiting)
 		{
@@ -176,9 +175,9 @@ float3 getSampleDirection(in SurfaceDefinition surfaceDef, in RayState rayState,
 
 
 template<typename RayState>
-float3 getSampleDirection(in SurfaceDefinition surfaceDef, in RayState rayState, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayState, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
 {
-	return getSampleDirection(surfaceDef, rayState, preCalcData.woBase, preCalcData.woCoating, preCalcData.a2, randMaterialType, randSampleBrdf, samplingProbabilities);
+    return getSampleDirectionOS(surfaceDef, rayState, preCalcData.woBase, preCalcData.woCoating, preCalcData.a2, randMaterialType, randSampleBrdf, samplingProbabilities, preCalcData.exiting);
 }
 
 template<typename RayState>
@@ -378,7 +377,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 
 	float samplingProbabilities[LAYER_COUNT];
 	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, randomSamples.xy, samplingProbabilities);
-	float3 wiObjSpace = getSampleDirection(surfaceDef, rayState, precalculatedSurfData, randomSamples.w, randomSamples.xy, samplingProbabilities);
+	float3 wiObjSpace = getSampleDirectionOS(surfaceDef, rayState, precalculatedSurfData, randomSamples.w, randomSamples.xy, samplingProbabilities);
 
 	SpectralSamples weightSum = (SpectralSamples)0.f;
 	float pdfSum = 0.f;

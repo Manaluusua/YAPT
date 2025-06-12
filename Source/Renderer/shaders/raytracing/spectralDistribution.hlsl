@@ -66,6 +66,12 @@ struct SpectralSamples
 	float samples[SPECTRAL_SAMPLES_COUNT];
 
 	uint getSampleCount() { return SPECTRAL_SAMPLES_COUNT; }
+	
+    float4 toFloat4()
+    {
+        return float4(samples[0], samples[1], samples[2], samples[3]);
+
+    }
 
 	float getMaxSampleValue() 
 	{

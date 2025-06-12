@@ -3,7 +3,7 @@
 
 #include "../globalDefinitions.hlsl"
 #include "materialSample.hlsl"
-#include "materialModifiers.hlsl"
+#include "rayState.hlsl"
 
 struct BidirectionalPathTraceConstants
 {
@@ -38,9 +38,66 @@ struct LightPathHeader
 
 struct LightPathNode
 {
-	float4 normalPDF;
-	float4 positionMISSum;
+    float4 throughput;
+    float4 normalWSPDF;
+    float4 positionWSMISSum;
+    float4 instancePrimitiveBarycentrics;
 };
+
+struct BDPTRayState //: RayStateInterface
+{
+
+    float getCurrentIOR()
+    {
+        float currentIOR = IOR_DEFAULT; //air if not entered volume
+        if (numberVolumesEntered != 0)
+        {
+            currentIOR = volumesEntered[numberVolumesEntered - 1];
+        }
+        return currentIOR;
+    }
+    float getPreviousIOR()
+    {
+        float beforeCurrentIOR = IOR_DEFAULT;
+        if (numberVolumesEntered > 1)
+        {
+            beforeCurrentIOR = volumesEntered[numberVolumesEntered - 2];
+        }
+        return beforeCurrentIOR;
+    }
+
+    void enteredVolume(float IOR, SpectralSamples absorptionParam)
+    {
+        numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
+        volumesEntered[numberVolumesEntered - 1] = IOR;
+        absorption = absorptionParam;
+    }
+    void exitedVolume()
+    {
+        numberVolumesEntered = max(0, numberVolumesEntered - 1);
+    }
+
+    uint getStateFlags()
+    {
+        return flags;
+    }
+    void setStateFlags(uint flagsIn)
+    {
+        flags = flagsIn;
+    }
+
+    void addFlags(uint flags)
+    {
+        setStateFlags(getStateFlags() | flags);
+    }
+
+    SpectralSamples absorption;
+    float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
+    uint numberVolumesEntered;
+    uint flags;
+};
+
+
 
 ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, space3);
 StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t1, space3);
@@ -96,6 +153,43 @@ float3 generateRayDirection(float2 uv)
 	return rayDir;
 }
 
+void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace,
+out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
+{
+
+    SpectralSamples weightDummy;
+    BDPTRayState rayStateDummy = rayState;
+			
+    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, false, rayState, weightOut, pdfForward);
+    evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, true, rayStateDummy, weightDummy, pdfBackward); //generate pdf for reversed order
+}
+
+void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
+out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+{
+    RenderObjectEntry ro = getRenderObject(instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
+
+	//Initial surface setup
+    float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+    float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
+    float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
+
+    float3 normal = geometryNormal;
+
+	//fetch surface material parameters
+    MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
+    SurfaceDefinitionRGB surfaceDefRGB;
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+    modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+
+    getPrecalculatedSurfaceData(surfaceDef, rayState, woOS, triangleHitFrontFace, precalculatedSurfaceData);
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, materialLayerRands, samplingProbabilities);
+}
+
 
 void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
 {
@@ -148,22 +242,24 @@ void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianc
 	float3 barycentrics = float3(1 - randValues.x - randValues.y, randValues.x, randValues.y);
 	uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
 
-	float3 p1, p2, p3;
-	fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
-	float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
-	float3 pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
-
 	float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
 	float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
 	float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
 
-
 	MaterialEntryGPU matEntry = getMaterialEntry(lightEntry.matIndex);
 	SurfaceDefinitionRGB surfaceDefRGB;
 	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
 
+	normal = mul(lightEntry.transformInvTransp, float4(normal, 1.f)).xyz;
+
+	float3 p1, p2, p3;
+	fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
+	p1 = mul(lightEntry.transform, float4(p1, 1)).xyz;
+	p2 = mul(lightEntry.transform, float4(p2, 1)).xyz;
+	p3 = mul(lightEntry.transform, float4(p3, 1)).xyz;
+	float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
+	float3 pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
 
 	radianceOut.setFromRGBUnbounded(surfaceDefRGB.emissive);
 	pdfOut = 1.f / (primCount * area);
@@ -172,15 +268,15 @@ void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianc
 
 }
 
-float convertSolidAngleToSurfaceArea(float solidAnglePDF, float3 fromToUnnormalized, float3 toNormal)  
+float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)  
 {
 	float invDistSqr = 1.f/dot(fromToUnnormalized, fromToUnnormalized);
-	float pdf = solidAnglePDF * abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
-	return pdf * invDistSqr;
+	float absDot =  abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
+    return absDot * invDistSqr;
 }
 
 
-void sampleLight(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfOut)
 {
 	if (g_lightCount == 0)
 	{

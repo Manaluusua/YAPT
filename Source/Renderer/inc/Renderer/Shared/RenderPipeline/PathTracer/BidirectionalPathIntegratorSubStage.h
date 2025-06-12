@@ -75,8 +75,10 @@ namespace YAPT
 
 		struct LightPathNode
 		{
-			vec4 normalPDF;
-			vec4 positionMISSum;
+			vec4p throughput;
+			vec4p normalWSPDF;
+			vec4p positionWSMISSum;
+			vec4p instancePrimitiveBarycentrics;
 		};
 
 		void setupWorldBoundsJob(ThreadPool* threadPool);

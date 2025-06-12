@@ -126,9 +126,10 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 
 
 //helper functions
-float4 getRandomSampleFloat4(uint offset)
+float4 getRandomSampleFloat4(uint offset, uint dimensionSetIndex)
 {
-	uint index = offset % NUMBER_OF_RANDOM_SAMPLES;
+	const uint STATIC_SET_COUNT = 2;
+	uint index = (offset % NUMBER_OF_RANDOM_SAMPLES) * STATIC_SET_COUNT + min(dimensionSetIndex, STATIC_SET_COUNT - 1);
 	return g_randomSamples[index];
 }
 

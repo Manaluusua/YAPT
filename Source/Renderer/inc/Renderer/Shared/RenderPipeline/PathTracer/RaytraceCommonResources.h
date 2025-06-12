@@ -9,6 +9,7 @@
 namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
+	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS = 8; //keep in sync with shader
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr size_t ENVIRONMENT_TYPE_NONE = 0;
 	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
@@ -27,7 +28,7 @@ namespace YAPT
 
 	struct RandomSamples
 	{
-		vec4p samples[NUMBER_OF_RANDOM_SAMPLES];
+		float samples[NUMBER_OF_RANDOM_SAMPLES * NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS];
 	};
 
 	struct SpectralDataConstants
