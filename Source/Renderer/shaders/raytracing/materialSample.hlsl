@@ -24,6 +24,13 @@ struct PrecalculatedSurfaceData
 	bool exiting;
 };
 
+typedef uint TransmissionType;
+
+#define TRANSMISSION_TYPE_NONE 0
+#define TRANSMISSION_TYPE_ENTERED 1
+#define TRANSMISSION_TYPE_EXITED 2
+#define TRANSMISSION_TYPE_DISPERSED 4
+
 void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, 
 	in float3 woBase,in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, float2 rand,
 	out float samplingProbabilities[LAYER_COUNT])
@@ -68,8 +75,8 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, preCalcData.woBase, preCalcData.woCoating, preCalcData.fromIOR, preCalcData.toIOR, preCalcData.a2, rand, samplingProbabilities);
 }
 
-template<typename RayState>
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayState, in float3 woBase, in float3 woCoating, in float2 a2, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], in bool exiting)
+
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, in float toIOR, in float3 woBase, in float3 woCoating, in float2 a2, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], in bool exiting)
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
@@ -130,20 +137,6 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayStat
 	} 
 	else if(sampleLayer == LAYERIND_TRANSMITTED)
 	{
-		float fromIOR;
-		float toIOR;
-
-		if(exiting)
-		{
-			fromIOR = rayState.getCurrentIOR();
-			toIOR = rayState.getPreviousIOR();
-		}
-		else
-		{
-			fromIOR = rayState.getCurrentIOR();
-			toIOR = surfaceDef.dielectricIOR;
-		}
-
 		if (hasDispersion(surfaceDef.flags))
 		{
 			if (exiting)
@@ -173,15 +166,13 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayStat
 	return wi;
 }
 
-
-template<typename RayState>
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in RayState rayState, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
 {
-    return getSampleDirectionOS(surfaceDef, rayState, preCalcData.woBase, preCalcData.woCoating, preCalcData.a2, randMaterialType, randSampleBrdf, samplingProbabilities, preCalcData.exiting);
+    return getSampleDirectionOS(surfaceDef, preCalcData.fromIOR, preCalcData.toIOR, preCalcData.woBase, preCalcData.woCoating, preCalcData.a2, randMaterialType, randSampleBrdf, samplingProbabilities, preCalcData.exiting);
 }
 
-template<typename RayState>
-void evaluateSurface(in SurfaceDefinition surfaceDef,  in float3 woObjSpace, in float3 wiObjSpace,in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in bool onlyPDF, inout RayState rayState, out SpectralSamples weightOut, out float pdfOut)
+
+void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in bool onlyPDF, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
 {
 	float2 a2 = precalculatedSurfData.a2;
 
@@ -201,6 +192,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef,  in float3 woObjSpace, in 
 	wiCoating = normalize(wiCoating);
 	wiBase = normalize(wiBase);
 
+    transmissionTypeOut = TRANSMISSION_TYPE_NONE;
+	
 	float energyLeft = 1.f;
 
 	if (samplingProbabilities[LAYERIND_COATING_GGX] > 0)
@@ -285,8 +278,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef,  in float3 woObjSpace, in 
 			{
 				toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
 			}
-
-		}
+            transmissionTypeOut |= TRANSMISSION_TYPE_DISPERSED;
+        }
 
 		float etaR = toIOR / fromIOR;
 
@@ -303,40 +296,34 @@ void evaluateSurface(in SurfaceDefinition surfaceDef,  in float3 woObjSpace, in 
 
 			float solidAngleCompression = 1.f;
 
+			
 			if (wasTransmitted)
 			{
 				//if transmitted, handle solid angle compression (btdf asymmetry)
 				solidAngleCompression *= sqr(1.f / etaR);
+				
+                transmissionTypeOut |= exiting ? TRANSMISSION_TYPE_EXITED : TRANSMISSION_TYPE_ENTERED;
 
-				//went in or exited?
-				if (exiting)
-				{
-					rayState.exitedVolume();
+            } 
+			else if(twoSided)
+            {
+                transmissionTypeOut |= TRANSMISSION_TYPE_ENTERED | TRANSMISSION_TYPE_EXITED;
 
-				}
-				else
-				{
-					rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
-				}
-			}
+            }
 
 			weightSum = weightSum + evaluateLayer(transmitted, woBase, wiBase, surfaceDef.transparency * energyLeft) * solidAngleCompression;
 			energyLeft *= transmitted.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.transparency);
 
-			if (hasDispersion(surfaceDef.flags))
-			{
-				rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
-			}
+            
+
 		}
 	}
-
-
+	
 	pdfOut = pdfSum;
 	weightOut = weightSum;
 }
 
-template<typename RayState>
-void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in RayState rayState, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)
+void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)
 {
 	float2 a2 = calculateRoughnessParams(surfaceDef.roughness, surfaceDef.anisotropy);
 
@@ -351,12 +338,12 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in RayState ra
 	bool exiting = !(triangleHitFrontFace);
 	if (exiting)
 	{
-		fromIOR = rayState.getCurrentIOR();
-		toIOR = rayState.getPreviousIOR();
-	}
+        fromIOR = currentIOR;
+        toIOR = previousIOR;
+    }
 	else
 	{
-		fromIOR = rayState.getCurrentIOR();
+        fromIOR = currentIOR;
 		toIOR = surfaceDef.dielectricIOR;
 	}
 
@@ -367,33 +354,6 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in RayState ra
 	surfaceDataOut.fromIOR = fromIOR;
 	surfaceDataOut.toIOR = toIOR;
 	surfaceDataOut.exiting = exiting;
-}
-
-template<typename RayState>
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout RayState rayState, in float3 rayDirObjSpace, in float4 randomSamples, in bool triangleHitFrontFace,  out SpectralSamples weightOut, out float3 nextSampleDirOut)
-{
-	PrecalculatedSurfaceData precalculatedSurfData;
-	getPrecalculatedSurfaceData(surfaceDef, rayState, -rayDirObjSpace, triangleHitFrontFace, precalculatedSurfData);
-
-	float samplingProbabilities[LAYER_COUNT];
-	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, randomSamples.xy, samplingProbabilities);
-	float3 wiObjSpace = getSampleDirectionOS(surfaceDef, rayState, precalculatedSurfData, randomSamples.w, randomSamples.xy, samplingProbabilities);
-
-	SpectralSamples weightSum = (SpectralSamples)0.f;
-	float pdfSum = 0.f;
-
-	if (!isZero(wiObjSpace))
-	{
-		evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, false, rayState, weightSum, pdfSum);
-
-		if (pdfSum > 0.f)
-		{
-			weightSum = weightSum / pdfSum;
-		}
-	}
-
-	weightOut = weightSum;
-	nextSampleDirOut = wiObjSpace;
 }
 
 

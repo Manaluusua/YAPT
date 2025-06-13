@@ -79,6 +79,7 @@ struct LightEntryGPU
 {
     float4x4 transform;
     float4x4 transformInvTransp;
+    float4 centerRadius;
     uint meshIndex;
     uint matIndex;
 };

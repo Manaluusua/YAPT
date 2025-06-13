@@ -139,10 +139,30 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 {
 
     SpectralSamples weightDummy;
-    BDPTRayState rayStateDummy = rayState;
+
+    TransmissionType transmissionType;
+    TransmissionType transmissionTypeDummy;
+	
+    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, false, weightOut, pdfForward, transmissionType);
+    evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, true, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
+
+    if (transmissionType != TRANSMISSION_TYPE_NONE)
+    {
+        if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
+        {
+            rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
+        }
 			
-    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, false, rayState, weightOut, pdfForward);
-    evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, true, rayStateDummy, weightDummy, pdfBackward); //generate pdf for reversed order
+        if ((transmissionType & TRANSMISSION_TYPE_EXITED) != 0)
+        {
+            rayState.exitedVolume();
+
+        }
+        else if ((transmissionType & TRANSMISSION_TYPE_ENTERED) != 0)
+        {
+            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
+        }
+    }
 }
 
 void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
@@ -165,9 +185,14 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
     SurfaceDefinitionRGB surfaceDefRGB;
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
     modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+	
+    normal = nudgeNormal(-woOS, normal, surfaceDefRGB);
+    geometryNormal = nudgeNormal(-woOS, geometryNormal, surfaceDefRGB);
+	
+    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, tangent, surfaceDefRGB);
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
-    getPrecalculatedSurfaceData(surfaceDef, rayState, woOS, triangleHitFrontFace, precalculatedSurfaceData);
+    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
     calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, materialLayerRands, samplingProbabilities);
 }
 

@@ -409,6 +409,83 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 	
 }
 
+float3 nudgeNormal(float3 rayDir, float3 geometryNormal, in SurfaceDefinitionRGB surfaceDef)
+{
+	//if two sided, flip normal if view ray hitting from backside
+	//when ray too orthogonal to a normal, nudge the normal (if transparent, nudge a bit more since (rough) transparency can generate very high peaks of energy from these cases) 
+	{
+        float rayDotN = dot(rayDir, geometryNormal);
+
+        if (isTwoSided(surfaceDef.flags))
+        {
+            if (rayDotN > 0)
+            {
+                geometryNormal = -geometryNormal;
+            }
+        }
+
+        float rayOrthogonalThreshold = 0.05f;
+        float rayOrthogonalNudgeFactor = 0.05f;
+
+        if (surfaceDef.transparency != 0.f)
+        {
+            float RAY_ORTHOGONAL_THRESHOLD_MAX_ROUGHNESS = 0.2f;
+            float RAY_ORTHOGONAL_NUDGE_FACTOR_MAX_ROUGHNESS = 0.2f;
+
+            rayOrthogonalThreshold = lerp(rayOrthogonalThreshold, RAY_ORTHOGONAL_THRESHOLD_MAX_ROUGHNESS, surfaceDef.roughness);
+            rayOrthogonalNudgeFactor = lerp(rayOrthogonalNudgeFactor, RAY_ORTHOGONAL_NUDGE_FACTOR_MAX_ROUGHNESS, surfaceDef.roughness);
+        }
+
+        if (abs(rayDotN) < rayOrthogonalThreshold)
+        {
+            geometryNormal = normalize(geometryNormal - rayDir * rayOrthogonalNudgeFactor);
+        }
+
+
+    }
+    return geometryNormal;
+}
+
+void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangentBase, float3 tangentCoating, inout SurfaceDefinitionRGB surfaceDef)
+{
+	
+
+	//setup layer transforms
+    float3x3 tangentSpaceCoating;
+    float3x3 tangentSpaceBaseLayer;
+	{
+        makeOrthogonal(normalCoating, tangentCoating);
+        float3 bitangent = cross(tangentCoating, normalCoating);
+        tangentSpaceCoating = float3x3(tangentCoating, normalCoating, bitangent);
+    }
+	{
+        makeOrthogonal(normalBase, tangentBase);
+        float3 bitangent = cross(tangentBase, normalBase);
+        tangentSpaceBaseLayer = float3x3(tangentBase, normalBase, bitangent);
+    }
+
+	
+	
+	//add tangent space rotation (could later on optimize out the sin & cos by providing these precalculated on cpu)
+    if (surfaceDef.anisotropyRotation > 0)
+    {
+        float rotAngle = surfaceDef.anisotropyRotation * 2 * PI;
+        float cosA = cos(rotAngle);
+        float sinA = sin(rotAngle);
+        float3x3 rot = float3x3(cosA, 0, sinA,
+								0, 1, 0,
+								-sinA, 0, cosA);
+        tangentSpaceCoating = mul(rot, tangentSpaceCoating);
+        tangentSpaceBaseLayer = mul(rot, tangentSpaceBaseLayer);
+		
+    }
+	
+    surfaceDef.toCoatingLayerTangentSpace = tangentSpaceCoating;
+    surfaceDef.toBaseLayerTangentSpace = tangentSpaceBaseLayer;
+    surfaceDef.geometryNormal = geometryNormal;
+
+}
+
 float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLength)
 {
 	return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLength * waveLength));

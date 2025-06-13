@@ -58,6 +58,11 @@ namespace YAPT
 		{
 			return size() * 0.5f;
 		}
+
+		float radius()
+		{
+			return glm::length(extents());
+		}
 	};
 
 }

@@ -218,7 +218,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
             surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 
-            float3 wiOS = getSampleDirectionOS(surfaceDef, rayState, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
+            float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
 
             float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);

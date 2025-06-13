@@ -252,13 +252,16 @@ namespace YAPT
 				mat4p invTransp = glm::transpose(glm::inverse(t));
 				size_t meshIndex = meshMngr->getEntryIndexForMeshIdAndSubmesh(ref.objectId, ref.submeshIndex);
 				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialForSubmeshIndex(ref.submeshIndex)->getID());
+				AABB bounds = roMngr.getBoundsForId(ref.objectId);
+				vec3p c = bounds.center();
+				float radius = bounds.radius();
 
 				LightEntryGPU gpuEntry;
 				gpuEntry.transform = t;
 				gpuEntry.transformInvTransp = invTransp;
 				gpuEntry.meshIndex = (uint32_t)meshIndex;
 				gpuEntry.matIndex = (uint32_t)matIndex;
-
+				gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
 
 				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
 			}
