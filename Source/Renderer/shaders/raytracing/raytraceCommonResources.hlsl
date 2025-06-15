@@ -82,6 +82,7 @@ struct LightEntryGPU
     float4 centerRadius;
     uint meshIndex;
     uint matIndex;
+    uint instanceIndex;
 };
 
 

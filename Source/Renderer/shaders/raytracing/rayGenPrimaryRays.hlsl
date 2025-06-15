@@ -20,7 +20,7 @@ float3 generateRayDirection(float2 uv)
 }
 
 
-RaytracingAccelerationStructure g_accelerationStructure : register(t0, space3);
+
 RWTexture2D<float4> g_outputColor : register(u1, space3);
 
 [shader("raygeneration")]

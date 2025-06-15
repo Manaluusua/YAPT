@@ -69,6 +69,7 @@ namespace YAPT
 			vec4p centerRadius;
 			uint32_t meshIndex;
 			uint32_t matIndex;
+			uint32_t instanceIndex;
 		};
 
 		struct PrepareParams

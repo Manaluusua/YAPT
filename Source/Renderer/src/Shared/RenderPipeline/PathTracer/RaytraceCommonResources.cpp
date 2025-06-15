@@ -262,6 +262,7 @@ namespace YAPT
 				gpuEntry.meshIndex = (uint32_t)meshIndex;
 				gpuEntry.matIndex = (uint32_t)matIndex;
 				gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
+				gpuEntry.instanceIndex = 0; //TODO: actually provide this, needed to check that explicit light connection actually hits a "light"
 
 				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
 			}
