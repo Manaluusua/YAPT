@@ -10,8 +10,7 @@
 
 namespace YAPT
 {
-	typedef size_t MeshIndex;
-	constexpr MeshIndex InvalidMeshIndex = InvalidBubbleArrayIndex;
+	
 
 	class MeshProxy;
 	

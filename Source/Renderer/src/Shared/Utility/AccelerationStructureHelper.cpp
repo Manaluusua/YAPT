@@ -129,7 +129,7 @@ namespace YAPT
 				size_t offset = geomDefs.size();
 				geomDefs.resize(geomDefs.size() + subMeshCount);
 				fillGeometryDefinitions(mesh, geomDefs.data() + offset);
-				MeshIndex meshIndex = mesh->getMeshIndex();;
+				MeshIndex meshIndex = mesh->getID();
 				meshIndicesWithBLASBuilt.push_back(meshIndex);
 				m_blasArrayPerMesh[meshIndex].resize(subMeshCount);
 

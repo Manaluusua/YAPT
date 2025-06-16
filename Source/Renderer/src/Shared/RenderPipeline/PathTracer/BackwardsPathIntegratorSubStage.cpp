@@ -194,11 +194,11 @@ namespace YAPT
 		slotOut = 0;
 	}
 
-	void BackwardsPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry)
+	void BackwardsPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, MeshIndex meshID, size_t submeshIndex, ShaderTableEntry* entry)
 	{
 
-		size_t matId = mat.getMaterialForSubmeshIndex(submeshIndex)->getID();
-		size_t meshId = mesh->getMeshIndex();
+		size_t matId = mat.getMaterialIDForSubmeshIndex(submeshIndex);
+		size_t meshId = meshID;
 
 		size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
 		size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, submeshIndex);
@@ -214,18 +214,20 @@ namespace YAPT
 		entry->shaderTableIndex = shaderTableIndex;
 	}
 
-	void BackwardsPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void BackwardsPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
 		m_raytraceCommon.sceneChanged(ids, materials, meshes, instanceOffsets, objectCount, instancesCount);
 
 		bool emptyHitGroup = instancesCount == 0;
 
 		m_shaderTableHelper.resize(1, 1, max((size_t)1, instancesCount));
+		MeshManager& meshMngr = m_renderer->getMeshManager();
 
 		for (size_t i = 0; i < objectCount; ++i)
 		{
+			MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
 			size_t shaderTableOffset = instanceOffsets[i];
-			for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
+			for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 			{
 				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
 				writeShaderTableEntryAndConstantData(shaderTableOffset + k, materials[i], meshes[i], k, entry);

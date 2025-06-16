@@ -7,8 +7,7 @@
 
 namespace YAPT
 {
-	typedef size_t MaterialIndex;
-	constexpr MaterialIndex InvalidMaterialId = InvalidBubbleArrayIndex;
+	
 
 	class MaterialProxy;
 	class MaterialManager

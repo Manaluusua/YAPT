@@ -29,7 +29,7 @@ namespace YAPT
 		
 
 		virtual void getOutput(RenderGraphNode** node, size_t& slotOut) = 0;
-		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsetPerRenderObject, size_t objectCount, size_t instancesCount) = 0;
+		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsetPerRenderObject, size_t objectCount, size_t instancesCount) = 0;
 
 		virtual ~PathIntegratorSubStage() {}
 	};

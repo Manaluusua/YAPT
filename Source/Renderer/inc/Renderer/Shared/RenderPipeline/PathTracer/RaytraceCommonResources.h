@@ -99,7 +99,7 @@ namespace YAPT
 		void prepare(const RaytraceCommonResources::PrepareParams& params);
 		void update(const RaytraceCommonResources::UpdateParams& params);
 
-		void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount);
+		void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount);
 
 	private:
 		void initSubpixelJitterSamples();

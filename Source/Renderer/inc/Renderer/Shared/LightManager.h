@@ -39,6 +39,7 @@ namespace YAPT
 
 		struct GatherLightsJob
 		{
+			MaterialManager* matMngr;
 			MaterialPerSubmeshArray* materials;
 			const RenderObjectId* ids;
 			size_t offset;

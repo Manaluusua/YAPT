@@ -7,7 +7,8 @@
 #include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 #include <Common/RCObjectPtr.h>
-
+#include <Renderer/Shared/MaterialInternal.h>
+#include <Renderer/Shared/MeshInternal.h>
 namespace YAPT
 {
 	typedef TPAID RenderObjectId;
@@ -17,11 +18,11 @@ namespace YAPT
 
 	class RenderObjectProxy;
 
-	class MaterialInternal;
-	class MeshInternal;
 	class CRenderer;
 	class Material;
 	class ThreadPool;
+	class MeshManager;
+	class MaterialManager;
 
 	struct MaterialPerSubmeshArray
 	{
@@ -33,17 +34,17 @@ namespace YAPT
 			materials.resize(materialCount);
 			for (size_t i = 0; i < materialCount; ++i)
 			{
-				materials[i] = matPtr[i]; 
+				materials[i] = matPtr[i]->getID();
 			}
 			
 		}
 
 		MaterialPerSubmeshArray(MaterialInternal* material)
 		{
-			materials.push_back(material);
+			materials.push_back(material->getID());
 		}
 
-		MaterialInternal* getMaterialForSubmeshIndex(size_t submesh) const
+		MaterialIndex getMaterialIDForSubmeshIndex(size_t submesh) const
 		{
 			if (submesh < materials.size())
 			{
@@ -52,7 +53,7 @@ namespace YAPT
 			return materials.back();
 		}
 
-		std::vector<MaterialInternal*> materials;
+		std::vector<MaterialIndex> materials;
 	};
 
 	class RenderObjectManager
@@ -66,7 +67,7 @@ namespace YAPT
 			void* ptr;
 		};
 
-		RenderObjectManager(GfxApiHandle gfx);
+		RenderObjectManager(GfxApiHandle gfx, MeshManager& meshMngr, MaterialManager& matMngr);
 		~RenderObjectManager();
 
 		RenderObjectProxy* createRenderObject();
@@ -92,7 +93,7 @@ namespace YAPT
 		}
 
 		mat4& getMatrixForId(RenderObjectId id);
-		MeshInternal* getMeshForId(RenderObjectId id);
+		MeshIndex getMeshForId(RenderObjectId id);
 		MaterialPerSubmeshArray& getMaterialForId(RenderObjectId id);
 		AABB& getBoundsForId(RenderObjectId id);
 		RenderData* getRenderDataForId(RenderObjectId id, size_t renderDataIndex);
@@ -100,7 +101,7 @@ namespace YAPT
 		size_t getDataIndexForRenderObjectId(RenderObjectId id) const { return m_renderObjects.getDataIndex(id); }
 		size_t getNumberOfObjects();
 		mat4* getAllMatrices();
-		MeshInternal** getAllMeshes();
+		MeshIndex* getAllMeshes();
 		MaterialPerSubmeshArray* getAllMaterials();
 		AABB* getAllBounds();
 		const RenderObjectId* getAllIds();
@@ -139,14 +140,15 @@ namespace YAPT
 
 		struct UpdateBoundsItem
 		{
+			MeshManager* meshMngr;
 			size_t entryOffset;
 			size_t entryCount;
-			const MeshInternal* const * meshes;
+			const MeshIndex* meshes;
 			const mat4* transforms;
 			AABB* bounds;
 		};
 
-		typedef TightlyPackedArray<RenderObjectId, mat4, AABB, MeshInternal*, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
+		typedef TightlyPackedArray<RenderObjectId, mat4, AABB, MeshIndex, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
 		static const size_t PEROBJECTDATA_GROW_COUNT;
 
 		void renderObjectChanged(RenderObjectProxy* obj);
@@ -157,6 +159,8 @@ namespace YAPT
 		void fillMaterials(const std::vector<RCObjectPtr<Material>>& src, MaterialPerSubmeshArray& dst);
 
 		GfxApiHandle m_gfx;
+		MeshManager& m_meshMngr;
+		MaterialManager& m_matMngr;
 
 		std::vector<RenderObjectId> m_createdEntries;
 		std::vector<RenderObjectId> m_modifiedEntries;

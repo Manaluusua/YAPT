@@ -4,6 +4,7 @@
 #include <Renderer/Shared/MeshProxy.h>
 #include <Renderer/Shared/MeshInternal.h>
 #include <Renderer/Shared/MaterialInternal.h>
+#include <Renderer/Shared/MeshManager.h>
 #include <Common/CommonUtilities.h>
 #include <Common/ThreadPool.h>
 
@@ -11,8 +12,10 @@ namespace YAPT
 {
 	const size_t RenderObjectManager::PEROBJECTDATA_GROW_COUNT = 256;
 
-	RenderObjectManager::RenderObjectManager(GfxApiHandle gfx)
+	RenderObjectManager::RenderObjectManager(GfxApiHandle gfx, MeshManager& meshMngr, MaterialManager& matMngr)
 		:m_gfx(gfx),
+		m_meshMngr(meshMngr),
+		m_matMngr(matMngr),
 		m_gpuData(gfx, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
 	{
 		for (size_t i = 0; i < RENDEROBJECT_RENDERDATA_BUCKETS_COUNT; ++i)
@@ -112,7 +115,7 @@ namespace YAPT
 
 		for (size_t i = 0; i < src.size(); ++i)
 		{
-			dst.materials[i] = static_cast<MaterialProxy*>(src[i].get())->getMaterialInternal();
+			dst.materials[i] = static_cast<MaterialProxy*>(src[i].get())->getMaterialInternal()->getID();
 		}
 	}
 
@@ -130,7 +133,7 @@ namespace YAPT
 			0, 
 			t, 
 			AABB::createEmpty(),
-			static_cast<MeshProxy*>(proxy->m_mesh.get())->getMeshInternal(), 
+			static_cast<MeshProxy*>(proxy->m_mesh.get())->getMeshInternal()->getID(),
 			matArray,
 			rData, rData, rData, rData, rData, rData
 		);
@@ -149,7 +152,7 @@ namespace YAPT
 
 		if ((src->_renderObjectState & RenderObjectProxy::RENDEROBJECTSTATE_MESH_CHANGED) != 0)
 		{
-			m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Mesh>(dstIndex) = static_cast<MeshProxy*>(src->m_mesh.get())->getMeshInternal();
+			m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Mesh>(dstIndex) = static_cast<MeshProxy*>(src->m_mesh.get())->getMeshInternal()->getID();
 		}
 
 		if ((src->_renderObjectState & RenderObjectProxy::RENDEROBJECTSTATE_TRANSFORM_CHANGED) != 0)
@@ -162,7 +165,7 @@ namespace YAPT
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Transform>(id);
 	}
-	MeshInternal* RenderObjectManager::getMeshForId(RenderObjectId id)
+	MeshIndex RenderObjectManager::getMeshForId(RenderObjectId id)
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Mesh>(id);
 	}
@@ -212,7 +215,7 @@ namespace YAPT
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Transform>();
 	}
-	MeshInternal** RenderObjectManager::getAllMeshes()
+	MeshIndex* RenderObjectManager::getAllMeshes()
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Mesh>();
 	}
@@ -285,7 +288,7 @@ namespace YAPT
 		constexpr size_t MAX_JOBS = 16;
 		constexpr size_t MIN_ITEMS_PER_JOB = 100;
 		YAPT::mat4* wMat = getAllMatrices();
-		MeshInternal** meshes = getAllMeshes();
+		MeshIndex* meshes = getAllMeshes();
 		AABB* bounds = getAllBounds();
 		size_t count = getNumberOfObjects();
 		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / MIN_ITEMS_PER_JOB));
@@ -304,7 +307,8 @@ namespace YAPT
 			for (size_t i = 0; i < item->entryCount; ++i)
 			{
 				size_t index = item->entryOffset + i;
-				const MeshInternal* mesh = item->meshes[index];
+				MeshIndex meshID = item->meshes[index];
+				MeshInternal* mesh = item->meshMngr->getMeshInternal(meshID);
 				const mat4& t = *item->transforms;
 
 				AABB meshBounds = AABB::createEmpty();
@@ -337,6 +341,7 @@ namespace YAPT
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
 			UpdateBoundsItem& item = m_updateBoundsJobItems[i];
+			item.meshMngr = &m_meshMngr;
 			item.bounds = bounds;
 			item.meshes = meshes;
 			item.transforms = wMat;

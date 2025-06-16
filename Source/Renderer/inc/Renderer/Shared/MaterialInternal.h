@@ -2,9 +2,13 @@
 
 #include <Common/RCObjectPtr.h>
 #include <Math/Math.h>
+#include <Common/BubbleArray.h>
 
 namespace YAPT
 {
+	typedef size_t MaterialIndex;
+	constexpr MaterialIndex InvalidMaterialId = InvalidBubbleArrayIndex;
+
 	static const uint32_t TEX_UNBOUND_INDEX = ~0;
 	enum MaterialMask
 	{
@@ -135,16 +139,16 @@ namespace YAPT
 	class MaterialInternal
 	{
 	public:
-		MaterialInternal(size_t id);
+		MaterialInternal(MaterialIndex id);
 		~MaterialInternal();
 
 		void setMaterialParams(const MaterialParameters& params);
 		const MaterialParameters& getMaterialParams() const;
-		size_t getID() const { return m_id; }
+		MaterialIndex getID() const { return m_id; }
 
 	private:
 		MaterialParameters m_materialParams;
-		size_t m_id;
+		MaterialIndex m_id;
 	};
 }
 

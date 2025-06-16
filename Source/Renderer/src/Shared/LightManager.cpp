@@ -1,5 +1,6 @@
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/CRenderer.h>
+#include <Renderer/Shared/MaterialManager.h>
 #include <Common/ThreadPool.h>
 namespace YAPT
 {
@@ -45,7 +46,8 @@ namespace YAPT
 
 				for (size_t sm = 0; sm < materialsPerSubmesh.materials.size(); ++sm)
 				{
-					const MaterialParameters& matParams = materialsPerSubmesh.getMaterialForSubmeshIndex(sm)->getMaterialParams();
+					MaterialIndex matID = materialsPerSubmesh.getMaterialIDForSubmeshIndex(sm);
+					const MaterialParameters& matParams = item->matMngr->getMaterialInternal(matID)->getMaterialParams();
 
 					if ((glm::dot(matParams.emissive, vec3p(1, 1, 1)) > 0) || matParams.emissiveTex.textureIndex != TEX_UNBOUND_INDEX)
 					{
@@ -64,6 +66,7 @@ namespace YAPT
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
 			GatherLightsJob& item = m_gatherLightsJobs[i];
+			item.matMngr = &m_renderer->getMaterialManager();
 			item.materials = allMaterialReferences;
 			item.ids = ids;
 			item.count = min(operationsPerJob, count - offset);

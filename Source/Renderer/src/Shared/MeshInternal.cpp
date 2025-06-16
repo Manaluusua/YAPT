@@ -2,7 +2,7 @@
 #include <assert.h>
 namespace YAPT
 {
-	MeshInternal::MeshInternal(size_t id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, size_t submeshCount, bool use16BitIndices)
+	MeshInternal::MeshInternal(MeshIndex id, GfxApiHandle gfx, MeshLayoutID layoutID, const MeshLayoutInfo& data, size_t submeshCount, bool use16BitIndices)
 		:m_id(id),
 		m_gfx(gfx),
 		m_meshLayoutId(id),

@@ -98,7 +98,7 @@ namespace YAPT
 		while (mesh != nullptr)
 		{
 
-			m_meshIDToBufferIndex[mesh->getMeshIndex()] = index;
+			m_meshIDToBufferIndex[mesh->getID()] = index;
 
 			for (size_t i = 0; i < mesh->getSubmeshCount(); ++i)
 			{

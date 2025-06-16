@@ -28,7 +28,7 @@ namespace YAPT
 		virtual void update(const UpdateParams& params) final;
 		virtual void getOutput(RenderGraphNode** node, size_t& slotOut) final;
 
-		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount) final;
+		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount) final;
 
 	private:
 
@@ -61,7 +61,7 @@ namespace YAPT
 			uint32_t envType;
 		};	
 		//stride and offset are assumed in dwords (uint32/float32) in the shader
-		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshInternal* mesh, size_t submeshIndex, ShaderTableEntry* entry);
+		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshIndex meshID, size_t submeshIndex, ShaderTableEntry* entry);
 
 		void executeRaytrace(const RenderGraphNodeExecutionContext& exec);
 

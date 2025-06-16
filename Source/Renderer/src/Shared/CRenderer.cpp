@@ -132,7 +132,7 @@ namespace YAPT
 
 		m_meshMngr = new MeshManager(getGfxHandle());
 		m_materialMngr = new MaterialManager;
-		m_renderObjectManager = new RenderObjectManager(getGfxHandle());
+		m_renderObjectManager = new RenderObjectManager(getGfxHandle(), *m_meshMngr, *m_materialMngr);
 		m_textureManager = new BindlessTextureManager(this);
 		m_textureManager->init(MAX_BINDLESS_TEXTURES_COUNT);
 		m_bufferManager = new BindlessBufferManager(this);

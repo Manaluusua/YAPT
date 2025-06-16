@@ -197,8 +197,8 @@ namespace YAPT
 
 		//draw
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
-		MeshInternal** meshes = roMngr.getAllMeshes();
-
+		MeshIndex* meshIDs = roMngr.getAllMeshes();
+		MeshManager& meshMngr = getRenderer()->getMeshManager();
 		GfxApiHandle gfx = getRenderer()->getGfxHandle();
 		std::vector<BufferViewHandle> buffers;
 
@@ -211,17 +211,17 @@ namespace YAPT
 			std::vector<size_t>& drawIndices =  m_renderObjectBuckets[b];
 			Gfx::setGraphicsPipelineState(gfx, execContext.cmdBuffer, m_pipelineStateObjects[b].pso);
 			const MeshToVertexInputLayoutMappingUtility& meshMappingUtility = m_pipelineStateObjects[b].vertexBufferMapping;
-			MeshInternal* lastMesh = nullptr;
+			MeshIndex lastMeshID = InvalidMeshIndex;
 
 			for (size_t i = 0; i < drawIndices.size(); ++i)
 			{
-				
 				size_t drawIndex = drawIndices[i];
-				MeshInternal* mesh = meshes[drawIndex];
-				if (mesh != lastMesh)
+				MeshIndex meshID = meshIDs[drawIndex];
+				MeshInternal* mesh = meshMngr.getMeshInternal(meshID);
+				if (meshID != lastMeshID)
 				{
 					buffers.clear();
-
+					
 					for (size_t vBuffDefIndex = 0; vBuffDefIndex < meshMappingUtility.getNumberOfVertexBufferDefinitions(); ++vBuffDefIndex)
 					{
 						size_t vBuffIndex = meshMappingUtility.getBufferIndexForDefinitionAtIndex(vBuffDefIndex);
@@ -230,7 +230,7 @@ namespace YAPT
 
 					Gfx::setVertexBuffers(gfx, execContext.cmdBuffer, buffers.data(), buffers.size(), 0);
 					Gfx::setIndexBuffer(gfx, execContext.cmdBuffer, mesh->getIndexBuffer().bufferView);
-					lastMesh = mesh;
+					lastMeshID = meshID;
 				}
 				    
 				size_t dynBuffOffset = drawIndex * perObjectBufferEntrySize;
@@ -273,15 +273,16 @@ namespace YAPT
 	void MeshDebugStage::updateRenderObjectChanges()
 	{
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
+		MeshManager& meshMngr = getRenderer()->getMeshManager();
 		if (m_refreshAllRenderObjects)
 		{
 			m_refreshAllRenderObjects = false;
-			MeshInternal** meshes = roMngr.getAllMeshes();
+			MeshIndex* meshes = roMngr.getAllMeshes();
 			RenderObjectManager::RenderData* datas = roMngr.getAllRenderData(m_renderDataIndex);
 
 			for (size_t i = 0; i < roMngr.getNumberOfObjects(); ++i)
 			{
-				MeshInternal* mesh = meshes[i];
+				MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
 				RenderObjectManager::RenderData& data = datas[i];
 				assignToPSOBucket(mesh, data);
 			}
@@ -293,13 +294,13 @@ namespace YAPT
 			roMngr.getCreatedEntries(ids, count);
 			for (size_t i = 0; i < count; ++i)
 			{
-				assignToPSOBucket(roMngr.getMeshForId(ids[i]), *roMngr.getRenderDataForId(ids[i],m_renderDataIndex));
+				assignToPSOBucket(meshMngr.getMeshInternal(roMngr.getMeshForId(ids[i])), *roMngr.getRenderDataForId(ids[i],m_renderDataIndex));
 			}
 
 			roMngr.getModifiedEntries(ids, count);
 			for (size_t i = 0; i < count; ++i)
 			{
-				assignToPSOBucket(roMngr.getMeshForId(ids[i]), *roMngr.getRenderDataForId(ids[i], m_renderDataIndex));
+				assignToPSOBucket(meshMngr.getMeshInternal(roMngr.getMeshForId(ids[i])), *roMngr.getRenderDataForId(ids[i], m_renderDataIndex));
 			}
 		}
 		

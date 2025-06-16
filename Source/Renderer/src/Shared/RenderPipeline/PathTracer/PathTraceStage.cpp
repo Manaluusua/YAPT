@@ -156,7 +156,7 @@ namespace YAPT
 				RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 				const RenderObjectId* ids = roMngr.getAllIds();
 				MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
-				MeshInternal** meshes = roMngr.getAllMeshes();
+				MeshIndex* meshes = roMngr.getAllMeshes();
 				size_t entryCount = roMngr.getNumberOfObjects();
 				m_rtStage->sceneChanged(ids, materials, meshes, m_instanceOffsetPerRenderObject.data(), entryCount, m_totalInstanceCount);
 			}
@@ -187,10 +187,11 @@ namespace YAPT
 	void PathTraceStage::updateInstanceOffsets()
 	{
 		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
+		MeshManager& meshMngr = getRenderer()->getMeshManager();
 
 		const RenderObjectId* ids = roMngr.getAllIds();
 		MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
-		MeshInternal** meshes = roMngr.getAllMeshes();
+		MeshIndex* meshes = roMngr.getAllMeshes();
 		size_t entryCount = roMngr.getNumberOfObjects();
 
 		m_instanceOffsetPerRenderObject.resize(entryCount);
@@ -199,7 +200,7 @@ namespace YAPT
 		for (size_t i = 0; i < entryCount; ++i)
 		{
 			m_instanceOffsetPerRenderObject[i] = instanceCount;
-			instanceCount += meshes[i]->getSubmeshCount();
+			instanceCount += meshMngr.getMeshInternal(meshes[i])->getSubmeshCount();
 		}
 		m_totalInstanceCount = instanceCount;
 	}

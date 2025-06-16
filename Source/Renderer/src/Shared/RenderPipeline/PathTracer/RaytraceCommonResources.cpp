@@ -172,10 +172,11 @@ namespace YAPT
 		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), handle, updates, countOf(updates));
 	}
 
-	void RaytraceCommonResources::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshInternal** meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void RaytraceCommonResources::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
 	{
 		bool emptyScene = instancesCount == 0;
 		size_t numberOfEntriesNeeded = max((size_t)1, instancesCount);
+		MeshManager& meshMngr = m_renderer->getMeshManager();
 
 		m_renderObjectsGPU.allocate(numberOfEntriesNeeded, "RenderObjectsBuffer");
 		char* data = m_renderObjectsGPU.map(0, numberOfEntriesNeeded);
@@ -184,14 +185,15 @@ namespace YAPT
 		{
 			for (size_t i = 0; i < objectCount; ++i)
 			{
+				MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
 				size_t entryOffset = instanceOffsets[i];
-				for (size_t k = 0; k < meshes[i]->getSubmeshCount(); ++k)
+				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 				{
 					const MaterialPerSubmeshArray& mat = materials[i];
-					const MeshInternal* mesh = meshes[i];
 
-					size_t matId = mat.getMaterialForSubmeshIndex(k)->getID();
-					size_t meshId = mesh->getMeshIndex();
+
+					size_t matId = mat.getMaterialIDForSubmeshIndex(k);
+					size_t meshId = mesh->getID();
 
 					size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
 					size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, k);
@@ -225,7 +227,7 @@ namespace YAPT
 			LightManager* lightManager = subStage->m_renderer->getLightManager();
 			DynamicSizeGpuBufferHelper<LightEntryGPU>& lightDataGPU = subStage->m_lightDataGPU;
 			RenderObjectManager& roMngr = subStage->m_renderer->getRenderObjectManager();
-			BindlessMeshManager* meshMngr = subStage->m_meshMngr;
+			BindlessMeshManager* bindlessMeshMngr = subStage->m_meshMngr;
 			BindlessMaterialManager* matMngr = subStage->m_materialMngr;
 
 			size_t lightCount = lightManager->getLightReferenceCount();
@@ -248,10 +250,11 @@ namespace YAPT
 			for (size_t i = 0; i < lightCount; ++i)
 			{
 				const LightManager::LightReference& ref = refs[i];
+				MeshIndex meshId = roMngr.getMeshForId(ref.objectId);
 				const mat4& t = roMngr.getMatrixForId(ref.objectId);
 				mat4p invTransp = glm::transpose(glm::inverse(t));
-				size_t meshIndex = meshMngr->getEntryIndexForMeshIdAndSubmesh(ref.objectId, ref.submeshIndex);
-				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialForSubmeshIndex(ref.submeshIndex)->getID());
+				size_t meshIndex = bindlessMeshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, ref.submeshIndex);
+				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialIDForSubmeshIndex(ref.submeshIndex));
 				AABB bounds = roMngr.getBoundsForId(ref.objectId);
 				vec3p c = bounds.center();
 				float radius = bounds.radius();

@@ -116,13 +116,13 @@ namespace YAPT
 			size_t numberOfRenderObjects = mngr.getNumberOfObjects();
 			instanceDefs.reserve(numberOfRenderObjects);
 
-			MeshInternal** meshes = mngr.getAllMeshes();
+			MeshIndex* meshes = mngr.getAllMeshes();
 			mat4* transforms = mngr.getAllMatrices();
 			const RenderObjectId* ids = mngr.getAllIds();
 
 			for (size_t i = 0; i < numberOfRenderObjects; ++i)
 			{
-				size_t meshIndex = meshes[i]->getMeshIndex();
+				size_t meshIndex = meshes[i];
 				const MeshBLASArray& blasArray = m_blasArrayPerMesh[meshIndex];
 				size_t instanceDefsOffset = instanceDefs.size();
 				instanceDefs.resize(instanceDefs.size() + blasArray.blasPerSubMesh.size());
@@ -134,9 +134,6 @@ namespace YAPT
 					def.blas = blasArray.blasPerSubMesh[k];
 					paramsHandler(i, ids[i], k,  def.instanceID, def.instanceMask, def.hitGroupShaderTableOffset);
 				}
-
-				
-
 			}
 
 			//if (instanceDefs.size() > 0)

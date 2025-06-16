@@ -2,7 +2,7 @@
 
 namespace YAPT
 {
-	MaterialInternal::MaterialInternal(size_t id)
+	MaterialInternal::MaterialInternal(MaterialIndex id)
 		:m_id(id)
 	{
 
