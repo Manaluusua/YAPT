@@ -100,8 +100,25 @@ float calculateExplicitLightPDF(in uint lightIndex, float3 wPos, float3 wDir)
     LightEntryGPU lightEntry = g_lights[lightIndex];
     float4 sphere = lightEntry.centerRadius;
     
-    //TODO
-    return 0;
+    float3 toLight = sphere.xyz - wPos;
+    float toLightLen = length(toLight);
+    float3 toLightDir = toLight / toLightLen;
+    float t = toLightLen / dot(toLightDir, wDir);
+    
+    float3 pOnDisk = wPos + t * wDir;
+    
+    float3 toPointFromCenter = pOnDisk - sphere.xyz;
+    float lenSqr = dot(toPointFromCenter, toPointFromCenter);
+    
+    if (lenSqr > sphere.w * sphere.w)
+    {
+        return 0;
+    } 
+    else
+    {
+        return 1 / (PI * sphere.w * sphere.w);
+    }
+    
 }
 #endif
 //power heuristic
