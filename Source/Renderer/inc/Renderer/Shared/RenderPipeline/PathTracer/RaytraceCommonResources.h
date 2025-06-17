@@ -115,6 +115,7 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
 		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
+		std::vector<size_t> m_instanceOffsetPerRenderObject;
 
 		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 		bool m_applySubpixelJitter;

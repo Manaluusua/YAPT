@@ -138,7 +138,7 @@ namespace YAPT
 			
 			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
 			{
-				size_t shdTblOffset = m_instanceOffsetPerRenderObject[id];
+				size_t shdTblOffset = m_instanceOffsetPerRenderObject[arrayIndex];
 			
 				instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
 				instanceMaskOut = ~0;

@@ -181,12 +181,15 @@ namespace YAPT
 		m_renderObjectsGPU.allocate(numberOfEntriesNeeded, "RenderObjectsBuffer");
 		char* data = m_renderObjectsGPU.map(0, numberOfEntriesNeeded);
 
+		m_instanceOffsetPerRenderObject.resize(objectCount); //copy offsets
+
 		if (!emptyScene)
 		{
 			for (size_t i = 0; i < objectCount; ++i)
 			{
 				MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
 				size_t entryOffset = instanceOffsets[i];
+				m_instanceOffsetPerRenderObject[i] = entryOffset;
 				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 				{
 					const MaterialPerSubmeshArray& mat = materials[i];
@@ -258,6 +261,7 @@ namespace YAPT
 				AABB bounds = roMngr.getBoundsForId(ref.objectId);
 				vec3p c = bounds.center();
 				float radius = bounds.radius();
+				size_t renderObjectDataIndex = roMngr.getDataIndexForRenderObjectId(ref.objectId);
 
 				LightEntryGPU gpuEntry;
 				gpuEntry.transform = t;
@@ -265,7 +269,7 @@ namespace YAPT
 				gpuEntry.meshIndex = (uint32_t)meshIndex;
 				gpuEntry.matIndex = (uint32_t)matIndex;
 				gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
-				gpuEntry.instanceIndex = 0; //TODO: actually provide this, needed to check that explicit light connection actually hits a "light"
+				gpuEntry.instanceIndex = uint32_t(subStage->m_instanceOffsetPerRenderObject[renderObjectDataIndex] + ref.submeshIndex); 
 
 				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
 			}
