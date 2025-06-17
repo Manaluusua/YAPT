@@ -69,12 +69,6 @@ struct MeshEntryGPU
 	uint pad0;
 };
 
-struct RenderObjectEntry
-{
-    uint2 meshAndMaterialIndices;
-};
-
-
 struct LightEntryGPU
 {
     float4x4 transform;
@@ -83,6 +77,7 @@ struct LightEntryGPU
     uint meshIndex;
     uint matIndex;
     uint instanceIndex;
+    uint pad0;
 };
 
 
@@ -92,7 +87,7 @@ ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
 ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 StructuredBuffer<MaterialEntryGPU> g_materialEntries : register(t4, space0);
 StructuredBuffer<MeshEntryGPU> g_meshEntries : register(t5, space0);
-StructuredBuffer<RenderObjectEntry> g_renderObjects : register(t6, space0);
+ByteAddressBuffer g_renderObjects : register(t6, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t7, space0);
 
 SamplerState g_colorSampler : register(s8, space0);
@@ -225,6 +220,13 @@ MaterialEntryGPU getMaterialEntry(uint index)
 MeshEntryGPU getMeshEntry(uint index)
 {
 	return g_meshEntries[index];
+}
+
+uint2 getMaterialAndMeshIndices(uint instanceIndex)
+{
+    uint readOffset = instanceIndex << 3;
+    uint2 matMeshIndices = g_renderObjects.Load2(readOffset);
+    return matMeshIndices;
 }
 
 float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)

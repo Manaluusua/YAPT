@@ -55,8 +55,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		float t = q.CommittedRayT();
 		float2 barycentrics2 = q.CommittedTriangleBarycentrics();
 
-		RenderObjectEntry ro = g_renderObjects[instanceInd];
-		MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
+		uint2 matMeshIndices = getMaterialAndMeshIndices(instanceInd);
+		MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
 
 
 		//Initial surface setup
@@ -69,7 +69,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		float3 normal = geometryNormal;
 
 		//fetch surface material parameters
-		MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
+		MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
 		SurfaceDefinitionRGB surfaceDefRGB;
 		fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
 		modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);

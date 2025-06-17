@@ -168,8 +168,8 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
-    RenderObjectEntry ro = g_renderObjects[instanceIndex];
-    MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
+    uint2 matMeshIndices = getMaterialAndMeshIndices(instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
 
 	//Initial surface setup
     float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
@@ -181,7 +181,7 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
     float3 normal = geometryNormal;
 
 	//fetch surface material parameters
-    MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
+    MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
     SurfaceDefinitionRGB surfaceDefRGB;
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
     modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);

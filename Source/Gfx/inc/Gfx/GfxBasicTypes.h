@@ -108,6 +108,15 @@ namespace YAPT
 
 	typedef Flags DescriptorSetLayoutFlags;
 
+
+	enum BufferViewFlagBits
+	{
+		BUFFERVIEWFLAGS_NONE = 0,
+		BUFFERVIEWFLAGS_RAW = YAPTBIT(0)
+	};
+
+	typedef Flags BufferViewFlags;
+
 	enum ShaderStageBits
 	{
 		SHADERSTAGE_NONE = 0,
@@ -644,6 +653,8 @@ namespace YAPT
 
 		size_t structureStrideInBytes = 0;
 		ResourceFormat nonStructuredFormat = ResourceFormat::UNKNOWN;
+		BufferViewFlags flags = BufferViewFlagBits::BUFFERVIEWFLAGS_NONE;
+
 	};
 
 
@@ -666,7 +677,8 @@ namespace YAPT
 		return a.offsetInBytes == b.offsetInBytes &&
 			a.sizeInBytes == b.sizeInBytes &&
 			a.structureStrideInBytes == b.structureStrideInBytes &&
-			a.nonStructuredFormat == b.nonStructuredFormat;
+			a.nonStructuredFormat == b.nonStructuredFormat &&
+			a.flags == b.flags;
 	}
 
 }

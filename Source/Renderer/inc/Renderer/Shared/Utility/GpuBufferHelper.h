@@ -90,23 +90,25 @@ namespace YAPT
 	{
 	public:
 
-		DynamicSizeGpuBufferHelper(GfxApiHandle handle, ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
+		DynamicSizeGpuBufferHelper(GfxApiHandle handle, ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER, bool createRawView = false)
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
 			m_bufferView(YAPT_NULL_HANDLE),
 			m_gfxHandle(handle),
-			m_allocatedEntryCount(0)
+			m_allocatedEntryCount(0),
+			m_rawView(createRawView)
 		{
 			m_alignedEntrySize = align(sizeof(T), Gfx::getBufferMinimumAlignment(m_gfxHandle, usage));
 		}
 
 
-		DynamicSizeGpuBufferHelper(ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
+		DynamicSizeGpuBufferHelper(ResourceUsage usage = RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER, bool createRawView = false)
 			:m_usage(usage),
 			m_bufferHandle(YAPT_NULL_HANDLE),
 			m_bufferView(YAPT_NULL_HANDLE),
 			m_gfxHandle(YAPT_NULL_HANDLE),
-			m_allocatedEntryCount(0)
+			m_allocatedEntryCount(0),
+			m_rawView(createRawView)
 		{
 		}
 
@@ -141,7 +143,8 @@ namespace YAPT
 			BufferViewDesc buffViewDesc;
 			buffViewDesc.offsetInBytes = 0;
 			buffViewDesc.sizeInBytes = YAPT_BUFFER_WHOLE_RESOURCE;
-			buffViewDesc.structureStrideInBytes = m_alignedEntrySize;
+			buffViewDesc.structureStrideInBytes = m_rawView ? 0 : m_alignedEntrySize;
+			buffViewDesc.flags = m_rawView ? BufferViewFlagBits::BUFFERVIEWFLAGS_RAW : BufferViewFlagBits::BUFFERVIEWFLAGS_NONE;
 			m_bufferView = Gfx::getBufferView(m_gfxHandle, m_bufferHandle, buffViewDesc);
 
 		}
@@ -182,6 +185,7 @@ namespace YAPT
 		BufferViewHandle m_bufferView;
 		size_t m_alignedEntrySize;
 		size_t m_allocatedEntryCount;
+		bool m_rawView;
 	};
 
 

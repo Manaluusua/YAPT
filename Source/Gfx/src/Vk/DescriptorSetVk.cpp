@@ -165,10 +165,12 @@ namespace YAPT
 					for (uint32_t k = 0; k < descSetSrc.descriptorCount; ++k)
 					{
 						auto bufferViewPtr = descSetSrc.descriptor.asBufferViewPtr()[k];
+						bool raw = (bufferViewPtr->bufferDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0;
+						size_t stride = raw ? 4 : bufferViewPtr->bufferDesc.structureStrideInBytes;
 						VkDescriptorBufferInfo info;
 						info.buffer = bufferViewPtr->buffer;
 						info.offset = bufferViewPtr->bufferDesc.offsetInBytes;
-						info.range = isDynamic ? bufferViewPtr->bufferDesc.structureStrideInBytes : bufferViewPtr->bufferDesc.sizeInBytes; //dynamic buffers are only bound by stride and offset when binding descset
+						info.range = isDynamic ? stride : bufferViewPtr->bufferDesc.sizeInBytes; //dynamic buffers are only bound by stride and offset when binding descset
 						m_descriptorBufferInfoScratch[bufferDescIndex++] = info;
 					}
 				}

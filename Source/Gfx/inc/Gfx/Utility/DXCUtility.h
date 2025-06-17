@@ -33,7 +33,7 @@ namespace YAPT
 	inline void shaderTypeToProfile(ShaderModuleType shdType, std::wstring& profileOut)
 	{
 		profileOut = shaderTypeToProfilePrefix(shdType);
-		profileOut += L"6_3";
+		profileOut += L"6_5";
 	}
 
 	RCPtr<IDxcBlob> compileFromFile(LPCWSTR profile, LPCWSTR dbgName, LPCWSTR entryPoint, LPCWSTR filePath, const DxcDefine* defines, UINT32 defineCount,const LPCWSTR* extraParameters = nullptr, size_t extraParamsCount = 0);

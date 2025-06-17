@@ -57,11 +57,6 @@ namespace YAPT
 	{
 	public:
 
-		struct RenderObjectEntry
-		{
-			uvec2p materialAndMeshIndices;
-		};
-
 		struct LightEntryGPU
 		{
 			mat4p transform;
@@ -70,6 +65,7 @@ namespace YAPT
 			uint32_t meshIndex;
 			uint32_t matIndex;
 			uint32_t instanceIndex;
+			uint32_t pad0;
 		};
 
 		struct PrepareParams
@@ -113,7 +109,7 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
 		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
-		DynamicSizeGpuBufferHelper<RenderObjectEntry> m_renderObjectsGPU;
+		DynamicSizeGpuBufferHelper<uvec2p> m_renderObjectsGPU;
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 

@@ -44,7 +44,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
     RayDesc ray;
     ray.Origin = rayPos;
     ray.Direction = rayDir;
-    ray.TMin = 0.0001f;
+    ray.TMin = 0.001f;
     ray.TMax = rayLen;
 
     q.TraceRayInline(
@@ -70,9 +70,9 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
             emission.set(0);
             return false;
         }
-        
-        RenderObjectEntry ro = g_renderObjects[instId];
-        MeshEntryGPU meshEntry = getMeshEntry(ro.meshAndMaterialIndices.x);
+
+        uint2 matMeshIndices = getMaterialAndMeshIndices(instId);
+        MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
 
 	    //Initial surface setup
         float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
@@ -84,7 +84,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
         float3 normal = geometryNormal;
 
 	    //fetch surface material parameters
-        MaterialEntryGPU matEntry = getMaterialEntry(ro.meshAndMaterialIndices.y);
+        MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
         SurfaceDefinitionRGB surfaceDefRGB;
         fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
         modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
@@ -237,7 +237,6 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 
         weightSumBRDF = (weightSumBRDF / pdfBRDF) * wMIS;
     }
-    
 
     weightOut = weightSumBRDF;
     nextSampleDirOut = wiObjSpace;

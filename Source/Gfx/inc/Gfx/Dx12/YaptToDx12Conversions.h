@@ -1037,23 +1037,26 @@ namespace YAPT
 			D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE;
 			UINT sizeInBytes;
 			srvOut.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			if (bufViewDesc.structureStrideInBytes != 0)
+			if ((bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0)
+			{
+				sizeInBytes = 4;
+				srvOut.Format = DXGI_FORMAT_R32_TYPELESS;
+				flags = D3D12_BUFFER_SRV_FLAG_RAW;
+			}
+			else if (bufViewDesc.structureStrideInBytes != 0)
 			{
 				sizeInBytes = (UINT)bufViewDesc.structureStrideInBytes;
 				srvOut.Format = DXGI_FORMAT_UNKNOWN;
-
-				
 			}
 			else if(bufViewDesc.nonStructuredFormat != ResourceFormat::UNKNOWN)
 			{
 				sizeInBytes = (UINT)getFormatSizeInBytes(bufViewDesc.nonStructuredFormat);
 				srvOut.Format = yaptToDx12Format(bufViewDesc.nonStructuredFormat);
 			} 
+			 
 			else
 			{
-				sizeInBytes = 1;
-				srvOut.Format = DXGI_FORMAT_R32_TYPELESS;
-				flags = D3D12_BUFFER_SRV_FLAG_RAW;
+				assert(!"not sure what kind of view to create");
 			}
 			
 			srvOut.Buffer.Flags = flags;
@@ -1169,7 +1172,20 @@ namespace YAPT
 
 		UINT sizeInBytes;
 
-		if (bufViewDesc.structureStrideInBytes == 0)
+
+		if ((bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0)
+		{
+			sizeInBytes = 4;
+			uavOut.Format = DXGI_FORMAT_R32_TYPELESS;
+			uavOut.Buffer.Flags = D3D12_BUFFER_UAV_FLAG_RAW;
+		}
+		else if (bufViewDesc.structureStrideInBytes != 0)
+		{
+
+			sizeInBytes = (UINT)bufViewDesc.structureStrideInBytes;
+			uavOut.Format = DXGI_FORMAT_UNKNOWN;
+		}
+		else if (bufViewDesc.nonStructuredFormat != ResourceFormat::UNKNOWN)
 		{
 
 			sizeInBytes = (UINT)getFormatSizeInBytes(bufViewDesc.nonStructuredFormat);
@@ -1177,8 +1193,7 @@ namespace YAPT
 		}
 		else
 		{
-			sizeInBytes = (UINT)bufViewDesc.structureStrideInBytes;
-			uavOut.Format = DXGI_FORMAT_UNKNOWN;
+			assert(!"not sure what kind of view to create");
 		}
 
 		uavOut.Buffer.FirstElement = (UINT64)bufViewDesc.offsetInBytes / sizeInBytes;

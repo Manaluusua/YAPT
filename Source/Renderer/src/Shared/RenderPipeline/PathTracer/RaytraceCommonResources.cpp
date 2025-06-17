@@ -15,7 +15,7 @@ namespace YAPT
 	
 
 	RaytraceCommonResources::RaytraceCommonResources()
-		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
+		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
 		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER)
 	{
 
@@ -192,6 +192,7 @@ namespace YAPT
 				m_instanceOffsetPerRenderObject[i] = entryOffset;
 				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 				{
+					size_t instanceIndex = entryOffset + k;
 					const MaterialPerSubmeshArray& mat = materials[i];
 
 
@@ -201,10 +202,10 @@ namespace YAPT
 					size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
 					size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, k);
 
-					RenderObjectEntry entry;
-					entry.materialAndMeshIndices = uvec2p(matIndex, meshIndex);
+					
+					uvec2p materialAndMeshIndices = uvec2p(matIndex, meshIndex);
 
-					memcpy(data + (entryOffset + k) * m_renderObjectsGPU.getAlignedEntrySize(), &entry, sizeof(RenderObjectEntry));
+					memcpy(data + (instanceIndex) * sizeof(uvec2p), &materialAndMeshIndices, sizeof(uvec2p));
 
 				}
 
@@ -212,9 +213,8 @@ namespace YAPT
 		}
 		else
 		{
-			RenderObjectEntry dummy;
-			dummy.materialAndMeshIndices = uvec2p(0, 0);
-			memcpy(data, &dummy, sizeof(dummy));
+			uvec2p materialAndMeshIndices = uvec2p(0, 0);
+			memcpy(data, &materialAndMeshIndices, sizeof(uvec2p));
 		}
 
 		m_renderObjectsGPU.unmap();
