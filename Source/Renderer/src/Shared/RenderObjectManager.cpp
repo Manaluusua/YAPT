@@ -309,7 +309,7 @@ namespace YAPT
 				size_t index = item->entryOffset + i;
 				MeshIndex meshID = item->meshes[index];
 				MeshInternal* mesh = item->meshMngr->getMeshInternal(meshID);
-				const mat4& t = *item->transforms;
+				const mat4& t = item->transforms[index];
 
 				AABB meshBounds = AABB::createEmpty();
 
