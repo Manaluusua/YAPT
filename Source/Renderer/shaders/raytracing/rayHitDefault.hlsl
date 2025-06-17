@@ -39,7 +39,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
 {
     uint rayFlags = RAY_FLAG_NONE;
     uint InstanceInclusionMask = ~0;
-    RayQuery <RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH> q;
+    RayQuery < RAY_FLAG_FORCE_OPAQUE > q;
 
     RayDesc ray;
     ray.Origin = rayPos;
@@ -53,7 +53,9 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
 		    InstanceInclusionMask,
 		    ray);
 
-    q.Proceed();
+    while (q.Proceed())
+    {
+    }
 
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {
