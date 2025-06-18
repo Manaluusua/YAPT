@@ -39,7 +39,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
 {
     uint rayFlags = RAY_FLAG_NONE;
     uint InstanceInclusionMask = ~0;
-    RayQuery < RAY_FLAG_FORCE_OPAQUE > q;
+    RayQuery < RAY_FLAG_NONE > q;
 
     RayDesc ray;
     ray.Origin = rayPos;
@@ -239,7 +239,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 
         weightSumBRDF = (weightSumBRDF / pdfBRDF) * wMIS;
     }
-
+    //weightSumBRDF.set(0);
     weightOut = weightSumBRDF;
     nextSampleDirOut = wiObjSpace;
 }

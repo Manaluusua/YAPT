@@ -107,7 +107,7 @@ namespace YAPT
 				geomDesc.Triangles.IndexBuffer = iBuffer->resource->GetGPUVirtualAddress();
 				geomDesc.Triangles.IndexCount = static_cast<UINT>(geomDef.indexCount);
 				geomDesc.Triangles.IndexFormat = yaptToDx12Format(geomDef.indexFormat);
-				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 				geometryDescs.push_back(geomDesc);
 			}
@@ -190,7 +190,7 @@ namespace YAPT
 				geomDesc.Triangles.IndexBuffer = iBuffer->resource->GetGPUVirtualAddress() + geomDef.indexBufferOffsetInBytes;
 				geomDesc.Triangles.IndexCount = static_cast<UINT>(geomDef.indexCount);
 				geomDesc.Triangles.IndexFormat = yaptToDx12Format(geomDef.indexFormat);
-				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE;
+				geomDesc.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE;
 
 				geometryDescs.push_back(geomDesc);
 			}

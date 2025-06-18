@@ -185,7 +185,7 @@ namespace YAPT
 
 		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
 		m_lightPathsGPU.init(m_renderer->getGfxHandle());
-		m_countersGPU.init(data.renderGraphLifetimeResources);
+		m_countersGPU.init(data.renderGraphLifetimeResources, "LightPathCountersBuffer");
 
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 

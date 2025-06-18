@@ -127,9 +127,9 @@ struct SpectralSamples
 		setWithPolynomialCoeffs(coeffs);
 
 		//TEST
-		/*samples[0] = values.x;
+		samples[0] = values.x;
 		samples[1] = values.y;
-		samples[2] = values.z;*/
+		samples[2] = values.z;
 
 	}
 
@@ -302,7 +302,7 @@ struct SpectralSamples
 
 	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT, bool secondaryRaysTerminated = false)
 	{
-		float3 xyz = ToXYZ(secondaryRaysTerminated);
+		/*float3 xyz = ToXYZ(secondaryRaysTerminated);
 		if (colorSpaceIndex == COLORSPACE_RGB)
 		{
 			return mul(c_srgbXYZToRGB, xyz);
@@ -316,9 +316,9 @@ struct SpectralSamples
 			return 0;
 		}
 		
-
+*/
 		//TEST
-		//return float3(samples[0], samples[1], samples[2]);
+		return float3(samples[0], samples[1], samples[2]);
 	}
 
 	bool hasNan()

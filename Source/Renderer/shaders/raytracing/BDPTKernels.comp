@@ -31,7 +31,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;
 
-	RayQuery<RAY_FLAG_FORCE_OPAQUE> q;
+	RayQuery<RAY_FLAG_NONE> q;
 
 	RayDesc ray;
 	ray.Origin = rayOrigin;
@@ -186,7 +186,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		uint rayFlags = RAY_FLAG_NONE;
 		uint InstanceInclusionMask = ~0;
 
-		RayQuery<RAY_FLAG_FORCE_OPAQUE> q;
+		RayQuery<RAY_FLAG_NONE> q;
 
 		RayDesc ray;
 		ray.Origin = lightPos;

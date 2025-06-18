@@ -19,12 +19,12 @@ namespace YAPT
 
 		}
 
-		void init(RenderResourcesPool* pool)
+		void init(RenderResourcesPool* pool, const char* name = nullptr)
 		{
 			BufferDesc buffDesc;
 			buffDesc.sizeInBytes = BufferSize;
 			buffDesc.resourceUsage = m_usage;
-			m_bufferHandle = pool->requestBuffer(buffDesc, { RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE });
+			m_bufferHandle = pool->requestBuffer(buffDesc, { RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE }, name);
 			m_gfxHandle = pool->getGfxHandle();
 
 		}
@@ -136,7 +136,7 @@ namespace YAPT
 			desc.resourceUsage = m_usage;
 			desc.sizeInBytes = numberOfEntries * m_alignedEntrySize;
 			ResourceStateDescription state{ RESOURCE_USAGE_COPY_DESTINATION, ACCESS_FLAGS_WRITE, SHADERSTAGE_NONE };
-			m_bufferHandle = Gfx::createBuffer(m_gfxHandle, desc, state, "PerObjectData");
+			m_bufferHandle = Gfx::createBuffer(m_gfxHandle, desc, state, name);
 			m_allocatedEntryCount = numberOfEntries;
 
 

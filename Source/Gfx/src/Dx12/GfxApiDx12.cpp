@@ -16,6 +16,7 @@
 #include <Gfx/Dx12/DescriptorSetPoolDx12.h>
 #include <Gfx/Dx12/ShaderTableDx12.h>
 #include <Math/Math.h>
+#include <Common/CommonWindowsUtility.h>
 
 namespace YAPT
 {
@@ -111,14 +112,19 @@ namespace YAPT
 				textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
 			}
 
+			textureHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
+			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, D3D12_HEAP_TYPE_DEFAULT, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
+
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
 			{
+				std::wstring wString;
+				stringToWString(name, wString);
 				textureHandle->name = std::string(name);
+				textureHandle->resource->SetName(wString.c_str());
 			}
+
 #endif
-			textureHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
-			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, D3D12_HEAP_TYPE_DEFAULT, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
 
 			return textureHandle;
 		}
@@ -128,19 +134,26 @@ namespace YAPT
 			bufferDescToDx12ResourceDesc(desc, bufferHandle->bufferDesc);
 			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;//yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
 			bufferHandle->lastSeenState.init(state, 1);
-#ifdef DX12_DEBUGNAMES_ENABLE
-			if (name)
-			{
-				bufferHandle->name = std::string(name);
-			}
-			
-#endif
+
 			bufferHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
 
 
 			D3D12_RESOURCE_DESC resDesc = bufferHandle->bufferDesc;
 			resDesc.Width = (UINT)align(resDesc.Width, getMinimumAlignmentForBufferUsage(RESOURCE_USAGE_UNIFORM_BUFFER));
 			bufferHandle->allocBlock = h->getResourceManager().allocate(resDesc, D3D12_HEAP_TYPE_DEFAULT, state, nullptr, IID_PPV_ARGS(&bufferHandle->resource));
+
+#ifdef DX12_DEBUGNAMES_ENABLE
+			if (name)
+			{
+				std::wstring wString;
+				stringToWString(name, wString);
+				bufferHandle->name = std::string(name);
+				bufferHandle->resource->SetName(wString.c_str());
+			}
+
+#endif
+
+
 			return bufferHandle;
 		}
 
