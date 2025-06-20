@@ -16,6 +16,15 @@
 				}
 			]
 		},
+		"rayHitDefaultWithNEE": {
+			"stages": [{
+					"type": "library",
+					"sourceFile": "raytracing/rayHitDefault.hlsl",
+					"entryPoint": "rayHitDefault",
+					"defines": [["ENABLE_NEE", "1"]]
+				}
+			]
+		},
 		"rayMissEnvironment": {
 			"stages": [{
 					"type": "library",

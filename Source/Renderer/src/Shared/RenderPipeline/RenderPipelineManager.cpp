@@ -11,6 +11,7 @@ namespace YAPT
 	void RenderPipelineManager::initialize(const RenderPipeline::InitializeContext& cntx)
 	{
 		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BACKWARDS));
+		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BACKWARDS_WITH_NEE));
 		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BIDIRECTIONAL));
 		m_pipelines.push_back(new DebugDrawPipeline());
 
@@ -45,25 +46,29 @@ namespace YAPT
 
 		size_t pipelineIndex = -1;
 
-		if(std::strcmp(pipelineToActivate, "SimplePT") == 0)
+		if(std::strcmp(pipelineToActivate, "BPT") == 0)
 		{
 			pipelineIndex = 0;
 		}
-		else if (std::strcmp(pipelineToActivate, "BDPT") == 0)
+		else if (std::strcmp(pipelineToActivate, "BPT_WITH_NEE") == 0)
 		{
 			pipelineIndex = 1;
 		}
-		else if (std::strcmp(pipelineToActivate, "DBG_Normals") == 0)
+		else if (std::strcmp(pipelineToActivate, "BDPT") == 0)
 		{
 			pipelineIndex = 2;
+		}
+		else if (std::strcmp(pipelineToActivate, "DBG_Normals") == 0)
+		{
+			pipelineIndex = 3;
 		}
 		else if (std::strcmp(pipelineToActivate, "DBG_Tangents") == 0)
 		{
-			pipelineIndex = 2;
+			pipelineIndex = 3;
 		}
 		else if (std::strcmp(pipelineToActivate, "DBG_UV") == 0)
 		{
-			pipelineIndex = 2;
+			pipelineIndex = 3;
 		}
 
 		if (pipelineIndex == size_t(-1)) return;

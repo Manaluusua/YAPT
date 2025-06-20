@@ -17,7 +17,7 @@ namespace YAPT
 	public:
 		constexpr static uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
 
-		BackwardsPathIntegratorSubStage();
+		BackwardsPathIntegratorSubStage(bool useNextEventEstimation);
 		virtual ~BackwardsPathIntegratorSubStage();
 
 		virtual void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr) final;
@@ -82,5 +82,6 @@ namespace YAPT
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;
+		bool m_useNEE;
 	};
 }

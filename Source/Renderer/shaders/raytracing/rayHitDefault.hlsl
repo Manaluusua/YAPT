@@ -2,8 +2,6 @@
 #include "materialSample.hlsl"
 #include "payload.hlsl"
 
-#define ENABLE_NEE
-
 
 struct RayHitShaderTableConstantData
 {

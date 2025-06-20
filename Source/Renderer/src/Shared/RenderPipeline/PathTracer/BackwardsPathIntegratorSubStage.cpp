@@ -19,10 +19,11 @@ namespace YAPT
 {
 	
 
-	BackwardsPathIntegratorSubStage::BackwardsPathIntegratorSubStage()
+	BackwardsPathIntegratorSubStage::BackwardsPathIntegratorSubStage(bool useNextEventEstimation)
 		:m_raytracePso(YAPT_NULL_HANDLE),
 		m_rtCommonResourcesDescSet(YAPT_NULL_HANDLE),
-		m_rtMiscResourcesDescSet(YAPT_NULL_HANDLE)
+		m_rtMiscResourcesDescSet(YAPT_NULL_HANDLE),
+		m_useNEE(useNextEventEstimation)
 		
 	{
 
@@ -73,7 +74,7 @@ namespace YAPT
 	{
 		ShaderLoader* loader = m_renderer->getShaderLoader();
 		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
-		const ShaderLoader::ShaderPipelineInfo* rayHit = loader->getShaderPipeline("rayHitDefault");
+		const ShaderLoader::ShaderPipelineInfo* rayHit = loader->getShaderPipeline(m_useNEE ? "rayHitDefaultWithNEE" : "rayHitDefault");
 		const ShaderLoader::ShaderPipelineInfo* rayMiss = loader->getShaderPipeline("rayMissEnvironment");
 
 		ShaderPipelineReflection* reflArray[] = { rayGen->reflection, rayHit->reflection, rayMiss->reflection };
@@ -113,6 +114,7 @@ namespace YAPT
 		fillShaderModuleCreateInfo(rayGen->shaderModules[0], shaderStages[0]);
 		fillShaderModuleCreateInfo(rayHit->shaderModules[0], shaderStages[1]);
 		fillShaderModuleCreateInfo(rayMiss->shaderModules[0], shaderStages[2]);
+
 
 		RayGenerationDescription rayGenDescs[1] = { {0, 0} };
 		RayHitGroupDescription hitGroupDescs[] = { {"defaultHitGroup", 1, YAPT_NULL_INDEX, YAPT_NULL_INDEX, 0, HitGroupType::TRIANGLE} };

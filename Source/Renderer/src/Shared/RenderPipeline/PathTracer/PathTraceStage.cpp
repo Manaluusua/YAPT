@@ -36,7 +36,10 @@ namespace YAPT
 		switch (type)
 		{
 		case YAPT::PathTraceStage::PathIntegratorType::BACKWARDS:
-			m_rtStage = new BackwardsPathIntegratorSubStage();
+			m_rtStage = new BackwardsPathIntegratorSubStage(false);
+			break;
+		case YAPT::PathTraceStage::PathIntegratorType::BACKWARDS_WITH_NEE:
+			m_rtStage = new BackwardsPathIntegratorSubStage(true);
 			break;
 		case YAPT::PathTraceStage::PathIntegratorType::BIDIRECTIONAL:
 			m_rtStage = new BidirectionalPathIntegratorSubStage();

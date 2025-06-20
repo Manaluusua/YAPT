@@ -110,6 +110,11 @@ namespace YAPT
 			}
 		}
 
+#ifdef DX12_DEBUGNAMES_ENABLE
+		m_mainGraphicsQueue->SetName(L"Graphics Queue");
+		m_copyQueue->SetName(L"Copy Queue");
+#endif
+
 		//synchronization
 		return m_fenceHelper.initialize(m_device.get(), m_config.pipelineLength);
 	}

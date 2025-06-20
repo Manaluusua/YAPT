@@ -24,6 +24,7 @@ namespace YAPT
 		enum class PathIntegratorType
 		{
 			BACKWARDS,
+			BACKWARDS_WITH_NEE,
 			BIDIRECTIONAL
 		};
 
