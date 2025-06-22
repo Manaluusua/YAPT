@@ -199,6 +199,7 @@ namespace YAPT
 				texHandle->createInfo = vkImageInfo;
 				texHandle->dimensions = ResourceDimension::TEXTURE_2D;
 				texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, 1);
+				texHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 				texHandle->image = vkImage;
 				texHandle->owningQueueFamily = rendererVk->getGraphicsQueue().queueFamilyIndex;
 #ifdef VK_DEBUGNAMES_ENABLE

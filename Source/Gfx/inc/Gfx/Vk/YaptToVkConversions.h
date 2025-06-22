@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <bitset>
 #include <Common/CommonUtilities.h>
-#define FLAGS_CONVERT(source, target, from, to) if((source & from) != 0) { target |= to; }
+#define FLAGS_CONVERT(source, target, from, to) if(((source) & (from)) != 0) { target |= (to); }
 
 namespace YAPT
 {

@@ -50,13 +50,9 @@ namespace YAPT
 			std::vector<VkBufferMemoryBarrier> preGeneratedBufferBarriers;
 			std::vector<VkImageMemoryBarrier> preGeneratedImageBarriers;
 
-			std::vector<VkMemoryBarrier> memoryBarriersEveryFrame;
-			std::vector<VkBufferMemoryBarrier> bufferBarriersEveryFrame;
-			std::vector<VkImageMemoryBarrier> imageBarriersEveryFrame;
-
-			std::vector<VkMemoryBarrier> memoryBarriersOnce;
-			std::vector<VkBufferMemoryBarrier> bufferBarriersOnce;
-			std::vector<VkImageMemoryBarrier> imageBarriersOnce;
+			std::vector<VkMemoryBarrier> currentMemoryBarriers;
+			std::vector<VkBufferMemoryBarrier> currentBufferBarriers;
+			std::vector<VkImageMemoryBarrier> currentImageBarriers;
 
 			bool hasUavBarrier;
 			bool isFirstUsageForResource;
@@ -66,10 +62,6 @@ namespace YAPT
 		struct GeneralPerResourceTransitionInformation
 		{
 			AccessFlagsAndLayout lastStateInGraph;
-			std::vector<VkMemoryBarrier> wrapAroundMemoryBarriers;
-			std::vector<VkBufferMemoryBarrier> wrapAroundBufferBarriers;
-			std::vector<VkImageMemoryBarrier> wrapAroundImageBarriers;
-			bool useWrapAroundBarriers; //when executing the graph for the first time, we don't use wrap around barriers but the "once" barriers that transition resource to graph required layout/queue
 		};
 
 		struct BarriersPerNode
@@ -88,13 +80,17 @@ namespace YAPT
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) final;
 		virtual SwapChainNode* createSwapChainNodeInternal(const char* name) final;
 		virtual void executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context) final;
-		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) final;
 
 		virtual void beginExecution() final;
 		virtual void endExecution() final;
 		virtual void afterRenderGraphSubmit() final;
 
-		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound);
+		void resolveResourcesBoundInternal(RenderGraphResourceId id) final;
+		void resolveResourcesEnteringGraphInternal(RenderGraphResourceId id) final;
+		void setResourcesStateAfterGraphInternal(RenderGraphResourceId id) final;
+
+		void updateFirstGraphUsageBarriers(RenderGraphResourceId id, size_t numberOfResourcesBound);
+		void updateBarriersForResources(RenderGraphResourceId id, size_t numberOfResourcesBound);
 
 
 		void issueBarriers(size_t nodeIndex, CommandBufferHandle buffer);

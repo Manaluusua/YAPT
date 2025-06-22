@@ -638,7 +638,7 @@ namespace YAPT
 		nodesToSort.swap(sortedNodes);
 	}
 
-	size_t RenderGraph::getNumberOfBoundResource(RenderGraphResourceId id) const
+	size_t RenderGraph::getNumberOfBoundResources(RenderGraphResourceId id) const
 	{
 		BoundResourceType type = m_boundRenderGraphResources[id].type;
 		size_t handleCount = 0;

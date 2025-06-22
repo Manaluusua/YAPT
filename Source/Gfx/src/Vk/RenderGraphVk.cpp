@@ -130,26 +130,8 @@ namespace YAPT
 
 			srcStages |= barrierSlotDesc.srcStages;
 			dstStages |= barrierSlotDesc.dstStages;
-
-			if (barrierSlotDesc.isFirstUsageForResource)
-			{
-				size_t resourceIndex = m_resourceRequirements.getRenderGraphResourceIndex(nodeIndex, i);
-				GeneralPerResourceTransitionInformation& info = m_perResourceBarrierInfo[resourceIndex];
-
-				if (info.useWrapAroundBarriers)
-				{
-					addBarriers(barrierSlotDesc.memoryBarriersEveryFrame, barrierSlotDesc.bufferBarriersEveryFrame, barrierSlotDesc.imageBarriersEveryFrame);
-				}
-				else
-				{
-					addBarriers(barrierSlotDesc.memoryBarriersOnce, barrierSlotDesc.bufferBarriersOnce, barrierSlotDesc.imageBarriersOnce);
-					info.useWrapAroundBarriers = true;
-				}
-			}
-			else
-			{
-				addBarriers(barrierSlotDesc.memoryBarriersEveryFrame, barrierSlotDesc.bufferBarriersEveryFrame, barrierSlotDesc.imageBarriersEveryFrame);
-			}
+			
+			addBarriers(barrierSlotDesc.currentMemoryBarriers, barrierSlotDesc.currentBufferBarriers, barrierSlotDesc.currentImageBarriers);
 
 		}
 
@@ -489,7 +471,7 @@ namespace YAPT
 				const RenderGraphNodeSlotDefinition& slotDef = node->getNodeSlotResourceDefinition(slotIndex);
 				accessCurrent = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 				currentLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
-				stagesDuringSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+				stagesDuringSubpass |= getPipelineStageFlags(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags, slotDef.resourceDescription.shaderStages);
 				accessDuringSubpass |= accessCurrent;
 			}
 			
@@ -510,7 +492,7 @@ namespace YAPT
 				const RenderGraphNodeSlotDefinition& slotDef = prevNode->getNodeSlotResourceDefinition(prevSlot);
 				initialLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 				accessBefore = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
-				stagesBeforeSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+				stagesBeforeSubpass |= getPipelineStageFlags(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags, slotDef.resourceDescription.shaderStages);
 				accessBeforeSubpass |= accessBefore;
 			}
 
@@ -531,7 +513,7 @@ namespace YAPT
 					finalLayout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 					accessAfter = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 
-					stagesAfterSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+					stagesAfterSubpass |= getPipelineStageFlags(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags, slotDef.resourceDescription.shaderStages);
 					accessAfterSubpass |= accessAfter;
 				}
 
@@ -545,7 +527,7 @@ namespace YAPT
 					VkAccessFlags access = yaptUsageAccessToVkAccess(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 					VkImageLayout layout = yaptUsageToVkImageLayout(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags);
 
-					stagesAfterSubpass |= yaptShaderStagesToVk(slotDef.resourceDescription.shaderStages);
+					stagesAfterSubpass |= getPipelineStageFlags(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags, slotDef.resourceDescription.shaderStages);
 					accessAfterSubpass |= access;
 
 					assert(layout == finalLayout);
@@ -702,42 +684,11 @@ namespace YAPT
 
 					const RenderGraphResourceUsage& lastUsage = m_resourceRequirements.getRenderGraphResourceUsage(lastUsedNode, lastUsedSlot);
 					uint32_t fromQueueFamilyIndex = m_queueFamilyIndexPerNode[lastUsedNode];
-					GeneratedBarrierTypeMask generatedBarriersMask = createBarrierIfRequired(usageInThisSlot.resourceDescription.resourceDimensions,
-						lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags, usageInThisSlot.resourceDescription.resourceUsage, usageInThisSlot.resourceDescription.accessFlags,
-						lastUsage.arraySliceOffset, lastUsage.mipOffset, lastUsage.resourceDescription.arraySliceCount, lastUsage.resourceDescription.mipCount, fromQueueFamilyIndex, toQueueFamilyIndex,
-						imgBarrier, bufferBarrier, memoryBarrier);
-
-					GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[resourceIndex];
-
-					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_IMAGE)
-					{
-						resourceTransitionInfo.wrapAroundImageBarriers.push_back(imgBarrier);
-
-						for (uint32_t arraySlice = 0; arraySlice < usageInThisSlot.resourceDescription.arraySliceCount; ++arraySlice)
-						{
-							for (uint32_t mipIndex = 0; mipIndex < usageInThisSlot.resourceDescription.mipCount; ++mipIndex)
-							{
-								uint32_t subResourceIndex = calculateSubresourceIndex(mipIndex + usageInThisSlot.mipOffset, arraySlice + usageInThisSlot.arraySliceOffset, resourceDesc.mipCount, resourceDesc.arraySliceCount);
-								imageLayouts[subResourceIndex] = imgBarrier.newLayout;
-							}
-						}
-					}
-
-					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_BUFFER)
-					{
-						resourceTransitionInfo.wrapAroundBufferBarriers.push_back(bufferBarrier);
-					}
-
-					if (generatedBarriersMask & GENERATED_BARRIER_TYPE_MEMORY)
-					{
-						resourceTransitionInfo.wrapAroundMemoryBarriers.push_back(memoryBarrier);
-					}
+						GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[resourceIndex];
 					AccessFlagsAndLayout lastState;
 					lastState.access = yaptUsageAccessToVkAccess(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags);
 					lastState.layout = yaptUsageToVkImageLayout(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags);
 					resourceTransitionInfo.lastStateInGraph = lastState;
-
-					perSlotBarriers.srcStages |= getPipelineStageFlags(lastUsage.resourceDescription.resourceUsage, lastUsage.resourceDescription.accessFlags, lastUsage.resourceDescription.shaderStages);//VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 				}
 				else
 				{
@@ -821,23 +772,13 @@ namespace YAPT
 		return isFullResource;
 	}
 
-
-
-	void RenderGraphVk::resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound)
-	{
-		updateBarriersForResource(id,  numberOfResourcesBound);
-	}
-
-	
-	void RenderGraphVk::updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound)
+	void RenderGraphVk::updateFirstGraphUsageBarriers(RenderGraphResourceId id, size_t numberOfResourcesBound)
 	{
 		const NodeSlotIdentifier* nodeSlotIdentifiers;
 		size_t numberOfNodeSlotIdentifiers;
 		m_resourceRequirements.getNodeSlotsUsingResource(id, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
 
 		GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[id];
-		resourceTransitionInfo.useWrapAroundBarriers = false;
-
 		for (size_t i = 0; i < numberOfNodeSlotIdentifiers; ++i)
 		{
 			size_t nodeIndex = nodeSlotIdentifiers[i].sortedNodeIndex;
@@ -845,118 +786,14 @@ namespace YAPT
 			ResourceSlotBarrierDescription& barrierDescs = m_barriers[nodeIndex].perSlotDesc[slotIndex];
 			uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[nodeIndex];
 
-			//copy per resource barriers to current barriers (the amount of barriers could potentially change because of more/less resources bound to slot)
-
-			size_t preGeneratedMemoryBarrierCount = barrierDescs.preGeneratedMemoryBarriers.size();
-			size_t preGeneratedImageBarrierCount = barrierDescs.preGeneratedImageBarriers.size();
-			size_t preGeneratedBufferBarrierCount = barrierDescs.preGeneratedBufferBarriers.size();
-
-			size_t extraMemoryBarriersCount = 0;
-			size_t extraImageBarriersCount = 0;
-			size_t extraBufferBarriersCount = 0;
-
-			if (barrierDescs.isFirstUsageForResource)
-			{
-				extraMemoryBarriersCount = resourceTransitionInfo.wrapAroundMemoryBarriers.size();
-				extraImageBarriersCount = resourceTransitionInfo.wrapAroundImageBarriers.size();
-				extraBufferBarriersCount = resourceTransitionInfo.wrapAroundBufferBarriers.size();
-			}
-
-			barrierDescs.memoryBarriersEveryFrame.resize((preGeneratedMemoryBarrierCount + extraMemoryBarriersCount) * numberOfResourcesBound);
-			barrierDescs.imageBarriersEveryFrame.resize((preGeneratedImageBarrierCount + extraImageBarriersCount) * numberOfResourcesBound);
-			barrierDescs.bufferBarriersEveryFrame.resize((preGeneratedBufferBarrierCount + extraBufferBarriersCount) * numberOfResourcesBound);
-			
-
-			barrierDescs.memoryBarriersOnce.resize(preGeneratedMemoryBarrierCount * numberOfResourcesBound);
-			barrierDescs.imageBarriersOnce.resize(preGeneratedImageBarrierCount * numberOfResourcesBound);
-			barrierDescs.bufferBarriersOnce.resize(preGeneratedBufferBarrierCount * numberOfResourcesBound);
-			
-
-			for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
-			{
-
-				if (m_boundRenderGraphResources[id].type == BoundResourceType::TEXTURE)
-				{
-					size_t imageBarriersPerResource = barrierDescs.preGeneratedImageBarriers.size();
-					VkImage imageHandle = m_boundRenderGraphResources[id].textureHandles[resIndex]->image;
-					for (size_t barrierIndex = 0; barrierIndex < imageBarriersPerResource; ++barrierIndex)
-					{
-						size_t dstBarrierIndex = resIndex * imageBarriersPerResource + barrierIndex;
-						barrierDescs.imageBarriersEveryFrame[dstBarrierIndex] = barrierDescs.preGeneratedImageBarriers[barrierIndex];
-						barrierDescs.imageBarriersEveryFrame[dstBarrierIndex].image = imageHandle;
-					}
-				}
-				else if (m_boundRenderGraphResources[id].type == BoundResourceType::BUFFER)
-				{
-					size_t bufferBarriersPerResource = barrierDescs.preGeneratedBufferBarriers.size();
-					VkBuffer buffer = m_boundRenderGraphResources[id].bufferHandles[resIndex]->buffer;
-					for (size_t barrierIndex = 0; barrierIndex < bufferBarriersPerResource; ++barrierIndex)
-					{
-						size_t dstBarrierIndex = resIndex * bufferBarriersPerResource + barrierIndex;
-						barrierDescs.bufferBarriersEveryFrame[dstBarrierIndex] = barrierDescs.preGeneratedBufferBarriers[barrierIndex];
-						barrierDescs.bufferBarriersEveryFrame[dstBarrierIndex].buffer = buffer;
-					}
-				}
-				else
-				{
-					assert(!"unknown binding");
-				}
-
-			}
-
 			//if this is the first usage for a resource, need to copy the above barriers to be executed on the first time running the graph + barriers to transition to whatever "state" is needed.
-			//furthermore, append "wrap around" barriers from last state on the graph to what is needed as first state
 			if (barrierDescs.isFirstUsageForResource)
 			{
-				std::copy(barrierDescs.memoryBarriersEveryFrame.data(), barrierDescs.memoryBarriersEveryFrame.data() + barrierDescs.memoryBarriersOnce.size(), barrierDescs.memoryBarriersOnce.data());
-				std::copy(barrierDescs.imageBarriersEveryFrame.data(), barrierDescs.imageBarriersEveryFrame.data() + barrierDescs.imageBarriersOnce.size(), barrierDescs.imageBarriersOnce.data());
-				std::copy(barrierDescs.bufferBarriersEveryFrame.data(), barrierDescs.bufferBarriersEveryFrame.data() + barrierDescs.bufferBarriersOnce.size(), barrierDescs.bufferBarriersOnce.data());
+				barrierDescs.currentBufferBarriers.clear();
+				barrierDescs.currentImageBarriers.clear();
+				barrierDescs.currentMemoryBarriers.clear();
 
-
-				//append wrap around barriers to "every frame" barriers
-				for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
-				{
-
-					if (m_boundRenderGraphResources[id].type == BoundResourceType::TEXTURE)
-					{
-						size_t wrapAroundBarriersPerResource = resourceTransitionInfo.wrapAroundImageBarriers.size();
-						VkImage imageHandle = m_boundRenderGraphResources[id].textureHandles[resIndex]->image;
-						for (size_t barrierIndex = 0; barrierIndex < wrapAroundBarriersPerResource; ++barrierIndex)
-						{
-							size_t dstBarrierIndex = preGeneratedImageBarrierCount * numberOfResourcesBound + resIndex * wrapAroundBarriersPerResource + barrierIndex;
-							barrierDescs.imageBarriersEveryFrame[dstBarrierIndex] = resourceTransitionInfo.wrapAroundImageBarriers[barrierIndex];
-							barrierDescs.imageBarriersEveryFrame[dstBarrierIndex].image = imageHandle;
-						}
-					}
-					else if (m_boundRenderGraphResources[id].type == BoundResourceType::BUFFER)
-					{
-						size_t wrapAroundBarriersPerResource = resourceTransitionInfo.wrapAroundBufferBarriers.size();
-						VkBuffer bufferHandle = m_boundRenderGraphResources[id].bufferHandles[resIndex]->buffer;
-						for (size_t barrierIndex = 0; barrierIndex < wrapAroundBarriersPerResource; ++barrierIndex)
-						{
-							size_t dstBarrierIndex = preGeneratedBufferBarrierCount * numberOfResourcesBound + resIndex * wrapAroundBarriersPerResource + barrierIndex;
-							barrierDescs.bufferBarriersEveryFrame[dstBarrierIndex] = resourceTransitionInfo.wrapAroundBufferBarriers[barrierIndex];
-							barrierDescs.bufferBarriersEveryFrame[dstBarrierIndex].buffer = bufferHandle;
-						}
-					}
-					else
-					{
-						assert(!"unknown binding");
-					}
-
-					//memory barriers
-					{
-						size_t wrapAroundBarriersPerResource = resourceTransitionInfo.wrapAroundMemoryBarriers.size();
-						for (size_t barrierIndex = 0; barrierIndex < wrapAroundBarriersPerResource; ++barrierIndex)
-						{
-							size_t dstBarrierIndex = preGeneratedMemoryBarrierCount * numberOfResourcesBound + resIndex * wrapAroundBarriersPerResource + barrierIndex;
-							barrierDescs.memoryBarriersEveryFrame[dstBarrierIndex] = resourceTransitionInfo.wrapAroundMemoryBarriers[barrierIndex];
-						}
-					}
-
-
-				}
-
+				barrierDescs.srcStages = VK_PIPELINE_STAGE_NONE;
 				//barriers to transition to graph
 				for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
 				{
@@ -987,6 +824,12 @@ namespace YAPT
 								TextureHandleVk* imageHandle = m_boundRenderGraphResources[id].textureHandles[resIndex];
 								VkImageLayout previousLayout = imageHandle->currentLayouts.getStateForSubResource((size_t)calculateSubresourceIndex(mip, arraySlice, resourceUsage.resourceDescription.mipCount, resourceUsage.resourceDescription.arraySliceCount));
 								VkImageLayout currentLayout = yaptUsageToVkImageLayout(resourceUsage.resourceDescription.resourceUsage, resourceUsage.resourceDescription.accessFlags);
+								VkPipelineStageFlags fromStages = imageHandle->lastUsedStages;
+								if (fromStages == VK_PIPELINE_STAGE_NONE)
+								{
+									fromStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+								}
+								barrierDescs.srcStages |= fromStages;
 								//TODO: correct queue transitions
 								if (previousLayout != currentLayout || fromQueueFamilyIndex != toQueueFamilyIndex)
 								{
@@ -1006,7 +849,8 @@ namespace YAPT
 									imgBarrier.subresourceRange.layerCount = subresourcesShareState ? resourceUsage.resourceDescription.arraySliceCount : 1;
 									imgBarrier.subresourceRange.levelCount = subresourcesShareState ? resourceUsage.resourceDescription.mipCount : 1;
 									imgBarrier.image = imageHandle->image;
-									barrierDescs.imageBarriersOnce.push_back(imgBarrier);
+									barrierDescs.currentImageBarriers.push_back(imgBarrier);
+									
 									m_queueTransitionHelper.addFromBarriers(&imgBarrier, 1, true);
 								}
 
@@ -1030,7 +874,14 @@ namespace YAPT
 							barrier.offset = 0;
 							barrier.size = VK_WHOLE_SIZE;
 
-							barrierDescs.bufferBarriersOnce.push_back(barrier);
+							VkPipelineStageFlags fromStages = bufferHandle->lastUsedStages;
+							if (fromStages == VK_PIPELINE_STAGE_NONE)
+							{
+								fromStages = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+							}
+							barrierDescs.srcStages |= fromStages;
+
+							barrierDescs.currentBufferBarriers.push_back(barrier);
 							m_queueTransitionHelper.addFromBarriers(&barrier, 1, true);
 						}
 
@@ -1042,6 +893,128 @@ namespace YAPT
 				}
 			}
 		}
+	}
+
+	void RenderGraphVk::updateBarriersForResources(RenderGraphResourceId id, size_t numberOfResourcesBound)
+	{
+		const NodeSlotIdentifier* nodeSlotIdentifiers;
+		size_t numberOfNodeSlotIdentifiers;
+		m_resourceRequirements.getNodeSlotsUsingResource(id, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
+
+		GeneralPerResourceTransitionInformation& resourceTransitionInfo = m_perResourceBarrierInfo[id];
+
+		for (size_t i = 0; i < numberOfNodeSlotIdentifiers; ++i)
+		{
+			size_t nodeIndex = nodeSlotIdentifiers[i].sortedNodeIndex;
+			size_t slotIndex = nodeSlotIdentifiers[i].slotIndex;
+			ResourceSlotBarrierDescription& barrierDescs = m_barriers[nodeIndex].perSlotDesc[slotIndex];
+			uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[nodeIndex];
+
+			if (barrierDescs.isFirstUsageForResource)
+			{
+				continue;
+			}
+
+			//copy per resource barriers to current barriers (the amount of barriers could potentially change because of more/less resources bound to slot)
+
+			size_t preGeneratedMemoryBarrierCount = barrierDescs.preGeneratedMemoryBarriers.size();
+			size_t preGeneratedImageBarrierCount = barrierDescs.preGeneratedImageBarriers.size();
+			size_t preGeneratedBufferBarrierCount = barrierDescs.preGeneratedBufferBarriers.size();
+
+			barrierDescs.currentMemoryBarriers.resize(preGeneratedMemoryBarrierCount * numberOfResourcesBound);
+			barrierDescs.currentImageBarriers.resize(preGeneratedImageBarrierCount * numberOfResourcesBound);
+			barrierDescs.currentBufferBarriers.resize(preGeneratedBufferBarrierCount * numberOfResourcesBound);
+
+			for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
+			{
+
+				if (m_boundRenderGraphResources[id].type == BoundResourceType::TEXTURE)
+				{
+					size_t imageBarriersPerResource = barrierDescs.preGeneratedImageBarriers.size();
+					VkImage imageHandle = m_boundRenderGraphResources[id].textureHandles[resIndex]->image;
+					for (size_t barrierIndex = 0; barrierIndex < imageBarriersPerResource; ++barrierIndex)
+					{
+						size_t dstBarrierIndex = resIndex * imageBarriersPerResource + barrierIndex;
+						barrierDescs.currentImageBarriers[dstBarrierIndex] = barrierDescs.preGeneratedImageBarriers[barrierIndex];
+						barrierDescs.currentImageBarriers[dstBarrierIndex].image = imageHandle;
+					}
+				}
+				else if (m_boundRenderGraphResources[id].type == BoundResourceType::BUFFER)
+				{
+					size_t bufferBarriersPerResource = barrierDescs.preGeneratedBufferBarriers.size();
+					VkBuffer buffer = m_boundRenderGraphResources[id].bufferHandles[resIndex]->buffer;
+					for (size_t barrierIndex = 0; barrierIndex < bufferBarriersPerResource; ++barrierIndex)
+					{
+						size_t dstBarrierIndex = resIndex * bufferBarriersPerResource + barrierIndex;
+						barrierDescs.currentBufferBarriers[dstBarrierIndex] = barrierDescs.preGeneratedBufferBarriers[barrierIndex];
+						barrierDescs.currentBufferBarriers[dstBarrierIndex].buffer = buffer;
+					}
+				}
+				else
+				{
+					assert(!"unknown binding");
+				}
+
+				size_t memoryBarriersPerResource = barrierDescs.preGeneratedMemoryBarriers.size();
+				for (size_t barrierIndex = 0; barrierIndex < memoryBarriersPerResource; ++barrierIndex)
+				{
+					size_t dstBarrierIndex = resIndex * memoryBarriersPerResource + barrierIndex;
+					barrierDescs.currentMemoryBarriers[dstBarrierIndex] = barrierDescs.preGeneratedMemoryBarriers[barrierIndex];
+				}
+
+			}
+		}
+	}
+
+	void RenderGraphVk::resolveResourcesBoundInternal(RenderGraphResourceId id)
+	{
+		size_t boundResourcesCount = getNumberOfBoundResources(id);
+		updateFirstGraphUsageBarriers(id, boundResourcesCount);
+		updateBarriersForResources(id, boundResourcesCount);
+	}
+	void RenderGraphVk::resolveResourcesEnteringGraphInternal(RenderGraphResourceId id)
+	{
+		size_t boundResourcesCount = getNumberOfBoundResources(id);
+		updateFirstGraphUsageBarriers(id, boundResourcesCount);
+	}
+	void RenderGraphVk::setResourcesStateAfterGraphInternal(RenderGraphResourceId id)
+	{
+		BoundResourceType type = m_boundRenderGraphResources[id].type;
+
+		const NodeSlotIdentifier* nodeSlotIdentifiers;
+		size_t numberOfNodeSlotIdentifiers;
+		m_resourceRequirements.getNodeSlotsUsingResource(id, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
+
+		size_t lastNodeIndex = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].sortedNodeIndex;
+		size_t lastSlotIndex = nodeSlotIdentifiers[numberOfNodeSlotIdentifiers - 1].slotIndex;
+		RenderGraphNode* node = getNodes()[lastNodeIndex];
+		const RenderGraphNodeSlotDefinition& slotDef = node->getNodeSlotResourceDefinition(lastSlotIndex);
+
+		uint32_t toQueueFamilyIndex = m_queueFamilyIndexPerNode[lastNodeIndex];
+		VkShaderStageFlags stageFlags = getPipelineStageFlags(slotDef.resourceDescription.resourceUsage, slotDef.resourceDescription.accessFlags, slotDef.resourceDescription.shaderStages);
+		if(type == BoundResourceType::TEXTURE)
+		{
+			for (size_t i = 0; i < m_boundRenderGraphResources[id].textureHandles.size(); ++i)
+			{
+				TextureHandle handle = m_boundRenderGraphResources[id].textureHandles[i];
+				ResourceStateTracker<VkImageLayout>& tracker = handle->currentLayouts;
+				const ResourceStateDescription& desc = getLastStateForResource(id);
+				VkImageLayout layout = yaptUsageToVkImageLayout(desc.resourceUsage, desc.accessFlags);
+				tracker.setSharedState(layout);
+				handle->owningQueueFamily = toQueueFamilyIndex;
+				handle->lastUsedStages = stageFlags;
+			}
+		}
+		else if (type == BoundResourceType::BUFFER)
+		{
+			for (size_t i = 0; i < m_boundRenderGraphResources[id].bufferHandles.size(); ++i)
+			{
+				BufferHandle handle = m_boundRenderGraphResources[id].bufferHandles[i];
+				handle->owningQueueFamily = toQueueFamilyIndex;
+				handle->lastUsedStages = stageFlags;
+			}
+		}
+
 	}
 
 	VkPipelineStageFlags RenderGraphVk::getPipelineStageFlags(ResourceUsage resourceUsage, AccessFlags accessFlags, ShaderStages shaderStages)

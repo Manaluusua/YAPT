@@ -29,6 +29,7 @@ namespace YAPT
 		VkBufferCreateInfo createInfo;
 		VkMemoryPropertyFlags memoryFlags;
 		uint32_t owningQueueFamily;
+		VkPipelineStageFlags lastUsedStages;
 		char* mappedMemory;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;
@@ -51,6 +52,7 @@ namespace YAPT
 		VkMemoryPropertyFlags memoryFlags;
 		uint32_t owningQueueFamily;
 		ResourceStateTracker<VkImageLayout> currentLayouts;
+		VkPipelineStageFlags lastUsedStages;
 		char* mappedMemory;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;

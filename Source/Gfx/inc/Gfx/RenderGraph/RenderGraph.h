@@ -11,7 +11,7 @@
 
 #include "RenderGraphResourceRequirements.h"
 #include <vector>
-
+#include <atomic>
 
 namespace YAPT
 {
@@ -158,7 +158,7 @@ namespace YAPT
 
 		bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to) const;
 
-		size_t getNumberOfBoundResource(RenderGraphResourceId id) const;
+		size_t getNumberOfBoundResources(RenderGraphResourceId id) const;
 
 		//misc
 		inline void invokeNodeCallback(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext)

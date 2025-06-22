@@ -300,6 +300,7 @@ namespace YAPT
 		checkVkResult(res);
 
 		buffHandle->owningQueueFamily = owningQueueFamily;
+		buffHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 
 		if (res != VK_SUCCESS)
 		{
@@ -316,6 +317,7 @@ namespace YAPT
 		texHandle->dimensions = desc.dimension;
 		texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
 		texHandle->owningQueueFamily = owningQueueFamily;
+		texHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 #ifdef VK_DEBUGNAMES_ENABLE
 		if (name)
 		{

@@ -822,17 +822,17 @@ namespace YAPT
 
 	void RenderGraphDx12::resolveResourcesBoundInternal(RenderGraphResourceId id)
 	{
-		size_t resCount = getNumberOfBoundResource(id);
+		size_t resCount = getNumberOfBoundResources(id);
 		updateBarriersForResource(id, resCount, false);
 	}
 	void RenderGraphDx12::resolveResourcesEnteringGraphInternal(RenderGraphResourceId id)
 	{
-		size_t resCount = getNumberOfBoundResource(id);
+		size_t resCount = getNumberOfBoundResources(id);
 		updateBarriersForResource(id, resCount, true);
 	}
 	void RenderGraphDx12::setResourcesStateAfterGraphInternal(RenderGraphResourceId id)
 	{
-		size_t handleCount = getNumberOfBoundResource(id);
+		size_t handleCount = getNumberOfBoundResources(id);
 		//mark the last seen state to be the last state in the graph
 		for (size_t resIndex = 0; resIndex < handleCount; ++resIndex)
 		{
