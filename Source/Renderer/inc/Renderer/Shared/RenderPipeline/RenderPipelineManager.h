@@ -12,7 +12,7 @@ namespace YAPT
 		void shutdown();
 		void prepare(const RenderPipeline::PrepareContext& cntx);
 		void update(const RenderPipeline::UpdateContext& cntx);
-		void execute();
+		void execute(const RenderPipeline::ExecuteContext& cntx);
 
 	private:
 

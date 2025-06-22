@@ -30,13 +30,18 @@ namespace YAPT
 			ThreadPool* updateTasksPool;
 		};
 
+		struct ExecuteContext
+		{
+			ThreadPool* executeTasksPool;
+		};
+
 		virtual ~RenderPipeline() {}
 
 		virtual void initialize(const InitializeContext& cntx) = 0;
 		virtual void shutdown() = 0;
 		virtual void prepare(const PrepareContext& cntx) = 0;
 		virtual void update(const UpdateContext& cntx) = 0;
-		virtual void execute() = 0;
+		virtual void execute(const ExecuteContext& cntx) = 0;
 		
 		
 	};

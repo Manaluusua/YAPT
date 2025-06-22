@@ -26,7 +26,6 @@ namespace YAPT
 			//actual barriers generated for the resource in slot. Note that there might be more than 1 resource in this slot, so the number of these barriers can be more than the pregenerated one.
 			std::vector<D3D12_RESOURCE_BARRIER> currentBeforeBarriers;
 			std::vector<D3D12_RESOURCE_BARRIER> currentAfterBarriers;
-			std::vector<D3D12_RESOURCE_BARRIER> overriddenBeforeBarriers;
 
 			size_t numberOfTransitionBarriers;
 			D3D12_RESOURCE_STATES transitionedToState; //state transitioned to, redundantly stated here
@@ -36,7 +35,6 @@ namespace YAPT
 		
 		struct GeneralPerResourceTransitionInformation
 		{
-			bool useOverriddenBeforeState; //only valid if is first usage for resource in graph, used once to override the "wrap around" barrier for the resource.
 			D3D12_RESOURCE_STATES lastStateInGraph;
 		};
 
@@ -51,9 +49,12 @@ namespace YAPT
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) final;
 		virtual SwapChainNode* createSwapChainNodeInternal(const char* name) final;
 		virtual void executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context) final;
-		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) final;
 
-		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound);
+		virtual void resolveResourcesBoundInternal(RenderGraphResourceId id) final;
+		virtual void resolveResourcesEnteringGraphInternal(RenderGraphResourceId id) final;
+		virtual void setResourcesStateAfterGraphInternal(RenderGraphResourceId id) final;
+
+		void updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound, bool onlyFirstUsage);
 
 		void issuePreBarriers(size_t nodeIndex, CommandBufferHandle buffer);
 		void issuePostBarriers(size_t nodeIndex, CommandBufferHandle buffer);

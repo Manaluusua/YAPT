@@ -18,7 +18,7 @@ namespace YAPT
 		virtual void shutdown() override;
 		virtual void prepare(const PrepareContext& cntx) override;
 		virtual void update(const UpdateContext& cntx) override;
-		virtual void execute() override;
+		virtual void execute(const ExecuteContext& cntx) override;
 
 		RenderGraph* getRenderGraph() { return m_graph; }
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }

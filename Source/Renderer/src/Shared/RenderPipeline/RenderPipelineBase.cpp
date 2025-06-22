@@ -122,9 +122,9 @@ namespace YAPT
 			m_stages[i]->update(stageUpdateContext);
 		}
 	}
-	void RenderPipelineBase::execute()
+	void RenderPipelineBase::execute(const ExecuteContext& cntx)
 	{
-		m_graph->execute();
+		m_graph->execute(cntx.executeTasksPool);
 		
 	}
 

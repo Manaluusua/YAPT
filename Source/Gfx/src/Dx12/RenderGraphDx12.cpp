@@ -110,32 +110,18 @@ namespace YAPT
 			size_t resourceIndex = m_resourceRequirements.getRenderGraphResourceIndex(nodeIndex, i);
 			GeneralPerResourceTransitionInformation& info = m_perResourceBarrierInfo[resourceIndex];
 
-			//use either overridden barriers (this one time) or the default before barriers
-			if (barrierSlotDesc.isFirstUsageForResource && info.useOverriddenBeforeState)
+			
+			for (size_t barrierInd = 0; barrierInd < barrierSlotDesc.currentBeforeBarriers.size(); ++barrierInd)
 			{
-				
-				for (size_t barrierInd = 0; barrierInd < barrierSlotDesc.overriddenBeforeBarriers.size(); ++barrierInd)
-				{
-					barriers[numBarriers++] = barrierSlotDesc.overriddenBeforeBarriers[barrierInd];
-
-				}
-
-				info.useOverriddenBeforeState = false;
-
-			}
-			else
-			{
-				for (size_t barrierInd = 0; barrierInd < barrierSlotDesc.currentBeforeBarriers.size(); ++barrierInd)
-				{
-					//check if we are trying to transition to same state (can happen for example if this is the first usage in graph and the "wrap around" barrier has the same state.
-					if (barrierSlotDesc.currentBeforeBarriers[barrierInd].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateAfter == barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateBefore)
-						continue;
-
-					barriers[numBarriers++] = barrierSlotDesc.currentBeforeBarriers[barrierInd];
-					
-				}
+				//check if we are trying to transition to same state
+				if (barrierSlotDesc.currentBeforeBarriers[barrierInd].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION && barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateAfter == barrierSlotDesc.currentBeforeBarriers[barrierInd].Transition.StateBefore)
+					continue;
+			
+				barriers[numBarriers++] = barrierSlotDesc.currentBeforeBarriers[barrierInd];
 				
 			}
+				
+			
 		}
 
 		if (numBarriers > 0)
@@ -724,13 +710,7 @@ namespace YAPT
 	}
 
 
-
-	void RenderGraphDx12::resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound)
-	{
-		updateBarriersForResource(id, numberOfResourcesBound);
-	}
-
-	void RenderGraphDx12::updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound)
+	void RenderGraphDx12::updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound, bool onlyFirstUsage)
 	{
 		auto injectResourceToBarrier = [](ID3D12Resource* resource, D3D12_RESOURCE_BARRIER& barrier)
 		{
@@ -759,16 +739,23 @@ namespace YAPT
 			size_t slotIndex = nodeSlotIdentifiers[i].slotIndex;
 			ResourceSlotBarrierDescription& barrierDescs = m_barriers[nodeIndex].perSlotDesc[slotIndex];
 
-			//copy per resource barriers to current barriers (the amount of barriers could potentially change because of more/less resources bound to slot)
-			size_t barriersPerResourceCount = barrierDescs.preGeneratedBeforeBarriersPerResource.size();
-			barrierDescs.currentBeforeBarriers.resize(barriersPerResourceCount * numberOfResourcesBound);
+			if (onlyFirstUsage && !barrierDescs.isFirstUsageForResource) continue;
 			
-			//when we bind the resource for the first time to the graph, might need to transition from arbitrary state to whatever its needed to be in. After first iteration in the graph, the state is known (laststate of the graph) so no need to do this after first use
+			size_t pregeneratedBarriersPerResourceCount = barrierDescs.preGeneratedBeforeBarriersPerResource.size();
+
+			//the first usage of a resource might or might not require a barrier so we don't know the count a priori
 			if (barrierDescs.isFirstUsageForResource)
 			{
-				m_perResourceBarrierInfo[id].useOverriddenBeforeState = true;
-				barrierDescs.overriddenBeforeBarriers.clear();
+				barrierDescs.currentBeforeBarriers.clear();
 			}
+			else
+			{
+				//copy per resource barriers to current barriers (the amount of barriers could potentially change because of more/less resources bound to slot)
+				
+				barrierDescs.currentBeforeBarriers.resize(pregeneratedBarriersPerResourceCount * numberOfResourcesBound);
+			}
+
+			
 
 			for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
 			{
@@ -795,46 +782,59 @@ namespace YAPT
 
 				assert(resource != nullptr);
 
-				//copy pregenerated barriers
-				for (size_t barrierIndex = 0; barrierIndex < barriersPerResourceCount; ++barrierIndex)
-				{
-					size_t dstBarrierIndex = resIndex * barriersPerResourceCount + barrierIndex;
-					barrierDescs.currentBeforeBarriers[dstBarrierIndex] = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex];
-					injectResourceToBarrier(resource, barrierDescs.currentBeforeBarriers[dstBarrierIndex]);
-				}
-
-				//if this is the first time usage of the resource in the graph, need to potentially transition from external state, so collect the "before" states for the transition barriers above 
 				if (barrierDescs.isFirstUsageForResource)
 				{
-					for (size_t barrierIndex = 0; barrierIndex < barriersPerResourceCount; ++barrierIndex)
+					//if this is the first time usage of the resource in the graph, need to potentially transition from external state, so collect the "before" states for the transition barriers above 
+					if (barrierDescs.isFirstUsageForResource)
 					{
-						if (barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex].Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION)
+						for (size_t barrierIndex = 0; barrierIndex < pregeneratedBarriersPerResourceCount; ++barrierIndex)
 						{
 							size_t subResourceIndex = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex].Transition.Subresource;
 							subResourceIndex = subResourceIndex == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES ? 0 : subResourceIndex;
 							D3D12_RESOURCE_STATES state = stateTracker->getStateForSubResource(subResourceIndex);
-
+							
 							if (state != barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex].Transition.StateAfter)
 							{
-								D3D12_RESOURCE_BARRIER overrideBarrier = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex];
-								injectResourceToBarrier(resource, overrideBarrier);
-								overrideBarrier.Transition.StateBefore = state;
-
-								barrierDescs.overriddenBeforeBarriers.push_back(overrideBarrier);
+								D3D12_RESOURCE_BARRIER b = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex];
+								injectResourceToBarrier(resource, b);
+								b.Transition.StateBefore = state;
+							
+								barrierDescs.currentBeforeBarriers.push_back(b);
 							}
-
 						}
 
 					}
-					
 				}
-
+				else
+				{
+					//copy pregenerated barriers
+					for (size_t barrierIndex = 0; barrierIndex < pregeneratedBarriersPerResourceCount; ++barrierIndex)
+					{
+						size_t dstBarrierIndex = resIndex * pregeneratedBarriersPerResourceCount + barrierIndex;
+						barrierDescs.currentBeforeBarriers[dstBarrierIndex] = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex];
+						injectResourceToBarrier(resource, barrierDescs.currentBeforeBarriers[dstBarrierIndex]);
+					}
+				}
 			}
 		}
 
+	}
+
+	void RenderGraphDx12::resolveResourcesBoundInternal(RenderGraphResourceId id)
+	{
+		size_t resCount = getNumberOfBoundResource(id);
+		updateBarriersForResource(id, resCount, false);
+	}
+	void RenderGraphDx12::resolveResourcesEnteringGraphInternal(RenderGraphResourceId id)
+	{
+		size_t resCount = getNumberOfBoundResource(id);
+		updateBarriersForResource(id, resCount, true);
+	}
+	void RenderGraphDx12::setResourcesStateAfterGraphInternal(RenderGraphResourceId id)
+	{
+		size_t handleCount = getNumberOfBoundResource(id);
 		//mark the last seen state to be the last state in the graph
-		
-		for (size_t resIndex = 0; resIndex < numberOfResourcesBound; ++resIndex)
+		for (size_t resIndex = 0; resIndex < handleCount; ++resIndex)
 		{
 
 			ResourceStateTrackerDx12* stateTracker;
@@ -858,9 +858,5 @@ namespace YAPT
 			D3D12_RESOURCE_STATES lastStateForResource = stateDecaysToCommon ? D3D12_RESOURCE_STATE_COMMON : getLastStateInGraphInternal(id);
 			stateTracker->setSharedState(lastStateForResource);
 		}
-
-
 	}
-
-	
 }

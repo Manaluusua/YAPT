@@ -15,7 +15,7 @@
 
 namespace YAPT
 {
-	 
+	class ThreadPool;
 	class RenderGraph
 	{
 	public:
@@ -49,10 +49,24 @@ namespace YAPT
 		void setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount);
 		void setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount);
 
-		BufferHandle getBufferFromNodeSlot(size_t nodeIndex, size_t slot);
-		TextureViewHandle getTextureViewFromNodeSlot(size_t nodeIndex, size_t slot);
 
-		
+		BufferHandle getBufferFromNodeSlot(size_t nodeIndex, size_t slot)
+		{
+			size_t c;
+			BufferHandle* handles = getBuffersFromNodeSlot(nodeIndex, slot, c);
+			if (c == 0) return YAPT_NULL_HANDLE;
+			return handles[0];
+		}
+		TextureViewHandle getTextureViewFromNodeSlot(size_t nodeIndex, size_t slot)
+		{
+			size_t c;
+			TextureViewHandle* handles = getTextureViewsFromNodeSlot(nodeIndex, slot, c);
+			if (c == 0) return YAPT_NULL_HANDLE;
+			return handles[0];
+		}
+
+		BufferHandle* getBuffersFromNodeSlot(size_t nodeIndex, size_t slot, size_t& countOut);
+		TextureViewHandle* getTextureViewsFromNodeSlot(size_t nodeIndex, size_t slot, size_t& countOut);
 
 		void compile();
 
@@ -61,8 +75,7 @@ namespace YAPT
 		size_t getNodeCount() const { return m_nodes.size(); }
 		RenderGraphNode** getNodes() { return m_nodes.data(); }
 
-		
-		void execute();
+		void execute(ThreadPool* threadpool);
 		
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }
 
@@ -114,6 +127,13 @@ namespace YAPT
 			std::vector<RenderNodeSequence> renderNodeSequence;
 		};
 
+		struct ResolveBarriersJob
+		{
+			std::atomic<size_t> resourceIdsResolved;
+			size_t numberOfResourceIds;
+			RenderGraph* rg;
+		};
+
 		void registerCustomNode(CustomNode* node);
 
 		virtual void createNodeSchedule();
@@ -134,13 +154,11 @@ namespace YAPT
 		virtual RaytraceNode* createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) = 0;
 		virtual SwapChainNode* createSwapChainNodeInternal(const char* name) = 0;
 
-
-		virtual void resourcesBoundToPipeline(RenderGraphResourceId id, size_t numberOfResourcesBound) = 0;
-
 		void createTextureViewDesc(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, TextureViewDesc& textureViewDescOut);
 
 		bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to) const;
 
+		size_t getNumberOfBoundResource(RenderGraphResourceId id) const;
 
 		//misc
 		inline void invokeNodeCallback(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext)
@@ -149,6 +167,14 @@ namespace YAPT
 		}
 		void sortNodes(std::vector<RenderGraphNode*>& nodesToSort);
 		const ResourceStateDescription& getLastStateForResource(RenderGraphResourceId resourceId);
+
+		void resolveResourcesBound(RenderGraphResourceId id);
+		void resolveResourcesEnteringGraph(RenderGraphResourceId id);
+		void setResourcesStateAfterGraph(RenderGraphResourceId id);
+
+		virtual void resolveResourcesBoundInternal(RenderGraphResourceId id) = 0;
+		virtual void resolveResourcesEnteringGraphInternal(RenderGraphResourceId id) = 0;
+		virtual void setResourcesStateAfterGraphInternal(RenderGraphResourceId id) = 0;
 
 		GfxApiHandle m_gfxHandle;
 
@@ -167,6 +193,8 @@ namespace YAPT
 		std::vector<RenderGraphResourceBindings> m_boundRenderGraphResources;
 		std::vector<RenderGraphResourceDataPerNodeSlot> m_resourceDataPerNodeSlot;
 		std::vector<ClearsPerNode> m_clearsPerNode;
+
+		ResolveBarriersJob m_barriersJob;
 	};
 }
 

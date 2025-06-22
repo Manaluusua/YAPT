@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <bitset>
 
+#include <Common/ThreadPool.h>
+
 #if defined(DEBUG) || defined(_DEBUG) 
 	#define ENABLE_GRAPH_SANITY_CHECKS
 #endif
@@ -209,8 +211,6 @@ namespace YAPT
 		m_boundRenderGraphResources[id].bufferHandles.assign(handles, handles + handleCount);
 		m_boundRenderGraphResources[id].boundInThisFrame = true;
 
-		resourcesBoundToPipeline(id, handleCount);
-
 		//generate resource views for the bound resource
 		const NodeSlotIdentifier* nodeSlotIdentifiers;
 		size_t numberOfNodeSlotIdentifiers;
@@ -222,7 +222,7 @@ namespace YAPT
 			view.bufferHandles.assign(handles, handles + handleCount);
 
 		}
-
+		
 	}
 
 	bool RenderGraph::isResourceBoundThisFrame(RenderGraphResourceId id) const
@@ -241,10 +241,8 @@ namespace YAPT
 		m_boundRenderGraphResources[id].textureHandles.assign(handles, handles + handleCount);;
 		m_boundRenderGraphResources[id].boundInThisFrame = true;
 
-		resourcesBoundToPipeline(id, handleCount);
-
 		//generate resource views for the bound resource
-		const RenderGraphResourceDescription&  resDesc = m_resourceRequirements.getRenderGraphResourceDescription(id);
+		const RenderGraphResourceDescription& resDesc = m_resourceRequirements.getRenderGraphResourceDescription(id);
 		const NodeSlotIdentifier* nodeSlotIdentifiers;
 		size_t numberOfNodeSlotIdentifiers;
 		m_resourceRequirements.getNodeSlotsUsingResource(id, nodeSlotIdentifiers, numberOfNodeSlotIdentifiers);
@@ -253,24 +251,23 @@ namespace YAPT
 			TextureViewDesc texViewDesc;
 			const RenderGraphResourceUsage& usage = m_resourceRequirements.getRenderGraphResourceUsage(nodeSlotIdentifiers[i].sortedNodeIndex, nodeSlotIdentifiers[i].slotIndex);
 			createTextureViewDesc(resDesc, usage, texViewDesc);
-
+		
 			RenderGraphResourceView& view = m_resourceDataPerNodeSlot[nodeSlotIdentifiers[i].sortedNodeIndex].resourceViewPerSlot[nodeSlotIdentifiers[i].slotIndex];
 			view.type = BoundResourceType::TEXTURE;
-
+		
 			view.textureViews.clear();
 			view.textureViews.reserve(handleCount);
-
+		
 			for (size_t k = 0; k < handleCount; ++k)
 			{
 				view.textureViews.push_back(Gfx::getTextureView(m_gfxHandle, handles[k], texViewDesc));
 			}
-
-			
-
 		}
+
+		
 	}
 
-	BufferHandle RenderGraph::getBufferFromNodeSlot(size_t nodeIndex, size_t slot)
+	BufferHandle* RenderGraph::getBuffersFromNodeSlot(size_t nodeIndex, size_t slot, size_t& countOut)
 	{
 		assert(nodeIndex < m_resourceDataPerNodeSlot.size());
 		assert(slot < m_resourceDataPerNodeSlot[nodeIndex].resourceViewPerSlot.size());
@@ -278,12 +275,14 @@ namespace YAPT
 		if (view.type != BoundResourceType::BUFFER)
 		{
 			YAPT_LOG_FATAL_ERROR("Tried to get buffer resource from a texture slot! %s, %d", __FILE__, __LINE__);
+			countOut = 0;
 			return YAPT_NULL_HANDLE;
 		}
-		return view.bufferHandles.size() > 0  ? view.bufferHandles[0] : YAPT_NULL_HANDLE;
+		countOut = view.bufferHandles.size();
+		return view.bufferHandles.data();
 
 	}
-	TextureViewHandle RenderGraph::getTextureViewFromNodeSlot(size_t nodeIndex, size_t slot)
+	TextureViewHandle* RenderGraph::getTextureViewsFromNodeSlot(size_t nodeIndex, size_t slot, size_t& countOut)
 	{
 		assert(nodeIndex < m_resourceDataPerNodeSlot.size());
 		assert(slot < m_resourceDataPerNodeSlot[nodeIndex].resourceViewPerSlot.size());
@@ -291,9 +290,11 @@ namespace YAPT
 		if (view.type != BoundResourceType::TEXTURE)
 		{
 			YAPT_LOG_FATAL_ERROR("Tried to get texture resource from a buffer slot! %s, %d", __FILE__, __LINE__);
+			countOut = 0;
 			return YAPT_NULL_HANDLE;
 		}
-		return view.textureViews.size() > 0 ? view.textureViews[0] : YAPT_NULL_HANDLE;
+		countOut = view.textureViews.size();
+		return view.textureViews.data();
 	}
 
 
@@ -465,11 +466,50 @@ namespace YAPT
 
 	}
 
-	void RenderGraph::execute()
+	void RenderGraph::execute(ThreadPool* threadPool)
 	{
+		//sync barriers and resource states
+		{
+			m_barriersJob.rg = this;
+			m_barriersJob.resourceIdsResolved = 0;
+			m_barriersJob.numberOfResourceIds = m_boundRenderGraphResources.size();
+
+			auto barriersJob = [](void* usrData)
+			{
+				ResolveBarriersJob* j = static_cast<ResolveBarriersJob*>(usrData);
+				RenderGraph* rg = j->rg;
+
+				while (true)
+				{
+					size_t ind = j->resourceIdsResolved.fetch_add(1);
+					if (ind >= j->numberOfResourceIds) return;
+					RenderGraphResourceId currentResourceID = (RenderGraphResourceId)ind;
+					if (rg->isResourceBoundThisFrame(currentResourceID))
+					{
+						rg->resolveResourcesBound(currentResourceID);
+					}
+					else
+					{
+						rg->resolveResourcesEnteringGraph(currentResourceID);
+					}
+
+					rg->setResourcesStateAfterGraph(currentResourceID);
+				}
+			};
+
+			uint32_t NUM_TASKS = 16;
+			for (uint32_t i = 0; i < NUM_TASKS; ++i)
+			{
+				threadPool->addTask(barriersJob, &m_barriersJob);
+			}
+			threadPool->waitForAllTasksCompleted();
+		}
+
+
+
+
+
 		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);
-
-
 		RenderGraphNode** nodes = getNodes();
 		size_t nodeCount = getNodeCount();
 
@@ -598,7 +638,36 @@ namespace YAPT
 		nodesToSort.swap(sortedNodes);
 	}
 
+	size_t RenderGraph::getNumberOfBoundResource(RenderGraphResourceId id) const
+	{
+		BoundResourceType type = m_boundRenderGraphResources[id].type;
+		size_t handleCount = 0;
+		switch (type)
+		{
+		case YAPT::RenderGraph::BoundResourceType::BUFFER:
+			handleCount = m_boundRenderGraphResources[id].bufferHandles.size();
+			break;
+		case YAPT::RenderGraph::BoundResourceType::TEXTURE:
+			handleCount = m_boundRenderGraphResources[id].textureHandles.size();
+			break;
+		default:
+			assert(!"unexpected resource type bound");
+			break;
+		}
+		return handleCount;
+	}
 	
-
+	void RenderGraph::resolveResourcesBound(RenderGraphResourceId id)
+	{
+		resolveResourcesBoundInternal(id);
+	}
+	void RenderGraph::resolveResourcesEnteringGraph(RenderGraphResourceId id)
+	{
+		resolveResourcesEnteringGraphInternal(id);
+	}
+	void RenderGraph::setResourcesStateAfterGraph(RenderGraphResourceId id)
+	{
+		setResourcesStateAfterGraphInternal(id);
+	}
 
 }

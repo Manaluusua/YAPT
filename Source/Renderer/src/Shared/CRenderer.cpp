@@ -382,7 +382,9 @@ namespace YAPT
 		Gfx::executeBegin(m_gfxHandle);
 		if (m_renderPipelineMngr)
 		{
-			m_renderPipelineMngr->execute();
+			RenderPipeline::ExecuteContext execContext;
+			execContext.executeTasksPool = &getThreadPool();
+			m_renderPipelineMngr->execute(execContext);
 		}
 		Gfx::executeEnd(m_gfxHandle);
 	}

@@ -115,11 +115,12 @@ namespace YAPT
 		}
 	}
 
-	void RenderPipelineManager::execute()
+	void RenderPipelineManager::execute(const RenderPipeline::ExecuteContext& cntx)
 	{
 		if (m_activePipeline)
 		{
-			m_activePipeline->execute();
+
+			m_activePipeline->execute(cntx);
 		}
 	}
 
