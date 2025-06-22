@@ -29,6 +29,10 @@ void sampleExplicitLightDir(in float3 currentPosWS, in uint lightIndex, in float
     toLightDirWSOut = toLightRay / toLightRayLen;
     lightRayMaxT = toLightRayLen + sphere.w;
     pdfOut = 1 / (PI * sphere.w * sphere.w);
+
+    //from area to solid angle
+    pdfOut *= toLightRayLen * toLightRayLen;
+    
     lightInstanceIdOut = lightEntry.instanceIndex;
 
 }
@@ -116,7 +120,8 @@ float calculateExplicitLightPDF(in uint lightIndex, float3 wPos, float3 wDir)
     } 
     else
     {
-        return 1 / (PI * sphere.w * sphere.w);
+        //disk position sampler probability converted to solid angle probability
+        return t * t / (PI * sphere.w * sphere.w); 
     }
     
 }
@@ -133,7 +138,7 @@ float weightMIS(float a, float b)
 void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
 	
-    uint sampleIndex = g_currentRandomSampleIndex + rayState.getPathLength() * 7 + rayState.getRayIndex() * 11;
+    uint sampleIndex = g_currentRandomSampleIndex + (DispatchRaysIndex().y * 7) + rayState.getPathLength() * 5 + rayState.getRayIndex() * 11;
     float4 randomSamplesBRDF = getRandomSampleFloat4(sampleIndex, 0);
 	
     PrecalculatedSurfaceData precalculatedSurfData;
