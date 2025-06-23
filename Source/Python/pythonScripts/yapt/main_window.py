@@ -112,6 +112,16 @@ class MainWindow(QMainWindow):
         self._objects_dialog.show()
 
     def closeEvent(self, event):
+
+        if self._rvars_window != None:
+            self._rvars_window.setParent(None)
+
+        if self._objects_dialog != None:
+            self._objects_dialog.setParent(None)
+
+        self._rvars_window = None
+        self._objects_dialog = None
+
         self._app.shutdown()
         super().closeEvent(event)
 

@@ -40,10 +40,11 @@ class Application:
         self._timer.stop() #hammertime
         self._resources.clear()
         self._resources = None
+        self._scene.shutdown()
+        self._scene = None
         gc.collect()
 
         self._renderer.resetRenderOutput()
-        self._scene.shutdown()
         self._renderer.shutdown()
         self._renderer = None
         
