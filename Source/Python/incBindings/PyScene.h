@@ -19,7 +19,7 @@ namespace YAPT
 		void update(float deltaTime);
 
 		PyRenderObject* createRenderObject(const char* name);
-
+		
 		PyCamera* getMainCamera();
 
 	private:

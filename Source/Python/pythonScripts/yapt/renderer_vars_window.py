@@ -135,9 +135,10 @@ class RendererVarsWindow(QDialog):
             QSizePolicy.MinimumExpanding,
             QSizePolicy.MinimumExpanding
         )
-        self.create_renderer_var_entries()
 
-    def create_renderer_var_entries(self):
+        self.setup()
+
+    def setup(self):
         all_renderer_var_names = self._renderer.getAllRendererVariableNames()
         groupBox = QGroupBox("Renderer Variables", self)
         groupBoxLayout = QVBoxLayout(groupBox)

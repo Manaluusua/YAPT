@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QMainWindow, QWidget, QFileDialog, QVBoxLayout
 from PySide6.QtGui import QAction, QPalette, QColor
 from yapt.renderer_vars_window import RendererVarsWindow
+from yapt.objects_dialog import ObjectsDialog
 import os
 from pathlib import Path
 
@@ -16,6 +17,9 @@ class MainWindow(QMainWindow):
         self.setup_render_area()
         self.show()
         self.sizeChanged = True
+
+        self._objects_dialog = None
+        self._rvars_window = None
     #UI
     def set_dark_theme(self):
         lightColor = "#a2ff00"
@@ -64,6 +68,9 @@ class MainWindow(QMainWindow):
         rvars_action = QAction("RenderVars", self)
         rvars_action.triggered.connect(self.show_rvars)
         options_menu.addAction(rvars_action)
+        objects_action = QAction("Objects", self)
+        objects_action.triggered.connect(self.show_objects_dialog)
+        options_menu.addAction(objects_action)
     
     def setup_render_area(self):
         self._renderAreaWidget = QWidget()
@@ -91,8 +98,18 @@ class MainWindow(QMainWindow):
                 print(f"An error occurred: {e}")
     
     def show_rvars(self):
-        rvars_window = RendererVarsWindow(self, self._app.get_renderer())
-        rvars_window.show()
+        if self._rvars_window == None:
+            self._rvars_window = RendererVarsWindow(self, self._app.get_renderer())
+            self._rvars_window.setup()
+        self._rvars_window.show()
+
+    def show_objects_dialog(self):
+
+        if self._objects_dialog == None:
+            self._objects_dialog = ObjectsDialog(self, self._app.get_scene(), self._app.get_renderer(), self._app.get_resources())
+
+        self._objects_dialog.refresh()
+        self._objects_dialog.show()
 
     def closeEvent(self, event):
         self._app.shutdown()

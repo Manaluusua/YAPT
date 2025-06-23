@@ -31,5 +31,11 @@ class SceneWrapper:
         self._render_objects.add(ro)
         return ro
 
+    def destroy_object(self, obj):
+        self._render_objects.remove(obj)
+
+    def get_all_objects_list(self):
+        return list(self._render_objects)
+
     def get_main_camera(self):
         return self.get_scene().getMainCamera()
