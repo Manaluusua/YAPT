@@ -47,7 +47,7 @@ namespace YAPT
 
         mat4 rotationMat = glm::mat4_cast(m_orientation);
 
-        m_matrix *= rotationMat;
+        m_matrix = rotationMat * m_matrix;
         m_matrix[3][0] = m_translation.x;
         m_matrix[3][1] = m_translation.y;
         m_matrix[3][2] = m_translation.z;

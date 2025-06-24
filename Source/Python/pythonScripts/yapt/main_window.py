@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
     def show_rvars(self):
         if self._rvars_window == None:
             self._rvars_window = RendererVarsWindow(self, self._app.get_renderer())
-            self._rvars_window.setup()
+        self._rvars_window.setup()
         self._rvars_window.show()
 
     def show_objects_dialog(self):

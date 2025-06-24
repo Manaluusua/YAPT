@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy
 
 class ObjectListItem(QListWidgetItem):
     def __init__(self, parent, obj):
@@ -13,6 +13,11 @@ class ObjectListItem(QListWidgetItem):
 class ObjectsView(QWidget):
     def __init__(self, parent, scene):
         super().__init__(parent)
+
+        self.setSizePolicy(
+            QSizePolicy.MinimumExpanding,
+            QSizePolicy.MinimumExpanding
+        )
 
         layout = QVBoxLayout(self)
         self._scene = scene

@@ -36,6 +36,8 @@ class RendererVariableUI(QWidget):
             button.clicked.connect(self.apply)
             layout.addWidget(button)
 
+        self.setLayout(layout)
+
     def apply(self):
         self._applyFunc()
 
@@ -118,21 +120,48 @@ class RendererVarsWindow(QDialog):
             QSizePolicy.MinimumExpanding
         )
 
-        self.setup()
+    def clear(self):
+        QWidget().setLayout(self.layout())
 
     def setup(self):
+
+        self.clear()
+
+        dialogLayout = QVBoxLayout(self)
+        self.setLayout(dialogLayout)
+
         all_renderer_var_names = self._renderer.getAllRendererVariableNames()
-        groupBox = QGroupBox("Renderer Variables", self)
-        groupBoxLayout = QVBoxLayout(groupBox)
+
+        categories = {}
+        default_category = "Generic"
 
         for renderer_var_name in all_renderer_var_names:
             renderer_var = self._renderer.getRendererVariable(renderer_var_name)
-            renderer_var_ui = RendererVariableUI(self, renderer_var_name, renderer_var)
-            groupBoxLayout.addWidget(renderer_var_ui)
+            s = renderer_var_name.split('.', 1)
 
-        groupBox.setLayout(groupBoxLayout)
+            if(len(s) == 1):
+                entry = (s[0], renderer_var)
+                if default_category in categories:
+                    categories[default_category].append(entry)
+                else:
+                    categories[default_category] = [entry]
+            else:
+                entry = (s[1], renderer_var)
+                if s[0] in categories:
+                    categories[s[0]].append(entry)
+                else:
+                    categories[s[0]] = [entry]
 
-        dialogLayout = QVBoxLayout(self)
-        dialogLayout.addWidget(groupBox)
-        self.setLayout(dialogLayout)
+        sorted_keys = sorted(categories.keys())
+
+        for key in sorted_keys:
+            groupBox = QGroupBox(key, self)
+            groupBoxLayout = QVBoxLayout(groupBox)
+            groupBox.setLayout(groupBoxLayout)
+
+            for value in sorted(categories[key]):
+                renderer_var_ui = RendererVariableUI(self, value[0], value[1])
+                groupBoxLayout.addWidget(renderer_var_ui)
+            dialogLayout.addWidget(groupBox)
+
             

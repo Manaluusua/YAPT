@@ -5,8 +5,10 @@ from PySide6.QtGui import QAction
 class NumericValuesUI(QWidget):
     def __init__(self, parent, numbers_count, decimals_count, name = None, on_change_callback = None):
         super().__init__(parent)
+
         layout = QHBoxLayout(self)
-        if(name != None):
+
+        if name != None:
             layout.addWidget(QLabel(name))
 
         self.setSizePolicy(
@@ -19,12 +21,13 @@ class NumericValuesUI(QWidget):
 
         for i in range(numbers_count):
             sb = QDoubleSpinBox()
-            sb.setDecimals(6)
+            sb.setDecimals(decimals_count)
             sb.valueChanged.connect(self.value_changed)
             layout.addWidget(sb)
             self._spinBoxes.append(sb)
 
         self._on_change = on_change_callback
+        self.setLayout(layout)
 
     def set_limits(self, limitsMin, limitsMax):
         for i in range(self._numbers_count):
