@@ -30,11 +30,6 @@ namespace YAPT
 	void MeshManager::replicateChanges()
 	{
 
-		//let go of last frames released ids
-		for (auto entry : m_destroyedEntries)
-		{
-			m_meshes.removeEntry(entry);
-		}
 		m_createdEntries.clear();
 		m_modifiedEntries.clear();
 		m_destroyedEntries.clear();
@@ -77,6 +72,11 @@ namespace YAPT
 				meshImpl->_meshState = MeshProxy::MESHSTATE_NOCHANGES;
 			}
 
+		}
+
+		for (auto entry : m_destroyedEntries)
+		{
+			m_meshes.removeEntry(entry);
 		}
 
 		m_changedMeshes.clear();

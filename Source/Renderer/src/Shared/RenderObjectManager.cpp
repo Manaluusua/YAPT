@@ -45,12 +45,6 @@ namespace YAPT
 
 	void RenderObjectManager::replicateChanges()
 	{
-		//let go of last frames released ids
-		for (auto entry : m_destroyedEntries)
-		{
-			m_renderObjects.removeEntry(entry);
-		}
-
 		m_createdEntries.clear();
 		m_modifiedEntries.clear();
 		m_destroyedEntries.clear();
@@ -91,6 +85,12 @@ namespace YAPT
 				ro->_renderObjectState = RenderObjectProxy::RENDEROBJECTSTATE_NOCHANGES;
 			}
 
+		}
+
+		//let go of the destroyed data (but remember the Id for one frame)
+		for (auto entry : m_destroyedEntries)
+		{
+			m_renderObjects.removeEntry(entry);
 		}
 
 		m_changedRenderObjects.clear();
