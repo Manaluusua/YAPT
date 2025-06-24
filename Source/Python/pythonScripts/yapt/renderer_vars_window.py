@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QDoubleSpinBox, QPushButton, QComboBox
 from PySide6.QtGui import QAction
 from py_yapt import RendererVariableType, vec2, vec3, vec4, ivec2, ivec3, ivec4
+from yapt.ui_utility import NumericValuesUI
 
 class RendererVariableUI(QWidget):
     def __init__(self, parent, name, renderervar):
@@ -40,20 +41,12 @@ class RendererVariableUI(QWidget):
 
 
     def _apply_float(self):
-        float_arr = []
         rval = self._r_var
-        for sb in self.spinBoxes:
-            float_arr.append(float(sb.value()))
-
-        rval.setFromFloatArray(float_arr)
+        rval.setFromFloatArray(self._numbers_ui.get_values())
 
     def _apply_int(self):
-        int_arr = []
         rval = self._r_var
-        for sb in self.spinBoxes:
-            int_arr.append(int(sb.value()))
-
-        rval.setFromIntArray(int_arr)
+        rval.setFromIntArray(self._numbers_ui.get_values_int())
         
     def _setup_float_var(self, layout):
         
@@ -61,15 +54,10 @@ class RendererVariableUI(QWidget):
         values = rvar.getAsFloatArray()
         limits = rvar.getLimitsFloat()
 
-        self.spinBoxes = []
-        for i in range(len(values)):
-            sb = QDoubleSpinBox()
-            sb.setMinimum(limits[0][i]) 
-            sb.setMaximum(limits[1][i])  
-            sb.setValue(values[i])  
-            sb.setDecimals(6)
-            layout.addWidget(sb)
-            self.spinBoxes.append(sb)
+        self._numbers_ui = NumericValuesUI(self, len(values), 6)
+        self._numbers_ui.set_limits(limits[0], limits[1])
+        self._numbers_ui.set_values(values)
+        layout.addWidget(self._numbers_ui)
         self._applyFunc = self._apply_float
 
     def _setup_int_var(self, layout):
@@ -77,16 +65,10 @@ class RendererVariableUI(QWidget):
         values = rvar.getAsIntArray()
         limits = rvar.getLimitsInt()
 
-        self.spinBoxes = []
-        for i in range(len(values)):
-            sb = QDoubleSpinBox()
-            sb.setMinimum(limits[0][i]) 
-            sb.setMaximum(limits[1][i])  
-            sb.setValue(values[i])  
-            sb.setDecimals(0)
-            layout.addWidget(sb)
-            self.spinBoxes.append(sb)
-
+        self._numbers_ui = NumericValuesUI(self, len(values), 0)
+        self._numbers_ui.set_limits(limits[0], limits[1])
+        self._numbers_ui.set_values(values)
+        layout.addWidget(self._numbers_ui)
         self._applyFunc = self._apply_int
 
     def _setup_tex_var(self, layout):
