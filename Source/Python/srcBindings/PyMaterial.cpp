@@ -241,7 +241,7 @@ namespace YAPT
 	BINDING_FUNC(PyMaterial, m)
 	{
 
-		auto mat = pybind11::class_<PyMaterial>(m, "Material");
+		auto mat = pybind11::class_<PyMaterial, std::shared_ptr<PyMaterial>>(m, "Material");
         mat.def("setFromMaterialPreset", &PyMaterial::setFromMaterialPreset)
             .def("getName", &PyMaterial::getName)
             .def("setTransparency", &PyMaterial::setTransparency)

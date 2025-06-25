@@ -3,6 +3,7 @@
 #include <Renderer/Renderer.h>
 #include <pybind11/stl.h>
 #include <PyBuffer.h>
+
 namespace YAPT
 {
 	DEFINE_BINDING_CLASS(PyMesh);
@@ -118,7 +119,7 @@ namespace YAPT
 			.def_readonly_static("STRIDE_TIGHTLY_PACKED", &PyVertexBufferLayout::STRIDE_TIGHTLY_PACKED);
 
 
-		pybind11::class_<PyMesh>(m, "Mesh")
+		pybind11::class_<PyMesh, std::shared_ptr<PyMesh>>(m, "Mesh")
 			.def("getName", &PyMesh::getName)
 			.def("setVertexBuffer", &PyMesh::setVertexBuffer)
 			.def("setIndexBuffer", &PyMesh::setIndexBuffer)

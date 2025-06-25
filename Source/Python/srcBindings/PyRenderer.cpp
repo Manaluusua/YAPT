@@ -103,14 +103,13 @@ namespace YAPT
 		return pybuf;
 	}
 
-	PyMaterial* PyRenderer::createMaterial(const char* name)
+	std::shared_ptr<PyMaterial> PyRenderer::createMaterial(const char* name)
 	{
-		return new PyMaterial(m_renderer, name);
+		return std::make_shared<PyMaterial>(m_renderer, name);
 	}
-	PyMesh* PyRenderer::createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)
+	std::shared_ptr<PyMesh> PyRenderer::createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)
 	{
-		PyMesh* mesh = new PyMesh(m_renderer, name,  layouts, vertexCount, submeshCount, use16BitIndices);
-		return mesh;
+		return std::make_shared<PyMesh>(m_renderer, name,  layouts, vertexCount, submeshCount, use16BitIndices);
 	}
 
 	BINDING_FUNC(PyRenderer, m)

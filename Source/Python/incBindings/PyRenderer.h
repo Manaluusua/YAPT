@@ -1,5 +1,6 @@
 #pragma once
 #include <PyBindingsCommon.h>
+#include <Common/RCObjectPtr.h>
 #include <PyRendererVar.h>
 #include <Windows.h>
 #include <PyMesh.h>
@@ -30,8 +31,8 @@ namespace YAPT
 		PyTexture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1);
 		PyBuffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size);
 
-		PyMaterial* createMaterial(const char* name);
-		PyMesh* createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
+		std::shared_ptr<PyMaterial> createMaterial(const char* name);
+		std::shared_ptr<PyMesh> createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 
 		PyRendererVar getRendererVariable(const char* varName);
 		std::vector<const char*> getAllRendererVariableNames();

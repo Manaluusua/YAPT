@@ -13,6 +13,8 @@ class TransformView(QWidget):
         limits_min = [-max_float, -max_float, -max_float]
         limits_max = [max_float, max_float, max_float]
 
+        self.silence_notify = True
+
         self._translation_ui = NumericValuesUI(self, 3, 6, "Translation: ", self.translation_changed)
         self._translation_ui.set_limits(limits_min, limits_max)
         self._translation_ui.set_values(self._transform.getTranslation())
@@ -31,6 +33,8 @@ class TransformView(QWidget):
         layout.addWidget(self._scale_ui)
         self.setLayout(layout)
 
+        self.silence_notify = False
+
     def orientation_to_euler(self, orientation):
         q = QQuaternion(orientation.w, orientation.x, orientation.y, orientation.z)
         qvec = q.toEulerAngles()
@@ -41,10 +45,16 @@ class TransformView(QWidget):
         return vec4([q.x(), q.y(), q.z(), q.scalar()])
 
     def translation_changed(self, values):
+        if(self.silence_notify == True):
+            return
         self._transform.setTranslation(vec3(values))
 
     def orientation_changed(self, values):
+        if(self.silence_notify == True):
+            return
         self._transform.setOrientation(self.euler_to_orientation(values))
 
     def scale_changed(self, values):
+        if(self.silence_notify == True):
+            return
         self._transform.setScale(vec3(values))

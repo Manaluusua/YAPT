@@ -1,10 +1,12 @@
 #pragma once
 #include <PyBindingsCommon.h>
-#include <Renderer/Material.h>
 #include <Scene/Scene.h>
 #include <Scene/Model.h>
 #include <PyTransform.h>
+#include <PyMesh.h>
+#include <PyMaterial.h>
 #include <memory>
+#include <vector>
 
 namespace YAPT
 {
@@ -18,9 +20,13 @@ namespace YAPT
 		PyRenderObject(const char* name, Scene* scene);
 		~PyRenderObject();
 
-		void setMesh(PyMesh* mesh);
-		void setMaterial(PyMaterial* material, size_t materialIndex);
-		void setMaterials(std::vector<PyMaterial*> materials);
+		void setMesh(std::shared_ptr<PyMesh> mesh);
+		void setMaterial(std::shared_ptr<PyMaterial> material, size_t materialIndex);
+		void setMaterials(std::vector<std::shared_ptr<PyMaterial>> materials);
+
+		std::vector<std::shared_ptr<PyMaterial>> getMaterials();
+		std::shared_ptr<PyMesh> getMesh();
+
 		PyTransform* getTransform();
 
 		const char* getName() const;
@@ -29,6 +35,8 @@ namespace YAPT
 	private:
 		std::string m_name;
 		RCObjectPtr<Model> m_obj;
+		std::shared_ptr<PyMesh> m_mesh;
+		std::vector<std::shared_ptr<PyMaterial>> m_materials;
 		PyTransform m_transform;
 	};
 }

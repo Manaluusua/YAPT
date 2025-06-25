@@ -4,7 +4,7 @@
 #include <Renderer/Mesh.h>
 #include <Common/RCObjectPtr.h>
 #include <tuple>
-
+#include <memory>
 namespace YAPT
 {
 	struct PyMeshAttribute
@@ -40,7 +40,7 @@ namespace YAPT
 
 	class PyBuffer;
 	class Renderer;
-	class PyMesh
+	class PyMesh : public RCObject
 	{
 	public:
 		DECLARE_BINDING_CLASS(PyRenderer);

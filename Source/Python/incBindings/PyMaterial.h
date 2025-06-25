@@ -1,11 +1,12 @@
 #pragma once
 #include <PyBindingsCommon.h>
+#include <Common/RCObject.h>
 #include <Renderer/Material.h>
 #include <memory>
 namespace YAPT
 {
 	class Renderer;
-	class PyMaterial
+	class PyMaterial : public RCObject
 	{
 	public:
 		DECLARE_BINDING_CLASS(PyMaterial);

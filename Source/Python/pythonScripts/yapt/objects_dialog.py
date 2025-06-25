@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QDialog, QListWidget, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QGroupBox, QPushButton
 from yapt.inspector_view import InspectorView
 from yapt.objects_view import ObjectsView
-
+import gc
 
 class ObjectsDialog(QDialog):
     def __init__(self, parent, scene, renderer, resources):
@@ -31,10 +31,7 @@ class ObjectsDialog(QDialog):
         delete_button = QPushButton("-")
         delete_button.clicked.connect(self.delete_selected_objects)
         grp_box_objects_layout.addWidget(delete_button)
-
-       
         
-
         #inspector setup
         grp_box_inspector = QGroupBox("Inspector", self)
         grp_box_inspector_layout = QVBoxLayout(grp_box_inspector)
@@ -66,7 +63,9 @@ class ObjectsDialog(QDialog):
             self.refresh()
 
     def refresh(self):
+        self._inspector_view.show_object(None)
         self._objects_view.refresh()
+        gc.collect()
 
     def object_selected(self, selected_obj):
         self._currently_selected_objects = [selected_obj]
