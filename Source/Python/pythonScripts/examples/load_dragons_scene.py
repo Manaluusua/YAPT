@@ -33,7 +33,7 @@ def createGround():
 
 
 def createLight():
-    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, 400, 0]), 100)
+    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, 100, 0]), 10)
     mat.setEmission(vec3([1000, 1000, 1000]))
 
 def letThereBeDragons():
@@ -86,5 +86,10 @@ if(env_map != None):
 createGround()
 createLight()
 letThereBeDragons()
+cam_transform = scene.get_main_camera().getTransform()
+cam_transform.setTranslation(vec3([300, 40, 300]));
 
-scene.get_main_camera().getTransform().setTranslation(vec3([0, -5, 250]));
+
+cam_rot_q = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), 45) * QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), -20)
+quat = vec4([cam_rot_q.x(), cam_rot_q.y(), cam_rot_q.z(), cam_rot_q.scalar()])
+cam_transform.setOrientation(quat)

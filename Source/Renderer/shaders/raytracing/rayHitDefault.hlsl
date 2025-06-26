@@ -163,6 +163,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         float pdfLightDir;
         float pdfBRDF;
         sampleExplicitLightDir(currentPosWS, (uint) lightIndex, randomSamplesLight.xy, lightInstanceId, explicitLightDirWS, lightRayMaxT, pdfLightDir);
+    
+        pdfLightDir *= 1.f/g_lightCount;
 
         float3x3 toOSLight = (float3x3)WorldToObject3x4();
         float3 toLightDirOS = mul(toOSLight, explicitLightDirWS);
@@ -172,7 +174,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, false, weightSumLight, pdfBRDF, transmissionTypeDummy);
 		
 		
-        if (pdfBRDF > 0 && !weightSumLight.allSamplesEqual(0))
+        if (pdfLightDir > 0 && !weightSumLight.allSamplesEqual(0))
         {
             SpectralSamples emission;
 			
@@ -204,8 +206,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             float3x3 objToWorld = (float3x3) ObjectToWorld3x4();
             float3 wiWorldSpace = mul(objToWorld, wiObjSpace);
             float lightPDF = calculateExplicitLightPDF(lightIndex, currentPosWS, wiWorldSpace);
+            lightPDF *= 1.f/g_lightCount;
             wMIS = weightMIS(pdfBRDF, lightPDF);
-
         }
 		
 #endif
@@ -305,14 +307,16 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         SpectralSamples w;
         evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
         payload.throughput = payload.throughput * w;
+        
+        if (isZero(nextSampleDirBRDF))
+        {
+            payload.rayState = RAY_STATE_TERMINATED;
+        }
     }
 	
 	
 
-    if (isZero(nextSampleDirBRDF))
-	{
-		payload.rayState = RAY_STATE_TERMINATED;
-	}
+    
 
 	if(payload.rayState == RAY_STATE_ALIVE)
 	{
