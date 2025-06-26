@@ -73,7 +73,7 @@ class MaterialView(QWidget):
         else:
             ui.set_values(getter())
         
-        ui.set_on_change_callback = cb
+        ui.set_on_change_callback(cb)
         return ui
         
     def create_material_property_bool(self, prop_name, getter_name = None, setter_name = None):
