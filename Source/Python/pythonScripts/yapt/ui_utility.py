@@ -29,6 +29,9 @@ class NumericValuesUI(QWidget):
         self._on_change = on_change_callback
         self.setLayout(layout)
 
+    def set_on_change_callback(self, cb):
+        self._on_change = cb
+
     def set_limits(self, limitsMin, limitsMax):
         for i in range(self._numbers_count):
             sb = self._spinBoxes[i]
@@ -54,6 +57,9 @@ class NumericValuesUI(QWidget):
             sb = self._spinBoxes[i]
             values.append(int(sb.value()))
         return values
+
+    def get_numbers_count(self):
+        return self._numbers_count
 
     def value_changed(self, val):
         if self._on_change != None:

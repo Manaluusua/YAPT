@@ -50,7 +50,7 @@ namespace YAPT
 		float getAnisotropyRotation() const;
 
 		void setTwoSided(bool val);
-		bool isTwoSided() const;
+		bool getTwoSided() const;
 
 		void setSpecularAmount(float val);
 		float getSpecularAmount() const;

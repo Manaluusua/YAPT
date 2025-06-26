@@ -134,7 +134,7 @@ namespace YAPT
         m_material->setTwoSided(val);
     }
 
-    bool PyMaterial::isTwoSided() const
+    bool PyMaterial::getTwoSided() const
     {
         return m_material->isTwoSided();
     }
@@ -265,7 +265,7 @@ namespace YAPT
             .def("setAnisotropyRotation", &PyMaterial::setAnisotropyRotation)
             .def("getAnisotropyRotation", &PyMaterial::getAnisotropyRotation)
             .def("setTwoSided", &PyMaterial::setTwoSided)
-            .def("isTwoSided", &PyMaterial::isTwoSided)
+            .def("getTwoSided", &PyMaterial::getTwoSided)
             .def("setSpecularAmount", &PyMaterial::setSpecularAmount)
             .def("getSpecularAmount", &PyMaterial::getSpecularAmount)
             .def("setClearCoatAmount", &PyMaterial::setClearCoatAmount)
