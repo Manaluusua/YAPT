@@ -135,10 +135,15 @@ float weightMIS(float a, float b)
 
 }
 
+uint getRaySampleIndex(in Payload rayState, in int pathLengthOffset = 0)
+{
+    return g_currentRandomSampleIndex + (DispatchRaysIndex().y * 7) + (rayState.getPathLength() + pathLengthOffset) * 5 + rayState.getRayIndex() * 11;
+}
+
 void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
 	
-    uint sampleIndex = g_currentRandomSampleIndex + (DispatchRaysIndex().y * 7) + rayState.getPathLength() * 5 + rayState.getRayIndex() * 11;
+    uint sampleIndex = getRaySampleIndex(rayState);
     float4 randomSamplesBRDF = getRandomSampleFloat4(sampleIndex, 0);
 	
     PrecalculatedSurfaceData precalculatedSurfData;
@@ -193,29 +198,15 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float pdfBRDF = 0.f;
     float pdfLightDir = 0.f;
     TransmissionType transmissionType;
-    float wMIS = 1.f;
     float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities);
     if (!isZero(wiObjSpace))
     {
         evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, false, weightSumBRDF, pdfBRDF, transmissionType);
-		
-#ifdef ENABLE_NEE
-        if (g_lightCount > 0 && pdfBRDF > 0)
-        {
-			//evaluate PDF for explicit light		
-            float3x3 objToWorld = (float3x3) ObjectToWorld3x4();
-            float3 wiWorldSpace = mul(objToWorld, wiObjSpace);
-            float lightPDF = calculateExplicitLightPDF(lightIndex, currentPosWS, wiWorldSpace);
-            lightPDF *= 1.f/g_lightCount;
-            wMIS = weightMIS(pdfBRDF, lightPDF);
-        }
-		
-#endif
-		
     }
 	
     if (pdfBRDF > 0.f)
      {
+        rayState.pdfThisRay = pdfBRDF;
 		if (transmissionType != TRANSMISSION_TYPE_NONE)
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
@@ -242,7 +233,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		    
 		}
 
-        weightSumBRDF = (weightSumBRDF / pdfBRDF) * wMIS;
+        weightSumBRDF = weightSumBRDF / pdfBRDF;
     }
     //weightSumBRDF.set(0);
     weightOut = weightSumBRDF;
@@ -297,8 +288,28 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	}
 	
 	if(!surfaceDef.emissive.allSamplesEqual(0))
-	{
-		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive;
+    {
+        float wMIS = 1.f;
+#ifdef ENABLE_NEE
+        if (g_lightCount > 0 && payload.pdfThisRay > 0)
+        {
+			//evaluate PDF for explicit light		
+            float3 wiWS = WorldRayDirection();
+            float3 rayOriginWS = WorldRayOrigin(); 
+        
+            uint sampleIndex = getRaySampleIndex(payload, -1);
+            float4 randomSamplesLight = getRandomSampleFloat4(sampleIndex, 1);
+            uint lightIndex = min((uint) floor(randomSamplesLight.w * g_lightCount), g_lightCount - 1);
+        
+            float lightPDF = calculateExplicitLightPDF(lightIndex, rayOriginWS, wiWS);
+            lightPDF *= 1.f/g_lightCount;
+            wMIS = weightMIS(payload.pdfThisRay, lightPDF);
+        }
+		
+#endif
+        
+        
+		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS;
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
 	else

@@ -43,6 +43,7 @@ void rayGenPrimaryRays()
 	payload.numberVolumesEntered = 0;
 	payload.absorption.set(0.0f);
 	payload.flags = 0;
+    payload.pdfThisRay = 0;
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;

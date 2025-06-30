@@ -68,7 +68,8 @@ struct Payload //: RayStateInterface
 	uint rayIndex;
 	float3 rayDirection;
 	uint pathLength;
-
+	
+    float pdfThisRay;
 	uint numberVolumesEntered;
 	uint rayState;
 	uint flags;
