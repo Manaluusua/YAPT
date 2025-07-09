@@ -25,7 +25,7 @@ struct LightPathHeader
 struct LightPathNode
 {
     float4 throughput;
-    float4 normalWSPDF;
+    float4 normalWSNextIndex;
     float4 positionWSMISSum;
     float4 instancePrimitiveBarycentrics;
 };
@@ -102,15 +102,51 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define COUNTER_LIGHT_HEADERS_INDEX 0
 #define COUNTER_LIGHT_VERTICES_INDEX 1
 
+#define INVALID_LIGHT_NODE_INDEX (0xFFFFFFFF)
+
 #define g_worldBoundsMin g_bdptConstants.worldBoundsMin.xyz
 #define g_worldBoundsMax g_bdptConstants.worldBoundsMax.xyz
 #define g_maxVerticesPerLightPath g_bdptConstants.maxVerticesPerLightPath
 #define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
 
-
 #define g_envType g_bdptConstants.envType
 #define g_envTexIndex g_bdptConstants.envTextureIndex
+
+#ifdef WRITABLE_LIGHT_DATA
+
+void reserveLightPathNodeSpace(uint count, out uint offsetOut, out uint countOut)
+{
+    g_counters.InterlockedAdd(COUNTER_LIGHT_VERTICES_INDEX << 2, count, offsetOut);
+    uint actualCount = g_maxAllocatedVertices - min(offsetOut, g_maxAllocatedVertices);
+    offsetOut = offsetOut;
+    countOut = actualCount;
+}
+
+void storeLightPathVertex(uint offset, LightPathNode node)
+{
+	g_lightPathVertices[offset] = node;
+}
+
+uint reserveLightPathHeader()
+{
+	uint offset;
+    g_counters.InterlockedAdd(COUNTER_LIGHT_HEADERS_INDEX << 2, 1, offset);
+    return offset;
+}
+
+void storeLightPathHeader(uint offset, LightPathHeader h)
+{
+	g_lightPathHeaders[offset] = h;
+}
+
+
+#endif
+
+LightPathNode getLightPathVertex(uint offset)
+{
+    return g_lightPathVertices[offset];
+}
 
 float4 getWorldCenterAndRadiusSqr()
 {
@@ -118,7 +154,6 @@ float4 getWorldCenterAndRadiusSqr()
 	float3 ext = (g_worldBoundsMax - c);
 	return float4(c, dot(ext, ext));
 }
-
 
 float3 generateRayDirection(float2 uv)
 {

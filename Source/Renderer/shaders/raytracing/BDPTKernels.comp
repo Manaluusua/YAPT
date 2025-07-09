@@ -178,6 +178,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rayState.numberVolumesEntered = 0;
 
     float pdfSumRatio = 1;
+	uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
+	uint lightNodeCount = 0;
 	
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
@@ -229,9 +231,19 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
             LightPathNode pathNode;
             pathNode.instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
-            pathNode.normalWSPDF.xyz = normalWS;
+            pathNode.normalWSNextIndex = float4(normalWS, asfloat(lastVertexOffset));
             pathNode.throughput = throughPut.toFloat4();
             pathNode.positionWSMISSum = float4(posWS, pdfSumRatio);
+			//store vertex
+			{
+				uint vOffset, vCount;
+				reserveLightPathNodeSpace(1, vOffset, vCount);
+				if(vCount == 0) break;
+
+				storeLightPathVertex(vOffset, pathNode);
+				lastVertexOffset = vOffset;
+				++lightNodeCount;
+			}
 			
             if (isZero(wiOS))
             {
@@ -250,16 +262,20 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			
             pdfSumRatio *= pdfForward / pdfBackward;
             throughPut = throughPut * w;
-
         }
 		else 
 		{
 		    //end path
 		}
-
-
 	}
 	
+	if(lightNodeCount > 0)
+	{
+		LightPathHeader header;
+		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
+		uint headerOffset = reserveLightPathHeader();
+		storeLightPathHeader(headerOffset, header);
+	}
 
 }
 
