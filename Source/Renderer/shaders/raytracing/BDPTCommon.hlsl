@@ -101,6 +101,7 @@ ByteAddressBuffer g_counters : register(t4, space3);
 
 #define COUNTER_LIGHT_HEADERS_INDEX 0
 #define COUNTER_LIGHT_VERTICES_INDEX 1
+#define COUNTER_LIGHT_VERTICES_INDEX_SORT 2
 
 #define INVALID_LIGHT_NODE_INDEX (0xFFFFFFFF)
 
@@ -123,6 +124,12 @@ void reserveLightPathNodeSpace(uint count, out uint offsetOut, out uint countOut
     countOut = actualCount;
 }
 
+void reserveLightPathNodeSpaceForSorting(uint count, out uint offsetOut)
+{
+    g_counters.InterlockedAdd(COUNTER_LIGHT_VERTICES_INDEX_SORT << 2, count, offsetOut);
+    offsetOut = offsetOut;
+}
+
 void storeLightPathVertex(uint offset, LightPathNode node)
 {
 	g_lightPathVertices[offset] = node;
@@ -141,11 +148,23 @@ void storeLightPathHeader(uint offset, LightPathHeader h)
 }
 
 
+
 #endif
 
 LightPathNode getLightPathVertex(uint offset)
 {
     return g_lightPathVertices[offset];
+}
+
+uint getLightPathsCount()
+{
+    return g_counters.Load(COUNTER_LIGHT_HEADERS_INDEX << 2);
+
+}
+
+LightPathHeader getLightPathHeader(uint index)
+{
+    return g_lightPathHeaders[index];
 }
 
 float4 getWorldCenterAndRadiusSqr()

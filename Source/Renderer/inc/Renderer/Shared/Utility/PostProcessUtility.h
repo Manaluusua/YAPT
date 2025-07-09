@@ -60,7 +60,7 @@ namespace YAPT
 	public:
 		PostProcessComputePassUtility();
 		~PostProcessComputePassUtility();
-		void init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs = nullptr, size_t numberOfExplicitDescSetDefs = 0);
+		void init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers = nullptr, size_t numberOfStaticSamplers = 0, const ExplicitDescriptorSetDefinition* explicitDescSetDefs = nullptr, size_t numberOfExplicitDescSetDefs = 0);
 
 
 		void createPipelineState();

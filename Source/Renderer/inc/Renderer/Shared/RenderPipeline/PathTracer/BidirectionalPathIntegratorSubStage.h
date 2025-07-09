@@ -73,8 +73,9 @@ namespace YAPT
 		
 
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
+		void executeLightPathSortPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
-
+		
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
@@ -86,6 +87,9 @@ namespace YAPT
 		ComputeNode* m_lightPathsNode;
 		PostProcessComputePassUtility m_lightPathHelperUtility;
 
+		ComputeNode* m_lightPathsSortNode;
+		PostProcessComputePassUtility m_lightPathSortHelperUtility;
+
 		ComputeNode* m_cameraPathsNode;
 		PostProcessComputePassUtility m_cameraPathHelperUtility;
 
@@ -93,8 +97,8 @@ namespace YAPT
 		
 
 		DynamicSizeGpuBufferHelper<LightPathHeader> m_lightPathHeadersGPU;
-		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPathsGPU;
-		FixedSizeGpuBufferHelper<uvec2> m_countersGPU;
+		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPathsGPU[2];
+		FixedSizeGpuBufferHelper<uvec3> m_countersGPU;
 
 		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
 

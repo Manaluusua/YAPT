@@ -4,6 +4,8 @@
 RWTexture2D<float4> g_outputColor : register(u5, space3);
 #elif LIGHT_RAYS_STAGE
 #define WRITABLE_LIGHT_DATA
+#elif SORT_LIGHT_VERTICES_STAGE
+#define WRITABLE_LIGHT_DATA
 #endif
 
 static uint g_spectralSampleOffset;
@@ -11,6 +13,190 @@ static uint g_spectralSampleOffset;
 #define RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET g_spectralSampleOffset
 
 #include "BDPTCommon.hlsl"
+
+
+
+//#define LIGHT_RAYS_STAGE //DONT FORGET TO REMOVE/DISABLE
+#ifdef LIGHT_RAYS_STAGE
+
+[numthreads(64, 1, 1)]
+void traceLightRays( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+
+	g_spectralSampleOffset = 0;
+
+	uint sampleIndex = g_currentRandomSampleIndex + dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x;
+
+	SpectralSamples throughPut;
+	float3 lightPos;
+	float3 lightDir;
+	float lightSamplePDF;
+
+	//sample light
+	{
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
+		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
+
+		sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, throughPut, lightPos, lightDir, lightSamplePDF);
+	}
+
+
+	if(throughPut.allSamplesEqual(0.f)) return;
+
+	BDPTRayState rayState;
+	rayState.absorption.set(0);
+    rayState.setStateFlags(0);
+    rayState.numberVolumesEntered = 0;
+
+    float pdfSumRatio = 1;
+	uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
+	uint lightNodeCount = 0;
+	
+	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
+	{
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex + i, 0);
+
+		uint rayFlags = RAY_FLAG_NONE;
+		uint InstanceInclusionMask = ~0;
+
+		RayQuery<RAY_FLAG_NONE> q;
+
+		RayDesc ray;
+		ray.Origin = lightPos;
+		ray.Direction = lightDir;
+		ray.TMin = 0.0001f;
+		ray.TMax = 1000.0;
+
+		q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags, 
+		    InstanceInclusionMask,
+		    ray);
+
+		while(q.Proceed());
+
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			
+            SurfaceDefinition surfaceDef;
+            PrecalculatedSurfaceData precalculatedSurfaceData;
+            float samplingProbabilities[LAYER_COUNT];
+            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            float3 woOS = -q.CommittedObjectRayDirection();
+            uint instId = q.CommittedInstanceID();
+            uint primIndex = q.CommittedPrimitiveIndex();
+            float2 bary = q.CommittedTriangleBarycentrics();
+			
+			
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
+            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+
+            float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
+
+            float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
+            transformNormal = transpose(transformNormal);
+			
+            float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
+            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+			
+
+            LightPathNode pathNode;
+            pathNode.instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
+            pathNode.normalWSNextIndex = float4(normalWS, asfloat(lastVertexOffset));
+            pathNode.throughput = throughPut.toFloat4();
+            pathNode.positionWSMISSum = float4(posWS, pdfSumRatio);
+			//store vertex
+			{
+				uint vOffset, vCount;
+				reserveLightPathNodeSpace(1, vOffset, vCount);
+				if(vCount == 0) break;
+
+				storeLightPathVertex(vOffset, pathNode);
+				lastVertexOffset = vOffset;
+				++lightNodeCount;
+			}
+			
+            if (isZero(wiOS))
+            {
+                break;
+            }
+                
+            SpectralSamples w;
+            float pdfForward;
+            float pdfBackward;
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+
+            float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+			
+            pdfForward *= areaMultiplier;
+            pdfBackward *= areaMultiplier;
+			
+            pdfSumRatio *= pdfForward / pdfBackward;
+            throughPut = throughPut * w;
+        }
+		else 
+		{
+		    //end path
+		}
+	}
+	
+	if(lightNodeCount > 0)
+	{
+		LightPathHeader header;
+		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
+		uint headerOffset = reserveLightPathHeader();
+		storeLightPathHeader(headerOffset, header);
+	}
+
+}
+
+#endif
+
+#ifdef SORT_LIGHT_VERTICES_STAGE
+StructuredBuffer<LightPathNode> g_lightPathVerticesUnsorted : register(t5, space3);
+
+[numthreads(64, 1, 1)]
+void sortLightVertices( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	uint headerCount = getLightPathsCount();
+	if(dispatchThreadId.x >= headerCount) return;
+
+	LightPathHeader header = getLightPathHeader(dispatchThreadId.x);
+	uint vCount = header.offsetAndCount.y;
+	if(vCount == 0) return;
+	//sort
+	{
+		//allocate space
+		uint vOffset;
+		reserveLightPathNodeSpaceForSorting(vCount, vOffset);
+		//fetch tail		
+		LightPathNode lastNode = g_lightPathVerticesUnsorted[header.offsetAndCount.x];
+		storeLightPathVertex(vOffset, lastNode);
+
+		//store modified header
+		header.offsetAndCount.x = vOffset;
+		storeLightPathHeader(dispatchThreadId.x, header);
+
+		//copy entries to linearly
+		uint nextIndex = asuint(lastNode.normalWSNextIndex.w);
+		for(uint i = 1; i < vCount; ++i)
+		{
+			LightPathNode node = g_lightPathVerticesUnsorted[nextIndex];
+			storeLightPathVertex(vOffset + i, node);
+			nextIndex = asuint(node.normalWSNextIndex.w);
+		}
+	}
+
+}
+#endif
+
+
 
 #ifdef CAMERA_RAYS_STAGE
 
@@ -142,141 +328,3 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 #endif
 
-//#define LIGHT_RAYS_STAGE //DONT FORGET TO REMOVE/DISABLE
-#ifdef LIGHT_RAYS_STAGE
-
-[numthreads(64, 1, 1)]
-void traceLightRays( uint3 groupId : SV_GroupID,
-    uint3 groupThreadId : SV_GroupThreadID,
-    uint3 dispatchThreadId : SV_DispatchThreadID,
-    uint groupIndex : SV_GroupIndex )
-{
-
-	g_spectralSampleOffset = 0;
-
-	uint sampleIndex = g_currentRandomSampleIndex + dispatchThreadId.y * g_lightPathsPerDim.x;
-
-	SpectralSamples throughPut;
-	float3 lightPos;
-	float3 lightDir;
-	float lightSamplePDF;
-
-	//sample light
-	{
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
-		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
-
-		sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, throughPut, lightPos, lightDir, lightSamplePDF);
-	}
-
-
-	if(throughPut.allSamplesEqual(0.f)) return;
-
-	BDPTRayState rayState;
-	rayState.absorption.set(0);
-    rayState.setStateFlags(0);
-    rayState.numberVolumesEntered = 0;
-
-    float pdfSumRatio = 1;
-	uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
-	uint lightNodeCount = 0;
-	
-	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
-	{
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex + i, 0);
-
-		uint rayFlags = RAY_FLAG_NONE;
-		uint InstanceInclusionMask = ~0;
-
-		RayQuery<RAY_FLAG_NONE> q;
-
-		RayDesc ray;
-		ray.Origin = lightPos;
-		ray.Direction = lightDir;
-		ray.TMin = 0.0001f;
-		ray.TMax = 1000.0;
-
-		q.TraceRayInline(
-		    g_accelerationStructure,
-		    rayFlags, 
-		    InstanceInclusionMask,
-		    ray);
-
-		while(q.Proceed());
-
-		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-		{
-			
-            SurfaceDefinition surfaceDef;
-            PrecalculatedSurfaceData precalculatedSurfaceData;
-            float samplingProbabilities[LAYER_COUNT];
-            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
-            float3 woOS = -q.CommittedObjectRayDirection();
-            uint instId = q.CommittedInstanceID();
-            uint primIndex = q.CommittedPrimitiveIndex();
-            float2 bary = q.CommittedTriangleBarycentrics();
-			
-			
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
-            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-
-            float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
-
-            float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
-            transformNormal = transpose(transformNormal);
-			
-            float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
-            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
-			
-
-            LightPathNode pathNode;
-            pathNode.instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
-            pathNode.normalWSNextIndex = float4(normalWS, asfloat(lastVertexOffset));
-            pathNode.throughput = throughPut.toFloat4();
-            pathNode.positionWSMISSum = float4(posWS, pdfSumRatio);
-			//store vertex
-			{
-				uint vOffset, vCount;
-				reserveLightPathNodeSpace(1, vOffset, vCount);
-				if(vCount == 0) break;
-
-				storeLightPathVertex(vOffset, pathNode);
-				lastVertexOffset = vOffset;
-				++lightNodeCount;
-			}
-			
-            if (isZero(wiOS))
-            {
-                break;
-            }
-                
-            SpectralSamples w;
-            float pdfForward;
-            float pdfBackward;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
-
-            float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
-			
-            pdfForward *= areaMultiplier;
-            pdfBackward *= areaMultiplier;
-			
-            pdfSumRatio *= pdfForward / pdfBackward;
-            throughPut = throughPut * w;
-        }
-		else 
-		{
-		    //end path
-		}
-	}
-	
-	if(lightNodeCount > 0)
-	{
-		LightPathHeader header;
-		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
-		uint headerOffset = reserveLightPathHeader();
-		storeLightPathHeader(headerOffset, header);
-	}
-
-}
-
-#endif

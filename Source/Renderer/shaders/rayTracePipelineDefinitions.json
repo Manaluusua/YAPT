@@ -42,7 +42,15 @@
 				}
 			]
 		},
-		
+		"sortLightVertices": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "sortLightVertices",
+					"defines": [["SORT_LIGHT_VERTICES_STAGE", "1"]]
+				}
+			]
+		},
 		"lightRaysBDPT": {
 			"stages": [{
 					"type": "compute",

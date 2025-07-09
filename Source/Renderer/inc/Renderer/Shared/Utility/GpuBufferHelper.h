@@ -187,6 +187,4 @@ namespace YAPT
 		size_t m_allocatedEntryCount;
 		bool m_rawView;
 	};
-
-
 }
