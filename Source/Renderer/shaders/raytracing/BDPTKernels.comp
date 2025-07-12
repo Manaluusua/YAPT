@@ -54,6 +54,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     float pdfSumRatio = 1;
 	uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
 	uint lightNodeCount = 0;
+	float3 rayDir = lightDir;
+	float3 rayOrigin = lightPos;
 	
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
@@ -65,9 +67,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		RayQuery<RAY_FLAG_NONE> q;
 
 		RayDesc ray;
-		ray.Origin = lightPos;
-		ray.Direction = lightDir;
-		ray.TMin = 0.0001f;
+		ray.Origin = rayOrigin;
+		ray.Direction = rayDir;
+		ray.TMin = DEFAULT_RAY_MIN_T;
 		ray.TMax = 1000.0;
 
 		q.TraceRayInline(
@@ -102,7 +104,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
             float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
 			
-
+			//TODO: store some of the ray state (dispersion,volumes(?))
             LightPathNode pathNode;
             pathNode.instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
             pathNode.normalWSNextIndex = float4(normalWS, asfloat(lastVertexOffset));
@@ -123,11 +125,16 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             {
                 break;
             }
-                
+
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;
             evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+
+			if(pdfForward == 0 || pdfBackward == 0)
+			{
+				break;
+			}
 
             float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
 			
@@ -135,11 +142,14 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             pdfBackward *= areaMultiplier;
 			
             pdfSumRatio *= pdfForward / pdfBackward;
-            throughPut = throughPut * w;
+            throughPut = throughPut * w / pdfForward;
+
+			rayDir = mul(transformNormal, wiOS);
+			rayOrigin = posWS;
         }
 		else 
 		{
-		    //end path
+		    break;
 		}
 	}
 	
@@ -200,77 +210,198 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 
 #ifdef CAMERA_RAYS_STAGE
 
+
+
+groupshared LightPathNode g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
+groupshared LightPathHeader g_lightPathHeader;
+
+SpectralSamples ToSpectralSamples(float3 color)
+{
+	SpectralSamples s;
+	s.setFromRGBUnbounded(color);
+	return s;
+}
+
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+	if(groupIndex == 0)
+    {
+        uint headerCount = getLightPathsCount();
+        uint headerIndex = groupId.y * g_lightPathsPerDim.x + groupId.x;
+        headerIndex = headerIndex % headerCount;
+        g_lightPathHeader = getLightPathHeader(headerIndex);
 
-	g_spectralSampleOffset = (dispatchThreadId.y % 2) * 2 + (dispatchThreadId.x % 2);
+    }
+	
+    GroupMemoryBarrierWithGroupSync();
+
+    if (groupIndex < g_lightPathHeader.offsetAndCount.y)
+    {
+        g_localNodes[groupIndex] = getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex);
+    }
+	
+    GroupMemoryBarrierWithGroupSync();
+	
+	g_spectralSampleOffset = 0;
 
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
 	
+	SpectralSamples throughput;
+	SpectralSamples totalLight;
+	throughput.set(1);
+	totalLight.set(0);
 
-	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
-	uint InstanceInclusionMask = ~0;
+	BDPTRayState rayState;
+	rayState.absorption.set(0);
+    rayState.setStateFlags(0);
+    rayState.numberVolumesEntered = 0;
 
-	RayQuery<RAY_FLAG_NONE> q;
+    float pdfSumRatio = 1;
+	uint cameraVertexCount = 0;
+	uint rayIndex = dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x;
+	
 
-	RayDesc ray;
-	ray.Origin = rayOrigin;
-	ray.Direction = rayDir;
-	ray.TMin = 0.0001f;
-	ray.TMax = 1000.0;
+	for(uint camVertexIndex = 0; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
+	{
+		uint sampleIndex = g_currentRandomSampleIndex + (dispatchThreadId.y * 7) + camVertexIndex * 5 + rayIndex * 11;
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 
-	q.TraceRayInline(
-        g_accelerationStructure,
-        rayFlags, 
-        InstanceInclusionMask,
-        ray);
+		uint rayFlags = RAY_FLAG_NONE;
+		uint InstanceInclusionMask = ~0;
 
-    while(q.Proceed());
+		RayQuery<RAY_FLAG_NONE> q;
 
-	float4 color = 0;
-    if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-    {
-		uint instanceInd = q.CommittedInstanceID();
-		uint primitiveIndex = q.CommittedPrimitiveIndex();
-		float t = q.CommittedRayT();
-		float2 barycentrics2 = q.CommittedTriangleBarycentrics();
+		RayDesc ray;
+		ray.Origin = rayOrigin;
+		ray.Direction = rayDir;
+        ray.TMin = DEFAULT_RAY_MIN_T;
+		ray.TMax = 1000.0;
 
-		uint2 matMeshIndices = getMaterialAndMeshIndices(instanceInd);
-		MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+		q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags, 
+		    InstanceInclusionMask,
+		    ray);
 
+		while(q.Proceed());
 
-		//Initial surface setup
-		float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
-		uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
-		float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
-		float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
-		float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			
+            SurfaceDefinition surfaceDef;
+            PrecalculatedSurfaceData precalculatedSurfaceData;
+            float samplingProbabilities[LAYER_COUNT];
+            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            float3 woOS = -q.CommittedObjectRayDirection();
+            uint instId = q.CommittedInstanceID();
+            uint primIndex = q.CommittedPrimitiveIndex();
+            float2 bary = q.CommittedTriangleBarycentrics();
+			
+			
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
+            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+			
+            float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
+            transformNormal = transpose(transformNormal);
+            float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
+            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+			
+            if (!surfaceDef.emissive.allSamplesEqual(0))
+            {
+                totalLight = totalLight + throughput * surfaceDef.emissive; //TODO: proper MIS weight
+                break; 
+            } 
+			else
+			//try to connect path to light nodes
+			{
+                for (uint lightNodeIndex = 0; lightNodeIndex < g_lightPathHeader.offsetAndCount.y; ++lightNodeIndex)
+                {
+                    LightPathNode lightNode = g_localNodes[lightNodeIndex];
+                    float3x3 toLocalFrameDir = (float3x3) q.CandidateWorldToObject3x4();
+                    float3 toLightWS = lightNode.positionWSMISSum.xyz - posWS;
+                    float3 lightPosOS = mul(toLocalFrameDir, toLightWS);
+                    float3 wiOS = normalize(lightPosOS);
+					
+                    SpectralSamples weightLastCameraNode;
+                    float pdfRatioLastCameraNode;
+					{
+                        float pdfForward;
+                        float pdfBackward;
+						evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, weightLastCameraNode, pdfForward, pdfBackward);
+					
+						if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
+                        {
+                            continue;
+                        }
+						
+						weightLastCameraNode = weightLastCameraNode / pdfForward;
+                        pdfRatioLastCameraNode = pdfForward / pdfBackward;
 
-		float3 normal = geometryNormal;
+                    }
+                    
+					
+					//trace visibility ray
+					
+					//if visible, evaluate the light node surface
 
-		//fetch surface material parameters
-		MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
-		SurfaceDefinitionRGB surfaceDefRGB;
-		fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-		modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
-		SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+                }
+				//TODO
+			}
 
+            float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
 
-		color.xyz = surfaceDef.albedo.ToRGB(COLORSPACE_DEFAULT, false);
-		color.a = 1.f;
-    }
-    else 
-    {
-        color = float4(0, 0, 0, 1);
-    }
+           
 
-	g_outputColor[dispatchThreadId.xy] = color;
+		
+            if (isZero(wiOS))
+            {
+                break;
+            }
+                
+            SpectralSamples w;
+            float pdfForward;
+            float pdfBackward;
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+
+            //float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+			
+            //pdfForward *= areaMultiplier;
+            //pdfBackward *= areaMultiplier;
+			
+			if(pdfForward == 0 || pdfBackward == 0)
+			{
+				break;
+			}
+
+            pdfSumRatio *= pdfForward / pdfBackward;
+            throughput = throughput * w / pdfForward;
+
+			rayDir = mul(transformNormal, wiOS);
+			rayOrigin = posWS;
+        }
+		else 
+		{
+			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
+#ifdef WHITE_FURNACE_TEST
+			totalLight = totalLight + throughput * ToSpectralSamples(float3(1,1,1));
+#else
+			totalLight = totalLight + throughput * ToSpectralSamples(skyColor.xyz);
+#endif
+			++cameraVertexCount;
+		    break;
+		}
+	}
+	
+	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
+    float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
+
+	g_outputColor[dispatchThreadId.xy]  = float4(color, 1.f);
     
 	/*
 	if(payload.pathLength == 1)

@@ -16,12 +16,15 @@
 #include <Renderer/Shared/BindlessMeshManager.h>
 #include <Renderer/Shared/LightManager.h>
 
+#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 64u //keep in sync with shader
+
 namespace YAPT
 {
 	constexpr glm::uvec3 WG_SIZE_CAM_STAGE = glm::uvec3(8, 8, 1);
 	constexpr glm::uvec3 WG_SIZE_LIGHT_STAGE = glm::uvec3(64, 1, 1);
 	constexpr glm::uvec3 WG_SIZE_LIGHT_SORT_STAGE = glm::uvec3(64, 1, 1);
 	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 8;
+	constexpr uint32_t MAX_VERTICES_PER_CAMERA_PATH = 8;
 	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
 	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
 
@@ -31,6 +34,7 @@ namespace YAPT
 		m_lightPathsGPU{ RESOURCE_USAGE_STORAGE_BUFFER, RESOURCE_USAGE_STORAGE_BUFFER },
 		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_COPY_DESTINATION),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
+		m_maxVerticesPerCameraPath(MAX_VERTICES_PER_CAMERA_PATH),
 		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
 
 	{
@@ -259,10 +263,13 @@ namespace YAPT
 			RenderGraphResourceId lightPathsNodesId1 = m_lightPathsSortNode->getRenderGraphResourceIdForSlot(3);
 			RenderGraphResourceId countersBufferId = m_lightPathsNode->getRenderGraphResourceIdForSlot(2);
 
-			uvec2 lightPathCountPerDim = (m_renderResolution + m_pixelsPerLightPath - uvec2(1, 1)) / m_pixelsPerLightPath;
-			uint32_t allocatedVertices = lightPathCountPerDim.x * lightPathCountPerDim.y * (uint32_t)glm::round(m_maxVerticesPerLightPath * ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO);
+			uint32_t maxLightVertices = min(m_maxVerticesPerLightPath, MAX_LIGHT_PATH_VERTICES_HARD_LIMIT);
 
-			m_constantsGPU.getData()->maxVerticesPerLightPath = m_maxVerticesPerLightPath;
+			uvec2 lightPathCountPerDim = (m_renderResolution + m_pixelsPerLightPath - uvec2(1, 1)) / m_pixelsPerLightPath;
+			uint32_t allocatedVertices = lightPathCountPerDim.x * lightPathCountPerDim.y * (uint32_t)glm::round(maxLightVertices * ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO);
+
+			m_constantsGPU.getData()->maxVerticesPerLightPath = maxLightVertices;
+			m_constantsGPU.getData()->maxCameraPathVertices = m_maxVerticesPerCameraPath;
 			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
 			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
 

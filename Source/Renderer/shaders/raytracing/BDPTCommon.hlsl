@@ -14,6 +14,7 @@ struct BidirectionalPathTraceConstants
 	uint envType;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
+    uint maxCameraPathVertices;
 };
 
 
@@ -103,6 +104,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define COUNTER_LIGHT_VERTICES_INDEX 1
 #define COUNTER_LIGHT_VERTICES_INDEX_SORT 2
 
+#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 64
+
 #define INVALID_LIGHT_NODE_INDEX (0xFFFFFFFF)
 
 #define g_worldBoundsMin g_bdptConstants.worldBoundsMin.xyz
@@ -110,6 +113,7 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_maxVerticesPerLightPath g_bdptConstants.maxVerticesPerLightPath
 #define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
+#define g_maxCameraPathVertices g_bdptConstants.maxCameraPathVertices
 
 #define g_envType g_bdptConstants.envType
 #define g_envTexIndex g_bdptConstants.envTextureIndex
@@ -166,6 +170,7 @@ LightPathHeader getLightPathHeader(uint index)
 {
     return g_lightPathHeaders[index];
 }
+
 
 float4 getWorldCenterAndRadiusSqr()
 {

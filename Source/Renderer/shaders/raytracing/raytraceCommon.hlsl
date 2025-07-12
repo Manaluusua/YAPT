@@ -17,6 +17,8 @@
 
 #define IOR_DEFAULT (1.0f) 
 
+#define DEFAULT_RAY_MIN_T (0.001f)
+
 //#define WHITE_FURNACE_TEST
 //#define WHITE_FURNACE_TEST_BOUNCE_LIMIT 64
 

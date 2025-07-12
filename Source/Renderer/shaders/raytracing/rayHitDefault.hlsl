@@ -46,7 +46,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
     RayDesc ray;
     ray.Origin = rayPos;
     ray.Direction = rayDir;
-    ray.TMin = 0.001f;
+    ray.TMin = DEFAULT_RAY_MIN_T;
     ray.TMax = rayLen;
 
     q.TraceRayInline(
