@@ -9,8 +9,14 @@
 
 struct SurfaceDefinitionRGB
 {
-	float3x3 toCoatingLayerTangentSpace;
-	float3x3 toBaseLayerTangentSpace;
+    float3 coatingLayerNormal;
+    float specularAmount;
+    float3 baseLayerNormal;
+    float clearCoatAmount;
+    float3 geometryNormal;
+    float clearCoatIOR;
+    float3 tangent;
+    float clearCoatRoughness;
 
 	float3 specular;
 	float metalness;
@@ -20,50 +26,61 @@ struct SurfaceDefinitionRGB
 	float dielectricIOR;
 	float3 emissive;
 	float roughness;
-	float3 geometryNormal;
-	float specularAmount;
-	float clearCoatAmount;
-	float clearCoatIOR;
-	float clearCoatRoughness;
-
+	
+    float2 cauchysCoeffs;
 	float anisotropy;
 	float anisotropyRotation;
-	float thinFilmThickness;
-	float2 cauchysCoeffs;
+
 	float3 sheenColor;
 	float sheenRoughness;
+	
+    float thinFilmThickness;
 	float sheenAmount;
 	uint flags;
 };
 
 struct SurfaceDefinition
 {
-	float3x3 toCoatingLayerTangentSpace;
-	float3x3 toBaseLayerTangentSpace;
+    SpectralSamples specular;
+    SpectralSamples albedo;
+    SpectralSamples absorption;
+    SpectralSamples emissive;
+    SpectralSamples sheenColor;
 	
-	SpectralSamples specular;
-	SpectralSamples albedo;
-	SpectralSamples absorption;
-	SpectralSamples emissive;
-	SpectralSamples sheenColor;
-	float3 geometryNormal;
-	float transparency;
-	
-	float metalness;
-	float dielectricIOR;
-	float roughness;
+    float3 coatingLayerNormal;
+    float transparency;
+    float3 baseLayerNormal;
+    float metalness;
+    float3 geometryNormal;
+    float dielectricIOR;
+    float3 tangent;
+    float roughness;
+
+    float2 cauchysCoeffs;
 	float specularAmount;
 	float clearCoatAmount;
+	
 	float clearCoatIOR;
 	float clearCoatRoughness;
-
 	float anisotropy;
 	float anisotropyRotation;
+	
 	float thinFilmThickness;
 	float sheenRoughness;
 	float sheenAmount;
-	float2 cauchysCoeffs;
 	uint flags;
+	
+    float3x3 toCoatingLayerTangentSpace()
+    {
+        return constructBasisTransform(coatingLayerNormal, tangent);
+
+    }
+	
+    float3x3 toBaseLayerTangentSpace()
+    {
+        return constructBasisTransform(baseLayerNormal, tangent);
+
+    }
 };
 
 
@@ -71,8 +88,10 @@ struct SurfaceDefinition
 SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 {
 	SurfaceDefinition surfDef;
-	surfDef.toCoatingLayerTangentSpace = rgb.toCoatingLayerTangentSpace;
-	surfDef.toBaseLayerTangentSpace = rgb.toBaseLayerTangentSpace;
+    surfDef.coatingLayerNormal = rgb.coatingLayerNormal;
+    surfDef.baseLayerNormal = rgb.baseLayerNormal;
+    surfDef.geometryNormal = rgb.geometryNormal;
+    surfDef.tangent = rgb.tangent;
 
 	surfDef.specular.setFromRGB(rgb.specular);
 	surfDef.albedo.setFromRGB(rgb.albedo);
@@ -80,7 +99,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.emissive.setFromRGBUnbounded(rgb.emissive);
 	surfDef.sheenColor.setFromRGB(rgb.sheenColor);
 
-	surfDef.geometryNormal = rgb.geometryNormal;
+	
 
 	surfDef.transparency = rgb.transparency;
 	surfDef.metalness = rgb.metalness;
@@ -335,12 +354,6 @@ float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)
 	return barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
 }
 
-void makeOrthogonal(in float3 n, inout float3 t)
-{
-	n = normalize(t - n*(dot(n, t)));
-	
-}
-
 
 void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceDefinitionRGB surfaceDef)
 {
@@ -446,26 +459,8 @@ float3 nudgeNormal(float3 rayDir, float3 geometryNormal, in SurfaceDefinitionRGB
     return geometryNormal;
 }
 
-void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangentBase, float3 tangentCoating, inout SurfaceDefinitionRGB surfaceDef)
+void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
 {
-	
-
-	//setup layer transforms
-    float3x3 tangentSpaceCoating;
-    float3x3 tangentSpaceBaseLayer;
-	{
-        makeOrthogonal(normalCoating, tangentCoating);
-        float3 bitangent = cross(tangentCoating, normalCoating);
-        tangentSpaceCoating = float3x3(tangentCoating, normalCoating, bitangent);
-    }
-	{
-        makeOrthogonal(normalBase, tangentBase);
-        float3 bitangent = cross(tangentBase, normalBase);
-        tangentSpaceBaseLayer = float3x3(tangentBase, normalBase, bitangent);
-    }
-
-	
-	
 	//add tangent space rotation (could later on optimize out the sin & cos by providing these precalculated on cpu)
     if (surfaceDef.anisotropyRotation > 0)
     {
@@ -475,14 +470,14 @@ void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 no
         float3x3 rot = float3x3(cosA, 0, sinA,
 								0, 1, 0,
 								-sinA, 0, cosA);
-        tangentSpaceCoating = mul(rot, tangentSpaceCoating);
-        tangentSpaceBaseLayer = mul(rot, tangentSpaceBaseLayer);
+        tangent = mul(rot, tangent);
 		
     }
-	
-    surfaceDef.toCoatingLayerTangentSpace = tangentSpaceCoating;
-    surfaceDef.toBaseLayerTangentSpace = tangentSpaceBaseLayer;
+
+    surfaceDef.coatingLayerNormal = normalCoating;
+    surfaceDef.baseLayerNormal = normalBase;
     surfaceDef.geometryNormal = geometryNormal;
+    surfaceDef.tangent = tangent;
 
 }
 

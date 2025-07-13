@@ -16,7 +16,7 @@
 #include <Renderer/Shared/BindlessMeshManager.h>
 #include <Renderer/Shared/LightManager.h>
 
-#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 64u //keep in sync with shader
+#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 16u //keep in sync with shader
 
 namespace YAPT
 {

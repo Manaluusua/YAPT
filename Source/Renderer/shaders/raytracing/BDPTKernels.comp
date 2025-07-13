@@ -212,7 +212,7 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 
 
 
-groupshared LightPathNode g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
+groupshared ExtractedLightPathNodeData g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
 groupshared LightPathHeader g_lightPathHeader;
 
 SpectralSamples ToSpectralSamples(float3 color)
@@ -241,7 +241,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
     if (groupIndex < g_lightPathHeader.offsetAndCount.y)
     {
-        g_localNodes[groupIndex] = getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex);
+        LightPathNode node = getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex);
+        g_localNodes[groupIndex] = getExtractedLightPathNodeData(node);
     }
 	
     GroupMemoryBarrierWithGroupSync();
@@ -322,7 +323,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
                 for (uint lightNodeIndex = 0; lightNodeIndex < g_lightPathHeader.offsetAndCount.y; ++lightNodeIndex)
                 {
-                    LightPathNode lightNode = g_localNodes[lightNodeIndex];
+                    LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
                     float3x3 toLocalFrameDir = (float3x3) q.CandidateWorldToObject3x4();
                     float3 toLightWS = lightNode.positionWSMISSum.xyz - posWS;
                     float3 lightPosOS = mul(toLocalFrameDir, toLightWS);

@@ -88,4 +88,17 @@ void constructVectorBase(float3 v, out float3 v2Out, out float3 v3Out) {
 	v3Out = cross(v, v2Out);
 }
 
+float3 makeOrthogonal(in float3 orthogonalTo, in float3 v)
+{
+    return normalize(v - orthogonalTo * (dot(orthogonalTo, v)));
+}
+
+float3x3 constructBasisTransform(in float3 n, float3 t)
+{
+    t = makeOrthogonal(n, t);
+    float3 b = cross(t, n);
+    return float3x3(t, n, b);
+}
+
+
 #endif

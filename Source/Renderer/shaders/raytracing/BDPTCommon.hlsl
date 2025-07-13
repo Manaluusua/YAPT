@@ -31,6 +31,13 @@ struct LightPathNode
     float4 instancePrimitiveBarycentrics;
 };
 
+struct ExtractedLightPathNodeData
+{
+    LightPathNode node;
+    SurfaceDefinitionRGB surfaceDefRGB;
+    float3x4 toLightNodeOS;
+};
+
 struct BDPTRayState //: RayStateInterface
 {
 
@@ -104,7 +111,7 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define COUNTER_LIGHT_VERTICES_INDEX 1
 #define COUNTER_LIGHT_VERTICES_INDEX_SORT 2
 
-#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 64
+#define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 16
 
 #define INVALID_LIGHT_NODE_INDEX (0xFFFFFFFF)
 
@@ -224,8 +231,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
     }
 }
 
-void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
-out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
 {
     uint2 matMeshIndices = getMaterialAndMeshIndices(instanceIndex);
     MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
@@ -244,11 +250,30 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
     SurfaceDefinitionRGB surfaceDefRGB;
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
     modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
-	
-    normal = nudgeNormal(-woOS, normal, surfaceDefRGB);
-    geometryNormal = nudgeNormal(-woOS, geometryNormal, surfaceDefRGB);
-	
-    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, tangent, surfaceDefRGB);
+    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
+    
+    surfaceDefOut = surfaceDefRGB;
+}
+
+ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
+{
+    ExtractedLightPathNodeData data;
+    data.node = node;
+    fillSurfaceDefRGB(node.instancePrimitiveBarycentrics.x, node.instancePrimitiveBarycentrics.y, node.instancePrimitiveBarycentrics.zw, data.surfaceDefRGB);
+    data.toLightNodeOS = (float3x4) 0; //todo
+    return data;
+}
+
+void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace, in float2 materialLayerRands,
+out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+{
+    SurfaceDefinitionRGB surfaceDefRGB;
+    fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
+    
+    surfaceDefRGB.coatingLayerNormal = nudgeNormal(-woOS, surfaceDefRGB.coatingLayerNormal, surfaceDefRGB);
+    surfaceDefRGB.baseLayerNormal = nudgeNormal(-woOS, surfaceDefRGB.baseLayerNormal, surfaceDefRGB);
+    surfaceDefRGB.geometryNormal = nudgeNormal(-woOS, surfaceDefRGB.geometryNormal, surfaceDefRGB);
+	    
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);

@@ -267,11 +267,12 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
 
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
-	
-    normal = nudgeNormal(rayDir, normal, surfaceDefRGB);
-    geometryNormal = nudgeNormal(rayDir, geometryNormal, surfaceDefRGB);
-	
-    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, tangent, surfaceDefRGB);
+    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
+    
+    surfaceDefRGB.coatingLayerNormal = nudgeNormal(rayDir, surfaceDefRGB.coatingLayerNormal, surfaceDefRGB);
+    surfaceDefRGB.baseLayerNormal = nudgeNormal(rayDir, surfaceDefRGB.baseLayerNormal, surfaceDefRGB);
+    surfaceDefRGB.geometryNormal = nudgeNormal(rayDir, surfaceDefRGB.geometryNormal, surfaceDefRGB);
+
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
 	//surface setup done, do the rest

@@ -99,16 +99,16 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		{
 			float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
 			wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, woCoating, randSampleBrdf);
-			wi = mul(wi, surfaceDef.toCoatingLayerTangentSpace);
-		}
+            wi = mul(wi, surfaceDef.toCoatingLayerTangentSpace());
+        }
 	}
 	else if(sampleLayer == LAYERIND_COATING_SHEEN)
 	{
 		if(woBase.y > 0)
 		{
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
-			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
-		}
+            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+        }
 	} 
 	else if(sampleLayer == LAYERIND_SPEC_CONDUCTOR)
 	{
@@ -116,7 +116,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		{
 			
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
-			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
+            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
 
 		}
 	}
@@ -124,7 +124,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 	{
 
 		wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
-		wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
+        wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
 		
 	} 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
@@ -132,8 +132,8 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		if(woBase.y > 0)
 		{
 			wi = sampleDiffuseLambertian(a2.x, a2.y, woBase, randSampleBrdf);
-			wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
-		}
+            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+        }
 	} 
 	else if(sampleLayer == LAYERIND_TRANSMITTED)
 	{
@@ -153,7 +153,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		float etaR = toIOR/fromIOR;
 		
 		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
-		wi = mul(wi, surfaceDef.toBaseLayerTangentSpace);
+        wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
 		
 	} 
 
@@ -186,8 +186,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	SpectralSamples weightSum = (SpectralSamples)0.f;
 	float pdfSum = 0.f;
 
-	float3 wiCoating = mul(surfaceDef.toCoatingLayerTangentSpace, wiObjSpace);
-	float3 wiBase = mul(surfaceDef.toBaseLayerTangentSpace, wiObjSpace);
+    float3 wiCoating = mul(surfaceDef.toCoatingLayerTangentSpace(), wiObjSpace);
+    float3 wiBase = mul(surfaceDef.toBaseLayerTangentSpace(), wiObjSpace);
 
 	wiCoating = normalize(wiCoating);
 	wiBase = normalize(wiBase);
@@ -327,8 +327,8 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
 {
 	float2 a2 = calculateRoughnessParams(surfaceDef.roughness, surfaceDef.anisotropy);
 
-	float3 woCoating = mul(surfaceDef.toCoatingLayerTangentSpace, woObjSpace);
-	float3 woBase = mul(surfaceDef.toBaseLayerTangentSpace, woObjSpace);
+    float3 woCoating = mul(surfaceDef.toCoatingLayerTangentSpace(), woObjSpace);
+    float3 woBase = mul(surfaceDef.toBaseLayerTangentSpace(), woObjSpace);
 
 	woCoating = normalize(woCoating);
 	woBase = normalize(woBase);
