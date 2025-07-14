@@ -15,7 +15,8 @@ namespace YAPT
 	
 
 	RaytraceCommonResources::RaytraceCommonResources()
-		:m_renderObjectsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
+		:m_renderObjectMaterialAndMeshIndices(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
+		m_renderObjectTransformData(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
 		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER)
 	{
 
@@ -38,13 +39,15 @@ namespace YAPT
 		m_spectralDataConstants.init(resourcesPool);
 
 
-		m_renderObjectsGPU.init(m_renderer->getGfxHandle());
+		m_renderObjectMaterialAndMeshIndices.init(m_renderer->getGfxHandle());
+		m_renderObjectTransformData.init(m_renderer->getGfxHandle());
 		m_lightDataGPU.init(m_renderer->getGfxHandle());
 
 	}
 	void RaytraceCommonResources::shutdown()
 	{
-		m_renderObjectsGPU.free();
+		m_renderObjectMaterialAndMeshIndices.free();
+		m_renderObjectTransformData.free();
 		m_lightDataGPU.free();
 	}
 
@@ -119,7 +122,8 @@ namespace YAPT
 	{
 		BufferViewHandle meshEntriesBuffer = m_meshMngr->getBufferViewHandle();
 		BufferViewHandle materialEntriesBuffer = m_materialMngr->getBufferViewHandle();
-		BufferViewHandle renderObjectsBufferHandle = m_renderObjectsGPU.getBufferViewHandle();
+		BufferViewHandle renderObjectsMatMeshBufferHandle = m_renderObjectMaterialAndMeshIndices.getBufferViewHandle();
+		BufferViewHandle renderObjectsTransformBufferHandle = m_renderObjectTransformData.getBufferViewHandle();
 		BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
 
 		TextureViewHandle noiseTex = m_renderer->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
@@ -148,52 +152,59 @@ namespace YAPT
 			{3, 0, 1, DescriptorPtr(m_spectralDataConstants.getViewPtr())},
 			{4, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
 			{5, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
-			{6, 0, 1, DescriptorPtr(&renderObjectsBufferHandle)},
-			{7, 0, 1, DescriptorPtr(&lightsBufferHandle)},
+			{6, 0, 1, DescriptorPtr(&renderObjectsTransformBufferHandle)},
+			{7, 0, 1, DescriptorPtr(&renderObjectsMatMeshBufferHandle)},
+			{8, 0, 1, DescriptorPtr(&lightsBufferHandle)},
 
-			{11, 0, 1, DescriptorPtr(&noiseTex)},
+			{12, 0, 1, DescriptorPtr(&noiseTex)},
 
-			{12, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
-			{13, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
-			{14, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
-			{15, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
-			{16, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
-			{17, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
-			{18, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
-			{19, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
-			{20, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
+			{13, 0, 1, DescriptorPtr(&singleScatterAlbedoNoFresnel)},
+			{14, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoNoFresnel)},
+			{15, 0, 1, DescriptorPtr(&singleAndMultiScatterAlbedo)},
+			{16, 0, 1, DescriptorPtr(&singleAndMultiScatterAverageAlbedo)},
+			{17, 0, 1, DescriptorPtr(&singleScatterAlbedoTranslucentDenser)},
+			{18, 0, 1, DescriptorPtr(&singleScatterAverageAlbedoTranslucentLighter)},
+			{19, 0, 1, DescriptorPtr(&singleScatterAvgAlbedoTranslucentDenser)},
+			{20, 0, 1, DescriptorPtr(&singleScatterAvgAverageAlbedoTranslucentLighter)},
+			{21, 0, 1, DescriptorPtr(&sheenDirectionalAlbedo)},
 
-			{21, 0, 1, DescriptorPtr(&cieLUT)},
-			{22, 0, 1, DescriptorPtr(&d65LUT)},
-			{23, 0, 1, DescriptorPtr(&toREC2020LUT)},
-			{24, 0, 1, DescriptorPtr(&toSRGBLUT)},
+			{22, 0, 1, DescriptorPtr(&cieLUT)},
+			{23, 0, 1, DescriptorPtr(&d65LUT)},
+			{24, 0, 1, DescriptorPtr(&toREC2020LUT)},
+			{25, 0, 1, DescriptorPtr(&toSRGBLUT)},
 		};
 
 		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), handle, updates, countOf(updates));
 	}
 
-	void RaytraceCommonResources::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void RaytraceCommonResources::sceneChanged(const PathIntegratorSubStage::SceneData& sceneData)
 	{
-		bool emptyScene = instancesCount == 0;
-		size_t numberOfEntriesNeeded = max((size_t)1, instancesCount);
+		bool emptyScene = sceneData.instancesCount == 0;
+		size_t numberOfEntriesNeeded = max((size_t)1, sceneData.instancesCount);
 		MeshManager& meshMngr = m_renderer->getMeshManager();
 
-		m_renderObjectsGPU.allocate(numberOfEntriesNeeded, "RenderObjectsBuffer");
-		char* data = m_renderObjectsGPU.map(0, numberOfEntriesNeeded);
-
-		m_instanceOffsetPerRenderObject.resize(objectCount); //copy offsets
+		m_renderObjectMaterialAndMeshIndices.allocate(numberOfEntriesNeeded, "RenderObjectsMaterialAndMeshIndicesBuffer");
+		m_renderObjectTransformData.allocate(numberOfEntriesNeeded, "RenderObjectsTransformsBuffer");
+		char* matAndMeshData = m_renderObjectMaterialAndMeshIndices.map(0, numberOfEntriesNeeded);
+		char* transformsData = m_renderObjectTransformData.map(0, numberOfEntriesNeeded);
+		m_instanceOffsetPerRenderObject.resize(sceneData.objectCount); //copy offsets
 
 		if (!emptyScene)
 		{
-			for (size_t i = 0; i < objectCount; ++i)
+			for (size_t i = 0; i < sceneData.objectCount; ++i)
 			{
-				MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
-				size_t entryOffset = instanceOffsets[i];
+				MeshInternal* mesh = meshMngr.getMeshInternal(sceneData.meshes[i]);
+				size_t entryOffset = sceneData.instanceOffsetPerRenderObject[i];
 				m_instanceOffsetPerRenderObject[i] = entryOffset;
+
+				RenderObjectTransformDataGPU transformDataGPU;
+				transformDataGPU.objToWorld = (glm::mat4x3)sceneData.objToWorldMatrices[i];
+				transformDataGPU.worldToObject = (glm::mat4x3)sceneData.worldToObjMatrices[i];
+
 				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 				{
 					size_t instanceIndex = entryOffset + k;
-					const MaterialPerSubmeshArray& mat = materials[i];
+					const MaterialPerSubmeshArray& mat = sceneData.materials[i];
 
 
 					size_t matId = mat.getMaterialIDForSubmeshIndex(k);
@@ -205,7 +216,10 @@ namespace YAPT
 					
 					uvec2p materialAndMeshIndices = uvec2p(matIndex, meshIndex);
 
-					memcpy(data + (instanceIndex) * sizeof(uvec2p), &materialAndMeshIndices, sizeof(uvec2p));
+					
+
+					memcpy(matAndMeshData + (instanceIndex) * sizeof(uvec2p), &materialAndMeshIndices, sizeof(uvec2p));
+					memcpy(transformsData + (instanceIndex) * sizeof(RenderObjectTransformDataGPU), &transformDataGPU, sizeof(RenderObjectTransformDataGPU));
 
 				}
 
@@ -213,12 +227,12 @@ namespace YAPT
 		}
 		else
 		{
-			uvec2p materialAndMeshIndices = uvec2p(0, 0);
-			memcpy(data, &materialAndMeshIndices, sizeof(uvec2p));
+			memset(matAndMeshData, 0, sizeof(uvec2p));
+			memset(transformsData, 0, sizeof(RenderObjectTransformDataGPU));
 		}
 
-		m_renderObjectsGPU.unmap();
-
+		m_renderObjectMaterialAndMeshIndices.unmap();
+		m_renderObjectTransformData.unmap();
 	}
 
 	void RaytraceCommonResources::setupLightDataJob(ThreadPool* threadPool)
@@ -254,7 +268,7 @@ namespace YAPT
 			{
 				const LightManager::LightReference& ref = refs[i];
 				MeshIndex meshId = roMngr.getMeshForId(ref.objectId);
-				const mat4& t = roMngr.getMatrixForId(ref.objectId);
+				const mat4& t = roMngr.getWorldMatrixForId(ref.objectId);
 				mat4p invTransp = glm::transpose(glm::inverse(t));
 				size_t meshIndex = bindlessMeshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, ref.submeshIndex);
 				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialIDForSubmeshIndex(ref.submeshIndex));

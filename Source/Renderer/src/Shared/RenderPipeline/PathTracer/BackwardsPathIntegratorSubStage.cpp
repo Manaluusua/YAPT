@@ -216,23 +216,23 @@ namespace YAPT
 		entry->shaderTableIndex = shaderTableIndex;
 	}
 
-	void BackwardsPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void BackwardsPathIntegratorSubStage::sceneChanged(const PathIntegratorSubStage::SceneData& sceneData)
 	{
-		m_raytraceCommon.sceneChanged(ids, materials, meshes, instanceOffsets, objectCount, instancesCount);
+		m_raytraceCommon.sceneChanged(sceneData);
 
-		bool emptyHitGroup = instancesCount == 0;
+		bool emptyHitGroup = sceneData.instancesCount == 0;
 
-		m_shaderTableHelper.resize(1, 1, max((size_t)1, instancesCount));
+		m_shaderTableHelper.resize(1, 1, max((size_t)1, sceneData.instancesCount));
 		MeshManager& meshMngr = m_renderer->getMeshManager();
 
-		for (size_t i = 0; i < objectCount; ++i)
+		for (size_t i = 0; i < sceneData.objectCount; ++i)
 		{
-			MeshInternal* mesh = meshMngr.getMeshInternal(meshes[i]);
-			size_t shaderTableOffset = instanceOffsets[i];
+			MeshInternal* mesh = meshMngr.getMeshInternal(sceneData.meshes[i]);
+			size_t shaderTableOffset = sceneData.instanceOffsetPerRenderObject[i];
 			for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 			{
 				ShaderTableEntry* entry = m_shaderTableHelper.appendHitGroupUpdate();
-				writeShaderTableEntryAndConstantData(shaderTableOffset + k, materials[i], meshes[i], k, entry);
+				writeShaderTableEntryAndConstantData(shaderTableOffset + k, sceneData.materials[i], sceneData.meshes[i], k, entry);
 			}
 
 		}

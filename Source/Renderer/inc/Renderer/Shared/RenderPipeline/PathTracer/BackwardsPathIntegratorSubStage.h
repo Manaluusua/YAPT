@@ -28,7 +28,7 @@ namespace YAPT
 		virtual void update(const UpdateParams& params) final;
 		virtual void getOutput(RenderGraphNode** node, size_t& slotOut) final;
 
-		virtual void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount) final;
+		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 
 	private:
 

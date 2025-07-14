@@ -117,7 +117,7 @@ namespace YAPT
 			instanceDefs.reserve(numberOfRenderObjects);
 
 			MeshIndex* meshes = mngr.getAllMeshes();
-			mat4* transforms = mngr.getAllMatrices();
+			mat4* transforms = mngr.getAllWorldMatrices();
 			const RenderObjectId* ids = mngr.getAllIds();
 
 			for (size_t i = 0; i < numberOfRenderObjects; ++i)

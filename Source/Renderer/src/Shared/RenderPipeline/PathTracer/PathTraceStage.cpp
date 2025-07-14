@@ -161,7 +161,20 @@ namespace YAPT
 				MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
 				MeshIndex* meshes = roMngr.getAllMeshes();
 				size_t entryCount = roMngr.getNumberOfObjects();
-				m_rtStage->sceneChanged(ids, materials, meshes, m_instanceOffsetPerRenderObject.data(), entryCount, m_totalInstanceCount);
+				mat4* worldMat = roMngr.getAllWorldMatrices();
+				mat4* worldInvMat = roMngr.getAllWorldInverseMatrices();
+
+				PathIntegratorSubStage::SceneData sceneData;
+				sceneData.ids = ids;
+				sceneData.materials = materials;
+				sceneData.meshes = meshes;
+				sceneData.instanceOffsetPerRenderObject = m_instanceOffsetPerRenderObject.data();
+				sceneData.objectCount = entryCount;
+				sceneData.instancesCount = m_totalInstanceCount;
+				sceneData.objToWorldMatrices = worldMat;
+				sceneData.worldToObjMatrices = worldInvMat;
+
+				m_rtStage->sceneChanged(sceneData);
 			}
 			
 			m_firstTimeUpdate = false;

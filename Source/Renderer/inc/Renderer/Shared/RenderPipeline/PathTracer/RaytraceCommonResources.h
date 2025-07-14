@@ -3,7 +3,7 @@
 #include <Math/Math.h>
 #include <Gfx/GfxTypes.h>
 #include <spectralConstants.h>
-#include <Renderer/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/CRenderer.h>
 namespace YAPT
@@ -39,14 +39,7 @@ namespace YAPT
 		uint32_t sampleSetOffset;
 	};
 
-	class AccelerationStructureProvider
-	{
-	public:
-		virtual void prepareAccelerationStructure() = 0;
-		virtual TopLevelAccelerationStructureHandle getAccelerationStructure() = 0;
-
-		virtual ~AccelerationStructureProvider(){}
-	};
+	
 
 
 	class RenderGraph;
@@ -68,6 +61,12 @@ namespace YAPT
 			uint32_t pad0;
 		};
 
+		struct RenderObjectTransformDataGPU
+		{
+			glm::mat4x3 objToWorld;
+			glm::mat4x3 worldToObject;
+		};
+
 		struct PrepareParams
 		{
 			ThreadPool* prepareTasksPool;
@@ -84,6 +83,7 @@ namespace YAPT
 			uvec2p renderResolution;
 		};
 
+
 		RaytraceCommonResources();
 		~RaytraceCommonResources();
 
@@ -95,7 +95,7 @@ namespace YAPT
 		void prepare(const RaytraceCommonResources::PrepareParams& params);
 		void update(const RaytraceCommonResources::UpdateParams& params);
 
-		void sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount);
+		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 
 	private:
 		void initSubpixelJitterSamples();
@@ -109,7 +109,8 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
 		FixedSizeGpuBufferHelper<SpectralDataConstants> m_spectralDataConstants;
-		DynamicSizeGpuBufferHelper<uvec2p> m_renderObjectsGPU;
+		DynamicSizeGpuBufferHelper<uvec2p> m_renderObjectMaterialAndMeshIndices;
+		DynamicSizeGpuBufferHelper<RenderObjectTransformDataGPU> m_renderObjectTransformData;
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 

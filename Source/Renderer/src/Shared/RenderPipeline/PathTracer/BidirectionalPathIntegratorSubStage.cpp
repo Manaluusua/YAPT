@@ -341,10 +341,10 @@ namespace YAPT
 	}
 
 
-	void BidirectionalPathIntegratorSubStage::sceneChanged(const RenderObjectId* ids, MaterialPerSubmeshArray* materials, MeshIndex* meshes, size_t* instanceOffsets, size_t objectCount, size_t instancesCount)
+	void BidirectionalPathIntegratorSubStage::sceneChanged(const PathIntegratorSubStage::SceneData& sceneData)
 	{
 
-		m_raytraceCommon.sceneChanged(ids, materials, meshes, instanceOffsets, objectCount, instancesCount);
+		m_raytraceCommon.sceneChanged(sceneData);
 
 		//update miss
 		{

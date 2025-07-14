@@ -35,7 +35,7 @@ struct ExtractedLightPathNodeData
 {
     LightPathNode node;
     SurfaceDefinitionRGB surfaceDefRGB;
-    float3x4 toLightNodeOS;
+    float3x4 worldToObjSpace;
 };
 
 struct BDPTRayState //: RayStateInterface
@@ -233,7 +233,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 
 void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
 {
-    uint2 matMeshIndices = getMaterialAndMeshIndices(instanceIndex);
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
     MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
 
 	//Initial surface setup
@@ -260,7 +260,7 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     ExtractedLightPathNodeData data;
     data.node = node;
     fillSurfaceDefRGB(node.instancePrimitiveBarycentrics.x, node.instancePrimitiveBarycentrics.y, node.instancePrimitiveBarycentrics.zw, data.surfaceDefRGB);
-    data.toLightNodeOS = (float3x4) 0; //todo
+    data.worldToObjSpace = getTransformDataForInstance(node.instancePrimitiveBarycentrics.x).worldToObject;
     return data;
 }
 

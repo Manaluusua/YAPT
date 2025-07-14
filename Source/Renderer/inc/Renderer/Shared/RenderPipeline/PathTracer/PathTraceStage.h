@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderPipeline/PathTracer/RaytraceCommonResources.h>
+
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h>
 #include <Gfx/RenderGraph/RaytraceNode.h>
@@ -18,7 +19,7 @@ namespace YAPT
 	class BindlessMaterialManager;
 	class BindlessMeshManager;
 	class PathIntegratorSubStage;
-	class PathTraceStage final : public RenderStage, AccelerationStructureProvider
+	class PathTraceStage final : public RenderStage, PathIntegratorSubStage::AccelerationStructureProvider
 	{
 	public:
 		enum class PathIntegratorType

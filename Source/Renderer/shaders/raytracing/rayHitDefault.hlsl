@@ -75,7 +75,7 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
             return false;
         }
 
-        uint2 matMeshIndices = getMaterialAndMeshIndices(instId);
+        uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instId);
         MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
 
 	    //Initial surface setup

@@ -350,8 +350,7 @@ namespace YAPT
 	void CRenderer::executeFrame()
 	{
 
-		m_renderObjectManager->updatePerObjectGPUData();
-		m_renderObjectManager->issueBoundsUpdateJobs(getThreadPool());
+		m_renderObjectManager->issueTransformAndBoundsUpdateJobs(getThreadPool());
 		m_lightManager->update(getThreadPool());
 
 		if (m_renderPipelineMngr)

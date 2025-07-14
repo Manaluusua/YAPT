@@ -15,8 +15,7 @@ namespace YAPT
 	RenderObjectManager::RenderObjectManager(GfxApiHandle gfx, MeshManager& meshMngr, MaterialManager& matMngr)
 		:m_gfx(gfx),
 		m_meshMngr(meshMngr),
-		m_matMngr(matMngr),
-		m_gpuData(gfx, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER)
+		m_matMngr(matMngr)
 	{
 		for (size_t i = 0; i < RENDEROBJECT_RENDERDATA_BUCKETS_COUNT; ++i)
 		{
@@ -131,7 +130,8 @@ namespace YAPT
 		//this is a bit funny but have to create the entry first with dummy id (0) and after creation replace it with correct id
 		RenderObjectId id = m_renderObjects.addEntry(
 			0, 
-			t, 
+			t,
+			glm::inverse(t),
 			AABB::createEmpty(),
 			static_cast<MeshProxy*>(proxy->m_mesh.get())->getMeshInternal()->getID(),
 			matArray,
@@ -161,9 +161,13 @@ namespace YAPT
 		}
 	}
 
-	mat4& RenderObjectManager::getMatrixForId(RenderObjectId id)
+	mat4& RenderObjectManager::getWorldMatrixForId(RenderObjectId id)
 	{
 		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Transform>(id);
+	}
+	mat4& RenderObjectManager::getWorldInverseMatrixForId(RenderObjectId id)
+	{
+		return m_renderObjects.getDataEntryWithId<(size_t)RenderObjectPropertyIndex::Transform_Inverse>(id);
 	}
 	MeshIndex RenderObjectManager::getMeshForId(RenderObjectId id)
 	{
@@ -211,9 +215,13 @@ namespace YAPT
 	{
 		return m_renderObjects.getDataCount();
 	}
-	mat4* RenderObjectManager::getAllMatrices()
+	mat4* RenderObjectManager::getAllWorldMatrices()
 	{
 		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Transform>();
+	}
+	mat4* RenderObjectManager::getAllWorldInverseMatrices()
+	{
+		return m_renderObjects.getData<(size_t)RenderObjectPropertyIndex::Transform_Inverse>();
 	}
 	MeshIndex* RenderObjectManager::getAllMeshes()
 	{
@@ -283,11 +291,12 @@ namespace YAPT
 		m_freeRenderDataIndices[index] = true;
 	}
 
-	void RenderObjectManager::issueBoundsUpdateJobs(ThreadPool& pool)
+	void RenderObjectManager::issueTransformAndBoundsUpdateJobs(ThreadPool& pool)
 	{
 		constexpr size_t MAX_JOBS = 16;
 		constexpr size_t MIN_ITEMS_PER_JOB = 100;
-		YAPT::mat4* wMat = getAllMatrices();
+		YAPT::mat4* wMat = getAllWorldMatrices();
+		YAPT::mat4* wMatInverse = getAllWorldInverseMatrices();
 		MeshIndex* meshes = getAllMeshes();
 		AABB* bounds = getAllBounds();
 		size_t count = getNumberOfObjects();
@@ -331,6 +340,7 @@ namespace YAPT
 				}
 
 				item->bounds[index] = transformedBounds;
+				item->transformsInv[index] = glm::inverse(t);
 			}
 
 
@@ -345,6 +355,7 @@ namespace YAPT
 			item.bounds = bounds;
 			item.meshes = meshes;
 			item.transforms = wMat;
+			item.transformsInv = wMatInverse;
 			item.entryCount = min(operationsPerJob, count - offset);
 			offset += item.entryCount;
 
@@ -358,19 +369,5 @@ namespace YAPT
 	}
 
 
-	void RenderObjectManager::updatePerObjectGPUData()
-	{
-		if (getNumberOfObjects() == 0) return;
-		if (m_gpuData.getAllocatedEntryCount() < getNumberOfObjects())
-		{
-			size_t newEntries = align(getNumberOfObjects(), PEROBJECTDATA_GROW_COUNT);
-			m_gpuData.allocate(newEntries);
-		}
-		char* data = m_gpuData.map(0, getNumberOfObjects());
-		const mat4* matArray = getAllMatrices();
-		for (size_t i = 0; i < getNumberOfObjects(); ++i)
-		{
-			memcpy(data + m_gpuData.getAlignedEntrySize() * i, matArray + i, sizeof(PerObjectGPUData));
-		}
-	}
+	
 }

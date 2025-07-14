@@ -69,7 +69,7 @@ namespace YAPT
 	void RenderView::issueViewDependantRenderObjectJobs(ThreadPool& pool, RenderObjectManager& renderObjectManager)
 	{
 		constexpr size_t MAX_JOBS = 4;
-		YAPT::mat4* wMat = renderObjectManager.getAllMatrices();
+		YAPT::mat4* wMat = renderObjectManager.getAllWorldMatrices();
 		size_t count = renderObjectManager.getNumberOfObjects();
 		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / 10u));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;

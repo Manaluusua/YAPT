@@ -74,7 +74,6 @@ namespace YAPT
 		void renderObjectReleased(RenderObjectProxy* obj);
 
 		void replicateChanges();
-		void updatePerObjectGPUData();
 
 		void getCreatedEntries(const RenderObjectId*& ids, size_t& numberOfEntries) const
 		{
@@ -92,7 +91,8 @@ namespace YAPT
 			numberOfEntries = m_modifiedEntries.size();
 		}
 
-		mat4& getMatrixForId(RenderObjectId id);
+		mat4& getWorldMatrixForId(RenderObjectId id);
+		mat4& getWorldInverseMatrixForId(RenderObjectId id);
 		MeshIndex getMeshForId(RenderObjectId id);
 		MaterialPerSubmeshArray& getMaterialForId(RenderObjectId id);
 		AABB& getBoundsForId(RenderObjectId id);
@@ -100,7 +100,8 @@ namespace YAPT
 
 		size_t getDataIndexForRenderObjectId(RenderObjectId id) const { return m_renderObjects.getDataIndex(id); }
 		size_t getNumberOfObjects();
-		mat4* getAllMatrices();
+		mat4* getAllWorldMatrices();
+		mat4* getAllWorldInverseMatrices();
 		MeshIndex* getAllMeshes();
 		MaterialPerSubmeshArray* getAllMaterials();
 		AABB* getAllBounds();
@@ -114,7 +115,7 @@ namespace YAPT
 		void freeRenderDataIndex(size_t index);
 		constexpr bool isValidRenderDataIndex(size_t index) { return index != INVALID_RENDERDATA_INDEX && index < RENDEROBJECT_RENDERDATA_BUCKETS_COUNT; }
 
-		void issueBoundsUpdateJobs(ThreadPool& pool);
+		void issueTransformAndBoundsUpdateJobs(ThreadPool& pool);
 		
 
 	private:
@@ -122,6 +123,7 @@ namespace YAPT
 		{
 			Id,
 			Transform,
+			Transform_Inverse,
 			Bounds,
 			Mesh,
 			Material,
@@ -133,10 +135,7 @@ namespace YAPT
 			RenderData5
 		};
 
-		struct PerObjectGPUData
-		{
-			mat4 worldMatrix;
-		};
+		
 
 		struct UpdateBoundsItem
 		{
@@ -145,10 +144,11 @@ namespace YAPT
 			size_t entryCount;
 			const MeshIndex* meshes;
 			const mat4* transforms;
+			mat4* transformsInv;
 			AABB* bounds;
 		};
 
-		typedef TightlyPackedArray<RenderObjectId, mat4, AABB, MeshIndex, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
+		typedef TightlyPackedArray<RenderObjectId, mat4, mat4, AABB, MeshIndex, MaterialPerSubmeshArray, RenderData, RenderData, RenderData, RenderData, RenderData, RenderData> RenderObjectContainer;
 		static const size_t PEROBJECTDATA_GROW_COUNT;
 
 		void renderObjectChanged(RenderObjectProxy* obj);
@@ -167,8 +167,6 @@ namespace YAPT
 		std::vector<RenderObjectId> m_destroyedEntries;
 
 		RenderObjectContainer m_renderObjects;
-
-		DynamicSizeGpuBufferHelper<PerObjectGPUData> m_gpuData;
 		
 		std::vector<UpdateBoundsItem> m_updateBoundsJobItems;
 

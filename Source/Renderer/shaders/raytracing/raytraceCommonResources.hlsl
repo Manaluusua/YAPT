@@ -30,7 +30,7 @@ struct SpectralDataConstants
 {
 	float4 spdSampleLambda[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
 	float4 spdSamplePdf[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
-	uint32_t sampleSetOffset;
+	uint sampleSetOffset;
 };
 
 struct MaterialEntryGPU
@@ -80,6 +80,14 @@ struct LightEntryGPU
     uint pad0;
 };
 
+struct RenderObjectTransformDataGPU
+{
+    float3x4 objToWorld;
+    float3x4 worldToObject;
+};
+
+
+
 
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
@@ -87,29 +95,30 @@ ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
 ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 StructuredBuffer<MaterialEntryGPU> g_materialEntries : register(t4, space0);
 StructuredBuffer<MeshEntryGPU> g_meshEntries : register(t5, space0);
-ByteAddressBuffer g_renderObjects : register(t6, space0);
-StructuredBuffer<LightEntryGPU> g_lights : register(t7, space0);
+StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : register(t6, space0);
+ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t7, space0);
+StructuredBuffer<LightEntryGPU> g_lights : register(t8, space0);
 
-SamplerState g_colorSampler : register(s8, space0);
-SamplerState g_pointSampler: register(s9, space0);
-SamplerState g_lutSampler : register(s10, space0);
-Texture2D g_NoiseTex : register(t11, space0);
+SamplerState g_colorSampler : register(s9, space0);
+SamplerState g_pointSampler: register(s10, space0);
+SamplerState g_lutSampler : register(s11, space0);
+Texture2D g_NoiseTex : register(t12, space0);
 
 
-Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t12, space0);
-Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t13, space0);
-Texture3D g_dirAlbedoGGXSingleAndMultiScatterLUT : register(t14, space0);
-Texture2D g_avgDirAlbedoGGXSingleAndMultiScatterLUT : register(t15, space0);
-Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t16, space0);	
-Texture3D g_dirAlbedoGGXTranslucentLighterLUT : register(t17, space0);
-Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t18, space0);
-Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t19, space0);
-Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t20, space0);
+Texture2D g_dirAlbedoGGXNoFresnelLUT : register(t13, space0);
+Texture1D g_avgDirAlbedoGGXNoFresnelLUT : register(t14, space0);
+Texture3D g_dirAlbedoGGXSingleAndMultiScatterLUT : register(t15, space0);
+Texture2D g_avgDirAlbedoGGXSingleAndMultiScatterLUT : register(t16, space0);
+Texture3D g_dirAlbedoGGXTranslucentDenserLUT : register(t17, space0);	
+Texture3D g_dirAlbedoGGXTranslucentLighterLUT : register(t18, space0);
+Texture2D g_avgAlbedoGGXTranslucentDenserLUT : register(t19, space0);
+Texture2D g_avgAlbedoGGXTranslucentLighterLUT : register(t20, space0);
+Texture2D g_dirAlbedoSheenNoFresnelLUT : register(t21, space0);
 
-Texture1D g_cieXYZCoeffsLUT : register(t21, space0);
-Texture1D g_d65IlluminantLUT : register(t22, space0);
-Texture3D g_rec2020ToSPDLUT : register(t23, space0);
-Texture3D g_srgbToSPDLUT : register(t24, space0);
+Texture1D g_cieXYZCoeffsLUT : register(t22, space0);
+Texture1D g_d65IlluminantLUT : register(t23, space0);
+Texture3D g_rec2020ToSPDLUT : register(t24, space0);
+Texture3D g_srgbToSPDLUT : register(t25, space0);
 
 //bindless texture aliases
 [[vk::binding(0, 1)]]
@@ -222,11 +231,17 @@ MeshEntryGPU getMeshEntry(uint index)
 	return g_meshEntries[index];
 }
 
-uint2 getMaterialAndMeshIndices(uint instanceIndex)
+uint2 getMaterialAndMeshIndicesForInstance(uint instanceIndex)
 {
     uint readOffset = instanceIndex << 3;
-    uint2 matMeshIndices = g_renderObjects.Load2(readOffset);
+    uint2 matMeshIndices = g_renderObjectMatAndMeshIndices.Load2(readOffset);
     return matMeshIndices;
+}
+
+RenderObjectTransformDataGPU getTransformDataForInstance(uint instanceIndex)
+{
+    return g_renderObjectTransforms[instanceIndex];
+
 }
 
 float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)
