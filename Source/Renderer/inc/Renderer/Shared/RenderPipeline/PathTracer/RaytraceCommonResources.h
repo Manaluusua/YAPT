@@ -63,8 +63,12 @@ namespace YAPT
 
 		struct RenderObjectTransformDataGPU
 		{
-			glm::mat4x3 objToWorld;
-			glm::mat4x3 worldToObject;
+			vec4p objToWorldR0;
+			vec4p objToWorldR1;
+			vec4p objToWorldR2;
+			vec4p worldToObjectR0;
+			vec4p worldToObjectR1;
+			vec4p worldToObjectR2;
 		};
 
 		struct PrepareParams

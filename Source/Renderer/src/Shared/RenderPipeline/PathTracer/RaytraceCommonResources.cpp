@@ -197,9 +197,17 @@ namespace YAPT
 				size_t entryOffset = sceneData.instanceOffsetPerRenderObject[i];
 				m_instanceOffsetPerRenderObject[i] = entryOffset;
 
+				//glm keeps things in column major order, tranpose to get rows out easily
+				mat4 wMatT = glm::transpose(sceneData.objToWorldMatrices[i]);
+				mat4 wMatInvT = glm::transpose(sceneData.worldToObjMatrices[i]);
+
 				RenderObjectTransformDataGPU transformDataGPU;
-				transformDataGPU.objToWorld = (glm::mat4x3)sceneData.objToWorldMatrices[i];
-				transformDataGPU.worldToObject = (glm::mat4x3)sceneData.worldToObjMatrices[i];
+				transformDataGPU.objToWorldR0 = wMatT[0];
+				transformDataGPU.objToWorldR1 = wMatT[1];
+				transformDataGPU.objToWorldR2 = wMatT[2];
+				transformDataGPU.worldToObjectR0 = wMatInvT[0];
+				transformDataGPU.worldToObjectR1 = wMatInvT[1];
+				transformDataGPU.worldToObjectR2 = wMatInvT[2];
 
 				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
 				{

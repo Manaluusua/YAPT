@@ -260,7 +260,7 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     ExtractedLightPathNodeData data;
     data.node = node;
     fillSurfaceDefRGB(node.instancePrimitiveBarycentrics.x, node.instancePrimitiveBarycentrics.y, node.instancePrimitiveBarycentrics.zw, data.surfaceDefRGB);
-    data.worldToObjSpace = getTransformDataForInstance(node.instancePrimitiveBarycentrics.x).worldToObject;
+    data.worldToObjSpace = getTransformDataForInstance(node.instancePrimitiveBarycentrics.x).getWorldToObj();
     return data;
 }
 

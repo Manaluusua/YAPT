@@ -82,8 +82,22 @@ struct LightEntryGPU
 
 struct RenderObjectTransformDataGPU
 {
-    float3x4 objToWorld;
-    float3x4 worldToObject;
+    float4 objToWorldR0;
+    float4 objToWorldR1;
+    float4 objToWorldR2;
+    float4 worldToObjectR0;
+    float4 worldToObjectR1;
+    float4 worldToObjectR2;
+	
+    float3x4 getObjToWorld()
+    {
+        return float3x4(objToWorldR0, objToWorldR1, objToWorldR2);
+    }
+	
+    float3x4 getWorldToObj()
+    {
+        return float3x4(worldToObjectR0, worldToObjectR1, worldToObjectR2);
+    }
 };
 
 
