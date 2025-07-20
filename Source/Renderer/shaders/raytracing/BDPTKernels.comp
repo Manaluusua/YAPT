@@ -321,7 +321,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     rayState.numberVolumesEntered = 0;
 
     float pdfRatioSum = 0;
-	float pdfRatioProduct = 1;
+	float pdfForwardCamera = 1;
+	float pdfForwardMISPreviousCamNode = 0;
+	float3 previousNodeNormalWS;
 	uint cameraVertexCount = 0;
 	uint rayIndex = dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x;
 	
@@ -370,6 +372,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             transformNormal = transpose(transformNormal);
             float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
             float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+			
+            float pdfForwardMISThisNode = pdfForwardCamera * areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
 			
             if (!surfaceDef.emissive.allSamplesEqual(0))
             {
@@ -477,6 +481,19 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
 				break;
 			}
+
+
+			if(camVertexIndex > 0)
+            {
+                float pdfBackwardPrevNode = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, previousNodeNormalWS);
+                float ratio = pdfBackwardPrevNode / pdfForwardMISPreviousCamNode;
+                pdfRatioSum *= ratio;
+                pdfRatioSum += ratio;
+            }
+			
+            previousNodeNormalWS = normalWS;
+            pdfForwardMISPreviousCamNode = pdfForwardMISThisNode;
+			pdfForwardCamera = pdfForward;
 
             throughput = throughput * w / pdfForward;
 
