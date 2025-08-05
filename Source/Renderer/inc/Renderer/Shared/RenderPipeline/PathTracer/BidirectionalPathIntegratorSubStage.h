@@ -62,12 +62,13 @@ namespace YAPT
 			uvec2 offsetAndCount;
 		};
 
-		struct LightPathNode
+		struct LightPathNodePacked
 		{
-			vec4p throughput;
-			vec4p normalWSPDF;
-			vec4p positionWSMISSum;
-			vec4p instancePrimitiveBarycentrics;
+			uvec4p data0;
+			uvec4p data1;
+			uvec4p data2;
+			uvec4p data3;
+			uvec4p data4;
 		};
 
 		void setupWorldBoundsJob(ThreadPool* threadPool);
@@ -98,7 +99,7 @@ namespace YAPT
 		
 
 		DynamicSizeGpuBufferHelper<LightPathHeader> m_lightPathHeadersGPU;
-		DynamicSizeGpuBufferHelper<LightPathNode> m_lightPathsGPU[2];
+		DynamicSizeGpuBufferHelper<LightPathNodePacked> m_lightPathsGPU[2];
 		FixedSizeGpuBufferHelper<uvec3> m_countersGPU;
 
 		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;

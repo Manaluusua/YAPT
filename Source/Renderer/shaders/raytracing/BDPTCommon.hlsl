@@ -5,6 +5,9 @@
 #include "materialSample.hlsl"
 #include "rayState.hlsl"
 
+#define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1)
+#define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (2)
+
 struct BidirectionalPathTraceConstants
 {
 	float4 worldBoundsMin;
@@ -23,13 +26,31 @@ struct LightPathHeader
 	uint2 offsetAndCount;
 };
 
+struct LightPathNodePacked
+{
+    uint4 data0;
+    uint4 data1;
+    uint4 data2;
+    uint4 data3;
+    uint4 data4;
+};
+
 struct LightPathNode
 {
     float4 radiance;
-    float4 normalWSNextIndex;
-    float4 positionWS;
-    float4 instancePrimitiveBarycentrics;
-    float4 pdfForwardBackwardRiSum;
+    float3 normalWS;
+    uint nextIndex;
+    float3 positionWS;
+    uint instanceIndex;
+    float2 barycentrics;
+    uint primitiveIndex;
+    float pdfForward;
+    float pdfBackward;
+    float iorPrevious;
+    float iorCurrent;
+    float riSum;
+    uint flags;
+
 };
 
 struct ExtractedLightPathNodeData
@@ -42,12 +63,26 @@ struct ExtractedLightPathNodeData
 struct BDPTRayState //: RayStateInterface
 {
 
+    SpectralSamples getAbsorption()
+    {
+        if (numberVolumesEntered != 0)
+        {
+            return absorption[numberVolumesEntered - 1];
+        } else
+        {
+            SpectralSamples abs;
+            abs.set(0);
+            return abs;
+
+        }
+    }
+    
     float getCurrentIOR()
     {
         float currentIOR = IOR_DEFAULT; //air if not entered volume
         if (numberVolumesEntered != 0)
         {
-            currentIOR = volumesEntered[numberVolumesEntered - 1];
+            currentIOR = ior[numberVolumesEntered - 1];
         }
         return currentIOR;
     }
@@ -56,7 +91,7 @@ struct BDPTRayState //: RayStateInterface
         float beforeCurrentIOR = IOR_DEFAULT;
         if (numberVolumesEntered > 1)
         {
-            beforeCurrentIOR = volumesEntered[numberVolumesEntered - 2];
+            beforeCurrentIOR = ior[numberVolumesEntered - 2];
         }
         return beforeCurrentIOR;
     }
@@ -64,8 +99,8 @@ struct BDPTRayState //: RayStateInterface
     void enteredVolume(float IOR, SpectralSamples absorptionParam)
     {
         numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
-        volumesEntered[numberVolumesEntered - 1] = IOR;
-        absorption = absorptionParam;
+        ior[numberVolumesEntered - 1] = IOR;
+        absorption[numberVolumesEntered - 1] = absorptionParam;
     }
     void exitedVolume()
     {
@@ -86,8 +121,8 @@ struct BDPTRayState //: RayStateInterface
         setStateFlags(getStateFlags() | flags);
     }
 
-    SpectralSamples absorption;
-    float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
+    SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
+    float ior[RAY_MAX_VOLUMES_ENTERED];
     uint numberVolumesEntered;
     uint flags;
 };
@@ -100,11 +135,11 @@ RaytracingAccelerationStructure g_accelerationStructure : register(t1, space3);
 
 #ifdef WRITABLE_LIGHT_DATA
 RWStructuredBuffer<LightPathHeader> g_lightPathHeaders : register(u2, space3);
-RWStructuredBuffer<LightPathNode> g_lightPathVertices : register(u3, space3);
+RWStructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(u3, space3);
 RWByteAddressBuffer g_counters : register(u4, space3);
 #else
 StructuredBuffer<LightPathHeader> g_lightPathHeaders : register(t2, space3);
-StructuredBuffer<LightPathNode> g_lightPathVertices : register(t3, space3);
+StructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(t3, space3);
 ByteAddressBuffer g_counters : register(t4, space3);
 #endif
 
@@ -142,7 +177,7 @@ void reserveLightPathNodeSpaceForSorting(uint count, out uint offsetOut)
     offsetOut = offsetOut;
 }
 
-void storeLightPathVertex(uint offset, LightPathNode node)
+void storeLightPathVertex(uint offset, LightPathNodePacked node)
 {
 	g_lightPathVertices[offset] = node;
 }
@@ -163,7 +198,41 @@ void storeLightPathHeader(uint offset, LightPathHeader h)
 
 #endif
 
-LightPathNode getLightPathVertex(uint offset)
+
+LightPathNode decompressLightPathNode(LightPathNodePacked p)
+{
+    LightPathNode node;
+    node.radiance = asfloat(p.data0);
+    node.normalWS = float3(f16tof32(p.data1.x & 0xFFFF), f16tof32(p.data1.x >> 16), f16tof32(p.data1.y & 0xFFFF));
+    node.flags = p.data1.y >> 16;
+    node.nextIndex = p.data1.z;
+    node.instanceIndex = p.data1.w;
+    node.positionWS = asfloat(p.data2.xyz);
+    node.primitiveIndex = p.data2.w;
+    node.barycentrics = asfloat(p.data3.xy);
+    node.pdfForward = asfloat(p.data3.z);
+    node.pdfBackward = asfloat(p.data3.w);
+    node.riSum = asfloat(p.data4.x);
+    node.iorPrevious = asfloat(p.data4.y);
+    node.iorCurrent = asfloat(p.data4.z);
+    return node;
+}
+
+LightPathNodePacked compressLightPathNode(LightPathNode node)
+{
+    LightPathNodePacked p;
+    p.data0 = asuint(node.radiance);
+    p.data1 = uint4(f32tof16(node.normalWS.x) | f32tof16(node.normalWS.y) << 16,
+                    f32tof16(node.normalWS.z) | node.flags << 16,
+                    node.nextIndex, node.instanceIndex);
+    p.data2 = uint4(asuint(node.positionWS.x), asuint(node.positionWS.y), asuint(node.positionWS.z), node.primitiveIndex);
+    p.data3 = asuint(float4(node.barycentrics.x, node.barycentrics.y, node.pdfForward, node.pdfBackward));
+    p.data4 = uint4(node.riSum, node.iorPrevious, node.iorCurrent, 0);
+    
+    return p;
+}
+
+LightPathNodePacked getLightPathVertex(uint offset)
 {
     return g_lightPathVertices[offset];
 }
@@ -260,8 +329,8 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
 {
     ExtractedLightPathNodeData data;
     data.node = node;
-    fillSurfaceDefRGB(node.instancePrimitiveBarycentrics.x, node.instancePrimitiveBarycentrics.y, node.instancePrimitiveBarycentrics.zw, data.surfaceDefRGB);
-    data.worldToObjSpace = getTransformDataForInstance(node.instancePrimitiveBarycentrics.x).getWorldToObj();
+    fillSurfaceDefRGB(node.instanceIndex, node.primitiveIndex, node.barycentrics, data.surfaceDefRGB);
+    data.worldToObjSpace = getTransformDataForInstance(node.instanceIndex).getWorldToObj();
     return data;
 }
 

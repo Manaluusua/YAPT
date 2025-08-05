@@ -72,6 +72,15 @@ struct SpectralSamples
         return float4(samples[0], samples[1], samples[2], samples[3]);
 
     }
+	
+    void fromFloat4(float4 v)
+    {
+        samples[0] = v.x;
+        samples[1] = v.y;
+        samples[2] = v.z;
+        samples[3] = v.w;
+
+    }
 
 	float getMaxSampleValue() 
 	{

@@ -52,11 +52,16 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		radiance = radiance / (lightPosPDF * lightDirPDF * lightSamplePDF);
 
-        nodes[0].instancePrimitiveBarycentrics = float4(-1, -1, -1, -1);
-        nodes[0].normalWSNextIndex = float4(lightDir, asfloat(INVALID_LIGHT_NODE_INDEX));
-        nodes[0].radiance = radiance.toFloat4();
-        nodes[0].positionWS.xyz = lightPos;
-		nodes[0].pdfForwardBackwardRiSum = float4(lightPosPDF * lightSamplePDF, 0, 0, 0);
+
+		nodes[0].instanceIndex = -1;
+		nodes[0].primitiveIndex = -1;
+		nodes[0].barycentrics = -1;
+		nodes[0].normalWS = lightDir;
+		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
+		nodes[0].radiance = radiance.toFloat4();
+		nodes[0].positionWS = lightPos;
+		nodes[0].pdfForward = lightPosPDF * lightSamplePDF;
+		nodes[0].flags = 0;
 		pdfForward = lightDirPDF;
     }
 
@@ -66,9 +71,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     float3 rayOrigin = lightPos;
 
 	BDPTRayState rayState;
-	rayState.absorption.set(0);
     rayState.setStateFlags(0);
     rayState.numberVolumesEntered = 0;
+
 
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
@@ -107,7 +112,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             uint instId = q.CommittedInstanceID();
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
-			
+
+			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
+			lightNodeFlags |= (rayState.getStateFlags() & TRANSMISSION_TYPE_DISPERSED) != 0 ? LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS : 0;
 			
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
             surfaceDef, precalculatedSurfaceData, samplingProbabilities);
@@ -120,14 +127,26 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			
 			//TODO: store some of the ray state (dispersion,volumes(?))
 			float toAreaDensityForward = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
-
-            nodes[currentNodeIndex].instancePrimitiveBarycentrics = float4(asfloat(q.CommittedInstanceID()), asfloat(q.CommittedInstanceID()), bary.x, bary.y);
-            nodes[currentNodeIndex].normalWSNextIndex = float4(normalWS, asfloat(lastVertexOffset));
-            nodes[currentNodeIndex].radiance = radiance.toFloat4();  
-            nodes[currentNodeIndex].positionWS.xyz = posWS;
-			nodes[currentNodeIndex].pdfForwardBackwardRiSum = float4(pdfForward * toAreaDensityForward, 0, 0, 0);
-
 			
+			{
+				SpectralSamples abs = rayState.getAbsorption();
+				if(!abs.allSamplesEqual(0))
+				{
+					radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
+				}
+			}
+
+
+			nodes[currentNodeIndex].instanceIndex = instId;
+			nodes[currentNodeIndex].primitiveIndex = primIndex;
+			nodes[currentNodeIndex].barycentrics = bary;
+			nodes[currentNodeIndex].normalWS = normalWS;
+			nodes[currentNodeIndex].radiance = radiance.toFloat4();
+			nodes[currentNodeIndex].positionWS = posWS;
+			nodes[currentNodeIndex].pdfForward = pdfForward * toAreaDensityForward;
+			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
+			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
+			nodes[currentNodeIndex].flags = lightNodeFlags;
 
 			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
             if (isZero(wiOS))
@@ -144,8 +163,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}
 
-			nodes[previousNodeIndex].pdfForwardBackwardRiSum.y = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWSNextIndex.xyz);
-			nodes[previousNodeIndex].normalWSNextIndex.w = asfloat(lastVertexOffset);
+			nodes[previousNodeIndex].pdfBackward = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz);
 			
 			//store previous vertex
 			{
@@ -153,10 +171,12 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				reserveLightPathNodeSpace(1, vOffset, vCount);
 				if(vCount == 0) break;
 
-				storeLightPathVertex(vOffset, nodes[previousNodeIndex]);
+				storeLightPathVertex(vOffset, compressLightPathNode(nodes[previousNodeIndex]));
 				lastVertexOffset = vOffset;
 				++lightNodeCount;
 			}
+
+			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 
             radiance = radiance * w / pdfForward;
 
@@ -178,7 +198,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			reserveLightPathNodeSpace(1, vOffset, vCount);
 			if(vCount != 0)
 			{
-				storeLightPathVertex(vOffset, nodes[currentNodeIndex]);
+				storeLightPathVertex(vOffset, compressLightPathNode(nodes[currentNodeIndex]));
 			} 
 			else
 			{
@@ -199,7 +219,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 #endif
 
 #ifdef SORT_LIGHT_VERTICES_STAGE
-StructuredBuffer<LightPathNode> g_lightPathVerticesUnsorted : register(t5, space3);
+StructuredBuffer<LightPathNodePacked> g_lightPathVerticesUnsorted : register(t5, space3);
 
 groupshared LightPathNode g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
 
@@ -219,18 +239,18 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 	//fetch to local memory
 	{	
 		//fetch tail		
-		LightPathNode lastNode = g_lightPathVerticesUnsorted[header.offsetAndCount.x];
+		LightPathNode lastNode = decompressLightPathNode(g_lightPathVerticesUnsorted[header.offsetAndCount.x]);
 
 		g_localNodes[0] = lastNode;
 	
 		//copy entries to linearly
-		uint nextIndex = asuint(lastNode.normalWSNextIndex.w);
+		uint nextIndex = lastNode.nextIndex;
 
 		for(uint i = 1; i < vCount; ++i)
 		{
-			LightPathNode node = g_lightPathVerticesUnsorted[nextIndex];
+			LightPathNode node = decompressLightPathNode(g_lightPathVerticesUnsorted[nextIndex]);
 			g_localNodes[i] = lastNode;
-			nextIndex = asuint(node.normalWSNextIndex.w);
+			nextIndex = node.nextIndex;
 		}
 	}
 
@@ -244,12 +264,12 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 		for(uint i = 0 ; i < vCount; ++i)
 		{
 			LightPathNode node = g_localNodes[vCount - 1 - i];
-			node.pdfForwardBackwardRiSum.w = riSum;
+			node.riSum = riSum;
 
-			storeLightPathVertex(vOffset + i, node);			
+			storeLightPathVertex(vOffset + i, compressLightPathNode(node));			
 
-			float2 pdfForwardBackward = node.pdfForwardBackwardRiSum.xy;
-			float pdfRatio = pdfForwardBackward.y / pdfForwardBackward.x;
+
+			float pdfRatio = node.pdfBackward / node.pdfForward;
 			riSum *= pdfRatio;
 			riSum += pdfRatio;
 		}		
@@ -279,6 +299,56 @@ SpectralSamples ToSpectralSamples(float3 color)
 	return s;
 }
 
+bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, in float2 materialLayerRands, out float pdfForwardOut, out float pdfBackwardOut, SpectralSamples weightOut)
+{
+    if (lightNodeIndex == 0)
+    {
+        pdfForwardOut = 1;
+        pdfBackwardOut = 1;
+        weightOut.fromFloat4(lightNode.radiance);
+    }
+    else
+    {
+        float3x4 toLocalFrame = g_localNodes[lightNodeIndex].worldToObjSpace;
+        float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+        float3 prevLightPosOS = mul(toLocalFrame, float4(prevVertexPos, 1)).xyz;
+        float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
+        float3 wiOS = normalize(camNodePosOS - lightPosOS);
+        float3 woOSLightConnection = prevLightPosOS - lightPosOS;
+        uint lightNodeFlags = asuint(lightNode.flags);
+        bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;
+                            
+        SurfaceDefinitionRGB surfaceDefRGB = g_localNodes[lightNodeIndex].surfaceDefRGB;
+        surfaceDefRGB.coatingLayerNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.coatingLayerNormal, surfaceDefRGB);
+        surfaceDefRGB.baseLayerNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.baseLayerNormal, surfaceDefRGB);
+        surfaceDefRGB.geometryNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.geometryNormal, surfaceDefRGB);
+	    
+        SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+        PrecalculatedSurfaceData precalculatedSurfaceData;
+        float samplingProbabilities[LAYER_COUNT];
+		
+		//for now just initialize with node data. maybe needs a better way (update during light node traversal?)
+        BDPTRayState rayState;
+        rayState.ior[0] = lightNode.iorPrevious;
+        rayState.ior[1] = lightNode.iorCurrent;
+        rayState.numberVolumesEntered = 2;
+        rayState.setStateFlags(0);
+
+        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
+        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, materialLayerRands, samplingProbabilities);
+        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, weightOut, pdfForwardOut, pdfBackwardOut);
+					
+        if (pdfForwardOut == 0 || pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
+        {
+            return false;
+        }
+						
+        weightOut = weightOut / pdfForwardOut;
+    }
+	
+    return true;
+}
+
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -298,7 +368,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
     if (groupIndex < g_lightPathHeader.offsetAndCount.y)
     {
-        LightPathNode node = getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex);
+        LightPathNode node = decompressLightPathNode(getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex));
         g_localNodes[groupIndex] = getExtractedLightPathNodeData(node);
     }
 	
@@ -316,7 +386,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	totalLight.set(0);
 
 	BDPTRayState rayState;
-	rayState.absorption.set(0);
     rayState.setStateFlags(0);
     rayState.numberVolumesEntered = 0;
 
@@ -327,6 +396,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	uint cameraVertexCount = 0;
 	uint rayIndex = dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x;
 	
+	uint2 lightPathIndices = floor((dispatchThreadId.xy * g_targetTexDimensions.zw) * g_lightPathsPerDim);
+	uint lightPathSampleIndex = lightPathIndices.y * g_lightPathsPerDim.x + lightPathIndices.x;
 
 	for(uint camVertexIndex = 0; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
@@ -375,6 +446,14 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			
             float pdfForwardMISThisNode = pdfForwardCamera * areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
 			
+			{
+				SpectralSamples abs = rayState.getAbsorption();
+				if(!abs.allSamplesEqual(0))
+				{
+					throughput = throughput * calculateTransmittance(q.CommittedRayT(), abs);
+				}
+			}
+
             if (!surfaceDef.emissive.allSamplesEqual(0))
             {
                 totalLight = totalLight + throughput * surfaceDef.emissive; //TODO: proper MIS weight
@@ -383,30 +462,53 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			else
 			//try to connect path to light nodes
 			{
-                for (uint lightNodeIndex = 0; lightNodeIndex < g_lightPathHeader.offsetAndCount.y; ++lightNodeIndex)
+                float3 prevLightNodePosWS;
+                for (uint iter = 0; iter < g_lightPathHeader.offsetAndCount.y; ++iter)
                 {
+                    uint lightNodeIndex = g_lightPathHeader.offsetAndCount.y - iter - 1;
                     LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
-                    float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
-                    float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
-                    float3 posOS = mul(toLocalFrame, float4(posWS, 1)).xyz;
-                    float3 wiOS = normalize(lightPosOS - posOS);
+                    
 					
                     SpectralSamples weightLastCameraNode;
-   
-					//evaluate weight and mis weights for (potential) connection for this light node
+					float pdfForwardLastCameraNode;
+                    float pdfBackwardLastCameraNode;
+					//evaluate weight PDFs for connecting camera node
 					{
-
+						
+						float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
+						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+						float3 posOS = mul(toLocalFrame, float4(posWS, 1)).xyz;
+						float3 wiOS = normalize(lightPosOS - posOS);
                         float pdfForward;
                         float pdfBackward;
 						evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, weightLastCameraNode, pdfForward, pdfBackward);
 					
 						if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
                         {
+                            prevLightNodePosWS = lightNode.positionWS;
                             continue;
                         }
 						
 						weightLastCameraNode = weightLastCameraNode / pdfForward;
+
+						pdfForwardLastCameraNode = pdfForward;
+						pdfBackwardLastCameraNode = pdfBackward;
 						//TODO: need to calculate pdf backward for previous node and update MIS sum accumulation
+                    }
+					
+                    SpectralSamples weightLastLightNode;
+                    float pdfForwardLastLightNode;
+                    float pdfBackwardLastLightNode;
+					//evaluate weight PDFs for connecting light node
+					{
+						float4 randSamplesLightConn = getRandomSampleFloat4(lightPathSampleIndex + lightNodeIndex, 0); //TODO: better way to calculate sample indices
+                        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNode, lightNodeIndex, prevLightNodePosWS, posWS, randSamplesLightConn.xy, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
+                        prevLightNodePosWS = lightNode.positionWS;
+                        if (!connectionValid)
+                        {
+                            continue;
+                        }
+
                     }
                     
 					
@@ -438,7 +540,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                             uint visPrimIndex = q.CommittedPrimitiveIndex();
 							
 							//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
-                            if (visInstId == lightNode.instancePrimitiveBarycentrics.x && visPrimIndex == lightNode.instancePrimitiveBarycentrics.y)
+                            if (visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
                             {
                                 lightNodeVisible = true;
                             }
