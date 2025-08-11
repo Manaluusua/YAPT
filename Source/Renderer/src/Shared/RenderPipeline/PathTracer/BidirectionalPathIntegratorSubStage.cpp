@@ -53,6 +53,15 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
+		RenderGraphNodeSlotDefinition slotdefsPrepare[] =
+		{
+			{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE)
+			},
+		};
+
 		RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
 		{
 			{
@@ -124,6 +133,13 @@ namespace YAPT
 			}
 		};
 
+		m_preparePerFrameDataNode = m_graph->createComputeNode(1, slotdefsPrepare, []
+		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+			{
+				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executePrepareFrameDataNode(execContext);
+			},
+			this, "InitCountersNode");
+
 		m_lightPathsNode = m_graph->createComputeNode(3, slotdefsLightPaths, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
@@ -144,6 +160,8 @@ namespace YAPT
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
 			},
 			this, "CameraPathsNode");
+
+		m_graph->createEdge(m_preparePerFrameDataNode, 0, m_lightPathsNode, 2);
 		
 		m_graph->createEdge(m_lightPathsNode, 0, m_lightPathsSortNode, 0);
 		m_graph->createEdge(m_lightPathsNode, 1, m_lightPathsSortNode, 1);
@@ -156,6 +174,7 @@ namespace YAPT
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
+		m_prepareNodeUtility.deinit();
 		m_cameraPathHelperUtility.deinit();
 		m_lightPathHelperUtility.deinit();
 		m_lightPathSortHelperUtility.deinit();
@@ -213,6 +232,12 @@ namespace YAPT
 			},
 		};
 
+		{
+			const ShaderLoader::ShaderPipelineInfo* shd = loader->getShaderPipeline("prepareResourcesBDPT");
+			m_prepareNodeUtility.init(m_renderer, shd, nullptr, 0, nullptr, 0);
+			m_prepareNodeUtility.createPipelineState();
+			
+		}
 		
 		{
 			const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
@@ -326,12 +351,7 @@ namespace YAPT
 
 			m_constantsGPU.flush();
 		}
-		
-		m_countersGPU.getData()[0] = uvec3(0, 0, 0);
-		m_countersGPU.flush();
-
-
-		
+			
 	}
 
 	void BidirectionalPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
@@ -429,7 +449,17 @@ namespace YAPT
 		}
 	}
 	
+	void BidirectionalPathIntegratorSubStage::executePrepareFrameDataNode(const RenderGraphNodeExecutionContext& exec)
+	{
+		BufferViewHandle counters = m_countersGPU.getView();
+		DescriptorSetUpdate updates[] = {
+			{0, 0, 1, DescriptorPtr(&counters)},
+		};
+		m_prepareNodeUtility.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 
+		m_prepareNodeUtility.dispatch(exec.cmdBuffer, 1, 1, 1);
+		
+	}
 
 	void BidirectionalPathIntegratorSubStage::executeLightPathPass(const RenderGraphNodeExecutionContext& exec)
 	{

@@ -1,4 +1,16 @@
 
+#ifdef PREPARE_RESOURCES //TODO: move these utilities to simpler setup
+RWByteAddressBuffer counters : register(u0, space0);
+[numthreads(1, 1, 1)]
+void prepareResources( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	counters.Store(0, uint3(0, 0, 0));
+}
+
+#else
 
 #ifdef CAMERA_RAYS_STAGE
 RWTexture2D<float4> g_outputColor : register(u5, space3);
@@ -14,7 +26,7 @@ static uint g_spectralSampleOffset;
 
 #include "BDPTCommon.hlsl"
 
-
+#endif
 
 //#define LIGHT_RAYS_STAGE //DONT FORGET TO REMOVE/DISABLE
 #ifdef LIGHT_RAYS_STAGE

@@ -73,7 +73,7 @@ namespace YAPT
 
 		void setupWorldBoundsJob(ThreadPool* threadPool);
 		
-
+		void executePrepareFrameDataNode(const RenderGraphNodeExecutionContext& exec);
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathSortPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
@@ -85,6 +85,9 @@ namespace YAPT
 		AccelerationStructureProvider* m_accStructProvider;
 		BindlessMaterialManager* m_materialMngr;
 		BindlessMeshManager* m_meshMngr;
+
+		ComputeNode* m_preparePerFrameDataNode;
+		PostProcessComputePassUtility m_prepareNodeUtility;
 
 		ComputeNode* m_lightPathsNode;
 		PostProcessComputePassUtility m_lightPathHelperUtility;

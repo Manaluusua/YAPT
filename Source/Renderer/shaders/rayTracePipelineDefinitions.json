@@ -33,6 +33,15 @@
 				}
 			]
 		},
+		"prepareResourcesBDPT": {
+			"stages": [{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "prepareResources",
+					"defines": [["PREPARE_RESOURCES", "1"]]
+				}
+			]
+		},
 		"cameraRaysBDPT": {
 			"stages": [{
 					"type": "compute",
