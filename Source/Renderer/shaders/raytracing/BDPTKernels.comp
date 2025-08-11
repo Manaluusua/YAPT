@@ -34,7 +34,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	float3 lightPos;
 	float3 lightDir;
 	
-	LightPathNode nodes[2];
+	LightPathNode nodes[2] = {(LightPathNode)0, (LightPathNode)0};
 	float pdfForward;
 
 	//sample light
@@ -193,12 +193,14 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	{
 		//store last node
 		{
-			uint currentNodeIndex = lightNodeCount & 0x1;
+			uint currentNodeIndex = (lightNodeCount-1) & 0x1;
 			uint vOffset, vCount;
 			reserveLightPathNodeSpace(1, vOffset, vCount);
 			if(vCount != 0)
 			{
+				nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 				storeLightPathVertex(vOffset, compressLightPathNode(nodes[currentNodeIndex]));
+				lastVertexOffset = vOffset;
 			} 
 			else
 			{

@@ -1,5 +1,6 @@
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
 #include <Gfx/GfxBasicTypesUtility.h>
+#include <limits>
 namespace YAPT
 {
 	
@@ -138,7 +139,7 @@ namespace YAPT
 		desc.enableCompare = false;
 		desc.maxAnisotropy = 1.0f;
 		desc.minLod = 0;
-		desc.maxLod = 0xFFFFFFFF;
+		desc.maxLod = std::numeric_limits<float>().max();
 		desc.mipLodBias = 0;
 	}
 

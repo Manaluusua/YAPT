@@ -100,20 +100,24 @@ namespace YAPT
 		 
 		UINT boundResourcesCount = shaderDesc.BoundResources;
 		 
-		reflOut.sortedBindings.resize(boundResourcesCount);
+		reflOut.sortedBindings.reserve(boundResourcesCount);
 
 		for (UINT boundResourceIndex = 0; boundResourceIndex < boundResourcesCount; ++boundResourceIndex)
 		{
 			D3D12_SHADER_INPUT_BIND_DESC resourceDesc;
 			refl->GetResourceBindingDesc(boundResourceIndex, &resourceDesc);
 
-			ShaderReflectionDataBindingDx12& binding = reflOut.sortedBindings[boundResourceIndex];
+			if (resourceDesc.Space < HIGHEST_UNIQUE_DESCSET_INDEX)
+			{
+				ShaderReflectionDataBindingDx12 binding;
+				binding.name = resourceDesc.Name;
+				binding.bindPoint = resourceDesc.BindPoint;
+				binding.bindCount = resourceDesc.BindCount;
+				binding.spaceIndex = resourceDesc.Space;
+				dx12ShaderInputTypeToResourceTypeAndAccessFlags(resourceDesc, binding.type, binding.accessFlags);
+				reflOut.sortedBindings.push_back(binding);
+			}
 
-			binding.name = resourceDesc.Name;
-			binding.bindPoint = resourceDesc.BindPoint;
-			binding.bindCount = resourceDesc.BindCount;
-			binding.spaceIndex = resourceDesc.Space;
-			dx12ShaderInputTypeToResourceTypeAndAccessFlags(resourceDesc, binding.type, binding.accessFlags);
 		}
 		
 		if (shaderDesc.InputParameters > 0)
