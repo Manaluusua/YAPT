@@ -12,8 +12,19 @@ namespace YAPT
 		poolDef.maxSets = (uint32_t)numberOfDescriptorSets;
 		poolDef.flags = (layout->getFlags() & DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS) != 0 ? VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT : 0;
 
-		poolDef.pPoolSizes = layout->getDescriptorCountPerType();
-		poolDef.poolSizeCount = (uint32_t)layout->getDescriptorTypesCount();
+		uint32_t descSetTypesCount = (uint32_t)layout->getDescriptorTypesCount();
+		const VkDescriptorPoolSize* layoutPoolSizes = layout->getDescriptorCountPerType();
+
+		std::vector<VkDescriptorPoolSize> descsPerType;
+		descsPerType.resize(descSetTypesCount);
+		for (size_t i = 0; i < descSetTypesCount; ++i)
+		{
+			descsPerType[i] = layoutPoolSizes[i];
+			descsPerType[i].descriptorCount = descsPerType[i].descriptorCount * (uint32_t)numberOfDescriptorSets;
+		}
+
+		poolDef.pPoolSizes = descsPerType.data();
+		poolDef.poolSizeCount = (uint32_t)descsPerType.size();
 		VkDescriptorPool pool;
 		VkResult res = vkCreateDescriptorPool(renderer->getDevice(), &poolDef, VK_ALLOC_CB, &pool);
 
