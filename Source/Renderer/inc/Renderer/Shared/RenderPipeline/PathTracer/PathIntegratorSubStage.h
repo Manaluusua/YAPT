@@ -11,9 +11,14 @@ namespace YAPT
 	class BindlessMaterialManager;
 	class BindlessMeshManager;
 
+	
+
 	class PathIntegratorSubStage
 	{
 	public:
+
+		static constexpr ResourceFormat SampleImageFormat = ResourceFormat::RGBA32_SFLOAT;
+
 		struct UpdateParams
 		{
 			const RenderStage::UpdateData* stageUpdateContext;

@@ -2,6 +2,7 @@
 #include <Gfx/RenderGraph/RenderGraph.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
+#include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 
 #define MERGE_SAMPLES_WG_SIZE 8
 
@@ -32,7 +33,7 @@ namespace YAPT
 			1
 		}},
 		{{ResourceDimension::TEXTURE_2D,
-			ResourceFormat::RGBA16_SFLOAT,
+			PathIntegratorSubStage::SampleImageFormat,
 			RESOURCE_USAGE_SAMPLED_TEXTURE,
 			ACCESS_FLAGS_READ,
 			SHADERSTAGE_FRAGMENT,

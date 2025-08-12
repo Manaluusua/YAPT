@@ -43,7 +43,7 @@ namespace YAPT
 
 		RenderGraphNodeSlotDefinition slotdefsRtNode[] =
 		{ {ResourceDimension::TEXTURE_2D,
-			ResourceFormat::RGBA16_SFLOAT,
+			PathIntegratorSubStage::SampleImageFormat,
 			RESOURCE_USAGE_STORAGE_TEXTURE,
 			ACCESS_FLAGS_READ_WRITE,
 			SHADERSTAGE_RT_RAYGENERATION,
