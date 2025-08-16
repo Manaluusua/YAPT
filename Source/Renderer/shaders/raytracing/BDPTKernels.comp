@@ -477,9 +477,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			//try to connect path to light nodes
 			{
                 float3 prevLightNodePosWS;
-                for (uint iter = 0; iter < g_lightPathHeader.offsetAndCount.y; ++iter)
+                float3 prevLightNodenormalWS;
+                for (uint lightVertexIndex = 0; lightVertexIndex < g_lightPathHeader.offsetAndCount.y; ++lightVertexIndex)
                 {
-                    uint lightNodeIndex = g_lightPathHeader.offsetAndCount.y - iter - 1;
+                    uint lightNodeIndex = g_lightPathHeader.offsetAndCount.y - lightVertexIndex - 1;
                     LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
                     
 					
@@ -500,6 +501,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 						if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
                         {
                             prevLightNodePosWS = lightNode.positionWS;
+                            prevLightNodenormalWS = lightNode.normalWS;
                             continue;
                         }
 						
@@ -569,6 +571,52 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					
 					//can connect, evaluate connection and accumulate total light
 					{
+
+
+						//float pdfForwardLastCameraNode;
+						//float pdfBackwardLastCameraNode;
+
+
+						//float pdfForwardLastLightNode;
+						//float pdfBackwardLastLightNode;
+						
+                        float riSumCam = pdfRatioSum;
+						
+                        if (camVertexIndex > 1)
+                        {
+                            float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(q.WorldRayOrigin() - posWS, previousNodeNormalWS);
+                            float ratioPrevCam = pdfBackwardPrevNodeCam / pdfForwardMISPreviousCamNode;
+                            riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
+                        } 
+						else if(camVertexIndex == 1)
+                        {
+                            float ratioLastCam = (pdfForwardLastLightNode * areaDensityMultiplier(posWS - lightNode.positionWS.xyz, normalWS)) / pdfForwardMISThisNode;
+                            riSumCam = ratioLastCam * riSumCam + ratioLastCam;
+                        } 
+						else
+                        {
+                            
+                        }
+						
+						
+                        
+                        float riSumLight = lightNode.riSum;
+                        if (lightVertexIndex > 1)
+                        {
+							
+                        }
+                        else if (lightVertexIndex == 1)
+                        {
+							
+                        } 
+						else
+                        {
+							
+                        }
+						
+                        float misWeight = 1.f / (1 + riSumCam + riSumLight);
+						
+
 						
                     }
 
@@ -588,11 +636,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float pdfBackward;
             evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
 
-            //float areaMultiplier = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
-			
-            //pdfForward *= areaMultiplier;
-            //pdfBackward *= areaMultiplier;
-			
 			if(pdfForward == 0 || pdfBackward == 0)
 			{
 				break;
