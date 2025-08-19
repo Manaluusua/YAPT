@@ -363,6 +363,168 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
     return true;
 }
 
+struct CameraVertexContext
+{
+    SurfaceDefinition surfaceDef;
+    PrecalculatedSurfaceData precalculatedSurfaceData;
+    SpectralSamples throughput;
+	float samplingProbabilities[LAYER_COUNT];
+    float3 posWS;
+    float pdfRatioSum;
+    float3 normalWS;
+    float3 woOS;
+    float3 wiOS;
+	
+    float3 prevNodePosWS;
+    float previousPDFForwardMIS;
+    float3 prevNodeNormalWS;
+    float currentNodeForwardPDFMIS;
+    bool triangleHitFrontFace;
+};
+
+struct LightVertexContext
+{
+    float3 prevNodePosWS;
+    float previousPDFForwardMIS;
+    float3 prevNodeNormalWS;    
+};
+
+SpectralSamples calculateLightPathRadiance(uint cameraVertexIndex, in CameraVertexContext camVertex,
+uint lightVertexIndex, in LightVertexContext lightVertex, uint lightPathSampleIndex,
+in BDPTRayState rayState)
+{
+    SpectralSamples retVal;
+    retVal.set(0);
+	
+    uint lightNodeIndex = lightVertexIndex;
+    LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
+                    
+    SpectralSamples weightLastCameraNode;
+    float pdfForwardLastCameraNode;
+    float pdfBackwardLastCameraNode;
+	//evaluate weight PDFs for connecting camera node
+	{
+						
+        float pdfForward;
+        float pdfBackward;
+        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, weightLastCameraNode, pdfForward, pdfBackward);
+					
+        if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
+        {
+            return retVal;
+        }
+						
+        weightLastCameraNode = weightLastCameraNode / pdfForward;
+
+        pdfForwardLastCameraNode = pdfForward;
+        pdfBackwardLastCameraNode = pdfBackward;
+    }
+					
+    SpectralSamples weightLastLightNode;
+    float pdfForwardLastLightNode;
+    float pdfBackwardLastLightNode;
+	//evaluate weight PDFs for connecting light node
+	{
+        float4 randSamplesLightConn = getRandomSampleFloat4(lightPathSampleIndex + lightNodeIndex, 0); //TODO: better way to calculate sample indices
+        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNode, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, randSamplesLightConn.xy, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
+        if (!connectionValid)
+        {
+            return retVal;
+        }
+
+    }
+                    
+					
+	//trace visibility ray to check visibility with node
+	{
+        const float VISIBILITY_RAY_EPSILON = 0.001f;
+        float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
+        float toLightLen = length(toLightWS);
+		
+        uint rayFlags = RAY_FLAG_NONE;
+        uint InstanceInclusionMask = ~0;
+        RayDesc ray;
+        ray.Origin = camVertex.posWS;
+        ray.Direction = toLightWS / toLightLen;
+        ray.TMin = DEFAULT_RAY_MIN_T;
+        ray.TMax = toLightLen + VISIBILITY_RAY_EPSILON;
+
+        RayQuery < RAY_FLAG_NONE > q;
+        q.TraceRayInline(
+							g_accelerationStructure,
+							rayFlags,
+							InstanceInclusionMask,
+							ray);
+
+        while (q.Proceed());
+						
+        bool lightNodeVisible = false;
+						
+        if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+        {
+            uint visInstId = q.CommittedInstanceID();
+            uint visPrimIndex = q.CommittedPrimitiveIndex();
+							
+							//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
+            if (visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
+            {
+                lightNodeVisible = true;
+            }
+
+        }
+						
+        if (!lightNodeVisible)
+        {
+            return retVal;
+        }
+    }
+					
+	//can connect, evaluate connection and accumulate total light
+	{
+		//MIS weight (TODO: deal with cases where path vertex is not a surface (env map))
+        float riSumCam = camVertex.pdfRatioSum;
+						
+        if (cameraVertexIndex > 1)
+        {
+            float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
+            float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
+            riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
+        }
+        else if (cameraVertexIndex == 1)
+        {
+            float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
+            riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
+        }
+
+
+        float riSumLight = lightNode.riSum;
+        if (lightVertexIndex > 1)
+        {
+            float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode * areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
+            float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
+            riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
+        }
+        else if (lightVertexIndex == 1)
+        {
+            float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
+            riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
+        }
+						
+        float misWeight = 1.f / (1 + riSumCam + riSumLight);
+						
+						
+        SpectralSamples radianceFromLight;
+        radianceFromLight.fromFloat4(lightNode.radiance);
+						
+        float geometryTerm = 1.f; //TODO
+						//TODO: deal with potential transmittance/absorbtion in the connecting path edge
+						
+        retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight * geometryTerm;
+        return retVal;
+    }
+	
+}
+
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -394,19 +556,19 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
 	
-	SpectralSamples throughput;
 	SpectralSamples totalLight;
-	throughput.set(1);
 	totalLight.set(0);
 
 	BDPTRayState rayState;
     rayState.setStateFlags(0);
     rayState.numberVolumesEntered = 0;
 
-    float pdfRatioSum = 0;
+    CameraVertexContext camVertexContext;
+    camVertexContext.throughput.set(1);
+    camVertexContext.pdfRatioSum = 0;
+    camVertexContext.previousPDFForwardMIS = 0;
+	
 	float pdfForwardCamera = 1;
-	float pdfForwardMISPreviousCamNode = 0;
-	float3 previousNodeNormalWS;
 	uint cameraVertexCount = 0;
 	uint rayIndex = dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x;
 	
@@ -440,185 +602,64 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 		{
 			
-            SurfaceDefinition surfaceDef;
-            PrecalculatedSurfaceData precalculatedSurfaceData;
-            float samplingProbabilities[LAYER_COUNT];
-            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
-            float3 woOS = -q.CommittedObjectRayDirection();
+            camVertexContext.posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+            camVertexContext.triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            camVertexContext.woOS = -q.CommittedObjectRayDirection();
             uint instId = q.CommittedInstanceID();
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
 			
 			
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
-            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, randomSamples0.xy,
+            camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			
             float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);
-            float3 normalWS = mul(transformNormal, surfaceDef.geometryNormal);
-            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+            camVertexContext.normalWS = mul(transformNormal, camVertexContext.surfaceDef.geometryNormal);
+            
 			
-            float pdfForwardMISThisNode = pdfForwardCamera * areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * areaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
 				if(!abs.allSamplesEqual(0))
 				{
-					throughput = throughput * calculateTransmittance(q.CommittedRayT(), abs);
-				}
+                    camVertexContext.throughput = camVertexContext.throughput * calculateTransmittance(q.CommittedRayT(), abs);
+                }
 			}
 
-            if (!surfaceDef.emissive.allSamplesEqual(0))
+            if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
-                totalLight = totalLight + throughput * surfaceDef.emissive; //TODO: proper MIS weight
+                totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive; //TODO: proper MIS weight
                 break; 
             } 
 			else
 			//try to connect path to light nodes
 			{
-                float3 prevLightNodePosWS;
-                float3 prevLightNodenormalWS;
-                float prevLightNodePDFForwardMIS;
+                LightVertexContext lightVertexContext;
                 for (uint lightVertexIndex = 0; lightVertexIndex < g_lightPathHeader.offsetAndCount.y; ++lightVertexIndex)
                 {
-                    uint lightNodeIndex = g_lightPathHeader.offsetAndCount.y - lightVertexIndex - 1;
+                    uint lightNodeIndex = lightVertexIndex;
                     LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
                     
+                    float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
+                    float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+                    float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
+                    camVertexContext.wiOS = normalize(lightPosOS - posOS);
 					
-                    SpectralSamples weightLastCameraNode;
-					float pdfForwardLastCameraNode;
-                    float pdfBackwardLastCameraNode;
-					//evaluate weight PDFs for connecting camera node
-					{
-						
-						float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
-						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
-						float3 posOS = mul(toLocalFrame, float4(posWS, 1)).xyz;
-						float3 wiOS = normalize(lightPosOS - posOS);
-                        float pdfForward;
-                        float pdfBackward;
-						evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, weightLastCameraNode, pdfForward, pdfBackward);
-					
-						if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
-                        {
-                            prevLightNodePosWS = lightNode.positionWS;
-                            prevLightNodenormalWS = lightNode.normalWS;
-                            prevLightNodePDFForwardMIS = lightNode.pdfForwardMIS;
-                            continue;
-                        }
-						
-						weightLastCameraNode = weightLastCameraNode / pdfForward;
-
-						pdfForwardLastCameraNode = pdfForward;
-						pdfBackwardLastCameraNode = pdfBackward;
-                    }
-					
-                    SpectralSamples weightLastLightNode;
-                    float pdfForwardLastLightNode;
-                    float pdfBackwardLastLightNode;
-					//evaluate weight PDFs for connecting light node
-					{
-						float4 randSamplesLightConn = getRandomSampleFloat4(lightPathSampleIndex + lightNodeIndex, 0); //TODO: better way to calculate sample indices
-                        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNode, lightNodeIndex, prevLightNodePosWS, posWS, randSamplesLightConn.xy, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
-                        prevLightNodePosWS = lightNode.positionWS;
-                        if (!connectionValid)
-                        {
-                            continue;
-                        }
-
-                    }
+                    SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, lightPathSampleIndex, rayState);
                     
+                    totalLight = totalLight + lightConnectionRadiance;
 					
-					//trace visibility ray to check visibility with node
-					{
-                        const float VISIBILITY_RAY_EPSILON = 0.001f;
-                        float3 toLightWS = lightNode.positionWS.xyz - posWS;
-                        float toLightLen = length(toLightWS);
-						
-                        RayDesc ray;
-                        ray.Origin = posWS;
-                        ray.Direction = toLightWS / toLightLen;
-                        ray.TMin = DEFAULT_RAY_MIN_T;
-                        ray.TMax = toLightLen + VISIBILITY_RAY_EPSILON;
-
-                        q.TraceRayInline(
-							g_accelerationStructure,
-							rayFlags,
-							InstanceInclusionMask,
-							ray);
-
-                        while (q.Proceed());
-						
-                        bool lightNodeVisible = false;
-						
-                        if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
-                        {
-                            uint visInstId = q.CommittedInstanceID();
-                            uint visPrimIndex = q.CommittedPrimitiveIndex();
-							
-							//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
-                            if (visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
-                            {
-                                lightNodeVisible = true;
-                            }
-
-                        } 
-						
-						if(!lightNodeVisible)
-                        {
-                            continue;
-                        }
-                    }
-					
-					//can connect, evaluate connection and accumulate total light
-					{
-						//MIS weight (TODO: deal with cases where path vertex is not a surface (env map))
-                        float riSumCam = pdfRatioSum;
-						
-                        if (camVertexIndex > 1)
-                        {
-                            float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(q.WorldRayOrigin() - posWS, previousNodeNormalWS);
-                            float ratioPrevCam = pdfBackwardPrevNodeCam / pdfForwardMISPreviousCamNode;
-                            riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
-                        } 
-						else if(camVertexIndex == 1)
-                        {
-                            float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(posWS - lightNode.positionWS.xyz, normalWS)) / pdfForwardMISThisNode;
-                            riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
-                        } 
-
-
-                        float riSumLight = lightNode.riSum;
-                        if (lightVertexIndex > 1)
-                        {
-                            float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode * areaDensityMultiplier(prevLightNodePosWS - lightNode.positionWS, prevLightNodenormalWS);
-                            float ratioPrevLightNode = pdfBackwardPrevNodeLight / prevLightNodePDFForwardMIS;
-                            riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
-                        }
-                        else if (lightVertexIndex == 1)
-                        {
-                            float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
-                            riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
-                        } 
-						
-                        float misWeight = 1.f / (1 + riSumCam + riSumLight);
-						
-						
-                        SpectralSamples radianceFromLight;
-                        radianceFromLight.fromFloat4(lightNode.radiance);
-						
-                        float geometryTerm = 1.f; //TODO
-						//TODO: deal with potential transmittance/absorbtion in the connecting path edge
-						
-                        SpectralSamples c = weightLastLightNode * weightLastCameraNode * throughput * radianceFromLight * geometryTerm;
-                        totalLight = totalLight + c;
-                    }
+                    lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
+                    lightVertexContext.prevNodePosWS = lightNode.positionWS;
+                    lightVertexContext.previousPDFForwardMIS = lightNode.pdfForwardMIS;
 
                 }
 				//TODO
 			}
 
-            float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
+            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, camVertexContext.samplingProbabilities);
 
             if (isZero(wiOS))
             {
@@ -628,7 +669,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, w, pdfForward, pdfBackward);
 
 			if(pdfForward == 0 || pdfBackward == 0)
 			{
@@ -638,28 +679,29 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, previousNodeNormalWS);
-                float ratio = pdfBackwardPrevNode / pdfForwardMISPreviousCamNode;
-                pdfRatioSum *= ratio;
-                pdfRatioSum += ratio;
+                float pdfBackwardPrevNode = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+                float ratio = pdfBackwardPrevNode / camVertexContext.previousPDFForwardMIS;
+                camVertexContext.pdfRatioSum *= ratio;
+                camVertexContext.pdfRatioSum += ratio;
             }
 			
-            previousNodeNormalWS = normalWS;
-            pdfForwardMISPreviousCamNode = pdfForwardMISThisNode;
+            camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
+            camVertexContext.prevNodePosWS = camVertexContext.posWS;
+            camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
 			pdfForwardCamera = pdfForward;
 
-            throughput = throughput * w / pdfForward;
+            camVertexContext.throughput = camVertexContext.throughput * w / pdfForward;
 
 			rayDir = mul(transformNormal, wiOS);
-			rayOrigin = posWS;
+            rayOrigin = camVertexContext.posWS;
         }
 		else 
 		{
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST
-			totalLight = totalLight + throughput * ToSpectralSamples(float3(1,1,1));
+			totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1));
 #else
-			totalLight = totalLight + throughput * ToSpectralSamples(skyColor.xyz);
+            totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz);
 #endif
 			++cameraVertexCount;
 			break;
