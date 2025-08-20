@@ -34,10 +34,10 @@ namespace YAPT
 
 		struct RaytracePayload
 		{
+			float absorption[SPECTRAL_SAMPLES_COUNT * RAY_MAX_VOLUMES_ENTERED];
 			float throughput[SPECTRAL_SAMPLES_COUNT];
-			float absorption[SPECTRAL_SAMPLES_COUNT];
 			float totalLight[SPECTRAL_SAMPLES_COUNT];
-			float volumesEntered[RAY_MAX_VOLUMES_ENTERED];
+			float ior[RAY_MAX_VOLUMES_ENTERED];
 			vec3p rayOrigin;
 			uint32_t rayIndex;
 			vec3p rayDirection;

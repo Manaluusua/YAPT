@@ -43,7 +43,7 @@ class MaterialView(QWidget):
         layout.addWidget(QLabel("Misc"))
         layout.addWidget(self.create_material_property_bool("TwoSided"))
         layout.addWidget(self.create_material_property_bool("EnableDispersion"))
-        layout.addWidget(self.create_material_property_float("CauchysCoefficients", 2))
+        layout.addWidget(self.create_material_property_float("CauchysCoefficients", 2, limit_max = 6))
 
         
 

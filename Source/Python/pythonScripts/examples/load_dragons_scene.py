@@ -63,7 +63,7 @@ def letThereBeDragons():
         elif i % 4 == 1:
             mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
             mat.setEnableDispersion(True)
-            mat.setCauchysCoefficients(vec2([1.7280, 0.01342]))
+            mat.setCauchysCoefficients(vec2([1.5046, 0.00420]))
             mat.setRoughness(0.03)
             mat.setAbsorption(vec3([0.02, 0.01, 0.03]))
             pass

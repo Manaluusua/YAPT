@@ -389,6 +389,44 @@ struct LightVertexContext
     float3 prevNodeNormalWS;    
 };
 
+float calculateMISWeight( uint cameraVertexIndex, in CameraVertexContext camVertex,
+uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode,
+float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
+{
+	//MIS weight (TODO: deal with cases where path vertex is not a surface (env map))
+    float riSumCam = camVertex.pdfRatioSum;
+						
+    if (cameraVertexIndex > 1)
+    {
+        float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
+        float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
+        riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
+    }
+    else if (cameraVertexIndex == 1)
+    {
+        float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
+        riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
+    }
+
+
+    float riSumLight = lightNode.riSum;
+    if (lightVertexIndex > 1)
+    {
+        float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode * areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
+        float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
+        riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
+    }
+    else if (lightVertexIndex == 1)
+    {
+        float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
+        riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
+    }
+						
+    float misWeight = 1.f / (1 + riSumCam + riSumLight);
+	
+    return misWeight;
+}
+
 SpectralSamples calculateLightPathRadiance(uint cameraVertexIndex, in CameraVertexContext camVertex,
 uint lightVertexIndex, in LightVertexContext lightVertex, uint lightPathSampleIndex,
 in BDPTRayState rayState)
@@ -481,43 +519,13 @@ in BDPTRayState rayState)
 					
 	//can connect, evaluate connection and accumulate total light
 	{
-		//MIS weight (TODO: deal with cases where path vertex is not a surface (env map))
-        float riSumCam = camVertex.pdfRatioSum;
-						
-        if (cameraVertexIndex > 1)
-        {
-            float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
-            float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
-            riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
-        }
-        else if (cameraVertexIndex == 1)
-        {
-            float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
-            riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
-        }
+        float misWeight = calculateMISWeight(cameraVertexIndex, camVertex, lightVertexIndex, lightVertex, lightNode, pdfBackwardLastCameraNode, pdfForwardLastCameraNode, pdfBackwardLastLightNode, pdfForwardLastLightNode);
 
-
-        float riSumLight = lightNode.riSum;
-        if (lightVertexIndex > 1)
-        {
-            float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode * areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
-            float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
-            riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
-        }
-        else if (lightVertexIndex == 1)
-        {
-            float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
-            riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
-        }
-						
-        float misWeight = 1.f / (1 + riSumCam + riSumLight);
-						
-						
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);
 						
         float geometryTerm = 1.f; //TODO
-						//TODO: deal with potential transmittance/absorbtion in the connecting path edge
+		//TODO: deal with potential transmittance/absorbtion in the connecting path edge
 						
         retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight * geometryTerm;
         return retVal;
@@ -697,11 +705,20 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
         }
 		else 
 		{
+			
+            float misWeight = 1.f;
+			
+			//if we hit directly from camera to env, this path can only be constructed this way so MIS weight is 1
+            if (camVertexIndex > 0)
+            {
+				//TODO: proper MIS weight
+            }
+			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST
-			totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1));
+			totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
 #else
-            totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz);
+            totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
 #endif
 			++cameraVertexCount;
 			break;

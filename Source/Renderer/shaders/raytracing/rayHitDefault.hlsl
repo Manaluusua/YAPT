@@ -280,12 +280,10 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	float rayDistance = RayTCurrent();
 	
 	//before handling the intersection, apply and clear absorption
-	if (!payload.absorption.allSamplesEqual(0))
+    SpectralSamples absorb = payload.getAbsorption();
+    if (!absorb.allSamplesEqual(0))
 	{
-
-		payload.throughput = payload.throughput * calculateTransmittance(rayDistance, payload.absorption);
-		payload.absorption.set(0.f);
-		
+        payload.throughput = payload.throughput * calculateTransmittance(rayDistance, absorb);
 	}
 	
 	if(!surfaceDef.emissive.allSamplesEqual(0))

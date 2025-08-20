@@ -481,9 +481,10 @@ void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 no
 
 }
 
-float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLength)
+float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
 {
-	return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLength * waveLength));
+    float waveLengthum = waveLengthNM * 0.001f;
+    return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLengthum * waveLengthum)); //assume cauchys coeffs are in micrometers
 }
 
 SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)

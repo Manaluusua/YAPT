@@ -41,7 +41,6 @@ void rayGenPrimaryRays()
 	payload.pathLength = 0;
 	payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
 	payload.numberVolumesEntered = 0;
-	payload.absorption.set(0.0f);
 	payload.flags = 0;
     payload.pdfThisRay = 0;
 	
