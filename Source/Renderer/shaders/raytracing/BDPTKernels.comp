@@ -578,14 +578,13 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	float pdfForwardCamera = 1;
 	uint cameraVertexCount = 0;
-	uint rayIndex = dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x;
 	
 	uint2 lightPathIndices = floor((dispatchThreadId.xy * g_targetTexDimensions.zw) * g_lightPathsPerDim);
 	uint lightPathSampleIndex = lightPathIndices.y * g_lightPathsPerDim.x + lightPathIndices.x;
 
 	for(uint camVertexIndex = 0; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
-		uint sampleIndex = g_currentRandomSampleIndex + (dispatchThreadId.y * 7) + camVertexIndex * 5 + rayIndex * 11;
+		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId) + camVertexIndex;
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 
 		uint rayFlags = RAY_FLAG_NONE;

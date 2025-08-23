@@ -319,9 +319,10 @@ namespace YAPT
 			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> sampleLambdas;
 			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> samplePDFs;
 
+
 			for (uint32_t i = 0; i < SPECTRAL_SAMPLESET_COUNT; ++i)
 			{
-				float rand = MathUtils::halton<float>(11, sampleOffset + i);
+				float rand = MathUtils::halton(MathUtils::PRIME_NUMBERS[NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS], sampleOffset + i, MathUtils::getScrambledDigitsForPrimeIndex(NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS));
 				SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, sampleLambdas.data() + i * SPECTRAL_SAMPLES_COUNT, samplePDFs.data() + i * SPECTRAL_SAMPLES_COUNT, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
 			}
 

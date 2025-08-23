@@ -137,7 +137,7 @@ float weightMIS(float a, float b)
 
 uint getRaySampleIndex(in Payload rayState, in int pathLengthOffset = 0)
 {
-    return g_currentRandomSampleIndex + (DispatchRaysIndex().y * 7) + (rayState.getPathLength() + pathLengthOffset) * 5 + rayState.getRayIndex() * 11;
+    return g_currentRandomSampleIndex + getPerTexelSampleOffset(DispatchRaysIndex().xy) + rayState.getPathLength() + pathLengthOffset;
 }
 
 void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)

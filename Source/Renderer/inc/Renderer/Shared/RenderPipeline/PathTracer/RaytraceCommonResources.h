@@ -118,6 +118,7 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 
+
 		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 		bool m_applySubpixelJitter;
 

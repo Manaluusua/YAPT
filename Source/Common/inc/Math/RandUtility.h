@@ -1,5 +1,7 @@
 #pragma once
 #include "Math.h"
+#include "Common/CommonUtilities.h"
+#include <glm/gtc/random.hpp>
 
 namespace YAPT
 {
@@ -17,8 +19,21 @@ namespace YAPT
 			353, 359, 367, 373, 379, 383, 389, 397, 401, 409,
 			419, 421, 431, 433, 439, 443, 449, 457, 461, 463,
 			467, 479, 487, 491, 499, 503, 509, 521, 523, 541
-
 		};
+
+		constexpr uint32_t PRIME_NUMBERS_COUNT = (uint32_t)countOf(PRIME_NUMBERS);
+
+		const uint16_t* getScrambledDigitsForPrimeIndex(uint32_t index);
+		
+		template<typename T>
+		void shuffleArray(T* arr, int count) 
+		{
+			for (int i = 0; i < count; ++i) 
+			{
+				int other = i + glm::linearRand(0, count - i - 1);
+				std::swap(arr[i], arr[other]);
+			}
+		}
 
 		inline uint32_t reverseBits32(uint32_t n) {
 			n = (n << 16) | (n >> 16);
@@ -41,45 +56,44 @@ namespace YAPT
 			return vec2(vanDerCorputSequence(i), float(i) / float(n));
 		}
 
-		template<typename RES_TYPE>
-		RES_TYPE halton(size_t base, size_t index);
+		float halton(uint64_t base, uint64_t index, const uint16_t* scrambledDigits);
 
-		template<typename RES_TYPE, glm::precision PRECISION, size_t... BASES>
-		void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec<sizeof...(BASES), RES_TYPE, PRECISION>* samplesOut, size_t indexOffset);
+		template<typename RES_TYPE, glm::precision PRECISION, size_t... PRIMEINDICES>
+		void generateHaltonSequence(size_t numberOfSamplesToGenerate, glm::vec<sizeof...(PRIMEINDICES), RES_TYPE, PRECISION>* samplesOut, size_t indexOffset);
 
 		template<typename RES_TYPE>
-		void generateHaltonSequenceWithBases(size_t numberOfSamplesToGenerate, uint32_t numberOfComponents, const uint32_t* bases, RES_TYPE* samplesOut, size_t indexOffset);
+		void generateHaltonSequenceWithDimensions(size_t numberOfSamplesToGenerate, uint32_t numberOfComponents,  RES_TYPE* samplesOut, size_t indexOffset);
 
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec2* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::aligned_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 0, 1>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec3* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::aligned_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1], PRIME_NUMBERS[2]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 0, 1, 2>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec4* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::aligned_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1], PRIME_NUMBERS[2], PRIME_NUMBERS[3]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::aligned_highp, 0, 1, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 
-		
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec2p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::packed_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 0, 1>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec3p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::packed_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1], PRIME_NUMBERS[2]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 0, 1, 2>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, vec4p* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequence<float, glm::precision::packed_highp, PRIME_NUMBERS[0], PRIME_NUMBERS[1], PRIME_NUMBERS[2], PRIME_NUMBERS[3]>(numberOfSamplesToGenerate, samplesOut, indexOffset);
+			generateHaltonSequence<float, glm::precision::packed_highp, 0, 1, 2, 3>(numberOfSamplesToGenerate, samplesOut, indexOffset);
 		}
 		
 		inline void generateHaltonSequence(size_t numberOfSamplesToGenerate, uint32_t numberOfDimensions, float* samplesOut, size_t indexOffset)
 		{
-			generateHaltonSequenceWithBases(numberOfSamplesToGenerate, numberOfDimensions, PRIME_NUMBERS, samplesOut, indexOffset);
+			assert(numberOfDimensions < PRIME_NUMBERS_COUNT);
+			generateHaltonSequenceWithDimensions(numberOfSamplesToGenerate, numberOfDimensions, samplesOut, indexOffset);
 		}
 
 	}

@@ -5,6 +5,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <algorithm>
 
 namespace YAPT
 {
@@ -36,8 +37,11 @@ namespace YAPT
 	typedef glm::vec<3, int, glm::packed_highp> ivec3p;
 	typedef glm::vec<4, int, glm::packed_highp> ivec4p;
 	
-	const static vec3 s_worldForward(0.f, 0.f, -1.f);
-	const static vec3 s_worldUp(0.f, 1.0f, 0.f);
-	const static vec3 s_worldRight(1.0f, 0.0f, 0.0f);
+	constexpr vec3 s_worldForward(0.f, 0.f, -1.f);
+	constexpr vec3 s_worldUp(0.f, 1.0f, 0.f);
+	constexpr vec3 s_worldRight(1.0f, 0.0f, 0.0f);
+
+	constexpr double s_oneMinusEpsilonDouble = 0x1.fffffffffffffp-1;
+	constexpr float s_oneMinusEpsilonFloat = 0x1.fffffep-1;
 }
 
