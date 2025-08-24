@@ -5,8 +5,9 @@
 #include "materialSample.hlsl"
 #include "rayState.hlsl"
 
-#define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1)
-#define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (2)
+#define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1 << 0)
+#define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
+#define LIGHT_PATH_NODE_FLAG_ENV_LIGHT (1 << 2)
 
 struct BidirectionalPathTraceConstants
 {
@@ -440,12 +441,13 @@ float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
 }
 
 
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection)
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
 {
 	if (g_lightCount == 0)
 	{
         sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
         pdflightSelection = 1.f;
+        sampledEnvironment = true;
         return;
     }
 
@@ -455,6 +457,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSamp
 	{
         sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
         pdflightSelection = envSampleRelativeProbability / lightProb;
+        sampledEnvironment = true;
 
     }
 	else
@@ -462,6 +465,8 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSamp
 		uint lightIndex = min((uint)floor(lightPickRand * g_lightCount), g_lightCount - 1);
         sampleLight(lightIndex, lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
         pdflightSelection = 1 / lightProb;
+        sampledEnvironment = false;
+
     }
     
 

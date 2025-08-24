@@ -53,11 +53,11 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	{
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
-
+		bool sampledEnvironment;
 		float lightSamplePDF;
 		float lightPosPDF;
 		float lightDirPDF;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, radiance, lightPos, lightDir, lightPosPDF, lightDirPDF, lightSamplePDF);
+        sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, radiance, lightPos, lightDir, lightPosPDF, lightDirPDF, lightSamplePDF,sampledEnvironment);
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
@@ -73,7 +73,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].radiance = radiance.toFloat4();
 		nodes[0].positionWS = lightPos;
 		nodes[0].pdfForwardMIS = lightPosPDF * lightSamplePDF;
-		nodes[0].flags = 0;
+		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
 		pdfForward = lightDirPDF;
     }
 
@@ -427,6 +427,19 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     return misWeight;
 }
 
+float calculateMISWeightOnCameraPathHittingLight( uint cameraVertexIndex, in CameraVertexContext camVertex, uint instanceIndex, uint primitiveIndex)
+{
+	//if we hit directly from camera to env, this path can only be constructed one way so MIS weight is 1
+	if (cameraVertexIndex == 0)
+	{
+		return 1.f;
+	}
+
+	
+
+	return 1.f;
+}
+
 SpectralSamples calculateLightPathRadiance(uint cameraVertexIndex, in CameraVertexContext camVertex,
 uint lightVertexIndex, in LightVertexContext lightVertex, uint lightPathSampleIndex,
 in BDPTRayState rayState)
@@ -472,18 +485,20 @@ in BDPTRayState rayState)
 
     }
                     
-					
+	float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
+	float toLightLenSqr = dot(toLightWS, toLightWS);
+    float toLightLen = sqrt(toLightLenSqr);
+	float3 toLightDir = toLightWS / toLightLen;
 	//trace visibility ray to check visibility with node
 	{
         const float VISIBILITY_RAY_EPSILON = 0.001f;
-        float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
-        float toLightLen = length(toLightWS);
+        
 		
         uint rayFlags = RAY_FLAG_NONE;
         uint InstanceInclusionMask = ~0;
         RayDesc ray;
         ray.Origin = camVertex.posWS;
-        ray.Direction = toLightWS / toLightLen;
+        ray.Direction = toLightDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
         ray.TMax = toLightLen + VISIBILITY_RAY_EPSILON;
 
@@ -524,10 +539,20 @@ in BDPTRayState rayState)
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);
 						
-        float geometryTerm = 1.f; //TODO
-		//TODO: deal with potential transmittance/absorbtion in the connecting path edge
+        float geometryTerm = 1.f / toLightLenSqr;
+		geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
+		if((lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) == 0)
+		{
+			geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
+		}
+
+		SpectralSamples absorptionOnConnection = rayState.getAbsorption();
+		if(!absorptionOnConnection.allSamplesEqual(0))
+		{
+            weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
+        }
 						
-        retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight * geometryTerm;
+        retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm;
         return retVal;
     }
 	
@@ -584,7 +609,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	for(uint camVertexIndex = 0; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
-		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId) + camVertexIndex;
+		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId.xy) + camVertexIndex;
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 
 		uint rayFlags = RAY_FLAG_NONE;
@@ -637,7 +662,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
             if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
-                totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive; //TODO: proper MIS weight
+				float misWeight = calculateMISWeightOnCameraPathHittingLight( camVertexIndex, camVertexContext, instId, primIndex);
+                totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
                 break; 
             } 
 			else
@@ -705,13 +731,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		else 
 		{
 			
-            float misWeight = 1.f;
-			
-			//if we hit directly from camera to env, this path can only be constructed this way so MIS weight is 1
-            if (camVertexIndex > 0)
-            {
-				//TODO: proper MIS weight
-            }
+            float misWeight = calculateMISWeightOnCameraPathHittingLight( camVertexIndex, camVertexContext, -1, -1);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST
