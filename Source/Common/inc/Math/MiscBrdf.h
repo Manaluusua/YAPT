@@ -16,11 +16,10 @@ namespace YAPT
 
 	vec3p sampleHemisphere(const vec2p& sample)
 	{
-		float phi = 2.0f * PI * sample.y;
-		float cosTheta = sqrt(1.f - sample.x);
-		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
-		vec3p wi = vec3p(cos(phi) * sinTheta, cosTheta, sin(phi) * sinTheta);
-		return wi;
+		float z = sample.x;
+		float r = sqrt(1.f - z*z);
+		float phi = 2.f * PI * sample.y;
+		return vec3p(r * cos(phi), z, r * sin(phi));
 	}
 
 	vec3p evaluateLambertian(const vec3p& albedo, const vec3p& wi)
@@ -28,8 +27,9 @@ namespace YAPT
 		return albedo / vec3p(PI);
 	}
 
-	float pdfHemisphere(const vec3p& wi) {
-		return MathUtils::saturate(wi.y) / PI;
+	float pdfHemisphere()
+	{
+		return 1.f / (2 * PI);
 	}
 
 	//from imageworks sheen: http://www.aconty.com/pdf/s2017_pbs_imageworks_sheen.pdf

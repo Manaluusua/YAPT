@@ -54,10 +54,11 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
 		bool sampledEnvironment;
+		float3 lightNormal;
 		float lightSamplePDF;
 		float lightPosPDF;
 		float lightDirPDF;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, 0.5f, radiance, lightPos, lightDir, lightPosPDF, lightDirPDF, lightSamplePDF,sampledEnvironment);
+        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment);
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
@@ -68,7 +69,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].instanceIndex = -1;
 		nodes[0].primitiveIndex = -1;
 		nodes[0].barycentrics = -1;
-		nodes[0].normalWS = lightDir;
+		nodes[0].normalWS = lightNormal;
 		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
 		nodes[0].radiance = radiance.toFloat4();
 		nodes[0].positionWS = lightPos;
@@ -175,7 +176,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}
 
-			nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz);
+			nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
 			//store previous vertex
 			{
@@ -420,7 +421,12 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     {
         float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
         riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
-    }
+    } 
+	else if(lightVertexIndex == 0)
+	{
+		bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
+		
+	}
 						
     float misWeight = 1.f / (1 + riSumCam + riSumLight);
 	

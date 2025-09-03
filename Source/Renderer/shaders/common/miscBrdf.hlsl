@@ -11,13 +11,14 @@ float3 sampleHemisphere(in float2 s)
     return float3(r * cos(phi), z,  r * sin(phi));
 }
 
+float pdfHemisphere()
+{
+    return 1.f / (2.f * PI);
+}
+
 float3 evaluateLambertian(in float3 albedo, in float3 wi) 
 {
 	return albedo / PI;
-}
-
-float pdfHemisphere(float3 wi) {
-	return 1.f / (2.f * PI);
 }
 
 //from imageworks sheen: http://www.aconty.com/pdf/s2017_pbs_imageworks_sheen.pdf

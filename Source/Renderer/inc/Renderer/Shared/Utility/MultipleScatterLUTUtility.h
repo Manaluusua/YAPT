@@ -386,7 +386,7 @@ namespace YAPT
 			float G = GSheen(wo, wi, a);
 			float D = DSheen(wm, a);
 
-			float pdf = pdfHemisphere(wi);
+			float pdf = pdfHemisphere();
 
 			float weight = G * D / max(4.f * wo.y * wi.y, 0.000001f);
 

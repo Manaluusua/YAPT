@@ -222,7 +222,7 @@ float pdfDiffuseLambertian(in float3 wo, in float3 wi, in float ax, in float ay)
 	{
 		return 0.f;
 	}
-	float pdf = pdfHemisphere(wi); //diff
+	float pdf = pdfHemisphere(); //diff
 	return pdf;
 }
 template<typename T>
@@ -252,7 +252,7 @@ float pdfSheen(in float3 wo, in float3 wi, in float r)
 	{
 		return 0.f;
 	}
-	float pdf =  pdfHemisphere(wi);
+	float pdf =  pdfHemisphere();
 	return pdf;
 }
 

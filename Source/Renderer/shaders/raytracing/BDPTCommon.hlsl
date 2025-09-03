@@ -4,6 +4,7 @@
 #include "../globalDefinitions.hlsl"
 #include "materialSample.hlsl"
 #include "rayState.hlsl"
+#include "../common/miscBrdf.hlsl"
 
 #define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1 << 0)
 #define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
@@ -161,6 +162,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 
 #define g_envType g_bdptConstants.envType
 #define g_envTexIndex g_bdptConstants.envTextureIndex
+
+#define g_sampleEnvLightProbabilityWeight 0.5f
 
 #ifdef WRITABLE_LIGHT_DATA
 
@@ -393,15 +396,15 @@ void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOu
 
 }
 
-void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfPosOut, out float pdfDirOut)
+void sampleLight(uint lightIndex, float4 randValues0, float2 randValues1, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut)
 {
 	LightEntryGPU lightEntry = g_lights[lightIndex];
 	MeshEntryGPU meshEntry = getMeshEntry(lightEntry.meshIndex);
 
 	uint primCount = (meshEntry.indexCount / 3);
-	uint primitiveIndex = min(primCount * randValues.z, primCount - 1);
+    uint primitiveIndex = min(primCount * randValues0.z, primCount - 1);
 
-	float3 barycentrics = float3(1 - randValues.x - randValues.y, randValues.x, randValues.y);
+    float3 barycentrics = float3(1 - randValues0.x - randValues0.y, randValues0.x, randValues0.y);
 	uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
 
 	float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
@@ -413,7 +416,12 @@ void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianc
 	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
 
-	normal = mul(lightEntry.transformInvTransp, float4(normal, 1.f)).xyz;
+	normal = mul(lightEntry.transformInvTransp, float4(normal, 0.f)).xyz;
+    tangent = mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz;
+    
+    float3x3 tanToWS = constructBasisTransform(normal, tangent);
+    float3 lightDir = sampleHemisphere(randValues1);
+    lightDir = mul(tanToWS, lightDir);
 
 	float3 p1, p2, p3;
 	fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
@@ -426,10 +434,11 @@ void sampleLight(uint lightIndex, float4 randValues, out SpectralSamples radianc
 	radianceOut.setFromRGBUnbounded(surfaceDefRGB.emissive);
     
     pdfPosOut = 1.f / (primCount * area);
-    pdfDirOut = 1.f; //TODO: check if this is correct
+    pdfDirOut = pdfHemisphere();
     
 	posOut = pos;
-	dirOut = normal; 
+    dirOut = lightDir;
+    normalOut = normal;
 
 }
 
@@ -441,13 +450,14 @@ float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
 }
 
 
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
 {
 	if (g_lightCount == 0)
 	{
-        sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
+        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
         pdflightSelection = 1.f;
         sampledEnvironment = true;
+        normalOut = 0;
         return;
     }
 
@@ -455,22 +465,39 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand, float envSamp
 	float s = lightPickRand * lightProb;
 	if (s > g_lightCount)
 	{
-        sampleEnvironmentLighting(lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
+        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
         pdflightSelection = envSampleRelativeProbability / lightProb;
         sampledEnvironment = true;
+        normalOut = 0;
 
     }
 	else
 	{
 		uint lightIndex = min((uint)floor(lightPickRand * g_lightCount), g_lightCount - 1);
-        sampleLight(lightIndex, lightSampleRand, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
+        sampleLight(lightIndex, lightSampleRand0, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut);
         pdflightSelection = 1 / lightProb;
         sampledEnvironment = false;
 
     }
-    
+}
 
+void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativeProbability,  out float lightPickPDF, out float posPDF, out float dirPDF)
+{
+
+    float lightProb = g_lightCount + envSampleRelativeProbability;
+    lightPickPDF = 1.f / lightProb;
+    //TODO: refactor light sampling to separate PDF calculation
 
 }
+
+void pdfForSamplingEnv(float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
+{
+
+    float lightProb = g_lightCount + envSampleRelativeProbability;
+    lightPickPDF = envSampleRelativeProbability / lightProb;
+    //TODO: refactor light sampling to separate PDF calculation
+    
+}
+
 
 #endif
