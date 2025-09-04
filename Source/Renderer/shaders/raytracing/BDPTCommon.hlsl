@@ -380,13 +380,13 @@ void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOu
 	float pdfPos;
 	float3 lightPos;
 	{
-		float4 worldCenterRad = getWorldCenterAndRadiusSqr();
+		float4 worldCenterRadSqr = getWorldCenterAndRadiusSqr();
 		float3 v1, v2;
 		constructVectorBase(lightDir, v1, v2);
 		float2 cd = sampleConcentricDisk(randValues.zw);
-		lightPos = worldCenterRad.xyz + sqrt(worldCenterRad.w) * (cd.x * v1 + cd.y * v2);
-		pdfPos = 1 / (PI * worldCenterRad.w);
-	}
+        lightPos = worldCenterRadSqr.xyz + sqrt(worldCenterRadSqr.w) * (cd.x * v1 + cd.y * v2);
+        pdfPos = 1 / (PI * worldCenterRadSqr.w);
+    }
 
 	radianceOut.setFromRGBUnbounded(getSkyBoxColor(-lightDir, g_envType, g_envTexIndex).xyz);
 	posOut = lightPos;
@@ -483,19 +483,48 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
 
 void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativeProbability,  out float lightPickPDF, out float posPDF, out float dirPDF)
 {
-
+    
     float lightProb = g_lightCount + envSampleRelativeProbability;
     lightPickPDF = 1.f / lightProb;
-    //TODO: refactor light sampling to separate PDF calculation
+    
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(lightNode.instanceIndex);
+    RenderObjectTransformDataGPU transformData = getTransformDataForInstance(lightNode.instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+    uint primCount = (meshEntry.indexCount / 3);
+    
+    ////
+    uint primitiveIndex = lightNode.primitiveIndex;
+    float3 barycentrics = float3(1 - lightNode.barycentrics.x - lightNode.barycentrics.y, lightNode.barycentrics.x, lightNode.barycentrics.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float3x4 transf = transformData.getObjToWorld();
+    
+    float3 p1, p2, p3;
+    fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
+    p1 = mul(transf, float4(p1, 1)).xyz;
+    p2 = mul(transf, float4(p2, 1)).xyz;
+    p3 = mul(transf, float4(p3, 1)).xyz;
+    float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
+
+    posPDF = 1.f / (primCount * area);
+    dirPDF = pdfHemisphere();
 
 }
 
-void pdfForSamplingEnv(float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
+void pdfForSamplingEnv(float envSampleRelativeProbability, float3 p, float3 dir, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
 
     float lightProb = g_lightCount + envSampleRelativeProbability;
     lightPickPDF = envSampleRelativeProbability / lightProb;
-    //TODO: refactor light sampling to separate PDF calculation
+    
+    //float theta = acos(clamp(dir.y, -1, 1));
+    //float sinTheta = sin(theta);
+    float cosTheta = dir.y;
+    float sinTheta = sqrt(1.f - cosTheta * cosTheta);
+    
+    float4 worldCenterRadSqr = getWorldCenterAndRadiusSqr();
+    dirPDF = safeDiv(1.f, (2.f * PI * PI * sinTheta));
+    posPDF = 1 / (PI * worldCenterRadSqr.w);
+    
     
 }
 
