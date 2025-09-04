@@ -481,7 +481,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
     }
 }
 
-void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativeProbability,  out float lightPickPDF, out float posPDF, out float dirPDF)
+void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativeProbability, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
     
     float lightProb = g_lightCount + envSampleRelativeProbability;
@@ -506,11 +506,11 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativePro
     float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
 
     posPDF = 1.f / (primCount * area);
-    dirPDF = pdfHemisphere();
+    dirPDF = dot(lightNode.normalWS, towardsDir) >= 0 ? pdfHemisphere() : 0;
 
 }
 
-void pdfForSamplingEnv(float envSampleRelativeProbability, float3 p, float3 dir, out float lightPickPDF, out float posPDF, out float dirPDF)
+void pdfForSamplingEnv(float envSampleRelativeProbability, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
 
     float lightProb = g_lightCount + envSampleRelativeProbability;
@@ -518,14 +518,12 @@ void pdfForSamplingEnv(float envSampleRelativeProbability, float3 p, float3 dir,
     
     //float theta = acos(clamp(dir.y, -1, 1));
     //float sinTheta = sin(theta);
-    float cosTheta = dir.y;
+    float cosTheta = towardsDir.y;
     float sinTheta = sqrt(1.f - cosTheta * cosTheta);
     
     float4 worldCenterRadSqr = getWorldCenterAndRadiusSqr();
     dirPDF = safeDiv(1.f, (2.f * PI * PI * sinTheta));
     posPDF = 1 / (PI * worldCenterRadSqr.w);
-    
-    
 }
 
 

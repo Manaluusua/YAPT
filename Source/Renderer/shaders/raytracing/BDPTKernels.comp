@@ -320,6 +320,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
     {
         pdfForwardOut = 1;
         pdfBackwardOut = 1;
+		
         weightOut.fromFloat4(lightNode.radiance);
     }
     else
@@ -394,7 +395,6 @@ float calculateMISWeight( uint cameraVertexIndex, in CameraVertexContext camVert
 uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode,
 float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
 {
-	//MIS weight (TODO: deal with cases where path vertex is not a surface (env map))
     float riSumCam = camVertex.pdfRatioSum;
 						
     if (cameraVertexIndex > 1)
@@ -403,13 +403,13 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
         riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
     }
-    else if (cameraVertexIndex == 1)
+    if (cameraVertexIndex > 0)
     {
         float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
         riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
     }
 
-
+	//TODO: should handle the case where the previous node (ie. the light source) was an environment map sample, and thus, no area density should be applied (need to maintain information of the source of the path)
     float riSumLight = lightNode.riSum;
     if (lightVertexIndex > 1)
     {
@@ -417,14 +417,37 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
         riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
     }
-    else if (lightVertexIndex == 1)
-    {
+	
+    if (lightVertexIndex  > 0)
+    { 
         float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
         riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
     } 
-	else if(lightVertexIndex == 0)
+	
+	if(lightVertexIndex == 0)
 	{
 		bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
+        float lightPickPDF;
+        float lightPosPDF;
+        float lightDirPDF;
+		
+        float3 camToLight = lightNode.positionWS.xyz - camVertex.posWS;
+        float camToLightLength = length(camToLight);
+        float3 lightToCam = camToLight / camToLightLength;
+		
+        float misWeightToLight;
+        if (isEnvLight)
+        {
+            pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
+            misWeightToLight = pdfForwardLastCameraNode;
+        }
+        else
+        {
+            pdfForSamplingLightNode(lightNode, g_sampleEnvLightProbabilityWeight, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
+            misWeightToLight = pdfForwardLastCameraNode * areaDensityMultiplier(camToLight, lightNode.normalWS);
+        }
+		
+        riSumLight = pdfForwardLastCameraNode / (lightPickPDF * lightPosPDF);
 		
 	}
 						
