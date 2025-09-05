@@ -388,7 +388,8 @@ struct LightVertexContext
 {
     float3 prevNodePosWS;
     float previousPDFForwardMIS;
-    float3 prevNodeNormalWS;    
+    float3 prevNodeNormalWS;
+    uint originatingNodeFlags;
 };
 
 float calculateMISWeight( uint cameraVertexIndex, in CameraVertexContext camVertex,
@@ -396,7 +397,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode light
 float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
 {
     float riSumCam = camVertex.pdfRatioSum;
-						
+	//TODO: the actual first node would be the origina of the ray from camera but its not considered (and can never be hit by path from light). Revisit if its correct to just ignore it here
     if (cameraVertexIndex > 1)
     {
         float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
@@ -409,24 +410,11 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
     }
 
-	//TODO: should handle the case where the previous node (ie. the light source) was an environment map sample, and thus, no area density should be applied (need to maintain information of the source of the path)
+	
     float riSumLight = lightNode.riSum;
-    if (lightVertexIndex > 1)
+    if (lightVertexIndex == 0)
     {
-        float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode * areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
-        float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
-        riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
-    }
-	
-    if (lightVertexIndex  > 0)
-    { 
-        float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
-        riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
-    } 
-	
-	if(lightVertexIndex == 0)
-	{
-		bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
+        bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
         float lightPickPDF;
         float lightPosPDF;
         float lightDirPDF;
@@ -443,31 +431,73 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         }
         else
         {
-            pdfForSamplingLightNode(lightNode, g_sampleEnvLightProbabilityWeight, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
+            pdfForSamplingLightNode(lightNode, lightToCam, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
             misWeightToLight = pdfForwardLastCameraNode * areaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
         riSumLight = pdfForwardLastCameraNode / (lightPickPDF * lightPosPDF);
 		
-	}
-						
+    } else
+    {
+        float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode;
+        if (lightVertexIndex == 1)
+        {
+            bool isEnvLight = (lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
+            if(!isEnvLight)
+            {
+                pdfBackwardPrevNodeLight *= areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
+            }
+        }
+		
+         
+        float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
+        riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
+
+		float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
+		riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
+    }
+	
     float misWeight = 1.f / (1 + riSumCam + riSumLight);
 	
     return misWeight;
 }
 
-float calculateMISWeightOnCameraPathHittingLight( uint cameraVertexIndex, in CameraVertexContext camVertex, uint instanceIndex, uint primitiveIndex)
+float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint instanceIndex, uint primitiveIndex, float2 bary, CameraVertexContext camVertexContext)
 {
-	//if we hit directly from camera to env, this path can only be constructed one way so MIS weight is 1
+	//if we hit directly to light from camera, this path can only be done this way and MIS is 1
 	if (cameraVertexIndex == 0)
 	{
 		return 1.f;
 	}
 
+    float lightPickPDF;
+    float lightPosPDF;
+    float lightDirPDF;
 	
+    float3 towardsPreviousCameraNode = camVertexContext.prevNodePosWS - camVertexContext.posWS;
+    pdfForSamplingLightNode(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNode, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
+	
+    float riSumCam = camVertexContext.pdfRatioSum;
+    float ratioAtLight = (lightPickPDF * lightPosPDF) / camVertexContext.currentNodeForwardPDFMIS;
+    float ratioBeforeLight = (lightDirPDF * areaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS)) / camVertexContext.previousPDFForwardMIS;
 
-	return 1.f;
+    riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+    riSumCam = ratioAtLight * riSumCam + ratioAtLight;
+
+    return riSumCam;
 }
+
+float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertexContext context, float3 rayOrigin, float3 rayDir)
+{
+	//if we hit directly to light from camera, this path can only be done this way and MIS is 1
+    if (cameraVertexIndex == 0)
+    {
+        return 1.f;
+    }
+
+    return 1.f;
+}
+
 
 SpectralSamples calculateLightPathRadiance(uint cameraVertexIndex, in CameraVertexContext camVertex,
 uint lightVertexIndex, in LightVertexContext lightVertex, uint lightPathSampleIndex,
@@ -691,7 +721,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
             if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
-				float misWeight = calculateMISWeightOnCameraPathHittingLight( camVertexIndex, camVertexContext, instId, primIndex);
+                float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
                 totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
                 break; 
             } 
@@ -716,6 +746,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
                     lightVertexContext.prevNodePosWS = lightNode.positionWS;
                     lightVertexContext.previousPDFForwardMIS = lightNode.pdfForwardMIS;
+					if(lightVertexIndex == 0)
+                    {
+                        lightVertexContext.originatingNodeFlags = lightNode.flags;
+                    }
 
                 }
 				//TODO
@@ -760,7 +794,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		else 
 		{
 			
-            float misWeight = calculateMISWeightOnCameraPathHittingLight( camVertexIndex, camVertexContext, -1, -1);
+            float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST

@@ -481,20 +481,18 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
     }
 }
 
-void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativeProbability, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
+void pdfForSamplingLightNode(uint instanceIndex, uint primitiveIndex, float2 bary, float3 lightSurfaceNormal, float3 towardsDir, float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
     
     float lightProb = g_lightCount + envSampleRelativeProbability;
     lightPickPDF = 1.f / lightProb;
     
-    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(lightNode.instanceIndex);
-    RenderObjectTransformDataGPU transformData = getTransformDataForInstance(lightNode.instanceIndex);
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
+    RenderObjectTransformDataGPU transformData = getTransformDataForInstance(instanceIndex);
     MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
     uint primCount = (meshEntry.indexCount / 3);
-    
-    ////
-    uint primitiveIndex = lightNode.primitiveIndex;
-    float3 barycentrics = float3(1 - lightNode.barycentrics.x - lightNode.barycentrics.y, lightNode.barycentrics.x, lightNode.barycentrics.y);
+
+    float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
     uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
     float3x4 transf = transformData.getObjToWorld();
     
@@ -506,8 +504,13 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float envSampleRelativePro
     float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
 
     posPDF = 1.f / (primCount * area);
-    dirPDF = dot(lightNode.normalWS, towardsDir) >= 0 ? pdfHemisphere() : 0;
+    dirPDF = dot(lightSurfaceNormal, towardsDir) >= 0 ? pdfHemisphere() : 0;
 
+}
+
+void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
+{
+    pdfForSamplingLightNode(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
 }
 
 void pdfForSamplingEnv(float envSampleRelativeProbability, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
