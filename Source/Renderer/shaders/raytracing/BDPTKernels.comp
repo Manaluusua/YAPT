@@ -475,7 +475,8 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     float lightDirPDF;
 	
     float3 towardsPreviousCameraNode = camVertexContext.prevNodePosWS - camVertexContext.posWS;
-    pdfForSamplingLightNode(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNode, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
+	float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
+    pdfForSamplingLightNode(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
     float ratioAtLight = (lightPickPDF * lightPosPDF) / camVertexContext.currentNodeForwardPDFMIS;
@@ -484,7 +485,8 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
 
-    return riSumCam;
+    float misWeight = 1.f / (1 + riSumCam);
+    return misWeight;
 }
 
 float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertexContext context, float3 rayOrigin, float3 rayDir)
@@ -495,7 +497,22 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
         return 1.f;
     }
 
-    return 1.f;
+    float lightPickPDF;
+	float lightPosPDF;
+	float lightDirPDF;
+
+	pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, -rayDir, lightPickPDF, lightPosPDF, lightDirPDF);
+
+	float riSumCam = context.pdfRatioSum;
+    float ratioAtLight = (lightPickPDF * lightPosPDF) / context.currentNodeForwardPDFMIS;
+    float ratioBeforeLight = lightDirPDF / context.previousPDFForwardMIS; //this hits a surface. Should it have areaDensityMultiplier with distance being world bounds or smth?
+
+    riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+    riSumCam = ratioAtLight * riSumCam + ratioAtLight;
+
+	float misWeight = 1.f / (1 + riSumCam);
+    return misWeight;
+	
 }
 
 
@@ -793,7 +810,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
         }
 		else 
 		{
-			
+			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;	
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
