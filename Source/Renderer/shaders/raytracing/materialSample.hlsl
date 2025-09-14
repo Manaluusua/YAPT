@@ -31,18 +31,13 @@ typedef uint TransmissionType;
 #define TRANSMISSION_TYPE_EXITED 2
 #define TRANSMISSION_TYPE_DISPERSED 4
 
-void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, 
-	in float3 woBase,in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, float2 rand,
-	out float samplingProbabilities[LAYER_COUNT])
+void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef,
+	in float3 woBase, in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, out float samplingProbabilities[LAYER_COUNT])
 {
-	//decide here if we will sample reflections or transmission
-	float3 wm = sampleWMGGX(woBase, a2.x, a2.y, rand.x, rand.y);
-	float F = fresnelDielectricDielectric2(toIOR/fromIOR, dot(woBase, wm));
-	
-	bool comingFromInside = woBase.y < 0;
-	float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
-	float refrProb = (1.f - F) * surfaceDef.transparency;
-	float reflProb = 1.f - refrProb;
+    bool comingFromInside = woBase.y < 0;
+    float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
+    float refrProb = 0.5f * surfaceDef.transparency;
+    float reflProb = 1.f - refrProb;
 	
 	//explicit TIR handling (enable if Fresnel doesn't take TIR into account)
 	/*float3 wi = refract(-woBase, wm, fromIOR/toIOR);
@@ -52,7 +47,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 		refrProb = 0.f;
 	}*/
 
-	float sampleSum = 0.f;
+    float sampleSum = 0.f;
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * reflProb * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * reflProb * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * reflProb * fromInsideMultiplier);
@@ -61,18 +56,18 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_TRANSMITTED, refrProb);
 	
-	sampleSum = max(0.000001f, sampleSum);
+    sampleSum = max(0.000001f, sampleSum);
 	
-	for(uint i = 0; i < LAYER_COUNT; ++i)
-	{
-		samplingProbabilities[i] /= sampleSum;
-	}
+    for (uint i = 0; i < LAYER_COUNT; ++i)
+    {
+        samplingProbabilities[i] /= sampleSum;
+    }
 
 }
 
-void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, float2 rand, out float samplingProbabilities[LAYER_COUNT])
+void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData,  out float samplingProbabilities[LAYER_COUNT])
 {
-	calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, preCalcData.woBase, preCalcData.woCoating, preCalcData.fromIOR, preCalcData.toIOR, preCalcData.a2, rand, samplingProbabilities);
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, preCalcData.woBase, preCalcData.woCoating, preCalcData.fromIOR, preCalcData.toIOR, preCalcData.a2, samplingProbabilities);
 }
 
 
@@ -202,7 +197,9 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
 		float pdf = coating.pdf(woCoating, wiCoating);
 
-		if (pdf > 0 && !onlyPDF)
+        bool coatingReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
+		
+        if (pdf > 0 && !onlyPDF && coatingReflected)
 		{
 			weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft);
 			energyLeft *= coating.getEnergyLeftAfterLayer(woCoating, wiCoating, surfaceDef.clearCoatAmount);
@@ -210,12 +207,15 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		}
 	}
 
+    bool baseReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
+    bool baseRefracted = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) < 0;
+	
 	if (samplingProbabilities[LAYERIND_COATING_SHEEN] > 0)
 	{
 		ReflectionSheen sheen = ReflectionSheen::init(surfaceDef.sheenColor, surfaceDef.sheenRoughness);
 		float pdf = sheen.pdf(woBase, wiBase);
 
-		if (pdf > 0 && !onlyPDF)
+        if (pdf > 0 && !onlyPDF && baseReflected)
 		{
 			weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft);
 			energyLeft *= sheen.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.sheenAmount);
@@ -228,7 +228,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		ReflectionConductor conductor = ReflectionConductor::init(surfaceDef.albedo, surfaceDef.specular, a2, surfaceDef.roughness, fromIOR);
 		float pdf = conductor.pdf(woBase, wiBase);
 
-		if (pdf > 0 && !onlyPDF)
+        if (pdf > 0 && !onlyPDF && baseReflected)
 		{
 			weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft);
 			energyLeft *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
@@ -242,7 +242,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		ReflectionDielectric spec = ReflectionDielectric::init(a2, surfaceDef.roughness, toIOR / fromIOR);
 		float pdf = spec.pdf(woBase, wiBase);
 
-		if (pdf > 0 && !onlyPDF)
+        if (pdf > 0 && !onlyPDF && baseReflected)
 		{
 			weightSum = weightSum + evaluateLayer(spec, woBase, wiBase, surfaceDef.specularAmount * energyLeft);
 			energyLeft *= spec.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.specularAmount);
@@ -256,7 +256,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		DiffuseLayer diff = DiffuseLayer::init(surfaceDef.albedo, a2);
 		float pdf = diff.pdf(woBase, wiBase);
 
-		if (pdf > 0 && !onlyPDF)
+        if (pdf > 0 && !onlyPDF && baseReflected)
 		{
 			float diffuseAmount = 1.f - surfaceDef.transparency;
 			weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft);
@@ -286,13 +286,13 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 		TransmittedLayer transmitted = TransmittedLayer::init(a2, surfaceDef.roughness, etaR);
 		float pdf = transmitted.pdf(woBase, wiBase);
 
-		if (pdf > 0 && !onlyPDF)
+		if (pdf > 0 && !onlyPDF && baseRefracted)
 		{
 
 			pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
 
 			bool twoSided = isTwoSided(surfaceDef.flags);
-			bool wasTransmitted = (dot(surfaceDef.geometryNormal, wiObjSpace) * dot(surfaceDef.geometryNormal, woObjSpace) < 0.f) && !twoSided;
+			bool wasTransmitted = !twoSided;
 
 			float solidAngleCompression = 1.f;
 

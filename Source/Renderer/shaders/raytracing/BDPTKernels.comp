@@ -129,8 +129,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
 			lightNodeFlags |= (rayState.getStateFlags() & TRANSMISSION_TYPE_DISPERSED) != 0 ? LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS : 0;
 			
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, randomSamples0.xy,
-            surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 			
             float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);
@@ -335,9 +334,6 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;
                             
         SurfaceDefinitionRGB surfaceDefRGB = g_localNodes[lightNodeIndex].surfaceDefRGB;
-        surfaceDefRGB.coatingLayerNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.coatingLayerNormal, surfaceDefRGB);
-        surfaceDefRGB.baseLayerNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.baseLayerNormal, surfaceDefRGB);
-        surfaceDefRGB.geometryNormal = nudgeNormal(-woOSLightConnection, surfaceDefRGB.geometryNormal, surfaceDefRGB);
 	    
         SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
         PrecalculatedSurfaceData precalculatedSurfaceData;
@@ -351,7 +347,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         rayState.setStateFlags(0);
 
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
-        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, materialLayerRands, samplingProbabilities);
+        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
         evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, weightOut, pdfForwardOut, pdfBackwardOut);
 					
         if (pdfForwardOut == 0 || pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
@@ -678,12 +674,12 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     camVertexContext.previousPDFForwardMIS = 0;
 	
 	float pdfForwardCamera = 1;
-	uint cameraVertexCount = 0;
+	uint camVertexIndex = 0;
 	
 	uint2 lightPathIndices = floor((dispatchThreadId.xy * g_targetTexDimensions.zw) * g_lightPathsPerDim);
 	uint lightPathSampleIndex = lightPathIndices.y * g_lightPathsPerDim.x + lightPathIndices.x;
 
-	for(uint camVertexIndex = 0; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
+	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
 		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId.xy) + camVertexIndex;
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
@@ -718,8 +714,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float2 bary = q.CommittedTriangleBarycentrics();
 			
 			
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, randomSamples0.xy,
-            camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			
             float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);
@@ -819,7 +814,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 #else
             totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
 #endif
-			++cameraVertexCount;
 			break;
 		}
 	}
@@ -830,16 +824,16 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	g_outputColor[dispatchThreadId.xy]  = float4(color, 1.f);
     
 	/*
-	if(payload.pathLength == 1)
+	if(camVertexIndex == 0)
 	{
 		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
-	} else if(payload.pathLength < 3)
+	} else if(camVertexIndex == 1)
 	{
 		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
-	} else if(payload.pathLength < 6)
+	} else if(camVertexIndex < 6)
 	{
 		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 1.0f,  10.f);
-	} else if(payload.pathLength < 15)
+	} else if(camVertexIndex < 15)
 	{
 		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 1.0f,  20.f);
 	}

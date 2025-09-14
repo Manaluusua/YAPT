@@ -294,6 +294,16 @@ float3 fetchMeshNormal(in uint2 normalBuffer, in uint3 indices, in float3 baryce
 	return normalize(barycentrics.x * n1 + barycentrics.y * n2 + barycentrics.z * n3);
 }
 
+float3 fetchMeshTriangleNormal(in uint2 posBuffer, in uint3 indices, in float3 barycentrics)
+{
+    float3 p1;
+    float3 p2;
+    float3 p3;
+    fetchMeshPositions(posBuffer, indices, p1, p2, p3);
+
+    return normalize(cross(p2 - p1, p3 - p1));
+}
+
 bool meshHasValidTangents(in uint2 tangentBuffer)
 {
 	return isValidPackedBufferInfo(tangentBuffer);
@@ -420,6 +430,16 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 		surfaceDef.emissive *= emissive.rgb;
 	}
 	
+}
+
+void modifySurfaceEmissionWithTexture(in MaterialEntryGPU matEntry, in float2 uv, inout SurfaceDefinitionRGB surfaceDef)
+{
+    if (matEntry.emissiveTexIndexAndScale.x != TEX_UNBOUND_INDEX)
+    {
+        float2 uvScale = unpackTextureTransformScale(matEntry.emissiveTexIndexAndScale.y);
+        float4 emissive = g_textures2D[matEntry.emissiveTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
+        surfaceDef.emissive *= emissive.rgb;
+    }
 }
 
 float3 nudgeNormal(float3 rayDir, float3 geometryNormal, in SurfaceDefinitionRGB surfaceDef)

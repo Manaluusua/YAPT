@@ -81,17 +81,13 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
 	    //Initial surface setup
         float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
         uint3 indices = fetchIndices(meshEntry.indexBuffer, primIndex);
-        float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
-        float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
         float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
-
-        float3 normal = geometryNormal;
 
 	    //fetch surface material parameters
         MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
         SurfaceDefinitionRGB surfaceDefRGB;
         fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-        modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+        modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
         surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
         emission = surfaceDef.emissive;
         return true;
@@ -150,7 +146,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), -rayDirObjSpace, triangleHitFrontFace, precalculatedSurfData);
 
     float samplingProbabilities[LAYER_COUNT];
-    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, randomSamplesBRDF.xy, samplingProbabilities);
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, samplingProbabilities); 
     
 	//Next Event Estimation (explicit light connections)
 #ifdef ENABLE_NEE
@@ -251,15 +247,14 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	//Initial surface setup
     float3 barycentrics = float3(1 - attr.barycentrics.x - attr.barycentrics.y, attr.barycentrics.x, attr.barycentrics.y);
 	uint3 indices = fetchIndices(meshEntry.indexBuffer, PrimitiveIndex());
-	float3 geometryNormal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+    float3 geometryNormal = fetchMeshTriangleNormal(meshEntry.positionBuffer, indices, barycentrics);
+    float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
 	float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
 	float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
 	
 	
 	float3 rayDir = ObjectRayDirection();
 	rayDir = normalize(rayDir); //ObjectRayDirection() contains scaling (if present)
-
-	float3 normal = geometryNormal;
 
 	//fetch surface material parameters
 	MaterialEntryGPU matEntry = getMaterialEntry(materialAndMeshIndices.x);
@@ -268,10 +263,6 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
     setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
-    
-    surfaceDefRGB.coatingLayerNormal = nudgeNormal(rayDir, surfaceDefRGB.coatingLayerNormal, surfaceDefRGB);
-    surfaceDefRGB.baseLayerNormal = nudgeNormal(rayDir, surfaceDefRGB.baseLayerNormal, surfaceDefRGB);
-    surfaceDefRGB.geometryNormal = nudgeNormal(rayDir, surfaceDefRGB.geometryNormal, surfaceDefRGB);
 
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
