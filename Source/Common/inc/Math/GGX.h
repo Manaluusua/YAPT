@@ -282,8 +282,9 @@ namespace YAPT
 		{
 			if (dot(wo, wm) * dot(wi, wm) > 0) return vec3p(0.f);
 			float denom = abs(wo.y * wi.y);
+			float solidAngleCompression = 1.f;//MathUtils::sqr(1.f / etaR);
 			weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi);
-			weight = MathUtils::safeDiv(weight, denom);
+			weight = MathUtils::safeDiv(weight, denom) * solidAngleCompression;
 		}
 		return weight;
 	}

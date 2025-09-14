@@ -39,9 +39,18 @@ struct ReflectionDielectric: MaterialLayer
 			float weight = evaluateGGXReflectionDielectric(etaR, roughness2.x, roughness2.y, wo, wi);
 			
 			//multiscatter
-			float3 wm = normalize(wo + wi);
-			float fms = getFmsDielectric(etaR, abs(dot(wo, wm)));
-			float msbrdf = getEnergyCompensation(fms, abs(wo.y), abs(wi.y), linearRoughness, weight);
+            float msbrdf;
+            bool useTranslucentCompensation = false;
+            if (useTranslucentCompensation)
+            {
+                msbrdf = getEnergyCompensationTranslucent(etaR, wo.y, wi.y, linearRoughness, weight);
+            } else
+            {
+                float3 wm = normalize(wo + wi);
+                float fms = getFmsDielectric(etaR, abs(dot(wo, wm)));
+                msbrdf = getEnergyCompensation(fms, abs(wo.y), abs(wi.y), linearRoughness, weight);
+            }
+			
 			weight += msbrdf;
 			weight *= abs(wi.y);
 
