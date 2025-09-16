@@ -105,12 +105,11 @@ float getAvgFresnel(float etaR)
 float getReflectionRatio(float etaR, float linearRoughness)
 {
     float a = getAvgFresnel(etaR);
-    float b = getAverageAlbedoTranslucent(1.f / etaR, linearRoughness); //sampleLut(vec2p(linearRoughness, 1.f / etaR), etaR < 1.f ? singleScatteringAverageAlbedoDenserLut : singleScatteringAverageAlbedoLighterLut, vec2p(SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM));
-    float c = getAvgFresnel(1.f / etaR);
-    float d = getAverageAlbedoTranslucent(etaR, linearRoughness); //sampleLut(vec2p(linearRoughness, etaR), etaR < 1.f ? singleScatteringAverageAlbedoLighterLut : singleScatteringAverageAlbedoDenserLut, vec2p(SS_ALBEDO_TRANSLUCENT_LUT_DIM, SS_ALBEDO_TRANSLUCENT_LUT_DIM));
+    float b = getAvgFresnel(1.f / etaR);
+    float c = getAverageAlbedoTranslucent(etaR, linearRoughness);
+    float d = getAverageAlbedoTranslucent(1.f / etaR, linearRoughness);
     float e = etaR * etaR;
-
-    float x = (b - 1.f) * (c - 1.f) * e / SAFE_DIVISOR(a * d - a + b * c * e - b * e - c * e - d + e + 1.f);
+    float x = (b - 1.f) * (d - 1.f) * e / SAFE_DIVISOR(a*(c-1) + e * (b * d - b - d + 1) - c + 1);
     return x;
 }
 
@@ -187,7 +186,7 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaInv, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaInv, linearRoughness);
-        ratio = getReflectionRatio(etaR, linearRoughness);
+        ratio = 1.f; //getReflectionRatio(etaR, linearRoughness);
     } 
 	else
     {
@@ -200,23 +199,14 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
 	//TODO: handle transmission vs reflection. now assumes transmission
     
 	
-    float ems = (ratio * (1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+    float ems = (ratio *  (1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
 	return ems;
 }
 
 
 float getEnergyCompensationTranslucentTurquin(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
 {
-    float dirAlbedoWo;
-    if (etaR < 1.f)
-    {
-        dirAlbedoWo = getSSDirectionalAlbedoTranslucentLighter(etaR, abs(dotWo), linearRoughness);
-    }
-    else
-    {
-        dirAlbedoWo = getSSDirectionalAlbedoTranslucentDenser(etaR, abs(dotWo), linearRoughness);
-    }
-
+    float dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, abs(dotWo), linearRoughness);
     float ems = (singleScatter / dirAlbedoWo) - singleScatter;
 
     return ems;

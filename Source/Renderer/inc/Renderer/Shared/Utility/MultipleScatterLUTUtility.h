@@ -11,11 +11,25 @@
 #define SS_ALBEDO_SHEEN_LUT_DIM 16
 #define MS_LUT_FORMAT (ResourceFormat::R32_SFLOAT)
 
-#define MIN_COS_THETA 0.0001f
+#define MIN_COS_THETA 0.001f
+#define ETA_EPSILON_MIN_FROM_1 0.01f
 
 
 namespace YAPT
 {
+	float ensureValidEtaR(float etaR)
+	{
+		//don't allow too close to 1
+		if (etaR > 1)
+		{
+			return max(etaR, 1.f + ETA_EPSILON_MIN_FROM_1);
+		}
+		else
+		{
+			return min(etaR, 1.f - ETA_EPSILON_MIN_FROM_1);
+		}
+	}
+
 	float sampleLut(float u, const float* lut, uint32_t dimension)
 	{
 		u = glm::clamp(u, 0.f, 1.f);
@@ -216,6 +230,8 @@ namespace YAPT
 		float accum = 0;
 		float a = roughness * roughness;
 
+		etaR = ensureValidEtaR(etaR);
+
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
 		vec3p wo = vec3p(sinTheta, cosTheta, 0);
 
@@ -256,6 +272,8 @@ namespace YAPT
 		MathUtils::generateHaltonSequence(numberOfSamples, samples, 0);
 		float accum = 0;
 
+		etaR = ensureValidEtaR(etaR);
+
 		float a = roughness * roughness;
 
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
@@ -287,6 +305,8 @@ namespace YAPT
 		constexpr uint32_t numberOfSamples = 256;
 		float accum = 0;
 		float a = roughness * roughness;
+
+		etaR = ensureValidEtaR(etaR);
 
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
 		vec3p wo = vec3p(sinTheta, cosTheta, 0);
@@ -334,6 +354,7 @@ namespace YAPT
 		vec3p samples[numberOfSamples];
 		MathUtils::generateHaltonSequence(numberOfSamples, samples, 0);
 		float accum = 0;
+		etaR = ensureValidEtaR(etaR);
 
 		float a = roughness * roughness;
 

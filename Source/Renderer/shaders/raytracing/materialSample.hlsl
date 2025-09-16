@@ -36,7 +36,8 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 {
     bool comingFromInside = woBase.y < 0;
     float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
-    float refrProb = 0.5f * surfaceDef.transparency;
+    float ratioReflRefr = 0.5f; //getAvgFresnel(toIOR/fromIOR); 
+    float refrProb = ratioReflRefr * surfaceDef.transparency;
     float reflProb = 1.f - refrProb;
 	
 	//explicit TIR handling (enable if Fresnel doesn't take TIR into account)

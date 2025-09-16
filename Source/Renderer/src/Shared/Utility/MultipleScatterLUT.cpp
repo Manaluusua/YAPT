@@ -125,6 +125,7 @@ namespace YAPT
 					{
 						size_t srcIndex = y * SS_ALBEDO_LUT_DIM + x;
 						float cosTheta = float(x) / (SS_ALBEDO_LUT_DIM - 1);
+						cosTheta = max(cosTheta, MIN_COS_THETA);
 						float dirAlbedo = singleScatterAlbedo[srcIndex];
 						average += dirAlbedo * cosTheta;
 					}
@@ -191,7 +192,7 @@ namespace YAPT
 						float etaR = float(z) / (SSMS_ALBEDO_LUT_DIM - 1);
 						etaR = 1.f + etaR * 3.f;
 						 
-						etaR = max(etaR, 1.0001f);
+						etaR = max(etaR, 1.001f);
 
 						float albedo = integrateSingleAndMultiScatterGGXAlbedo(roughness, max(cosTheta, MIN_COS_THETA), etaR, item->singleScatteringAlbedo, item->singleScatteringAvgAlbedo);
 						size_t index = z * SSMS_ALBEDO_LUT_DIM * SSMS_ALBEDO_LUT_DIM + (y * SSMS_ALBEDO_LUT_DIM) + x;
@@ -211,6 +212,7 @@ namespace YAPT
 					for (size_t x = 0; x < SSMS_ALBEDO_LUT_DIM; ++x)
 					{
 						float cosTheta = float(x) / (SSMS_ALBEDO_LUT_DIM - 1);
+						cosTheta = max(cosTheta, MIN_COS_THETA);
 						size_t srcIndex = z * SSMS_ALBEDO_LUT_DIM * SSMS_ALBEDO_LUT_DIM + (y * SSMS_ALBEDO_LUT_DIM) + x;
 						float dirAlbedo = fullScatteringAlbedo[srcIndex];
 
@@ -359,6 +361,7 @@ namespace YAPT
 						float cosTheta = float(x) / (SS_ALBEDO_TRANSLUCENT_LUT_DIM - 1);
 						size_t srcIndex = z * SS_ALBEDO_TRANSLUCENT_LUT_DIM * SS_ALBEDO_TRANSLUCENT_LUT_DIM + (y * SS_ALBEDO_TRANSLUCENT_LUT_DIM) + x;
 						float dirAlbedo = translucentScatterAlbedo[srcIndex];
+						cosTheta = max(cosTheta, MIN_COS_THETA);
 
 						average += dirAlbedo * cosTheta;
 					}
