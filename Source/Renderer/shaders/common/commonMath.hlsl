@@ -2,7 +2,7 @@
 #define COMMON_MATH_HLSL_INCL
 #include "common.hlsl"
 
-#define PI 3.14159265
+#define PI 3.14159265f
 #define PI_OVER_2 1.57079633f
 #define PI_OVER_4 0.785398163f
 #define sqr(x) (x*x)

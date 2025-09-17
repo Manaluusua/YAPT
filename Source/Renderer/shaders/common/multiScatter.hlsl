@@ -2,6 +2,8 @@
 #define MULTISCATTER_HLSL_INCL
 #include "commonMath.hlsl"
 #include "fresnel.hlsl"
+#define RECIPROCAL_MULTISCATTER
+
 
 //-------------------------------------- LUT lookups -----------------------------------------------------//
 float getAverageSSDirectionalAlbedoNoFresnel(float linearRoughness)
@@ -115,14 +117,24 @@ float getReflectionRatio(float etaR, float linearRoughness)
 
 //-------------------------------------- Fms -----------------------------------------------------//
 template<typename T>
-T getFmsConductor(T etaR, T etaK, float cosTheta) //TODO
+T getFmsConductor(T etaR, T etaK, float cosTheta) 
 {
+#ifdef RECIPROCAL_MULTISCATTER
+    return fresnelDielectricConductor(etaR, etaK, cosTheta); //TODO: proper reciprocal term
+#else    
 	return fresnelDielectricConductor(etaR, etaK, cosTheta);
+#endif
 }
 
-float getFmsDielectric(float etaR, float cosTheta)
+float getFmsDielectric(float etaR, float linearRoughness, float cosTheta)
 {
+#ifdef RECIPROCAL_MULTISCATTER
+    float fAvg = getAvgFresnel(etaR);
+    float eAvg = getAverageSSDirectionalAlbedoNoFresnel(linearRoughness);
+    return fAvg * eAvg / (1.f - fAvg * (1.f - eAvg));
+#else    
 	return fresnelDielectricDielectric2(etaR, cosTheta);
+#endif
 }
 
 
@@ -133,7 +145,8 @@ T getEnergyCompensationKulla(in T fms, in float dotWo, in float dotWi, in float 
 	float dirAlbedoWo = getSSDirectionalAlbedoNoFresnel(abs(dotWo), linearRoughness);
 	float dirAlbedoWi = getSSDirectionalAlbedoNoFresnel(abs(dotWi), linearRoughness);
 	float eAvg = getAverageSSDirectionalAlbedoNoFresnel(linearRoughness);
-	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+    float ems = safeDiv((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg) * PI);
+    
 	return  fms * ems;
 	
 }
@@ -148,8 +161,11 @@ T getEnergyCompensationTurquin(in T fms, in float dotWo, in float dotWi, in floa
 template<typename T>
 T getEnergyCompensation(in T fms, in float dotWo, in float dotWi, in float linearRoughness, in T singleScatter)
 {
+#ifdef RECIPROCAL_MULTISCATTER
 	return getEnergyCompensationKulla(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
-	//return getEnergyCompensationTurquin(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
+#else
+	return getEnergyCompensationTurquin(fms, abs(dotWo), abs(dotWi), linearRoughness, singleScatter);
+#endif
 }
 
 float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float specularAmount)
@@ -157,9 +173,9 @@ float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float do
 	float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, abs(dotWo), linearRoughness) * specularAmount;
 	float dirAlbedoWi = getSSMSDirectionalAlbedo(etaR, abs(dotWi), linearRoughness) * specularAmount;
 	float eAvg = getSSMSAverageDirectionalAlbedo(etaR, linearRoughness) * specularAmount;
-	float ems = ((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+    float ems = safeDiv((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg));
 	
-	return ems * PI;
+	return ems;
 }
 
 float getEnergyRemainingAfterSheen(in float dotWo, in float dotWi, in float linearRoughness, in float sheenAmount)
@@ -186,7 +202,7 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaInv, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaInv, linearRoughness);
-        ratio = 1.f; //getReflectionRatio(etaR, linearRoughness);
+        ratio = getReflectionRatio(etaR, linearRoughness);
     } 
 	else
     {
@@ -196,10 +212,7 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
         ratio = getReflectionRatio(etaR, linearRoughness);
     }
 	
-	//TODO: handle transmission vs reflection. now assumes transmission
-    
-	
-    float ems = (ratio *  (1.f - dirAlbedoWo) * (1.f - dirAlbedoWi)) / max(0.00001f, PI - eAvg);
+    float ems = safeDiv(ratio * (1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg) * PI);
 	return ems;
 }
 
@@ -214,7 +227,11 @@ float getEnergyCompensationTranslucentTurquin(in float etaR, in float dotWo, in 
 
 float getEnergyCompensationTranslucent(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
 {
+#ifdef RECIPROCAL_MULTISCATTER
+    return getEnergyCompensationTranslucentKulla(etaR, dotWo, dotWi, linearRoughness, singleScatter);
+#else
     return getEnergyCompensationTranslucentTurquin(etaR, dotWo, dotWi, linearRoughness, singleScatter);
+#endif
 
 }
 

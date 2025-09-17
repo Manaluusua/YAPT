@@ -129,7 +129,7 @@ namespace YAPT
 						float dirAlbedo = singleScatterAlbedo[srcIndex];
 						average += dirAlbedo * cosTheta;
 					}
-					singleScatterAvgAlbedo[y] = 2 * PI * average / SS_ALBEDO_LUT_DIM;
+					singleScatterAvgAlbedo[y] = 2 * average / SS_ALBEDO_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			};
@@ -219,7 +219,7 @@ namespace YAPT
 						average += dirAlbedo * cosTheta;
 					}
 
-					fullScatteringAvgAlbedo[z * SSMS_ALBEDO_LUT_DIM + y] = 2 * PI * average / SSMS_ALBEDO_LUT_DIM;
+					fullScatteringAvgAlbedo[z * SSMS_ALBEDO_LUT_DIM + y] = 2 * average / SSMS_ALBEDO_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			}
@@ -366,7 +366,7 @@ namespace YAPT
 						average += dirAlbedo * cosTheta;
 					}
 
-					AvgAlbedo[z * SS_ALBEDO_TRANSLUCENT_LUT_DIM + y] = 2 * PI * average / SS_ALBEDO_TRANSLUCENT_LUT_DIM;
+					AvgAlbedo[z * SS_ALBEDO_TRANSLUCENT_LUT_DIM + y] = 2 * average / SS_ALBEDO_TRANSLUCENT_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			}

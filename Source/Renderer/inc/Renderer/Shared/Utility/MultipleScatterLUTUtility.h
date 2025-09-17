@@ -11,6 +11,7 @@
 #define SS_ALBEDO_SHEEN_LUT_DIM 16
 #define MS_LUT_FORMAT (ResourceFormat::R32_SFLOAT)
 
+#define MIN_ROUGHNESS 0.01f
 #define MIN_COS_THETA 0.001f
 #define ETA_EPSILON_MIN_FROM_1 0.01f
 
@@ -189,6 +190,7 @@ namespace YAPT
 	{
 		constexpr uint32_t numberOfSamples = 256;
 		float accum = 0;
+		roughness = max(MIN_ROUGHNESS, roughness);
 		float a = roughness * roughness;
 
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
@@ -228,6 +230,7 @@ namespace YAPT
 	{
 		constexpr uint32_t numberOfSamples = 256;
 		float accum = 0;
+		roughness = max(MIN_ROUGHNESS, roughness);
 		float a = roughness * roughness;
 
 		etaR = ensureValidEtaR(etaR);
@@ -273,6 +276,7 @@ namespace YAPT
 		float accum = 0;
 
 		etaR = ensureValidEtaR(etaR);
+		roughness = max(MIN_ROUGHNESS, roughness);
 
 		float a = roughness * roughness;
 
@@ -304,6 +308,7 @@ namespace YAPT
 	{
 		constexpr uint32_t numberOfSamples = 256;
 		float accum = 0;
+		roughness = max(MIN_ROUGHNESS, roughness);
 		float a = roughness * roughness;
 
 		etaR = ensureValidEtaR(etaR);
@@ -355,7 +360,7 @@ namespace YAPT
 		MathUtils::generateHaltonSequence(numberOfSamples, samples, 0);
 		float accum = 0;
 		etaR = ensureValidEtaR(etaR);
-
+		roughness = max(MIN_ROUGHNESS, roughness);
 		float a = roughness * roughness;
 
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));
@@ -387,6 +392,7 @@ namespace YAPT
 	{
 		constexpr uint32_t numberOfSamples = 256;
 		float accum = 0;
+		roughness = max(MIN_ROUGHNESS, roughness);
 		float a = max(roughness, 0.07f);
 
 		float sinTheta = sqrt(1.f - MathUtils::sqr(cosTheta));

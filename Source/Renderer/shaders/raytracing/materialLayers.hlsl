@@ -47,7 +47,7 @@ struct ReflectionDielectric: MaterialLayer
             } else
             {
                 float3 wm = normalize(wo + wi);
-                float fms = getFmsDielectric(etaR, abs(dot(wo, wm)));
+                float fms = getFmsDielectric(etaR, linearRoughness, abs(dot(wo, wm)));
                 msbrdf = getEnergyCompensation(fms, abs(wo.y), abs(wi.y), linearRoughness, weight);
             }
 			
