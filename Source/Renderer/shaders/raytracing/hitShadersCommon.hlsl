@@ -523,4 +523,20 @@ SpectralSamples calculateTransmittance(float distance, SpectralSamples absorptio
 	return s;
 }
 
+float3 getRaySpawnOffsetUsingNormal(float3 geometryNormal, float3 nextSampleDir)
+{
+    float offsetEpsilon = 0.001f;
+    bool transmitted = dot(nextSampleDir, geometryNormal) < 0.f ? true : false;
+		
+    float3 rayOffset = geometryNormal * offsetEpsilon;
+    rayOffset *= transmitted ? -1.f : 1.f;
+    return rayOffset;
+}
+
+float3 getRaySpawnOffsetTowardsRay(float3 nextSampleDir)
+{
+    float offsetEpsilon = 0.001f;
+    return nextSampleDir * offsetEpsilon;
+}
+
 #endif

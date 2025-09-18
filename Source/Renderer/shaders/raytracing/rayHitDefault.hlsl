@@ -178,8 +178,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         if (pdfLightDir > 0 && !weightSumLight.allSamplesEqual(0))
         {
             SpectralSamples emission;
-			
-            if (evaluateLightEmission(currentPosWS, explicitLightDirWS, lightRayMaxT, lightInstanceId, emission))
+			float rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(explicitLightDirWS);
+            if (evaluateLightEmission(rayStart, explicitLightDirWS, lightRayMaxT, lightInstanceId, emission))
             {
                 weightSumLight = (weightSumLight / pdfLightDir) * weightMIS(pdfLightDir, pdfBRDF);
                 rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
@@ -323,20 +323,14 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	{
 		float3x3 objToWorldLin =  (float3x3)ObjectToWorld3x4();
 	
-		float offsetEpsilon = 0.001f;
-        bool transmitted = dot(nextSampleDirBRDF, geometryNormal) < 0.f ? true : false;
-		
 		float3 normalWorld = mul(objToWorldLin, geometryNormal);
 		normalWorld = normalize(normalWorld);
-		
-		float3 rayOffset = normalWorld * offsetEpsilon;
-		rayOffset *= transmitted ? -1.f : 1.f;
-	
+
         nextSampleDirBRDF = mul(objToWorldLin, nextSampleDirBRDF);
         nextSampleDirBRDF = normalize(nextSampleDirBRDF);
 
         payload.rayDirection = nextSampleDirBRDF;
-		payload.rayOrigin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + rayOffset;
-	}
+        payload.rayOrigin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + getRaySpawnOffsetUsingNormal(normalWorld, nextSampleDirBRDF);
+    }
 }
 

@@ -49,6 +49,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	LightPathNode nodes[2] = {(LightPathNode)0, (LightPathNode)0};
 	float pdfForward;
 
+	float3 rayDir;
+    float3 rayOrigin;
+
 	//sample light
 	{
 		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
@@ -65,7 +68,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		radiance = radiance / (lightPosPDF * lightDirPDF * lightSamplePDF);
 
-
 		nodes[0].instanceIndex = -1;
 		nodes[0].primitiveIndex = -1;
 		nodes[0].barycentrics = -1;
@@ -76,12 +78,14 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].pdfForwardMIS = lightPosPDF * lightSamplePDF;
 		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
 		pdfForward = lightDirPDF;
+
+		rayDir = lightDir;
+		rayOrigin = lightPos + getRaySpawnOffsetUsingNormal(lightNormal, lightDir);
     }
 
     uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
     uint lightNodeCount = 1;
-    float3 rayDir = lightDir;
-    float3 rayOrigin = lightPos;
+    
 
 	BDPTRayState rayState;
     rayState.setStateFlags(0);
@@ -193,7 +197,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             radiance = radiance * w / pdfForward;
 
 			rayDir = mul(transformNormal, wiOS);
-			rayOrigin = posWS;
+			rayOrigin = posWS + getRaySpawnOffsetUsingNormal(normalWS, rayDir);
         }
 		else 
 		{
@@ -569,7 +573,7 @@ in BDPTRayState rayState)
         uint rayFlags = RAY_FLAG_NONE;
         uint InstanceInclusionMask = ~0;
         RayDesc ray;
-        ray.Origin = camVertex.posWS;
+        ray.Origin = camVertex.posWS + getRaySpawnOffsetUsingNormal(camVertex.normalWS, toLightDir);
         ray.Direction = toLightDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
         ray.TMax = toLightLen + VISIBILITY_RAY_EPSILON;
@@ -681,9 +685,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
-		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId.xy) + camVertexIndex;
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
-
 		uint rayFlags = RAY_FLAG_NONE;
 		uint InstanceInclusionMask = ~0;
 
@@ -702,6 +703,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		    ray);
 
 		while(q.Proceed());
+
+		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId.xy) + camVertexIndex;
+		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
 
 		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 		{
@@ -801,7 +805,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.throughput = camVertexContext.throughput * w / pdfForward;
 
 			rayDir = mul(transformNormal, wiOS);
-            rayOrigin = camVertexContext.posWS;
+            rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
         }
 		else 
 		{

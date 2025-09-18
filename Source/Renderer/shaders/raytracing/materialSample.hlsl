@@ -342,8 +342,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 if (wasTransmitted)
                 {
 				//if transmitted, handle solid angle compression (btdf asymmetry)
-				//solidAngleCompression *= sqr(1.f / etaR);
-				
+				    solidAngleCompression *= sqr(1.f / etaR);
                     transmissionTypeOut |= exiting ? TRANSMISSION_TYPE_EXITED : TRANSMISSION_TYPE_ENTERED;
 
                 }
