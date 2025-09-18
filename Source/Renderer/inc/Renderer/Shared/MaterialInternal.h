@@ -147,6 +147,8 @@ namespace YAPT
 		MaterialIndex getID() const { return m_id; }
 
 	private:
+		void validateMaterial();
+
 		MaterialParameters m_materialParams;
 		MaterialIndex m_id;
 	};

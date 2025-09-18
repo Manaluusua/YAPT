@@ -100,7 +100,7 @@ namespace YAPT
 		float ei = 1.f - sampleLut(vec2p(dotWi, linearRoughness), singleScatteringAlbedoLut, vec2p(lutDimensions, lutDimensions));
 		float eAvg = sampleLut(linearRoughness, singleScatteringAverageAlbedoLut, lutDimensions);
 
-		float ems = eo * ei / max(0.00001f, PI - eAvg);
+		float ems = eo * ei / max(0.0001f, 1.f - eAvg);
 		return fms * ems;
 
 	}

@@ -192,7 +192,7 @@ namespace YAPT
 						float etaR = float(z) / (SSMS_ALBEDO_LUT_DIM - 1);
 						etaR = 1.f + etaR * 3.f;
 						 
-						etaR = max(etaR, 1.001f);
+						etaR = max(etaR, 1.f + ETA_EPSILON_MIN_FROM_1);
 
 						float albedo = integrateSingleAndMultiScatterGGXAlbedo(roughness, max(cosTheta, MIN_COS_THETA), etaR, item->singleScatteringAlbedo, item->singleScatteringAvgAlbedo);
 						size_t index = z * SSMS_ALBEDO_LUT_DIM * SSMS_ALBEDO_LUT_DIM + (y * SSMS_ALBEDO_LUT_DIM) + x;

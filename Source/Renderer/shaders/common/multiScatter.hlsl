@@ -170,21 +170,15 @@ T getEnergyCompensation(in T fms, in float dotWo, in float dotWi, in float linea
 
 float getEnergyRemainingAfterSpecular(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float specularAmount)
 {
-	float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, abs(dotWo), linearRoughness) * specularAmount;
-	float dirAlbedoWi = getSSMSDirectionalAlbedo(etaR, abs(dotWi), linearRoughness) * specularAmount;
-	float eAvg = getSSMSAverageDirectionalAlbedo(etaR, linearRoughness) * specularAmount;
-    float ems = safeDiv((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg));
-	
-	return ems;
+    float dirAlbedoWo = getSSMSDirectionalAlbedo(etaR, abs(dotWo), linearRoughness) * specularAmount;
+    return 1.f - dirAlbedoWo;
+    
 }
 
 float getEnergyRemainingAfterSheen(in float dotWo, in float dotWi, in float linearRoughness, in float sheenAmount)
 {
-	float dirAlbedoWo = getSheenDirectionalAlbedo(abs(dotWo), linearRoughness) * sheenAmount;
-	float dirAlbedoWi = getSheenDirectionalAlbedo(abs(dotWi), linearRoughness) * sheenAmount;
-	float energyLeft = min(1.f - dirAlbedoWo, 1.f - dirAlbedoWi);
-	
-	return energyLeft;
+    float dirAlbedoWo = getSheenDirectionalAlbedo(abs(dotWo), linearRoughness) * sheenAmount;
+    return 1.f - dirAlbedoWo;
 }
 
 float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
