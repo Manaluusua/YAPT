@@ -16,12 +16,27 @@
 
 struct PrecalculatedSurfaceData
 {
-	float2 a2;
+    float3 coatingLayerNormal;
+    float3 baseLayerNormal;
 	float3 woBase;
+    float fromIOR;
 	float3 woCoating;
-	float fromIOR;
 	float toIOR;
+    float2 a2;
 	bool exiting;
+    
+    
+    float3x3 toCoatingLayerTangentSpace(float3 tangent)
+    {
+        return constructBasisTransform(coatingLayerNormal, tangent);
+
+    }
+	
+    float3x3 toBaseLayerTangentSpace(float3 tangent)
+    {
+        return constructBasisTransform(baseLayerNormal, tangent);
+
+    }
 };
 
 typedef uint TransmissionType;
@@ -36,7 +51,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 {
     bool comingFromInside = woBase.y < 0;
     float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
-    float ratioRefr = 0.5f; //getAvgFresnel(toIOR/fromIOR); 
+    float ratioRefr = getAvgFresnel(toIOR/fromIOR); 
     float dielAmount = 1.f - surfaceDef.metalness;
     float refrProb = ratioRefr * surfaceDef.transparency * dielAmount;
     float reflProb = 1.f - refrProb;
@@ -75,13 +90,20 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, in float toIOR, in float3 woBase, in float3 woCoating, in float2 a2, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], in bool exiting)
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
 	float3 wi = 0;
 	float allowTransmitted = surfaceDef.transparency > 0;
 	
+    float fromIOR = preCalcData.fromIOR;
+    float toIOR = preCalcData.toIOR;
+    float3 woBase = preCalcData.woBase;
+    float3 woCoating = preCalcData.woCoating;
+    float2 a2 = preCalcData.a2;
+    bool exiting = preCalcData.exiting;
+    
 	uint sampleLayer;
 	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
 	{
@@ -97,8 +119,8 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		if(woCoating.y > 0)
 		{
 			float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
-			wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, woCoating, randSampleBrdf);
-            wi = mul(wi, surfaceDef.toCoatingLayerTangentSpace());
+            wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, preCalcData.woCoating, randSampleBrdf);
+            wi = mul(wi, preCalcData.toCoatingLayerTangentSpace(surfaceDef.tangent));
         }
 	}
 	else if(sampleLayer == LAYERIND_COATING_SHEEN)
@@ -106,7 +128,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		if(woBase.y > 0)
 		{
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
-            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+            wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
         }
 	} 
 	else if(sampleLayer == LAYERIND_SPEC_CONDUCTOR)
@@ -115,7 +137,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		{
 			
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
-            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+            wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
 
 		}
 	}
@@ -124,7 +146,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
         if (woBase.y > 0)
         {
             wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
-            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+            wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
         }
     } 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
@@ -132,7 +154,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		if(woBase.y > 0)
 		{
 			wi = sampleDiffuseLambertian(a2.x, a2.y, woBase, randSampleBrdf);
-            wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+            wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
         }
 	} 
 	else if(sampleLayer == LAYERIND_TRANSMITTED)
@@ -153,7 +175,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 		float etaR = toIOR/fromIOR;
 		
 		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
-        wi = mul(wi, surfaceDef.toBaseLayerTangentSpace());
+        wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
 		
 	} 
 
@@ -165,12 +187,6 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in float fromIOR, i
 	
 	return wi;
 }
-
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
-{
-    return getSampleDirectionOS(surfaceDef, preCalcData.fromIOR, preCalcData.toIOR, preCalcData.woBase, preCalcData.woCoating, preCalcData.a2, randMaterialType, randSampleBrdf, samplingProbabilities, preCalcData.exiting);
-}
-
 
 void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in bool onlyPDF, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
 {
@@ -186,8 +202,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	SpectralSamples weightSum = (SpectralSamples)0.f;
 	float pdfSum = 0.f;
 
-    float3 wiCoating = mul(surfaceDef.toCoatingLayerTangentSpace(), wiObjSpace);
-    float3 wiBase = mul(surfaceDef.toBaseLayerTangentSpace(), wiObjSpace);
+    float3 wiCoating = mul(precalculatedSurfData.toCoatingLayerTangentSpace(surfaceDef.tangent), wiObjSpace);
+    float3 wiBase = mul(precalculatedSurfData.toBaseLayerTangentSpace(surfaceDef.tangent), wiObjSpace);
 
 	wiCoating = normalize(wiCoating);
 	wiBase = normalize(wiBase);
@@ -370,13 +386,6 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)
 {
 	float2 a2 = calculateRoughnessParams(surfaceDef.roughness, surfaceDef.anisotropy);
-
-    float3 woCoating = mul(surfaceDef.toCoatingLayerTangentSpace(), woObjSpace);
-    float3 woBase = mul(surfaceDef.toBaseLayerTangentSpace(), woObjSpace);
-
-	woCoating = normalize(woCoating);
-	woBase = normalize(woBase);
-
 	float fromIOR;
 	float toIOR;
 	bool exiting = !(triangleHitFrontFace);
@@ -390,14 +399,37 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
         fromIOR = currentIOR;
 		toIOR = surfaceDef.dielectricIOR;
 	}
-
-
 	surfaceDataOut.a2 = a2;
-	surfaceDataOut.woBase = woBase;
-	surfaceDataOut.woCoating = woCoating;
 	surfaceDataOut.fromIOR = fromIOR;
 	surfaceDataOut.toIOR = toIOR;
 	surfaceDataOut.exiting = exiting;
+    
+    surfaceDataOut.baseLayerNormal = surfaceDef.baseLayerNormal;
+    surfaceDataOut.coatingLayerNormal = surfaceDataOut.coatingLayerNormal;
+    
+
+    //make sure the shdading normals don't point to wrong direction
+    //if (dot(surfaceDataOut.baseLayerNormal, woObjSpace) < GLANCING_ANGLE_EPSILON)
+    {
+        //surfaceDataOut.baseLayerNormal = reflect(-surfaceDataOut.baseLayerNormal, surfaceDef.geometryNormal);
+        //surfaceDataOut.baseLayerNormal = surfaceDef.geometryNormal;
+        surfaceDataOut.baseLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.baseLayerNormal, surfaceDef.roughness, surfaceDef.transparency, isTwoSided(surfaceDef.flags));
+
+    }
+    
+    //if (dot(surfaceDataOut.coatingLayerNormal, woObjSpace) < GLANCING_ANGLE_EPSILON)
+    {
+        //surfaceDataOut.coatingLayerNormal = reflect(-surfaceDataOut.coatingLayerNormal, surfaceDef.geometryNormal);
+        //surfaceDataOut.coatingLayerNormal = surfaceDef.geometryNormal;
+        surfaceDataOut.coatingLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.coatingLayerNormal, surfaceDef.clearCoatRoughness, surfaceDef.transparency, isTwoSided(surfaceDef.flags));
+    }
+    
+    float3 woCoating = mul(surfaceDataOut.toCoatingLayerTangentSpace(surfaceDef.tangent), woObjSpace);
+    float3 woBase = mul(surfaceDataOut.toBaseLayerTangentSpace(surfaceDef.tangent), woObjSpace);
+    woCoating = normalize(woCoating);
+    woBase = normalize(woBase);
+    surfaceDataOut.woBase = woBase;
+    surfaceDataOut.woCoating = woCoating;
 }
 
 

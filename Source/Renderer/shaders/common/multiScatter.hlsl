@@ -2,7 +2,7 @@
 #define MULTISCATTER_HLSL_INCL
 #include "commonMath.hlsl"
 #include "fresnel.hlsl"
-#define RECIPROCAL_MULTISCATTER
+//#define RECIPROCAL_MULTISCATTER
 
 
 //-------------------------------------- LUT lookups -----------------------------------------------------//

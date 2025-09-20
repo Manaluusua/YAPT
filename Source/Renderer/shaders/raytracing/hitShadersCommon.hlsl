@@ -69,18 +69,6 @@ struct SurfaceDefinition
 	float sheenRoughness;
 	float sheenAmount;
 	uint flags;
-	
-    float3x3 toCoatingLayerTangentSpace()
-    {
-        return constructBasisTransform(coatingLayerNormal, tangent);
-
-    }
-	
-    float3x3 toBaseLayerTangentSpace()
-    {
-        return constructBasisTransform(baseLayerNormal, tangent);
-
-    }
 };
 
 
@@ -442,41 +430,41 @@ void modifySurfaceEmissionWithTexture(in MaterialEntryGPU matEntry, in float2 uv
     }
 }
 
-float3 nudgeNormal(float3 rayDir, float3 geometryNormal, in SurfaceDefinitionRGB surfaceDef)
+float3 nudgeNormal(float3 rayDir, float3 normal, float roughness, float transparency, bool twoSided)
 {
 	//if two sided, flip normal if view ray hitting from backside
 	//when ray too orthogonal to a normal, nudge the normal (if transparent, nudge a bit more since (rough) transparency can generate very high peaks of energy from these cases) 
 	{
-        float rayDotN = dot(rayDir, geometryNormal);
+        float rayDotN = dot(rayDir, normal);
 
-        if (isTwoSided(surfaceDef.flags))
+        if (twoSided)
         {
             if (rayDotN > 0)
             {
-                geometryNormal = -geometryNormal;
+                normal = -normal;
             }
         }
 
         float rayOrthogonalThreshold = 0.05f;
         float rayOrthogonalNudgeFactor = 0.05f;
 
-        if (surfaceDef.transparency != 0.f)
+        if (transparency != 0.f)
         {
             float RAY_ORTHOGONAL_THRESHOLD_MAX_ROUGHNESS = 0.2f;
             float RAY_ORTHOGONAL_NUDGE_FACTOR_MAX_ROUGHNESS = 0.2f;
 
-            rayOrthogonalThreshold = lerp(rayOrthogonalThreshold, RAY_ORTHOGONAL_THRESHOLD_MAX_ROUGHNESS, surfaceDef.roughness);
-            rayOrthogonalNudgeFactor = lerp(rayOrthogonalNudgeFactor, RAY_ORTHOGONAL_NUDGE_FACTOR_MAX_ROUGHNESS, surfaceDef.roughness);
+            rayOrthogonalThreshold = lerp(rayOrthogonalThreshold, RAY_ORTHOGONAL_THRESHOLD_MAX_ROUGHNESS, roughness);
+            rayOrthogonalNudgeFactor = lerp(rayOrthogonalNudgeFactor, RAY_ORTHOGONAL_NUDGE_FACTOR_MAX_ROUGHNESS, roughness);
         }
 
         if (abs(rayDotN) < rayOrthogonalThreshold)
         {
-            geometryNormal = normalize(geometryNormal - rayDir * rayOrthogonalNudgeFactor);
+            normal = normalize(normal - rayDir * rayOrthogonalNudgeFactor);
         }
 
 
     }
-    return geometryNormal;
+    return normal;
 }
 
 void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
