@@ -64,13 +64,15 @@ namespace YAPT
 		{
 			VkDeviceSize scratchSize = align(blasArray[i]->getSizesInfo().buildScratchSize, m_scratchBuffer.memoryRequirements.alignment);
 
-			if (usedScratchMemory + scratchSize >= m_scratchBuffer.memoryRequirements.size)
+			if (usedScratchMemory + scratchSize > m_scratchBuffer.memoryRequirements.size)
 			{
 				//flush
 				flush(batchOffset, i - batchOffset);
 				batchOffset = i;
-				
+				usedScratchMemory = 0;
 			}
+
+			
 			const VkAccelerationStructureBuildRangeInfoKHR*& buildRange = *(buildRanges.data() + i);
 			blasArray[i]->fillBuildInfo(buildInfo.data() + i, buildRange);
 			buildInfo[i].scratchData.deviceAddress = currentScratchAddress + usedScratchMemory;
@@ -144,7 +146,7 @@ namespace YAPT
 				//flush
 				flush(batchOffset, i - batchOffset);
 				batchOffset = i;
-
+				usedScratchMemory = 0;
 			}
 			const VkAccelerationStructureBuildRangeInfoKHR*& buildRange = *(buildRanges.data() + i);
 			tlasArray[i]->fillBuildInfo(buildInfo.data() + i, buildRange);
