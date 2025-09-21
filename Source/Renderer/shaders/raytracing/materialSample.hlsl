@@ -143,11 +143,10 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	}
 	else if(sampleLayer == LAYERIND_SPEC_DIELECTRIC)
 	{
-        if (woBase.y > 0)
-        {
-            wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
-            wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-        }
+        
+        wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
+        wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+        
     } 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
 	{
