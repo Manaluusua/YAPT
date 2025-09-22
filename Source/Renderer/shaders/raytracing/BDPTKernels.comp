@@ -125,7 +125,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             PrecalculatedSurfaceData precalculatedSurfaceData;
             float samplingProbabilities[LAYER_COUNT];
             bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
-            float3 woOS = -q.CommittedObjectRayDirection();
+            float3 woOS = normalize(-q.CommittedObjectRayDirection());
             uint instId = q.CommittedInstanceID();
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
@@ -196,7 +196,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
             radiance = radiance * w / pdfForward;
 
-			rayDir = mul(transformNormal, wiOS);
+			rayDir = normalize(mul(transformNormal, wiOS));
 			rayOrigin = posWS + getRaySpawnOffsetUsingNormal(normalWS, rayDir);
         }
 		else 
@@ -712,7 +712,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			
             camVertexContext.posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
             camVertexContext.triangleHitFrontFace = q.CommittedTriangleFrontFace();
-            camVertexContext.woOS = -q.CommittedObjectRayDirection();
+            camVertexContext.woOS = normalize(-q.CommittedObjectRayDirection());
             uint instId = q.CommittedInstanceID();
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
@@ -722,7 +722,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			
             float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);
-            camVertexContext.normalWS = mul(transformNormal, camVertexContext.surfaceDef.geometryNormal);
+            camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
 			
             camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * areaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
@@ -804,7 +804,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
             camVertexContext.throughput = camVertexContext.throughput * w / pdfForward;
 
-			rayDir = mul(transformNormal, wiOS);
+			rayDir = normalize(mul(transformNormal, wiOS));
             rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
         }
 		else 
