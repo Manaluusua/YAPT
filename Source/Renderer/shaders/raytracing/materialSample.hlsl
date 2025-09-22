@@ -51,7 +51,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 {
     bool comingFromInside = woBase.y < 0;
     float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
-    float ratioRefr = getAvgFresnel(toIOR/fromIOR); 
+    float ratioRefr = 1.f - getAvgFresnel(toIOR/fromIOR); 
     float dielAmount = 1.f - surfaceDef.metalness;
     float refrProb = ratioRefr * surfaceDef.transparency * dielAmount;
     float reflProb = 1.f - refrProb;
