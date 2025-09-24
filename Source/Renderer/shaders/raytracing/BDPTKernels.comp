@@ -172,7 +172,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
             SpectralSamples w;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, w, pdfForward, pdfBackward);
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, w, pdfForward, pdfBackward);
 
 			if(pdfForward == 0 || pdfBackward == 0)
 			{
@@ -352,7 +352,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, weightOut, pdfForwardOut, pdfBackwardOut);
+        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, weightOut, pdfForwardOut, pdfBackwardOut);
 					
         if (pdfForwardOut == 0 || pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
         {
@@ -534,7 +534,7 @@ in BDPTRayState rayState)
 						
         float pdfForward;
         float pdfBackward;
-        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, weightLastCameraNode, pdfForward, pdfBackward);
+        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, weightLastCameraNode, pdfForward, pdfBackward);
 					
         if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
         {
@@ -781,7 +781,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, w, pdfForward, pdfBackward);
+            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, w, pdfForward, pdfBackward);
 
 			if(pdfForward == 0 || pdfBackward == 0)
 			{

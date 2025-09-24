@@ -274,7 +274,7 @@ float3 generateRayDirection(float2 uv)
 	return rayDir;
 }
 
-void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace,
+void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource,
 out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 {
 
@@ -282,16 +282,27 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 
     TransmissionType transmissionType;
     
-	
-    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, false, weightOut, pdfForward, transmissionType);
+    uint flags = EVALUATE_FLAGS_NONE;
+    if (isFromLightSource)
+    {
+        flags |= EVALUATE_FLAGS_LIGHT_PATH;
+
+    }
+    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags, weightOut, pdfForward, transmissionType);
     
     //This is silly but surface data is not the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on
     {
         TransmissionType transmissionTypeDummy;
+        bool triangleHitFrontfaceReverseDir = triangleHitFrontFace;
+        if (dot(woOS, surfaceDef.geometryNormal) * dot(wiOS, surfaceDef.geometryNormal) < 0)
+        {
+            triangleHitFrontfaceReverseDir = !triangleHitFrontfaceReverseDir;
+
+        }
         
-        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontFace, precalculatedSurfaceData);
+        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
-        evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, true, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
+        evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
     }
     
     

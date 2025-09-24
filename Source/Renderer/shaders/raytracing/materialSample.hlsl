@@ -46,6 +46,10 @@ typedef uint TransmissionType;
 #define TRANSMISSION_TYPE_EXITED 2
 #define TRANSMISSION_TYPE_DISPERSED 4
 
+#define EVALUATE_FLAGS_NONE 0
+#define EVALUATE_FLAGS_PDF_ONLY 1
+#define EVALUATE_FLAGS_LIGHT_PATH 2
+
 void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef,
 	in float3 woBase, in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, out float samplingProbabilities[LAYER_COUNT])
 {
@@ -187,7 +191,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	return wi;
 }
 
-void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in bool onlyPDF, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
+void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
 {
 	float2 a2 = precalculatedSurfData.a2;
 
@@ -208,6 +212,9 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	wiBase = normalize(wiBase);
 
     transmissionTypeOut = TRANSMISSION_TYPE_NONE;
+    
+    bool onlyPDF = (evaluateFlags &  EVALUATE_FLAGS_PDF_ONLY) != 0;
+    bool lightPath = (evaluateFlags & EVALUATE_FLAGS_LIGHT_PATH) != 0;
 	
 	
     bool baseReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
@@ -356,8 +363,12 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 			
                 if (wasTransmitted)
                 {
-				//if transmitted, handle solid angle compression (btdf asymmetry)
-				    solidAngleCompression *= sqr(1.f / etaR);
+				    //if transmitted, handle solid angle compression (btdf asymmetry), but only for camera path
+                    if (!lightPath)
+                    {
+                        solidAngleCompression *= sqr(1.f / etaR);
+                    }
+				    
                     transmissionTypeOut |= exiting ? TRANSMISSION_TYPE_EXITED : TRANSMISSION_TYPE_ENTERED;
 
                 }

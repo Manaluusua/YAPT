@@ -172,7 +172,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		
         SpectralSamples weightSumLight = (SpectralSamples) 0.f;
         TransmissionType transmissionTypeDummy;
-        evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, false, weightSumLight, pdfBRDF, transmissionTypeDummy);
+        evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, pdfBRDF, transmissionTypeDummy);
 		
 		
         if (pdfLightDir > 0 && !weightSumLight.allSamplesEqual(0))
@@ -197,7 +197,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities);
     if (!isZero(wiObjSpace))
     {
-        evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, false, weightSumBRDF, pdfBRDF, transmissionType);
+        evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
     }
 	
     if (pdfBRDF > 0.f)
