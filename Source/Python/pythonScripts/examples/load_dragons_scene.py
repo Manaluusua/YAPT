@@ -27,10 +27,43 @@ def createObject(name, meshPath, pos, scale):
     
     return obj, mesh, mat
 
-def createGround():
+def createSurrounding():
+
+    global resources
+    global renderer
+    global scene
+
+    createWalls = True
+    wallDistance = 450
+    wallScale = 1000 
+    
     obj, mesh, mat = createObject("groundPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", vec3([0, -50, 0]), 2000)
     mat.setRoughness(0.1)
 
+    if(createWalls):
+        for i in range(4):
+            wall = scene.create_object(f"wallPlane_obj_{i}")
+            wall.setMesh(mesh);
+            wall.setMaterial(mat, 0);
+
+            rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), 90)
+            rot =  QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), i * 90) * rot
+            quat = vec4([rot.x(), rot.y(), rot.z(), rot.scalar()])
+            
+            offset = wallDistance
+            pos = None
+            if(i < 2):
+                offset = -offset;
+
+            if(i % 2 == 1):
+                pos = vec3([offset, 0, 0])
+               
+            else:
+                 pos = vec3([0, 0, offset])
+
+            wall.getTransform().setOrientation(quat);
+            wall.getTransform().setTranslation(pos)
+            wall.getTransform().setScale(vec3(wallScale));
 
 def createLight():
     obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", vec3([0, 100, 0]), 10)
@@ -83,7 +116,7 @@ env_map = resources.load_texture_from_path("D:/Random/3DSampleAssets/EnvMaps/env
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
-createGround()
+createSurrounding()
 createLight()
 letThereBeDragons()
 cam_transform = scene.get_main_camera().getTransform()

@@ -60,7 +60,7 @@ void rayGenPrimaryRays()
 			ray.Origin = payload.rayOrigin;
 			ray.Direction = payload.rayDirection;
             ray.TMin = DEFAULT_RAY_MIN_T;
-			ray.TMax = 1000.0;
+            ray.TMax = DEFAULT_RAY_MAX_T;
 		
 			TraceRay(g_accelerationStructure,
 			rayFlags,

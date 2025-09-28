@@ -77,6 +77,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].positionWS = lightPos;
 		nodes[0].pdfForwardMIS = lightPosPDF * lightSamplePDF;
 		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
+		nodes[0].iorPrevious = IOR_DEFAULT;
+		nodes[0].iorCurrent = IOR_DEFAULT;
 		pdfForward = lightDirPDF;
 
 		rayDir = lightDir;
@@ -105,7 +107,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		ray.Origin = rayOrigin;
 		ray.Direction = rayDir;
 		ray.TMin = DEFAULT_RAY_MIN_T;
-		ray.TMax = 1000.0;
+		ray.TMax = DEFAULT_RAY_MAX_T;
 
 		q.TraceRayInline(
 		    g_accelerationStructure,
@@ -536,7 +538,7 @@ in BDPTRayState rayState)
         float pdfBackward;
         evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, weightLastCameraNode, pdfForward, pdfBackward);
 					
-        if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0))
+        if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0) )
         {
             return retVal;
         }
@@ -627,8 +629,9 @@ in BDPTRayState rayState)
 		{
             weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
         }
-						
+		//TODO: weightlastlightnode produces nan/inf. Also radianceFromLight sometimes very high.
         retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm;
+
         return retVal;
     }
 	
@@ -694,7 +697,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		ray.Origin = rayOrigin;
 		ray.Direction = rayDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
-		ray.TMax = 1000.0;
+		ray.TMax = DEFAULT_RAY_MAX_T;
 
 		q.TraceRayInline(
 		    g_accelerationStructure,
