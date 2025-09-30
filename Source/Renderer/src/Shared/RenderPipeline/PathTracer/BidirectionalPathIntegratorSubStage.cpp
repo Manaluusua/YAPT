@@ -30,9 +30,9 @@ namespace YAPT
 
 	BidirectionalPathIntegratorSubStage::BidirectionalPathIntegratorSubStage()
 		:m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
-		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
+		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_lightPathsGPU{ RESOURCE_USAGE_STORAGE_BUFFER, RESOURCE_USAGE_STORAGE_BUFFER },
-		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
+		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
 		m_maxVerticesPerCameraPath(MAX_VERTICES_PER_CAMERA_PATH),
 		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
