@@ -37,6 +37,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+	//could potentially remove this check here and just not write path if we can't reserve a header. This way we maybe end up with more valid paths per sample run
+	if(g_lightPathsPerDim.x <= dispatchThreadId.x || g_lightPathsPerDim.y <= dispatchThreadId.y) return; 
 
 	g_spectralSampleOffset = 0;
 

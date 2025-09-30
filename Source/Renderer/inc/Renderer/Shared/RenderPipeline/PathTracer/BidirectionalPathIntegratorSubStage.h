@@ -57,11 +57,6 @@ namespace YAPT
 			AABB combinedBounds;
 		};
 
-		struct LightPathHeader
-		{
-			uvec2 offsetAndCount;
-		};
-
 		struct LightPathNodePacked
 		{
 			uvec4p data0;
@@ -101,7 +96,7 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
 		
 
-		DynamicSizeGpuBufferHelper<LightPathHeader> m_lightPathHeadersGPU;
+		DynamicSizeGpuBufferHelper<uint32_t> m_lightPathHeadersGPU;
 		DynamicSizeGpuBufferHelper<LightPathNodePacked> m_lightPathsGPU[2];
 		FixedSizeGpuBufferHelper<uvec3> m_countersGPU;
 

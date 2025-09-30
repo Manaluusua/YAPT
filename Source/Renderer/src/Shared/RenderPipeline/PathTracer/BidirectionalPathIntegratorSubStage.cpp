@@ -32,7 +32,7 @@ namespace YAPT
 		:m_constantsGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_UNIFORM_BUFFER),
 		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
 		m_lightPathsGPU{ RESOURCE_USAGE_STORAGE_BUFFER, RESOURCE_USAGE_STORAGE_BUFFER },
-		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER | RESOURCE_USAGE_COPY_DESTINATION),
+		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
 		m_maxVerticesPerCameraPath(MAX_VERTICES_PER_CAMERA_PATH),
 		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
@@ -298,7 +298,7 @@ namespace YAPT
 			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
 			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
 
-			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y, "lightPathHeaders");
+			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y * 2, "lightPathHeaders");
 
 			for (size_t i = 0; i < 2; ++i)
 			{

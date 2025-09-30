@@ -136,11 +136,11 @@ ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, s
 RaytracingAccelerationStructure g_accelerationStructure : register(t1, space3);
 
 #ifdef WRITABLE_LIGHT_DATA
-RWStructuredBuffer<LightPathHeader> g_lightPathHeaders : register(u2, space3);
+RWByteAddressBuffer g_lightPathHeaders : register(u2, space3);
 RWStructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(u3, space3);
 RWByteAddressBuffer g_counters : register(u4, space3);
 #else
-StructuredBuffer<LightPathHeader> g_lightPathHeaders : register(t2, space3);
+ByteAddressBuffer g_lightPathHeaders : register(t2, space3);
 StructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(t3, space3);
 ByteAddressBuffer g_counters : register(t4, space3);
 #endif
@@ -195,7 +195,7 @@ uint reserveLightPathHeader()
 
 void storeLightPathHeader(uint offset, LightPathHeader h)
 {
-	g_lightPathHeaders[offset] = h;
+    g_lightPathHeaders.Store2((offset * 2) << 2, h.offsetAndCount);
 }
 
 
@@ -249,7 +249,9 @@ uint getLightPathsCount()
 
 LightPathHeader getLightPathHeader(uint index)
 {
-    return g_lightPathHeaders[index];
+    LightPathHeader h;
+    h.offsetAndCount = g_lightPathHeaders.Load2((index * 2) << 2);
+    return h;
 }
 
 
