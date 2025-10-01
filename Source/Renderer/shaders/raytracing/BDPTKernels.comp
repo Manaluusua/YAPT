@@ -89,7 +89,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
     uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
     uint lightNodeCount = 1;
-    
+	//reserve header early
+    uint headerOffset = reserveLightPathHeader();
+
+	if((g_lightPathsPerDim.y * g_lightPathsPerDim.x) >= headerOffset) return;
 
 	BDPTRayState rayState;
     rayState.setStateFlags(0);
@@ -227,14 +230,13 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				--lightNodeCount;
 			}
 		}
-	}
-	if(lightNodeCount > 0)
-	{
+
 		LightPathHeader header;
 		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
-		uint headerOffset = reserveLightPathHeader();
 		storeLightPathHeader(headerOffset, header);
+	
 	}
+	
 
 }
 
@@ -647,7 +649,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 {
 	if(groupIndex == 0)
     {
-        uint headerCount = getLightPathsCount();
+		uint maxLightPathCount = g_lightPathsPerDim.y * g_lightPathsPerDim.x;
+        uint headerCount = min(maxLightPathCount, getLightPathsCount());
         uint headerIndex = groupId.y * g_lightPathsPerDim.x + groupId.x;
         headerIndex = headerIndex % headerCount;
         g_lightPathHeader = getLightPathHeader(headerIndex);

@@ -1034,10 +1034,12 @@ namespace YAPT
 		}
 		else
 		{
+			bool isRawView = (bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0;
+
 			D3D12_BUFFER_SRV_FLAGS flags = D3D12_BUFFER_SRV_FLAG_NONE;
 			UINT sizeInBytes;
 			srvOut.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
-			if ((bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0)
+			if (isRawView)
 			{
 				sizeInBytes = 4;
 				srvOut.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -1062,7 +1064,7 @@ namespace YAPT
 			srvOut.Buffer.Flags = flags;
 			srvOut.Buffer.FirstElement = (UINT64)bufViewDesc.offsetInBytes / sizeInBytes;
 			srvOut.Buffer.NumElements = (UINT)bufViewDesc.sizeInBytes / sizeInBytes;
-			srvOut.Buffer.StructureByteStride = (UINT)bufViewDesc.structureStrideInBytes;
+			srvOut.Buffer.StructureByteStride = isRawView ? 0 : (UINT)bufViewDesc.structureStrideInBytes;
 
 			assert((bufViewDesc.offsetInBytes % sizeInBytes) == 0);
 			assert((bufViewDesc.sizeInBytes % sizeInBytes) == 0);
@@ -1171,9 +1173,9 @@ namespace YAPT
 		uavOut.Buffer.CounterOffsetInBytes = 0;
 
 		UINT sizeInBytes;
+		bool isRawView = (bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0;
 
-
-		if ((bufViewDesc.flags & BufferViewFlagBits::BUFFERVIEWFLAGS_RAW) != 0)
+		if (isRawView)
 		{
 			sizeInBytes = 4;
 			uavOut.Format = DXGI_FORMAT_R32_TYPELESS;
@@ -1198,7 +1200,7 @@ namespace YAPT
 
 		uavOut.Buffer.FirstElement = (UINT64)bufViewDesc.offsetInBytes / sizeInBytes;
 		uavOut.Buffer.NumElements = (UINT)bufViewDesc.sizeInBytes / sizeInBytes;
-		uavOut.Buffer.StructureByteStride = (UINT)bufViewDesc.structureStrideInBytes;
+		uavOut.Buffer.StructureByteStride = isRawView ? 0 : (UINT)bufViewDesc.structureStrideInBytes;
 
 		//assert(bufViewDesc.offsetInBytes % sizeInBytes);
 		//assert(bufViewDesc.sizeInBytes % sizeInBytes);
