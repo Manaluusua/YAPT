@@ -553,7 +553,7 @@ in BDPTRayState rayState)
         pdfBackwardLastCameraNode = pdfBackward;
     }
 					
-    SpectralSamples weightLastLightNode;
+    SpectralSamples weightLastLightNode = (SpectralSamples)0;
     float pdfForwardLastLightNode;
     float pdfBackwardLastLightNode;
 	//evaluate weight PDFs for connecting light node
@@ -566,6 +566,8 @@ in BDPTRayState rayState)
         }
 
     }
+
+
                     
 	float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
 	float toLightLenSqr = dot(toLightWS, toLightWS);
@@ -633,8 +635,9 @@ in BDPTRayState rayState)
 		{
             weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
         }
+
 		//TODO: weightlastlightnode produces nan/inf. Also radianceFromLight sometimes very high.
-        retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm;
+        retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm;
 
         return retVal;
     }
