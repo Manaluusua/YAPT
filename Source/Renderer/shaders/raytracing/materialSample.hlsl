@@ -415,7 +415,7 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
 	surfaceDataOut.exiting = exiting;
     
     surfaceDataOut.baseLayerNormal = surfaceDef.baseLayerNormal;
-    surfaceDataOut.coatingLayerNormal = surfaceDataOut.coatingLayerNormal;
+    surfaceDataOut.coatingLayerNormal = surfaceDef.coatingLayerNormal;
     
 
     //make sure the shdading normals don't point to wrong direction
@@ -440,6 +440,8 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
     woBase = normalize(woBase);
     surfaceDataOut.woBase = woBase;
     surfaceDataOut.woCoating = woCoating;
+
+
 }
 
 

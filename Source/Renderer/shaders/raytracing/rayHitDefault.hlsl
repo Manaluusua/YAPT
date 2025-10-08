@@ -150,11 +150,11 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     
 	//Next Event Estimation (explicit light connections)
 #ifdef ENABLE_NEE
-    int lightIndex = -1;
-    float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
     
     if (g_lightCount > 0)
     {
+        int lightIndex = -1;
+        float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
         float4 randomSamplesLight = getRandomSampleFloat4(sampleIndex, 1);
         lightIndex = min((uint) floor(randomSamplesLight.w * g_lightCount), g_lightCount - 1);
 
@@ -190,9 +190,9 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 #endif
 
 	//evaluate next sample direction (BRDF)
-    SpectralSamples weightSumBRDF = (SpectralSamples) 0.f;
-    float pdfBRDF = 0.f;
-    float pdfLightDir = 0.f;
+    SpectralSamples weightSumBRDF;
+    float pdfBRDF;
+    float pdfLightDir;
     TransmissionType transmissionType;
     float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities);
     if (!isZero(wiObjSpace))
