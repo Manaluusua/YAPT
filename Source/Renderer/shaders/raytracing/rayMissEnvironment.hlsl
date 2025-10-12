@@ -2,15 +2,6 @@
 #include "raytraceCommonResources.hlsl"
 #include "payload.hlsl"
 
-struct RayMissShaderTableConstantData
-{
-	uint envTextureIndex;
-	uint envType;
-};
-
-
-SHADERTABLE_EXTRADATA_DECLARE(RayMissShaderTableConstantData);
-
 SpectralSamples ToSpectralSamples(float3 color)
 {
 	SpectralSamples s;
@@ -21,7 +12,7 @@ SpectralSamples ToSpectralSamples(float3 color)
 [shader("miss")]
 void rayMissEnvironment(inout Payload payload)
 {
-	float4 color = getSkyBoxColor(WorldRayDirection(), SHADERTABLE_EXTRADATA.envType, SHADERTABLE_EXTRADATA.envTextureIndex);
+    float4 color = getSkyBoxColor(WorldRayDirection(), g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST
 	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(float3(1,1,1));
 #else

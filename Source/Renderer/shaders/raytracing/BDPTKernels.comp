@@ -482,7 +482,7 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
 	
     float3 towardsPreviousCameraNode = camVertexContext.prevNodePosWS - camVertexContext.posWS;
 	float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
-    pdfForSamplingLightNode(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
+    pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
     float ratioAtLight = (lightPickPDF * lightPosPDF) / camVertexContext.currentNodeForwardPDFMIS;

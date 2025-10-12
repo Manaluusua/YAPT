@@ -137,11 +137,12 @@ namespace YAPT
 
 		desc.rayGenerationDescriptions = rayGenDescs;
 		desc.numberOfRayGenerationDescription = countOf(rayGenDescs);
-		desc.missShaderTableConstantsSizeInBytes = sizeof(RayMissShaderTableConstantData);
+		desc.rayGenShaderTableConstantsSizeInBytes = 0;
+		
 
 		desc.rayMissDescriptions = rayMissDescs;
 		desc.numberOfRayMissDescription = countOf(rayMissDescs);
-		desc.rayGenShaderTableConstantsSizeInBytes = 0;
+		desc.missShaderTableConstantsSizeInBytes = 0;
 
 		desc.maxTraceRecursionDepth = 2;
 
@@ -254,46 +255,12 @@ namespace YAPT
 			entry->extraDataInBytes = 0;
 		}
 
-
-		//update miss
 		{
-			RCPtr<Texture> skymap = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
-			RayMissShaderTableConstantData missConstantData;
-
-			bool hasValidEnvtex = false;
-
-			if (skymap != nullptr)
-			{
-				if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_CUBEMAP)
-				{
-					hasValidEnvtex = true;
-					missConstantData.envType = ENVIRONMENT_TYPE_CUBE;
-
-				}
-				else if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_2D)
-				{
-					hasValidEnvtex = true;
-					missConstantData.envType = ENVIRONMENT_TYPE_LONGLAT;
-				}
-			}
-
-			if (hasValidEnvtex)
-			{
-				missConstantData.envTextureIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
-			}
-			else
-			{
-				missConstantData.envType = ENVIRONMENT_TYPE_NONE;
-				missConstantData.envTextureIndex = uint32_t(-1);
-			}
-
 			ShaderTableEntry* entry = m_shaderTableHelper.appendMissShaderUpdate();
 			entry->shaderIndexInPso = 0;
 			entry->shaderTableIndex = 0;
-			entry->extraDataInBytes = sizeof(RayMissShaderTableConstantData);
-			memcpy(entry->shaderTableExtraData, &missConstantData, sizeof(RayMissShaderTableConstantData));
+			entry->extraDataInBytes = 0;
 		}
-
 
 		m_shaderTableHelper.flush();
 	}

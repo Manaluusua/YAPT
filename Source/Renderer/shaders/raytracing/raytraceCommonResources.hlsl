@@ -13,11 +13,15 @@ struct RaytraceConstantData
 {
 	float4x4 uvToView;
 	float4x4 viewToWorld;
+    float4 worldBoundsMin;
+    float4 worldBoundsMax;
 	float4 cameraPosition;
 	float4 targetTexDimensions;
 	float2 rayUVOffset;
 	uint currentSampleIndex;
 	uint maxRayDepth;
+    uint envTextureIndex;
+    uint envType;
     uint lightCount;
 };
 
@@ -155,6 +159,11 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
 #define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
 #define g_lightCount g_rayGenConstants.lightCount
+#define g_worldBoundsMin g_rayGenConstants.worldBoundsMin.xyz
+#define g_worldBoundsMax g_rayGenConstants.worldBoundsMax.xyz
+#define g_envType g_rayGenConstants.envType
+#define g_envTexIndex g_rayGenConstants.envTextureIndex
+
 
 #define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
 #define g_randomSamples g_randomSampleLocations.samples
@@ -264,9 +273,7 @@ float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)
 	const uint ENVIRONMENT_TYPE_NONE = 0;
 	const uint ENVIRONMENT_TYPE_CUBE = 1;
 	const uint ENVIRONMENT_TYPE_LONGLAT = 2;
-
-
-
+	
 	float4 color;
 
 	if (envType == ENVIRONMENT_TYPE_LONGLAT)
@@ -303,7 +310,16 @@ float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)
 	
 }
 
+float4 getWorldCenterAndRadiusSqr()
+{
+    float3 c = (g_worldBoundsMax + g_worldBoundsMin) * 0.5f;
+    float3 ext = (g_worldBoundsMax - c);
+    return float4(c, dot(ext, ext));
+}
+
+
 #include "spectralDistribution.hlsl"
 #include "rayState.hlsl"
+
 
 #endif

@@ -5,7 +5,6 @@
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/Utility/ShaderTableHelper.h>
 #include <Gfx/RenderGraph/ComputeNode.h>
-#include <array>
 
 namespace YAPT
 {
@@ -37,24 +36,10 @@ namespace YAPT
 
 		struct BidirectionalPathTraceConstants
 		{
-			vec4p worldBoundsMin;
-			vec4p worldBoundsMax;
 			uvec2 lightPathsPerDim;
-			uint32_t envTextureIndex;
-			uint32_t envType;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;
 			uint32_t maxCameraPathVertices;
-		};
-
-		
-
-		struct CombineBoundsJobItem
-		{
-			const AABB* objectBounds;
-			size_t boundsOffset;
-			size_t boundsCount;
-			AABB combinedBounds;
 		};
 
 		struct LightPathNodePacked
@@ -66,7 +51,7 @@ namespace YAPT
 			uvec4p data4;
 		};
 
-		void setupWorldBoundsJob(ThreadPool* threadPool);
+		
 		
 		void executePrepareFrameDataNode(const RenderGraphNodeExecutionContext& exec);
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
@@ -100,7 +85,7 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<LightPathNodePacked> m_lightPathsGPU[2];
 		FixedSizeGpuBufferHelper<uvec3> m_countersGPU;
 
-		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
+		
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

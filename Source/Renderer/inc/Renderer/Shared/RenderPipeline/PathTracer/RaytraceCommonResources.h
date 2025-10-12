@@ -6,6 +6,8 @@
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/CRenderer.h>
+#include <array>
+
 namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
@@ -19,11 +21,15 @@ namespace YAPT
 	{
 		mat4p uvToView;
 		mat4p viewToWorld;
+		vec4p worldBoundsMin;
+		vec4p worldBoundsMax;
 		vec4p cameraPosition;
 		vec4p targetTexDimensions;
 		vec2p rayUVOffset;
 		uint32_t currentSampleIndex;
 		uint32_t maxRayDepth;
+		uint32_t envTextureIndex;
+		uint32_t envType;
 		uint32_t lightCount;
 	};
 
@@ -102,10 +108,21 @@ namespace YAPT
 		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 
 	private:
+
+		struct CombineBoundsJobItem
+		{
+			const AABB* objectBounds;
+			size_t boundsOffset;
+			size_t boundsCount;
+			AABB combinedBounds;
+		};
+
 		void initSubpixelJitterSamples();
 		void updateSamples(size_t sampleOffset);
 		void updateSampledWavelengths(size_t sampleOffset);
 		void setupLightDataJob(ThreadPool* threadPool);
+		void setupWorldBoundsJob(ThreadPool* threadPool);
+
 
 		CRenderer* m_renderer;
 		BindlessMaterialManager* m_materialMngr;
@@ -118,6 +135,7 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 
+		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
 
 		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
 		bool m_applySubpixelJitter;

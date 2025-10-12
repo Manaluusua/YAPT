@@ -1,7 +1,7 @@
 #include "BPTShared.hlsl"
 #include "materialSample.hlsl"
 #include "payload.hlsl"
-
+#include "lightSampling.hlsl"
 
 struct RayHitShaderTableConstantData
 {
@@ -181,6 +181,11 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 			float rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(explicitLightDirWS);
             if (evaluateLightEmission(rayStart, explicitLightDirWS, lightRayMaxT, lightInstanceId, emission))
             {
+    #ifdef DEBUG_CONNECTION_STRATEGY
+                SpectralSamples debugMult;
+                debugMult.setFromRGB(float3(1, 0, 0));
+                emission = emission * debugMult;
+    #endif
                 weightSumLight = (weightSumLight / pdfLightDir) * weightMIS(pdfLightDir, pdfBRDF);
                 rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
             }
@@ -297,7 +302,11 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         }
 		
 #endif
-        
+#ifdef DEBUG_CONNECTION_STRATEGY
+        SpectralSamples debugMult;
+        debugMult.setFromRGB(float3(0, 0, 1));
+        surfaceDef.emissive = surfaceDef.emissive * debugMult;
+#endif
         
 		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS;
 		payload.rayState = RAY_STATE_TERMINATED;

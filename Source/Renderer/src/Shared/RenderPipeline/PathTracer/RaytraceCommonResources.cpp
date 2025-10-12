@@ -8,6 +8,7 @@
 #include <Math/MathUtility.h>
 #include <Math/RandUtility.h>
 #include <Renderer/Shared/Utility/SpectralUtility.h>
+#include <Renderer/Shared/TextureImpl.h>
 #include <array>
 
 namespace YAPT
@@ -53,7 +54,7 @@ namespace YAPT
 
 	void RaytraceCommonResources::prepare(const RaytraceCommonResources::PrepareParams& params)
 	{
-
+		setupWorldBoundsJob(params.prepareTasksPool);
 	}
 
 	void RaytraceCommonResources::update(const RaytraceCommonResources::UpdateParams& params)
@@ -99,6 +100,17 @@ namespace YAPT
 		}
 
 		setupLightDataJob(params.updateTasksPool);
+
+
+		{
+			AABB worldBounds = AABB::createEmpty();
+			for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
+			{
+				worldBounds.encapsulate(m_combineBoundsJobs[i].combinedBounds);
+			}
+			rtConstants->worldBoundsMax = vec4p(worldBounds.max, 0.f);
+			rtConstants->worldBoundsMin = vec4p(worldBounds.min, 0.f);
+		}
 
 		m_rayTraceConstants.flush();
 
@@ -241,6 +253,41 @@ namespace YAPT
 
 		m_renderObjectMaterialAndMeshIndices.unmap();
 		m_renderObjectTransformData.unmap();
+
+
+		//update miss
+		{
+			RCPtr<Texture> skymap = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
+			RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
+
+			bool hasValidEnvtex = false;
+
+			if (skymap != nullptr)
+			{
+				if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_CUBEMAP)
+				{
+					hasValidEnvtex = true;
+					rtConstants->envType = ENVIRONMENT_TYPE_CUBE;
+
+				}
+				else if (skymap->getDesc().dimension == ResourceDimension::TEXTURE_2D)
+				{
+					hasValidEnvtex = true;
+					rtConstants->envType = ENVIRONMENT_TYPE_LONGLAT;
+				}
+			}
+
+			if (hasValidEnvtex)
+			{
+				rtConstants->envTextureIndex = static_cast<TextureImpl*>(skymap.get())->getBindlessResourceArrayIndex();
+			}
+			else
+			{
+				rtConstants->envType = ENVIRONMENT_TYPE_NONE;
+				rtConstants->envTextureIndex = uint32_t(-1);
+			}
+		}
+
 	}
 
 	void RaytraceCommonResources::setupLightDataJob(ThreadPool* threadPool)
@@ -302,7 +349,55 @@ namespace YAPT
 
 
 		threadPool->addTask(uploadLightDataJob, this);
+	}
 
+
+	void RaytraceCommonResources::setupWorldBoundsJob(ThreadPool* threadPool)
+	{
+		constexpr size_t MIN_ITEMS_PER_JOB = 100;
+		const AABB* objectBounds = m_renderer->getRenderObjectManager().getAllBounds();
+		size_t count = m_renderer->getRenderObjectManager().getNumberOfObjects();
+		size_t numberOfJobs = max(size_t(1), min(size_t(m_combineBoundsJobs.size()), count / MIN_ITEMS_PER_JOB));
+		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
+
+		if (count == 0)
+		{
+			return;
+		}
+
+		auto combineBoundsJob = [](void* usrData)
+			{
+				CombineBoundsJobItem* item = static_cast<CombineBoundsJobItem*>(usrData);
+				AABB combinedBounds = AABB::createEmpty();
+				for (size_t i = 0; i < item->boundsCount; ++i)
+				{
+					size_t index = item->boundsOffset + i;
+					const AABB& b = item->objectBounds[index];
+
+					combinedBounds.encapsulate(b);
+				}
+
+				item->combinedBounds = combinedBounds;
+
+			};
+
+		size_t offset = 0;
+		for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
+		{
+			CombineBoundsJobItem& item = m_combineBoundsJobs[i];
+			item.objectBounds = objectBounds;
+			item.boundsOffset = offset;
+			item.boundsCount = min(operationsPerJob, count - offset);
+			item.combinedBounds = AABB::createEmpty();
+			offset += item.boundsCount;
+
+		}
+
+
+		for (size_t i = 0; i < numberOfJobs; ++i)
+		{
+			threadPool->addTask(combineBoundsJob, &m_combineBoundsJobs[i]);
+		}
 	}
 
 	void RaytraceCommonResources::updateSamples(size_t sampleOffset)

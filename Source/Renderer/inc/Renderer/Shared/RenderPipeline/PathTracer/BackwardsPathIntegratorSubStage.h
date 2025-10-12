@@ -55,11 +55,6 @@ namespace YAPT
 		};
 
 
-		struct RayMissShaderTableConstantData
-		{
-			uint32_t envTextureIndex;
-			uint32_t envType;
-		};	
 		//stride and offset are assumed in dwords (uint32/float32) in the shader
 		void writeShaderTableEntryAndConstantData(RenderObjectId id, const MaterialPerSubmeshArray& mat, const MeshIndex meshID, size_t submeshIndex, ShaderTableEntry* entry);
 
