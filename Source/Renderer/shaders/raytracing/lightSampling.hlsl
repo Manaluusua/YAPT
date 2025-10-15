@@ -45,15 +45,16 @@ void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOu
 
 }
 
-void sampleLight(uint lightIndex, float4 randValues0, float2 randValues1, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut)
+
+void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out uint instanceIndexOut, out uint primitiveIndexOut, out float2 baryCentricsOut)
 {
     LightEntryGPU lightEntry = g_lights[lightIndex];
     MeshEntryGPU meshEntry = getMeshEntry(lightEntry.meshIndex);
 
     uint primCount = (meshEntry.indexCount / 3);
-    uint primitiveIndex = min(primCount * randValues0.z, primCount - 1);
+    uint primitiveIndex = min(primCount * randValuesPos.z, primCount - 1);
 
-    float3 barycentrics = float3(1 - randValues0.x - randValues0.y, randValues0.x, randValues0.y);
+    float3 barycentrics = float3(1 - randValuesPos.x - randValuesPos.y, randValuesPos.x, randValuesPos.y);
     uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
 
     float3 p1, p2, p3;
@@ -80,7 +81,7 @@ void sampleLight(uint lightIndex, float4 randValues0, float2 randValues1, out Sp
     tangent = mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz;
     
     float3x3 tanToWS = constructBasisTransform(geometryNormal, tangent);
-    float3 lightDir = sampleHemisphere(randValues1);
+    float3 lightDir = sampleHemisphere(randValuesDir);
     lightDir = mul(tanToWS, lightDir);
 
 	
@@ -93,47 +94,32 @@ void sampleLight(uint lightIndex, float4 randValues0, float2 randValues1, out Sp
     posOut = pos;
     dirOut = lightDir;
     normalOut = geometryNormal;
+    instanceIndexOut = lightEntry.instanceIndex;
+    primitiveIndexOut = primitiveIndex;
+    baryCentricsOut = barycentrics.yz;
 
 }
 
-float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
+void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut)
 {
-    float invDistSqr = 1.f / dot(fromToUnnormalized, fromToUnnormalized);
-    float absDot = abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
-    return absDot * invDistSqr;
+    uint instanceDummy;
+    uint primDummy;
+    float2 barysDummy;
+    sampleLightFull(lightIndex, randValuesPos, randValuesDir, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceDummy, primDummy, barysDummy);
 }
 
-
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
+void sampleRandomLightPosition(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 normalOut, out float pdfLightSelection, out float pdfPosOut, out uint instanceIndexOut, out uint primitiveIndexOut, out float2 baryCentricsOut)
 {
-    if (g_lightCount == 0)
-    {
-        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
-        pdflightSelection = 1.f;
-        sampledEnvironment = true;
-        normalOut = 0;
-        return;
-    }
-
-    float lightProb = g_lightCount + envSampleRelativeProbability;
-    float s = lightPickRand * lightProb;
-    if (s > g_lightCount)
-    {
-        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
-        pdflightSelection = envSampleRelativeProbability / lightProb;
-        sampledEnvironment = true;
-        normalOut = 0;
-
-    }
-    else
-    {
-        uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
-        sampleLight(lightIndex, lightSampleRand0, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut);
-        pdflightSelection = 1 / lightProb;
-        sampledEnvironment = false;
-
-    }
+    float selectLightRand = randValues.w;
+    uint lightIndex = min((uint) floor(selectLightRand * g_lightCount), g_lightCount - 1);
+    
+    float3 dummyDir;
+    float pdfDirDummy;
+    
+    sampleLightFull(lightIndex, randValues.xyz, float2(0, 0), radianceOut, posOut, dummyDir, normalOut, pdfPosOut, pdfDirDummy, instanceIndexOut, primitiveIndexOut, baryCentricsOut);
+    pdfLightSelection = 1.f / g_lightCount;
 }
+
 
 void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, float3 lightSurfaceNormal, float3 towardsDir, float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
@@ -162,6 +148,8 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
 
 }
 
+
+
 void pdfForSamplingEnv(float envSampleRelativeProbability, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
 
@@ -177,6 +165,17 @@ void pdfForSamplingEnv(float envSampleRelativeProbability, float3 towardsDir, ou
     dirPDF = safeDiv(1.f, (2.f * PI * PI * sinTheta));
     posPDF = 1 / (PI * worldCenterRadSqr.w);
 }
+
+
+float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
+{
+    float invDistSqr = 1.f / dot(fromToUnnormalized, fromToUnnormalized);
+    float absDot = abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
+    return absDot * invDistSqr;
+}
+
+
+
 
 
 

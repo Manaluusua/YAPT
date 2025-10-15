@@ -23,8 +23,4 @@
 //#define WHITE_FURNACE_TEST
 //#define WHITE_FURNACE_TEST_BOUNCE_LIMIT 64
 
-#ifdef ENABLE_NEE
-//#define DEBUG_CONNECTION_STRATEGY
-#endif
-
 #endif

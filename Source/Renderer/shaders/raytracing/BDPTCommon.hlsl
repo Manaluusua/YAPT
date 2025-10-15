@@ -368,6 +368,36 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float e
     pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
 }
 
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
+{
+    if (g_lightCount == 0)
+    {
+        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
+        pdflightSelection = 1.f;
+        sampledEnvironment = true;
+        normalOut = 0;
+        return;
+    }
+
+    float lightProb = g_lightCount + envSampleRelativeProbability;
+    float s = lightPickRand * lightProb;
+    if (s > g_lightCount)
+    {
+        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
+        pdflightSelection = envSampleRelativeProbability / lightProb;
+        sampledEnvironment = true;
+        normalOut = 0;
+
+    }
+    else
+    {
+        uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
+        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut);
+        pdflightSelection = 1 / lightProb;
+        sampledEnvironment = false;
+
+    }
+}
 
 
 #endif

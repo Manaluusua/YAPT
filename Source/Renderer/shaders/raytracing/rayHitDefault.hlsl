@@ -10,34 +10,32 @@ struct RayHitShaderTableConstantData
 SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
 #ifdef ENABLE_NEE
-void sampleExplicitLightDir(in float3 currentPosWS, in uint lightIndex, in float2 randLightDir, out uint lightInstanceIdOut, out float3 toLightDirWSOut, out float lightRayMaxT, out float pdfOut)
+void sampleExplicitLight(in float3 currentPosWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
 {
-    
-    LightEntryGPU lightEntry = g_lights[lightIndex];
-    float4 sphere = lightEntry.centerRadius;
-	
-    float3 toLight = normalize(sphere.xyz - currentPosWS);
-	
-    float3 v1, v2;
-    constructVectorBase(toLight, v1, v2);
-    float2 cd = sampleConcentricDisk(randLightDir.xy);
-    float3 lightSamplePos = sphere.xyz + sphere.w * (cd.x * v1 + cd.y * v2);
-	
-    float3 toLightRay = lightSamplePos - currentPosWS;
-    float toLightRayLen = length(toLightRay);
-	
-    toLightDirWSOut = toLightRay / toLightRayLen;
-    lightRayMaxT = toLightRayLen + sphere.w;
-    pdfOut = 1 / (PI * sphere.w * sphere.w);
+    float3 positionOnLight;
+    float3 lightNormal;
+    float lightSelectionPDF;
+    float lightPositionPDF;
+    uint instanceIndex;
+    uint primitiveIndex;
+    float2 baryCentrics;
+    sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormal, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
 
-    //from area to solid angle
-    pdfOut *= toLightRayLen * toLightRayLen;
-    
-    lightInstanceIdOut = lightEntry.instanceIndex;
+    float3 toLight = positionOnLight - currentPosWS;
 
+    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityMultiplier(toLight, lightNormal);
+    lightSamplePositionOut = positionOnLight;
+    primitiveIndexOut = primitiveIndex;
+    instanceIndexOut = instanceIndex;
+
+    if(dot(toLight, lightNormal) >= 0)
+    {
+        emissionOut.set(0);
+        pdfOut = 0;
+    }
 }
 
-bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uint lightInstanceID, out SpectralSamples emission)
+bool checkLightVisibility(in float3 rayPos, in float3 rayDir, float rayLen, uint lightInstanceID, uint lightPrimitiveIndex)
 {
     uint rayFlags = RAY_FLAG_NONE;
     uint InstanceInclusionMask = ~0;
@@ -61,64 +59,41 @@ bool evaluateLightEmission(in float3 rayPos, in float3 rayDir, float rayLen, uin
 
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {
-        SurfaceDefinition surfaceDef;
-        PrecalculatedSurfaceData precalculatedSurfaceData;
-        bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
+
         uint instId = q.CommittedInstanceID();
         uint primIndex = q.CommittedPrimitiveIndex();
-        float2 bary = q.CommittedTriangleBarycentrics();
-        
-        
-        if (lightInstanceID != instId)
-        {
-            emission.set(0);
-            return false;
-        }
-
-        uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instId);
-        MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
-
-	    //Initial surface setup
-        float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
-        uint3 indices = fetchIndices(meshEntry.indexBuffer, primIndex);
-        float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
-
-	    //fetch surface material parameters
-        MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
-        SurfaceDefinitionRGB surfaceDefRGB;
-        fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-        modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
-        surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
-        emission = surfaceDef.emissive;
-        return true;
+        return instId == lightInstanceID && primIndex == lightPrimitiveIndex;
     }
     return false;
 }
 
-float calculateExplicitLightPDF(in uint lightIndex, float3 wPos, float3 wDir)
+float calculateExplicitLightConnectionPDF(float3 fromPointToLightUnnormalized, in uint instanceIndex, in uint primitiveIndex, float2 bary)
 {
-    LightEntryGPU lightEntry = g_lights[lightIndex];
-    float4 sphere = lightEntry.centerRadius;
+    float lightProb = g_lightCount;
+    float lightPickPDF = 1.f / lightProb;
     
-    float3 toLight = sphere.xyz - wPos;
-    float toLightLen = length(toLight);
-    float3 toLightDir = toLight / toLightLen;
-    float t = toLightLen / dot(toLightDir, wDir);
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
+    RenderObjectTransformDataGPU transformData = getTransformDataForInstance(instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+    uint primCount = (meshEntry.indexCount / 3);
+
+    float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float3x4 transf = transformData.getObjToWorld();
     
-    float3 pOnDisk = wPos + t * wDir;
-    
-    float3 toPointFromCenter = pOnDisk - sphere.xyz;
-    float lenSqr = dot(toPointFromCenter, toPointFromCenter);
-    
-    if (lenSqr > sphere.w * sphere.w)
-    {
-        return 0;
-    } 
-    else
-    {
-        //disk position sampler probability converted to solid angle probability
-        return t * t / (PI * sphere.w * sphere.w); 
-    }
+    float3 p1, p2, p3;
+    fetchMeshPositions(meshEntry.positionBuffer, indices, p1, p2, p3);
+    p1 = mul(transf, float4(p1, 1)).xyz;
+    p2 = mul(transf, float4(p2, 1)).xyz;
+    p3 = mul(transf, float4(p3, 1)).xyz;
+    float3 geometryNormal = cross(p2 - p1, p3 - p1);
+    float geometryNormalLen = length(geometryNormal);
+    geometryNormal /= geometryNormalLen;
+    float area = geometryNormalLen * 0.5f;
+
+    float posPDF = 1.f / (primCount * area);
+
+    return posPDF * lightPickPDF * areaDensityMultiplier(fromPointToLightUnnormalized, geometryNormal);
     
 }
 #endif
@@ -153,43 +128,41 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     
     if (g_lightCount > 0)
     {
-        int lightIndex = -1;
         float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+        float3x4 toObjectSpace = WorldToObject3x4();
+        
         float4 randomSamplesLight = getRandomSampleFloat4(sampleIndex, 1);
-        lightIndex = min((uint) floor(randomSamplesLight.w * g_lightCount), g_lightCount - 1);
-
-        float3 explicitLightDirWS;
-        float lightRayMaxT;
-        uint lightInstanceId;
-        float pdfLightDir;
-        float pdfBRDF;
-        sampleExplicitLightDir(currentPosWS, (uint) lightIndex, randomSamplesLight.xy, lightInstanceId, explicitLightDirWS, lightRayMaxT, pdfLightDir);
+        SpectralSamples emission;
+        float lightSamplePdf;
+        float3 lightSamplePosWS;
+        uint lightInstanceIndex;
+        uint lightPrimIndex;
     
-        pdfLightDir *= 1.f/g_lightCount;
-
-        float3x3 toOSLight = (float3x3)WorldToObject3x4();
-        float3 toLightDirOS = mul(toOSLight, explicitLightDirWS);
-		
-        SpectralSamples weightSumLight = (SpectralSamples) 0.f;
-        TransmissionType transmissionTypeDummy;
-        evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, pdfBRDF, transmissionTypeDummy);
-		
-		
-        if (pdfLightDir > 0 && !weightSumLight.allSamplesEqual(0))
+        sampleExplicitLight(currentPosWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
+    
+        if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
         {
-            SpectralSamples emission;
-			float rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(explicitLightDirWS);
-            if (evaluateLightEmission(rayStart, explicitLightDirWS, lightRayMaxT, lightInstanceId, emission))
+            float3 toLightWS = lightSamplePosWS - currentPosWS;
+            float toLightWSLen = length(toLightWS);
+            toLightWS /= toLightWSLen; 
+    
+            float3x3 toOSLight = (float3x3)WorldToObject3x4();
+            float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
+            
+            SpectralSamples weightSumLight = (SpectralSamples) 0.f;
+            float pdfBRDF = 0;
+            TransmissionType transmissionTypeDummy;
+            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, pdfBRDF, transmissionTypeDummy);
+    
+            if (!weightSumLight.allSamplesEqual(0))
             {
-    #ifdef DEBUG_CONNECTION_STRATEGY
-                SpectralSamples debugMult;
-                debugMult.setFromRGB(float3(1, 0, 0));
-                emission = emission * debugMult;
-    #endif
-                weightSumLight = (weightSumLight / pdfLightDir) * weightMIS(pdfLightDir, pdfBRDF);
-                rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
+		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
+                if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
+                {
+                    weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, pdfBRDF);
+                    rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
+                }
             }
-
         }
     }
 #endif
@@ -288,26 +261,11 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 #ifdef ENABLE_NEE
         if (g_lightCount > 0 && payload.pdfThisRay > 0)
         {
-			//evaluate PDF for explicit light		
-            float3 wiWS = WorldRayDirection();
-            float3 rayOriginWS = WorldRayOrigin(); 
-        
-            uint sampleIndex = getRaySampleIndex(payload, -1);
-            float4 randomSamplesLight = getRandomSampleFloat4(sampleIndex, 1);
-            uint lightIndex = min((uint) floor(randomSamplesLight.w * g_lightCount), g_lightCount - 1);
-        
-            float lightPDF = calculateExplicitLightPDF(lightIndex, rayOriginWS, wiWS);
-            lightPDF *= 1.f/g_lightCount;
+            float lightPDF = calculateExplicitLightConnectionPDF(WorldRayDirection() * RayTCurrent(), InstanceID(), PrimitiveIndex(), attr.barycentrics);
             wMIS = weightMIS(payload.pdfThisRay, lightPDF);
         }
 		
 #endif
-#ifdef DEBUG_CONNECTION_STRATEGY
-        SpectralSamples debugMult;
-        debugMult.setFromRGB(float3(0, 0, 1));
-        surfaceDef.emissive = surfaceDef.emissive * debugMult;
-#endif
-        
 		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS;
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
