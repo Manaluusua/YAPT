@@ -10,6 +10,8 @@ struct RayHitShaderTableConstantData
 SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
 #ifdef ENABLE_NEE
+
+
 void sampleExplicitLight(in float3 currentPosWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
 {
     float3 positionOnLight;
@@ -22,8 +24,8 @@ void sampleExplicitLight(in float3 currentPosWS, in float4 lightSampleRand, out 
     sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormal, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
 
     float3 toLight = positionOnLight - currentPosWS;
-
-    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityMultiplier(toLight, lightNormal);
+    
+    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityToSolidAngleMultiplier(toLight, lightNormal);
     lightSamplePositionOut = positionOnLight;
     primitiveIndexOut = primitiveIndex;
     instanceIndexOut = instanceIndex;
@@ -93,7 +95,7 @@ float calculateExplicitLightConnectionPDF(float3 fromPointToLightUnnormalized, i
 
     float posPDF = 1.f / (primCount * area);
 
-    return posPDF * lightPickPDF * areaDensityMultiplier(fromPointToLightUnnormalized, geometryNormal);
+    return posPDF * lightPickPDF * areaDensityToSolidAngleMultiplier(fromPointToLightUnnormalized, geometryNormal);
     
 }
 #endif

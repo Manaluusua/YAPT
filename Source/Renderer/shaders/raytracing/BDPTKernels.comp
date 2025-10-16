@@ -149,7 +149,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
 			
 			//TODO: store some of the ray state (dispersion,volumes(?))
-			float toAreaDensityForward = areaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+			float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -186,7 +186,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}
 
-			nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
+			nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
 			//store previous vertex
 			{
@@ -406,13 +406,13 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
 	//TODO: the actual first node would be the origina of the ray from camera but its not considered (and can never be hit by path from light). Revisit if its correct to just ignore it here
     if (cameraVertexIndex > 1)
     {
-        float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * areaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
+        float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
         float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
         riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
     }
     if (cameraVertexIndex > 0)
     {
-        float ratioLastCamNode = (pdfForwardLastLightNode * areaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
+        float ratioLastCamNode = (pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
         riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
     }
 
@@ -438,7 +438,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         else
         {
             pdfForSamplingLightNode(lightNode, lightToCam, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
-            misWeightToLight = pdfForwardLastCameraNode * areaDensityMultiplier(camToLight, lightNode.normalWS);
+            misWeightToLight = pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
         riSumLight = pdfForwardLastCameraNode / (lightPickPDF * lightPosPDF);
@@ -451,7 +451,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
             bool isEnvLight = (lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
             if(!isEnvLight)
             {
-                pdfBackwardPrevNodeLight *= areaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
+                pdfBackwardPrevNodeLight *= solidAngleToAreaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
             }
         }
 		
@@ -459,7 +459,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
         riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
 
-		float ratioLastLightNode = (pdfForwardLastCameraNode * areaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
+		float ratioLastLightNode = (pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
 		riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
     }
 	
@@ -486,7 +486,7 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
 	
     float riSumCam = camVertexContext.pdfRatioSum;
     float ratioAtLight = (lightPickPDF * lightPosPDF) / camVertexContext.currentNodeForwardPDFMIS;
-    float ratioBeforeLight = (lightDirPDF * areaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS)) / camVertexContext.previousPDFForwardMIS;
+    float ratioBeforeLight = (lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS)) / camVertexContext.previousPDFForwardMIS;
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -511,7 +511,7 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 
 	float riSumCam = context.pdfRatioSum;
     float ratioAtLight = (lightPickPDF * lightPosPDF) / context.currentNodeForwardPDFMIS;
-    float ratioBeforeLight = lightDirPDF / context.previousPDFForwardMIS; //this hits a surface. Should it have areaDensityMultiplier with distance being world bounds or smth?
+    float ratioBeforeLight = lightDirPDF / context.previousPDFForwardMIS; //this hits a surface. Should it have solidAngleToAreaDensityMultiplier with distance being world bounds or smth?
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -736,7 +736,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
 			
-            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * areaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -802,7 +802,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = pdfBackward * areaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+                float pdfBackwardPrevNode = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
                 float ratio = pdfBackwardPrevNode / camVertexContext.previousPDFForwardMIS;
                 camVertexContext.pdfRatioSum *= ratio;
                 camVertexContext.pdfRatioSum += ratio;

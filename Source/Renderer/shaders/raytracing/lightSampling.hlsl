@@ -167,14 +167,17 @@ void pdfForSamplingEnv(float envSampleRelativeProbability, float3 towardsDir, ou
 }
 
 
-float areaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
+float solidAngleToAreaDensityMultiplier(float3 fromToUnnormalized, float3 toNormal)
 {
     float invDistSqr = 1.f / dot(fromToUnnormalized, fromToUnnormalized);
     float absDot = abs(dot(toNormal, fromToUnnormalized * sqrt(invDistSqr)));
     return absDot * invDistSqr;
 }
 
-
+float areaDensityToSolidAngleMultiplier(float3 fromToUnnormalized, float3 toNormal)
+{
+    return 1.f / (solidAngleToAreaDensityMultiplier(fromToUnnormalized, toNormal));
+}
 
 
 
