@@ -8,7 +8,8 @@
 #include "../sharedIncludes/spectralConstants.h"
 
 //keep in sync with raytrace stage
-#define NUMBER_OF_RANDOM_SAMPLES 256
+#define NUMBER_OF_RANDOM_SAMPLES_1D 16u
+#define NUMBER_OF_RANDOM_SAMPLES 256u
 
 #define RAY_STATE_ALIVE 0
 #define RAY_STATE_TERMINATED 1

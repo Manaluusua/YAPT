@@ -10,7 +10,8 @@
 
 namespace YAPT
 {
-	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 256;
+	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES_1D = 16;
+	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = (NUMBER_OF_RANDOM_SAMPLES_1D * NUMBER_OF_RANDOM_SAMPLES_1D);
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS = 8; //keep in sync with shader
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr size_t ENVIRONMENT_TYPE_NONE = 0;

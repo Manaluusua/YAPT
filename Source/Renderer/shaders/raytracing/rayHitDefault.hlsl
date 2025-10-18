@@ -11,26 +11,35 @@ SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
 #ifdef ENABLE_NEE
 
+float geometryTerm(float3 fromNormal, float3 toNormal, float3 fromToUnnormalized)
+{
+    float invDistSqr = 1.f / dot(fromToUnnormalized, fromToUnnormalized);
+    float3 fromToNormalized = fromToUnnormalized * sqrt(invDistSqr);
+    float absDot = abs(dot(toNormal, fromToNormalized) * dot(fromNormal, fromToNormalized));
+    return absDot * invDistSqr;
+}
 
-void sampleExplicitLight(in float3 currentPosWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
+void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
 {
     float3 positionOnLight;
-    float3 lightNormal;
+    float3 lightNormalWS;
     float lightSelectionPDF;
     float lightPositionPDF;
     uint instanceIndex;
     uint primitiveIndex;
     float2 baryCentrics;
-    sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormal, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
+    sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormalWS, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
 
     float3 toLight = positionOnLight - currentPosWS;
     
-    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityToSolidAngleMultiplier(toLight, lightNormal);
+    emissionOut = emissionOut * geometryTerm(normalWS, lightNormalWS, toLight);
+    pdfOut = lightSelectionPDF * lightPositionPDF; //* areaDensityToSolidAngleMultiplier(toLight, lightNormalWS);
+    
     lightSamplePositionOut = positionOnLight;
     primitiveIndexOut = primitiveIndex;
     instanceIndexOut = instanceIndex;
 
-    if(dot(toLight, lightNormal) >= 0)
+    if(dot(toLight, lightNormalWS) >= 0)
     {
         emissionOut.set(0);
         pdfOut = 0;
@@ -139,8 +148,12 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         float3 lightSamplePosWS;
         uint lightInstanceIndex;
         uint lightPrimIndex;
+   
+        float3x3 transformNormal = (float3x3)WorldToObject3x4();
+        transformNormal = transpose(transformNormal);
+        float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
     
-        sampleExplicitLight(currentPosWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
+        sampleExplicitLight(currentPosWS, normalWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
     
         if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
         {
