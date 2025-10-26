@@ -1,5 +1,7 @@
 #include <glm/glm.hpp>
 #include <array>
+#include "SobolMatrices.h"
+#include "assert.h"
 
 namespace YAPT
 {
@@ -26,6 +28,20 @@ namespace YAPT
 				index = next;
 			}
 			return glm::min(invBaseM * reversedDigits, s_oneMinusEpsilonFloat);
+		}
+
+		inline uint32_t sobol(uint32_t index, uint32_t dimension)
+		{
+			uint32_t val = index;
+			assert(dimension < SOBOL_MATRIX_COUNT && "Tried to ask for a sobol sequence with a dimension going above the limit");
+			for (uint32_t i = 0; i < SOBOL_MATRIX_ROW_COUNT, index != 0; index >>= 1, ++i)
+			{
+				if (index & 1)
+				{
+					val ^= SOBOL_MATRICES[i];
+				}
+			}
+			return val;
 		}
 
 		template<typename RES_TYPE, glm::precision PRECISION, size_t... PRIMEINDICES>

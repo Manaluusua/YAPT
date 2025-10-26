@@ -193,9 +193,11 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
     }
 	
+    rayState.pdfThisRay = pdfBRDF;
+    
     if (pdfBRDF > 0.f)
      {
-        rayState.pdfThisRay = pdfBRDF;
+        
 		if (transmissionType != TRANSMISSION_TYPE_NONE)
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
@@ -291,7 +293,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
         payload.throughput = payload.throughput * w;
         
-        if (isZero(nextSampleDirBRDF))
+        if (isZero(nextSampleDirBRDF) || payload.pdfThisRay == 0.0f)
         {
             payload.rayState = RAY_STATE_TERMINATED;
         }

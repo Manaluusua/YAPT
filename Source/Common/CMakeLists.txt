@@ -28,6 +28,7 @@ set(HEADERS
 	inc/Math/MiscBrdf.h
 	inc/Math/Fresnel.h
 	inc/Math/AABB.h
+	inc/Math/SobolMatrices.h
 )
 
 set(SOURCE

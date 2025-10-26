@@ -22,7 +22,6 @@ RWTexture2D<float4> g_outputColor : register(u5, space3);
 
 static uint g_spectralSampleOffset;
 
-#define RTCR_SPECTRAL_SAMPLESET_EXTRA_OFFSET g_spectralSampleOffset
 
 #include "BDPTCommon.hlsl"
 
