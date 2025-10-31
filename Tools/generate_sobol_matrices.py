@@ -78,8 +78,9 @@ def generator_matrix(m, L):
     C = np.zeros((L), dtype=precisionType)
     for j in range(L):
         mj = m[j]
+        C[j] = 0
         for k in range(L):
-            C[j] = mj #(mj >> (L - 1 - k)) & 1
+            C[j] |= ((mj >> (L - 1 - k)) & 1) << k
     return C
 
 def write_results(mat_arr, bits_count, output_file):

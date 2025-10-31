@@ -1,6 +1,7 @@
 #pragma once
 #include "Math.h"
 #include "Common/CommonUtilities.h"
+#include "SobolMatrices.h"
 #include <glm/gtc/random.hpp>
 
 namespace YAPT
@@ -56,6 +57,7 @@ namespace YAPT
 			return vec2(vanDerCorputSequence(i), float(i) / float(n));
 		}
 
+		//halton
 		float halton(uint64_t base, uint64_t index, const uint16_t* scrambledDigits);
 
 		template<typename RES_TYPE, glm::precision PRECISION, size_t... PRIMEINDICES>
@@ -96,6 +98,14 @@ namespace YAPT
 			generateHaltonSequenceWithDimensions(numberOfSamplesToGenerate, numberOfDimensions, samplesOut, indexOffset);
 		}
 
+		//sobol
+		void generateSobolSequenceWithDimensions(uint32_t numberOfSamplesToGenerate, uint32_t numberOfComponents, float* samplesOut, uint32_t indexOffset);
+		void generateSobolSequenceWithDimensions(uint32_t numberOfSamplesToGenerate, uint32_t numberOfComponents, uint32_t* samplesOut, uint32_t indexOffset);
+		inline void generateSobolSequence(uint32_t numberOfSamplesToGenerate, uint32_t numberOfDimensions, float* samplesOut, uint32_t indexOffset)
+		{
+			assert(numberOfDimensions < SOBOL_MATRIX_COUNT);
+			generateSobolSequenceWithDimensions(numberOfSamplesToGenerate, numberOfDimensions, samplesOut, indexOffset);
+		}
 	}
 }
 

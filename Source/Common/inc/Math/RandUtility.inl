@@ -1,6 +1,6 @@
 #include <glm/glm.hpp>
 #include <array>
-#include "SobolMatrices.h"
+
 #include "assert.h"
 
 namespace YAPT
@@ -30,11 +30,11 @@ namespace YAPT
 			return glm::min(invBaseM * reversedDigits, s_oneMinusEpsilonFloat);
 		}
 
-		inline uint32_t sobol(uint32_t index, uint32_t dimension)
+		inline uint32_t sobolUint(uint32_t index, uint32_t dimension)
 		{
-			uint32_t val = index;
+			uint32_t val = 0;
 			assert(dimension < SOBOL_MATRIX_COUNT && "Tried to ask for a sobol sequence with a dimension going above the limit");
-			for (uint32_t i = 0; i < SOBOL_MATRIX_ROW_COUNT, index != 0; index >>= 1, ++i)
+			for (uint32_t i = dimension * SOBOL_MATRIX_ROW_COUNT; index != 0; index >>= 1, ++i)
 			{
 				if (index & 1)
 				{
@@ -42,6 +42,12 @@ namespace YAPT
 				}
 			}
 			return val;
+		}
+
+		inline float sobolFloat(uint32_t index, uint32_t dimension)
+		{
+			uint32_t v = sobolUint(index, dimension);
+			return v * 0x1p-32f;
 		}
 
 		template<typename RES_TYPE, glm::precision PRECISION, size_t... PRIMEINDICES>
@@ -75,6 +81,32 @@ namespace YAPT
 				}
 			}
 
+		}
+
+
+		
+		inline void generateSobolSequenceWithDimensions(uint32_t numberOfSamplesToGenerate, uint32_t numberOfComponents, float* samplesOut, uint32_t indexOffset)
+		{
+			size_t sampleIndex = 0;
+			for (uint32_t i = 0; i < numberOfSamplesToGenerate; ++i)
+			{
+				for (uint32_t k = 0; k < numberOfComponents; ++k)
+				{
+					samplesOut[sampleIndex++] = sobolFloat(i + indexOffset, k);
+				}
+			}
+		}
+
+		inline void generateSobolSequenceWithDimensions(uint32_t numberOfSamplesToGenerate, uint32_t numberOfComponents, uint32_t* samplesOut, uint32_t indexOffset)
+		{
+			size_t sampleIndex = 0;
+			for (uint32_t i = 0; i < numberOfSamplesToGenerate; ++i)
+			{
+				for (uint32_t k = 0; k < numberOfComponents; ++k)
+				{
+					samplesOut[sampleIndex++] = sobolUint(i + indexOffset, k);
+				}
+			}
 		}
 
 	}

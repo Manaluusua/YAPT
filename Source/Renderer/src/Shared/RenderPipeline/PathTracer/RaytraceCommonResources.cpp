@@ -402,7 +402,7 @@ namespace YAPT
 
 	void RaytraceCommonResources::updateSamples(size_t sampleOffset)
 	{
-		MathUtils::generateHaltonSequence(NUMBER_OF_RANDOM_SAMPLES, NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS,  m_randomSamples.getData()->samples, sampleOffset);
+		MathUtils::generateSobolSequence(NUMBER_OF_RANDOM_SAMPLES, NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS,  m_randomSamples.getData()->samples, (uint32_t)sampleOffset);
 		m_randomSamples.flush();
 	}
 
