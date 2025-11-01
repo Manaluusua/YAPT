@@ -106,6 +106,12 @@ namespace YAPT
 			assert(numberOfDimensions < SOBOL_MATRIX_COUNT);
 			generateSobolSequenceWithDimensions(numberOfSamplesToGenerate, numberOfDimensions, samplesOut, indexOffset);
 		}
+
+		inline void generateSobolSequence(uint32_t numberOfSamplesToGenerate, uint32_t numberOfDimensions, uint32_t* samplesOut, uint32_t indexOffset)
+		{
+			assert(numberOfDimensions < SOBOL_MATRIX_COUNT);
+			generateSobolSequenceWithDimensions(numberOfSamplesToGenerate, numberOfDimensions, samplesOut, indexOffset);
+		}
 	}
 }
 

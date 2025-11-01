@@ -73,7 +73,7 @@ struct Payload //: RayStateInterface
 	{
 		setStateFlags(getStateFlags() | flags);
 	}
-
+	
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
 	SpectralSamples throughput;
 	SpectralSamples totalLight;
@@ -83,6 +83,7 @@ struct Payload //: RayStateInterface
 	float3 rayDirection;
 	uint pathLength;
 	
+    uint2 randomDimensionOffsetAndScramble;
     float pdfThisRay;
 	uint numberVolumesEntered;
 	uint rayState;

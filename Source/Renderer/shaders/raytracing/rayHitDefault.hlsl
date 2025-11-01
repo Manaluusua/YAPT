@@ -117,16 +117,9 @@ float weightMIS(float a, float b)
 
 }
 
-uint getRaySampleIndex(in Payload rayState, in int pathLengthOffset = 0)
+void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
-    return g_currentRandomSampleIndex + getPerTexelSampleOffset(DispatchRaysIndex().xy) + rayState.getPathLength() + pathLengthOffset;
-}
-
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
-{
-	
-    uint sampleIndex = getRaySampleIndex(rayState);
-    float4 randomSamplesBRDF = getRandomSampleFloat4(sampleIndex, 0);
+    float4 randomSamplesBRDF = rand.getRandom4();
 	
     PrecalculatedSurfaceData precalculatedSurfData;
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), -rayDirObjSpace, triangleHitFrontFace, precalculatedSurfData);
@@ -142,7 +135,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
         float3x4 toObjectSpace = WorldToObject3x4();
         
-        float4 randomSamplesLight = getRandomSampleFloat4(sampleIndex, 1);
+        float4 randomSamplesLight = rand.getRandom4();
         SpectralSamples emission;
         float lightSamplePdf;
         float3 lightSamplePosWS;
@@ -289,9 +282,14 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	else
 	{
 		
+        RandomSampler rand;
+        rand.dimensionOffsetAndScrambleIndex = payload.randomDimensionOffsetAndScramble;
+        
         SpectralSamples w;
-        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
+        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
         payload.throughput = payload.throughput * w;
+        
+        payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndScrambleIndex;
         
         if (isZero(nextSampleDirBRDF) || payload.pdfThisRay == 0.0f)
         {

@@ -26,8 +26,6 @@ RWTexture2D<float4> g_outputColor : register(u1, space3);
 [shader("raygeneration")]
 void rayGenPrimaryRays()
 {
-
-	
 	float2 uv = (float2)DispatchRaysIndex() * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
@@ -43,6 +41,8 @@ void rayGenPrimaryRays()
 	payload.numberVolumesEntered = 0;
 	payload.flags = 0;
     payload.pdfThisRay = 0;
+    payload.randomDimensionOffsetAndScramble = uint2(0, 0); //TODO: calculate scrambling here
+	
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;

@@ -43,6 +43,7 @@ namespace YAPT
 			vec3p rayDirection;
 			uint32_t pathLength;
 
+			vec2p randomDimensionOffsetAndScramble;
 			uint32_t numberVolumesEntered;
 			uint32_t rayState;
 			uint32_t spectralSampleSetIndex;

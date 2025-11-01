@@ -489,15 +489,6 @@ void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 no
 
 }
 
-uint getPerTexelSampleOffset(uint2 ind)
-{
-    uint x = ind.x % NUMBER_OF_RANDOM_SAMPLES_1D;
-    uint y = ind.y % NUMBER_OF_RANDOM_SAMPLES_1D;
-    return y * NUMBER_OF_RANDOM_SAMPLES_1D + x;
-}
-
-
-
 float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
 {
     float waveLengthum = waveLengthNM * 0.001f;

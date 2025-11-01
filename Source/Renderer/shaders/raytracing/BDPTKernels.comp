@@ -41,8 +41,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	g_spectralSampleOffset = 0;
 
-	uint sampleIndex = g_currentRandomSampleIndex + dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x;
-
 	SpectralSamples radiance;
 	float3 lightPos;
 	float3 lightDir;
@@ -53,10 +51,14 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	float3 rayDir;
     float3 rayOrigin;
 
+	
+    RandomSampler rand;
+    rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
+
 	//sample light
 	{
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
-		float4 randomSamples1 = getRandomSampleFloat4(sampleIndex, 1);
+		float4 randomSamples0 = rand.getRandom4();
+		float4 randomSamples1 = rand.getRandom4();
 		bool sampledEnvironment;
 		float3 lightNormal;
 		float lightSamplePDF;
@@ -100,7 +102,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex + i, 0);
+		float4 randomSamples0 = rand.getRandom4();
 
 		uint rayFlags = RAY_FLAG_NONE;
 		uint InstanceInclusionMask = ~0;
@@ -322,7 +324,7 @@ SpectralSamples ToSpectralSamples(float3 color)
 	return s;
 }
 
-bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, in float2 materialLayerRands, out float pdfForwardOut, out float pdfBackwardOut, SpectralSamples weightOut)
+bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, SpectralSamples weightOut)
 {
     if (lightNodeIndex == 0)
     {
@@ -522,8 +524,7 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 
 
 SpectralSamples calculateLightPathRadiance(uint cameraVertexIndex, in CameraVertexContext camVertex,
-uint lightVertexIndex, in LightVertexContext lightVertex, uint lightPathSampleIndex,
-in BDPTRayState rayState)
+uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState rayState)
 {
     SpectralSamples retVal;
     retVal.set(0);
@@ -557,8 +558,7 @@ in BDPTRayState rayState)
     float pdfBackwardLastLightNode;
 	//evaluate weight PDFs for connecting light node
 	{
-        float4 randSamplesLightConn = getRandomSampleFloat4(lightPathSampleIndex + lightNodeIndex, 0); //TODO: better way to calculate sample indices
-        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNode, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, randSamplesLightConn.xy, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
+        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNode, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
         if (!connectionValid)
         {
             return retVal;
@@ -671,6 +671,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	g_spectralSampleOffset = 0;
 
+	RandomSampler rand;
+	uint lightPathScrambleOffset = g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
+    rand.init(0, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
+
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
@@ -689,9 +693,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	float pdfForwardCamera = 1;
 	uint camVertexIndex = 0;
-	
-	uint2 lightPathIndices = floor((dispatchThreadId.xy * g_targetTexDimensions.zw) * g_lightPathsPerDim);
-	uint lightPathSampleIndex = lightPathIndices.y * g_lightPathsPerDim.x + lightPathIndices.x;
 
 	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
@@ -714,8 +715,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 		while(q.Proceed());
 
-		uint sampleIndex = g_currentRandomSampleIndex + getPerTexelSampleOffset(dispatchThreadId.xy) + camVertexIndex;
-		float4 randomSamples0 = getRandomSampleFloat4(sampleIndex, 0);
+		float4 randomSamples0 = rand.getRandom4();
 
 		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 		{
@@ -765,7 +765,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                     float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
                     camVertexContext.wiOS = normalize(lightPosOS - posOS);
 					
-                    SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, lightPathSampleIndex, rayState);
+                    SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, rayState);
                     
                     totalLight = totalLight + lightConnectionRadiance;
 					
@@ -831,7 +831,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			break;
 		}
 	}
-	
+
 	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
     float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
 
@@ -885,10 +885,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		//g_outputColor[dispatchThreadId.xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
 		//g_outputColor[dispatchThreadId.xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
-	}
-	*/
-	
-
+	}*/
 }
 
 #endif

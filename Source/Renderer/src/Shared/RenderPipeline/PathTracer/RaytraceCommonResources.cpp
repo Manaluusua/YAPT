@@ -18,7 +18,8 @@ namespace YAPT
 	RaytraceCommonResources::RaytraceCommonResources()
 		:m_renderObjectMaterialAndMeshIndices(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
 		m_renderObjectTransformData(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
-		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER)
+		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
+		m_randomSamples(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true)
 	{
 
 	}
@@ -80,7 +81,6 @@ namespace YAPT
 		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
 		camPos = viewToWorld * camPos;
 
-		rtConstants->currentSampleIndex = uint32_t(params.sampleOffset % 0xFFFFFFFF);
 		rtConstants->maxRayDepth = 16;
 		rtConstants->rayUVOffset = rayUVOffset;
 		rtConstants->cameraPosition = camPos;
@@ -417,7 +417,7 @@ namespace YAPT
 
 			for (uint32_t i = 0; i < SPECTRAL_SAMPLESET_COUNT; ++i)
 			{
-				float rand = MathUtils::halton(MathUtils::PRIME_NUMBERS[NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS], sampleOffset + i, MathUtils::getScrambledDigitsForPrimeIndex(NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS));
+				float rand = MathUtils::halton(MathUtils::PRIME_NUMBERS[0], sampleOffset + i, MathUtils::getScrambledDigitsForPrimeIndex(0));
 				SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, sampleLambdas.data() + i * SPECTRAL_SAMPLES_COUNT, samplePDFs.data() + i * SPECTRAL_SAMPLES_COUNT, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
 			}
 

@@ -10,9 +10,8 @@
 
 namespace YAPT
 {
-	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES_1D = 16;
-	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = (NUMBER_OF_RANDOM_SAMPLES_1D * NUMBER_OF_RANDOM_SAMPLES_1D);
-	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS = 8; //keep in sync with shader
+	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 1;
+	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS = 256; //keep in sync with shader
 	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr size_t ENVIRONMENT_TYPE_NONE = 0;
 	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
@@ -27,7 +26,6 @@ namespace YAPT
 		vec4p cameraPosition;
 		vec4p targetTexDimensions;
 		vec2p rayUVOffset;
-		uint32_t currentSampleIndex;
 		uint32_t maxRayDepth;
 		uint32_t envTextureIndex;
 		uint32_t envType;
@@ -36,7 +34,7 @@ namespace YAPT
 
 	struct RandomSamples
 	{
-		float samples[NUMBER_OF_RANDOM_SAMPLES * NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS];
+		uint32_t samples[NUMBER_OF_RANDOM_SAMPLES * NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS];
 	};
 
 	struct SpectralDataConstants

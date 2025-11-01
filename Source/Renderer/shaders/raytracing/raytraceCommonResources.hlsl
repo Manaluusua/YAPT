@@ -13,16 +13,10 @@ struct RaytraceConstantData
 	float4 cameraPosition;
 	float4 targetTexDimensions;
 	float2 rayUVOffset;
-	uint currentSampleIndex;
 	uint maxRayDepth;
     uint envTextureIndex;
     uint envType;
     uint lightCount;
-};
-
-struct RandomSamples
-{
-	float4 samples[NUMBER_OF_RANDOM_SAMPLES];
 };
 
 struct SpectralDataConstants
@@ -104,7 +98,7 @@ struct RenderObjectTransformDataGPU
 
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
-ConstantBuffer<RandomSamples> g_randomSampleLocations : register(b2, space0);
+ByteAddressBuffer g_randomSampleLocations : register(t2, space0);
 ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 StructuredBuffer<MaterialEntryGPU> g_materialEntries : register(t4, space0);
 StructuredBuffer<MeshEntryGPU> g_meshEntries : register(t5, space0);
@@ -159,21 +153,36 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_envType g_rayGenConstants.envType
 #define g_envTexIndex g_rayGenConstants.envTextureIndex
 
-
-#define g_currentRandomSampleIndex g_rayGenConstants.currentSampleIndex
-#define g_randomSamples g_randomSampleLocations.samples
+#define g_randomSamples g_randomSampleLocations
 
 #define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
 #define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
 
-
+#define SCALE_MAX_UINT_TO_1_MULTIPLIER (0x1p-32f)
 
 //helper functions
-float4 getRandomSampleFloat4(uint offset, uint dimensionSetIndex)
+float getRandomSampleFloat(uint dimensionSetIndex, uint scramble)
 {
-	const uint STATIC_SET_COUNT = 2;
-	uint index = (offset % NUMBER_OF_RANDOM_SAMPLES) * STATIC_SET_COUNT + min(dimensionSetIndex, STATIC_SET_COUNT - 1);
-	return g_randomSamples[index];
+    uint startIndex = dimensionSetIndex << 2;
+    return g_randomSamples.Load(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+}
+
+float2 getRandomSampleFloat2(uint dimensionSetIndex, uint scramble)
+{
+    uint startIndex = dimensionSetIndex << 2;
+    return g_randomSamples.Load2(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+}
+
+float3 getRandomSampleFloat3(uint dimensionSetIndex, uint scramble)
+{
+    uint startIndex = dimensionSetIndex << 2;
+    return g_randomSamples.Load3(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+}
+
+float4 getRandomSampleFloat4(uint dimensionSetIndex, uint scramble)
+{
+    uint startIndex = dimensionSetIndex << 2;
+    return g_randomSamples.Load4(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
 float getSpectralSampleLambda(uint index)
@@ -310,6 +319,47 @@ float4 getWorldCenterAndRadiusSqr()
     float3 ext = (g_worldBoundsMax - c);
     return float4(c, dot(ext, ext));
 }
+
+struct RandomSampler
+{
+    uint2 dimensionOffsetAndScrambleIndex;
+	
+	void init(uint dim, uint scramble)
+	{
+        dimensionOffsetAndScrambleIndex.x = dim;
+        dimensionOffsetAndScrambleIndex.y = scramble;
+    }
+	
+    float getRandom1()
+    {
+        float v = getRandomSampleFloat(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
+        ++dimensionOffsetAndScrambleIndex.x;
+        return v;
+    }
+	
+    float2 getRandom2()
+    {
+        float2 v = getRandomSampleFloat2(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
+        dimensionOffsetAndScrambleIndex.x += 2;
+        return v;
+    }
+    float3 getRandom3()
+    {
+        float3 v = getRandomSampleFloat3(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
+        dimensionOffsetAndScrambleIndex.x += 3;
+		return v;
+    }
+	
+    float4 getRandom4()
+    {
+
+        float4 v = getRandomSampleFloat4(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
+        dimensionOffsetAndScrambleIndex.x += 4;
+		return v;
+    }
+	
+    
+};
 
 
 #include "spectralDistribution.hlsl"
