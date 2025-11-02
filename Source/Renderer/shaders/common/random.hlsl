@@ -29,5 +29,16 @@ float2 hammersley(int i, int n)
     return float2(vanDerCorputSequence(i), float(i)/float(n));
 }
 
+uint owenScrambleBase2(uint v, uint seed)
+{
+    v = reversebits(v);
+    v ^= v * 0x3d20adea;
+    v += seed;
+    v *= (seed >> 16) | 1;
+    v ^= v * 0x05526c56;
+    v ^= v * 0x53a22864;
+    return reversebits(v);
+}
+
 
 #endif

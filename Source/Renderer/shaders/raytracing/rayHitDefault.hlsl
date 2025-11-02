@@ -117,7 +117,7 @@ float weightMIS(float a, float b)
 
 }
 
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, in RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
+void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
     float4 randomSamplesBRDF = rand.getRandom4();
 	
@@ -296,10 +296,6 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
             payload.rayState = RAY_STATE_TERMINATED;
         }
     }
-	
-	
-
-    
 
 	if(payload.rayState == RAY_STATE_ALIVE)
 	{

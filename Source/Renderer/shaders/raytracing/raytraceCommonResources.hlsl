@@ -2,6 +2,7 @@
 #define RAYTRACE_COMMON_RESOURCES_HLSL_INCL
 
 #include "raytraceCommon.hlsl"
+#include "../common/random.hlsl"
 //data structs, keep in sync with raytracestage
 
 struct RaytraceConstantData
@@ -164,25 +165,32 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 float getRandomSampleFloat(uint dimensionSetIndex, uint scramble)
 {
     uint startIndex = dimensionSetIndex << 2;
-    return g_randomSamples.Load(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    uint sobolSeq = g_randomSamples.Load(startIndex);
+    return owenScrambleBase2(sobolSeq, scramble) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
 float2 getRandomSampleFloat2(uint dimensionSetIndex, uint scramble)
 {
     uint startIndex = dimensionSetIndex << 2;
-    return g_randomSamples.Load2(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    uint2 sobolSeq = g_randomSamples.Load2(startIndex);
+    sobolSeq.xy = uint2(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble));
+    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
 float3 getRandomSampleFloat3(uint dimensionSetIndex, uint scramble)
 {
     uint startIndex = dimensionSetIndex << 2;
-    return g_randomSamples.Load3(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    uint3 sobolSeq = g_randomSamples.Load3(startIndex);
+    sobolSeq.xyz = uint3(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble), owenScrambleBase2(sobolSeq.z, scramble));
+    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
 float4 getRandomSampleFloat4(uint dimensionSetIndex, uint scramble)
 {
     uint startIndex = dimensionSetIndex << 2;
-    return g_randomSamples.Load4(startIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    uint4 sobolSeq = g_randomSamples.Load4(startIndex);
+    sobolSeq.xyzw = uint4(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble), owenScrambleBase2(sobolSeq.z, scramble), owenScrambleBase2(sobolSeq.w, scramble));
+    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
 float getSpectralSampleLambda(uint index)

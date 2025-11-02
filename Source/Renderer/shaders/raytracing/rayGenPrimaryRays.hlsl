@@ -41,7 +41,7 @@ void rayGenPrimaryRays()
 	payload.numberVolumesEntered = 0;
 	payload.flags = 0;
     payload.pdfThisRay = 0;
-    payload.randomDimensionOffsetAndScramble = uint2(0, 0); //TODO: calculate scrambling here
+    payload.randomDimensionOffsetAndScramble = uint2(0, payload.rayIndex); //TODO: calculate scrambling here
 	
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
