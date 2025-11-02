@@ -283,13 +283,13 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	{
 		
         RandomSampler rand;
-        rand.dimensionOffsetAndScrambleIndex = payload.randomDimensionOffsetAndScramble;
+        rand.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
         
         SpectralSamples w;
         evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
         payload.throughput = payload.throughput * w;
         
-        payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndScrambleIndex;
+        payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed;
         
         if (isZero(nextSampleDirBRDF) || payload.pdfThisRay == 0.0f)
         {

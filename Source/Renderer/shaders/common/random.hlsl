@@ -29,6 +29,22 @@ float2 hammersley(int i, int n)
     return float2(vanDerCorputSequence(i), float(i)/float(n));
 }
 
+uint murmurhash(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x85ebca6b;
+    x ^= x >> 13;
+    x *= 0xc2b2ae35;
+    x ^= x >> 16;
+    return x;
+}
+
+uint hash(uint a, uint b)
+{
+    uint key = ((a + b) * (a + b + 1)) / (2 + b);
+    return key; //return murmurhash(key);
+}
+
 uint owenScrambleBase2(uint v, uint seed)
 {
     v = reversebits(v);

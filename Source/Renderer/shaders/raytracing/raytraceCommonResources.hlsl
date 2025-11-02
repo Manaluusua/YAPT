@@ -162,34 +162,41 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define SCALE_MAX_UINT_TO_1_MULTIPLIER (0x1p-32f)
 
 //helper functions
-float getRandomSampleFloat(uint dimensionSetIndex, uint scramble)
+
+uint scramble(uint random, uint scrambleSeed, uint dimension)
+{
+    uint h = hash(scrambleSeed, dimension);
+    return owenScrambleBase2(random, h);
+}
+
+float getRandomSampleFloat(uint dimensionSetIndex, uint seed)
 {
     uint startIndex = dimensionSetIndex << 2;
     uint sobolSeq = g_randomSamples.Load(startIndex);
-    return owenScrambleBase2(sobolSeq, scramble) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    return scramble(sobolSeq, seed, dimensionSetIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
-float2 getRandomSampleFloat2(uint dimensionSetIndex, uint scramble)
+float2 getRandomSampleFloat2(uint dimensionSetIndex, uint seed)
 {
     uint startIndex = dimensionSetIndex << 2;
     uint2 sobolSeq = g_randomSamples.Load2(startIndex);
-    sobolSeq.xy = uint2(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble));
+    sobolSeq.xy = uint2(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1));
     return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
-float3 getRandomSampleFloat3(uint dimensionSetIndex, uint scramble)
+float3 getRandomSampleFloat3(uint dimensionSetIndex, uint seed)
 {
     uint startIndex = dimensionSetIndex << 2;
     uint3 sobolSeq = g_randomSamples.Load3(startIndex);
-    sobolSeq.xyz = uint3(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble), owenScrambleBase2(sobolSeq.z, scramble));
+    sobolSeq.xyz = uint3(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2));
     return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
-float4 getRandomSampleFloat4(uint dimensionSetIndex, uint scramble)
+float4 getRandomSampleFloat4(uint dimensionSetIndex, uint seed)
 {
     uint startIndex = dimensionSetIndex << 2;
     uint4 sobolSeq = g_randomSamples.Load4(startIndex);
-    sobolSeq.xyzw = uint4(owenScrambleBase2(sobolSeq.x, scramble), owenScrambleBase2(sobolSeq.y, scramble), owenScrambleBase2(sobolSeq.z, scramble), owenScrambleBase2(sobolSeq.w, scramble));
+    sobolSeq.xyzw = uint4(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2), scramble(sobolSeq.w, seed, dimensionSetIndex + 3));
     return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
 }
 
@@ -330,39 +337,39 @@ float4 getWorldCenterAndRadiusSqr()
 
 struct RandomSampler
 {
-    uint2 dimensionOffsetAndScrambleIndex;
+    uint2 dimensionOffsetAndSeed;
 	
 	void init(uint dim, uint scramble)
 	{
-        dimensionOffsetAndScrambleIndex.x = dim;
-        dimensionOffsetAndScrambleIndex.y = scramble;
+        dimensionOffsetAndSeed.x = dim;
+        dimensionOffsetAndSeed.y = scramble;
     }
-	
+		
     float getRandom1()
     {
-        float v = getRandomSampleFloat(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
-        ++dimensionOffsetAndScrambleIndex.x;
+        float v = getRandomSampleFloat(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
+        ++dimensionOffsetAndSeed.x;
         return v;
     }
 	
     float2 getRandom2()
     {
-        float2 v = getRandomSampleFloat2(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
-        dimensionOffsetAndScrambleIndex.x += 2;
+        float2 v = getRandomSampleFloat2(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
+        dimensionOffsetAndSeed.x += 2;
         return v;
     }
     float3 getRandom3()
     {
-        float3 v = getRandomSampleFloat3(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
-        dimensionOffsetAndScrambleIndex.x += 3;
+        float3 v = getRandomSampleFloat3(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
+        dimensionOffsetAndSeed.x += 3;
 		return v;
     }
 	
     float4 getRandom4()
     {
 
-        float4 v = getRandomSampleFloat4(dimensionOffsetAndScrambleIndex.x, dimensionOffsetAndScrambleIndex.y);
-        dimensionOffsetAndScrambleIndex.x += 4;
+        float4 v = getRandomSampleFloat4(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
+        dimensionOffsetAndSeed.x += 4;
 		return v;
     }
 	
