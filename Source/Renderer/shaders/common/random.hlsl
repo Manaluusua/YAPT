@@ -1,6 +1,9 @@
 #ifndef RANDOM_HLSL_INCL
 #define RANDOM_HLSL_INCL
 
+#define FLOAT_ONE_MINUS_EPSILON (0x1.fffffep-1)
+#define FLOAT_UINT_MAX_INVERSE (0x1p-32f)
+
 float vanDerCorputSequence(uint index)
 {
 	const float invMax = 1.0 / 0xFFFFFFFF;
@@ -56,5 +59,30 @@ uint owenScrambleBase2(uint v, uint seed)
     return reversebits(v);
 }
 
+
+//[0, 0xFFFFFFFF] -> [0, 1)
+float uintToFloat01(uint randValue)
+{
+
+    return min(randValue * FLOAT_UINT_MAX_INVERSE, FLOAT_ONE_MINUS_EPSILON);
+}
+
+float2 uintToFloat01(uint2 randValue)
+{
+    return float2(uintToFloat01(randValue.x), uintToFloat01(randValue.y));
+
+}
+
+float3 uintToFloat01(uint3 randValue)
+{
+    return float3(uintToFloat01(randValue.x), uintToFloat01(randValue.y), uintToFloat01(randValue.z));
+
+}
+
+float4 uintToFloat01(uint4 randValue)
+{
+    return float4(uintToFloat01(randValue.x), uintToFloat01(randValue.y), uintToFloat01(randValue.z), uintToFloat01(randValue.w));
+
+}
 
 #endif

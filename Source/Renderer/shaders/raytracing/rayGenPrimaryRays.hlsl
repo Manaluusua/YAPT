@@ -43,6 +43,9 @@ void rayGenPrimaryRays()
     payload.pdfThisRay = 0;
     payload.randomDimensionOffsetAndScramble = uint2(0, payload.rayIndex); //TODO: calculate scrambling here
 	
+	#ifdef WHITE_FURNACE_TEST
+    payload.rayIndex = -1;
+	#endif
 	
 	uint rayFlags = RAY_FLAG_NONE;//RAY_FLAG_CULL_FRONT_FACING_TRIANGLES; //RAY_FLAG_NONE; //RAY_FLAG_CULL_BACK_FACING_TRIANGLES
 	uint InstanceInclusionMask = ~0;

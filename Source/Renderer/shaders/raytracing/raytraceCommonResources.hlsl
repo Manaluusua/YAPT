@@ -159,7 +159,6 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 #define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
 #define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
 
-#define SCALE_MAX_UINT_TO_1_MULTIPLIER (0x1p-32f)
 
 //helper functions
 
@@ -173,7 +172,7 @@ float getRandomSampleFloat(uint dimensionSetIndex, uint seed)
 {
     uint startIndex = dimensionSetIndex << 2;
     uint sobolSeq = g_randomSamples.Load(startIndex);
-    return scramble(sobolSeq, seed, dimensionSetIndex) * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    return uintToFloat01(scramble(sobolSeq, seed, dimensionSetIndex));
 }
 
 float2 getRandomSampleFloat2(uint dimensionSetIndex, uint seed)
@@ -181,7 +180,7 @@ float2 getRandomSampleFloat2(uint dimensionSetIndex, uint seed)
     uint startIndex = dimensionSetIndex << 2;
     uint2 sobolSeq = g_randomSamples.Load2(startIndex);
     sobolSeq.xy = uint2(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1));
-    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    return uintToFloat01(sobolSeq);
 }
 
 float3 getRandomSampleFloat3(uint dimensionSetIndex, uint seed)
@@ -189,7 +188,7 @@ float3 getRandomSampleFloat3(uint dimensionSetIndex, uint seed)
     uint startIndex = dimensionSetIndex << 2;
     uint3 sobolSeq = g_randomSamples.Load3(startIndex);
     sobolSeq.xyz = uint3(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2));
-    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    return uintToFloat01(sobolSeq);
 }
 
 float4 getRandomSampleFloat4(uint dimensionSetIndex, uint seed)
@@ -197,7 +196,8 @@ float4 getRandomSampleFloat4(uint dimensionSetIndex, uint seed)
     uint startIndex = dimensionSetIndex << 2;
     uint4 sobolSeq = g_randomSamples.Load4(startIndex);
     sobolSeq.xyzw = uint4(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2), scramble(sobolSeq.w, seed, dimensionSetIndex + 3));
-    return sobolSeq * SCALE_MAX_UINT_TO_1_MULTIPLIER;
+    return uintToFloat01(sobolSeq);
+
 }
 
 float getSpectralSampleLambda(uint index)
@@ -339,10 +339,10 @@ struct RandomSampler
 {
     uint2 dimensionOffsetAndSeed;
 	
-	void init(uint dim, uint scramble)
+	void init(uint dim, uint pixelIndex)
 	{
         dimensionOffsetAndSeed.x = dim;
-        dimensionOffsetAndSeed.y = scramble;
+        dimensionOffsetAndSeed.y = 0;
     }
 		
     float getRandom1()

@@ -224,10 +224,43 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     nextSampleDirOut = wiObjSpace;
 }
 
+#ifdef WHITE_FURNACE_TEST
+bool handleWhiteFurnaceTest(inout Payload payload)
+{
+    uint instanceId = InstanceID();
+    if(payload.rayIndex == -1)
+    {
+        payload.rayIndex = instanceId;
+    } 
+    else
+    {
+        if (payload.rayIndex != instanceId)
+        {
+            SpectralSamples s;
+            s.setFromRGBUnbounded(float3(1, 1, 1));
+            payload.totalLight = payload.totalLight + payload.throughput * s;
+            payload.rayState |= RAY_STATE_TERMINATED;
+            return false;
+        }
+    }
+   
+    return true;
+}
+#endif
+	
+
 
 [shader("closesthit")]
 void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
+#ifdef WHITE_FURNACE_TEST
+    if (!handleWhiteFurnaceTest(payload))
+    {
+        return;
+    }
+#endif
+    
+    
 	uint2 materialAndMeshIndices = SHADERTABLE_EXTRADATA.materialAndMeshIndices;
 	MeshEntryGPU meshEntry = getMeshEntry(materialAndMeshIndices.y);
 
