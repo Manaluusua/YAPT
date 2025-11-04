@@ -26,14 +26,7 @@ def load_sobol_initial_directions_file(filepath):
             parts = list(map(int, line.split()))
             dim = parts[0]
             s = parts[1]
-            
-            binary_str = bin(parts[2])[2:]
-            a = [int(bit) for bit in binary_str]
-            
-            #prebend zeroes omitted to not have to deal with it later
-            if(len(a) < s):
-                a = np.concatenate((np.zeros(s - len(a), dtype=np.int8), a), dtype=np.int8)
-            
+            a = int(parts[2])
             m = parts[3: 3 + s]
 
             params.append((dim, s, a, m))
@@ -42,16 +35,24 @@ def load_sobol_initial_directions_file(filepath):
 
 
 def build_direction_numbers(s, a, m, L):
-    # Extend m_j recursively for j > s
-    mj = m.copy()
-    for j in range(s, L):
-        new_m = mj[j - s] << s
-        for k in range(1, s):
-            if a[k - 1] == 1:
-                new_m ^= mj[j - k] << k
-        mj.append(new_m)
-    return mj
+    V = np.zeros((L), dtype=np.uint32)
+    if L <= s:
+        for i in range(0, L):
+            V[i] = m[i] << (L - 1 - i)
+    else:
+        for i in range(0, s):
+            V[i] = m[i] << (L - 1 - i)
+        for i in range(s, L):
+            V[i] = V[i-s] ^ (V[i-s] >> s)
+            
+            for k in range(1, s):
+                coeff = (a >> (s - 1 - k)) & 1
+                if coeff == 1:
+                    V[i] ^= V[i-k]
+    
+    return V
 
+    
 def getIntegerType(precision):
     precisionType = np.uint8
     if(precision > 8 and precision <= 16):
@@ -77,12 +78,17 @@ def generator_matrix(m, L):
     
     C = np.zeros((L), dtype=precisionType)
     for j in range(L):
-        mj = m[j]
-        C[j] = 0
-        for k in range(L):
-            C[j] |= ((mj >> (L - 1 - k)) & 1) << k
+        C[j] = m[j] 
+
     return C
 
+def get_first_dimension_matrix(L):
+    precisionType = getIntegerType(L)
+    C = np.zeros((L), dtype=precisionType)
+    for j in range(L):
+        C[j] = 1 << (31 - j)
+    return C
+    
 def write_results(mat_arr, bits_count, output_file):
     file_begin = ["#pragma once", "#include <cstdint>", "namespace YAPT", "{"]
 
@@ -130,7 +136,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_file", default="SobolMatrices.h", help="Path to the output file")
     parser.add_argument("--directions_file", default="new-joe-kuo-6.21201", help="Path to a file with initial direction numbers (assumes joe & kuo file format)")
     parser.add_argument("--bits", type=int, default=32, help="bit precision, defaults to 32 bit")
-    parser.add_argument("--dimensions", type=int, default=256, help="Number of dimensions to produce")
+    parser.add_argument("--dimensions", type=int, default=512, help="Number of dimensions to produce")
     
     args = parser.parse_args()
     
@@ -144,15 +150,20 @@ if __name__ == "__main__":
         print("Malformed input file")
         sys.exit()
    
-    if(args.dimensions >= len(directions)):
-        print(f"asked to produce {args.dimensions} dimensions but directions file only contains initial direction numbers for {len(directions)-1} dimensions")
+    if(args.dimensions > len(directions)):
+        print(f"asked to produce {args.dimensions} dimensions but directions file only contains initial direction numbers for {len(directions)-1} dimensions (first dimension implicit)")
         sys.exit()
     mat_arr = []
+    mat_arr.append(get_first_dimension_matrix(bit_count))
     for i in range(args.dimensions):
         dim, s, a, m = directions[i]
         mj = build_direction_numbers(s, a, m, bit_count)
         c = generator_matrix(mj, bit_count)
         mat_arr.append(c)
+        #if( i == 2 ):
+        #    print(mj)
+        
+        #print(mj)
         #print(C)
         #print(f"dim {dim} s {s} a {a} m {m}")
     write_results(mat_arr, bit_count, args.output_file)
