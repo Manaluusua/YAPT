@@ -308,7 +308,7 @@ struct RandomSampler
 	void init(uint dim, uint pixelIndex)
 	{
         dimensionOffsetAndSeed.x = dim;
-        dimensionOffsetAndSeed.y = 0;
+        dimensionOffsetAndSeed.y = pixelIndex;
     }
 		
     float getRandom1()

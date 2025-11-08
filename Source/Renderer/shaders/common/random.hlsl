@@ -42,10 +42,15 @@ uint murmurhash(uint x)
     return x;
 }
 
+uint hash(uint a)
+{
+    return murmurhash(a);
+}
+
 uint hash(uint a, uint b)
 {
     uint key = ((a + b) * (a + b + 1)) / (2 + b);
-    return key; //return murmurhash(key);
+    return murmurhash(key);
 }
 
 uint owenScrambleBase2(uint v, uint seed)
