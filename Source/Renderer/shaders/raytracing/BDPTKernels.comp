@@ -20,9 +20,6 @@ RWTexture2D<float4> g_outputColor : register(u5, space3);
 #define WRITABLE_LIGHT_DATA
 #endif
 
-static uint g_spectralSampleOffset;
-
-
 #include "BDPTCommon.hlsl"
 
 #endif
@@ -39,8 +36,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	//could potentially remove this check here and just not write path if we can't reserve a header. This way we maybe end up with more valid paths per sample run
 	if(g_lightPathsPerDim.x <= dispatchThreadId.x || g_lightPathsPerDim.y <= dispatchThreadId.y) return; 
 
-	g_spectralSampleOffset = 0;
-
 	SpectralSamples radiance;
 	float3 lightPos;
 	float3 lightDir;
@@ -54,6 +49,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	
     RandomSampler rand;
     rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
+	g_spectralMainSampleWavelength = rand.getRandom1();
 
 	//sample light
 	{
@@ -234,6 +230,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		LightPathHeader header;
 		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
+		header.sampledWavelength = g_spectralMainSampleWavelength;
 		storeLightPathHeader(headerOffset, header);
 	
 	}
@@ -660,6 +657,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     }
 	
     GroupMemoryBarrierWithGroupSync();
+	
+	g_spectralMainSampleWavelength = g_lightPathHeader.sampledWavelength;
 
     if (groupIndex < g_lightPathHeader.offsetAndCount.y)
     {
@@ -669,8 +668,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
     GroupMemoryBarrierWithGroupSync();
 	
-	g_spectralSampleOffset = 0;
-
 	RandomSampler rand;
 	uint lightPathScrambleOffset = g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
     rand.init(0, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly

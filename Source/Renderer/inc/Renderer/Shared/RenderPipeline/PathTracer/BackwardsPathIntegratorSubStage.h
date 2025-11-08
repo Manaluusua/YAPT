@@ -44,6 +44,7 @@ namespace YAPT
 			uint32_t pathLength;
 
 			vec2p randomDimensionOffsetAndScramble;
+			float sampledWavelength;
 			uint32_t numberVolumesEntered;
 			uint32_t rayState;
 			uint32_t spectralSampleSetIndex;

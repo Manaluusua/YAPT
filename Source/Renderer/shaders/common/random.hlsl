@@ -63,7 +63,6 @@ uint owenScrambleBase2(uint v, uint seed)
 //[0, 0xFFFFFFFF] -> [0, 1)
 float uintToFloat01(uint randValue)
 {
-
     return min(randValue * FLOAT_UINT_MAX_INVERSE, FLOAT_ONE_MINUS_EPSILON);
 }
 

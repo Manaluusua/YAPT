@@ -38,8 +38,6 @@ namespace YAPT
 		initSubpixelJitterSamples();
 		m_rayTraceConstants.init(resourcesPool);
 		m_randomSamples.init(resourcesPool);
-		m_spectralDataConstants.init(resourcesPool);
-
 
 		m_renderObjectMaterialAndMeshIndices.init(m_renderer->getGfxHandle());
 		m_renderObjectTransformData.init(m_renderer->getGfxHandle());
@@ -93,7 +91,6 @@ namespace YAPT
 		rtConstants->lightCount = (uint32_t)m_renderer->getLightManager()->getLightReferenceCount();
 
 		//update samples
-		updateSampledWavelengths(params.spectralSampleOffset);
 		if ((params.sampleOffset % NUMBER_OF_RANDOM_SAMPLES) == 0)
 		{
 			updateSamples(params.sampleOffset);
@@ -161,7 +158,6 @@ namespace YAPT
 		DescriptorSetUpdate updates[] = {
 			{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
 			{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
-			{3, 0, 1, DescriptorPtr(m_spectralDataConstants.getViewPtr())},
 			{4, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
 			{5, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
 			{6, 0, 1, DescriptorPtr(&renderObjectsTransformBufferHandle)},
@@ -404,30 +400,6 @@ namespace YAPT
 	{
 		MathUtils::generateSobolSequence(NUMBER_OF_RANDOM_SAMPLES, NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS,  m_randomSamples.getData()->samples, (uint32_t)sampleOffset);
 		m_randomSamples.flush();
-	}
-
-	void RaytraceCommonResources::updateSampledWavelengths(size_t sampleOffset)
-	{
-		SpectralDataConstants* data = m_spectralDataConstants.getData();
-		if ((sampleOffset % SPECTRAL_SAMPLESET_COUNT) == 0)
-		{
-			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> sampleLambdas;
-			std::array<float, SPECTRAL_SAMPLESET_COUNT* SPECTRAL_SAMPLES_COUNT> samplePDFs;
-
-
-			for (uint32_t i = 0; i < SPECTRAL_SAMPLESET_COUNT; ++i)
-			{
-				float rand = MathUtils::halton(MathUtils::PRIME_NUMBERS[0], sampleOffset + i, MathUtils::getScrambledDigitsForPrimeIndex(0));
-				SpectralUtility::generateSampleLambdas(rand, (size_t)SPECTRAL_SAMPLES_COUNT, sampleLambdas.data() + i * SPECTRAL_SAMPLES_COUNT, samplePDFs.data() + i * SPECTRAL_SAMPLES_COUNT, (float)SpectralUtility::getCIELUTMinLambda(), (float)SpectralUtility::getCIELUTMaxLambda());
-			}
-
-			memcpy(&data->spdSampleLambda, sampleLambdas.data(), sizeof(float) * sampleLambdas.size());
-			memcpy(&data->spdSamplePdf, samplePDFs.data(), sizeof(float) * samplePDFs.size());
-
-		}
-
-		data->sampleSetOffset = sampleOffset % SPECTRAL_SAMPLESET_COUNT;
-		m_spectralDataConstants.flush();
 	}
 
 	void RaytraceCommonResources::initSubpixelJitterSamples()

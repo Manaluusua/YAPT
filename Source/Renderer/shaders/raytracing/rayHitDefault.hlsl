@@ -253,6 +253,9 @@ bool handleWhiteFurnaceTest(inout Payload payload)
 [shader("closesthit")]
 void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttributes attr)
 {
+    
+    g_spectralMainSampleWavelength = payload.sampledWavelength;
+    
 #ifdef WHITE_FURNACE_TEST
     if (!handleWhiteFurnaceTest(payload))
     {

@@ -1,6 +1,9 @@
 #ifndef BDPT_COMMON_HLSL
 #define BDPT_COMMON_HLSL
 
+static float g_spectralMainSampleWavelength;
+#define GET_SPECTRAL_SAMPLE_WAVELENGTH g_spectralMainSampleWavelength;
+
 #include "../globalDefinitions.hlsl"
 #include "materialSample.hlsl"
 #include "rayState.hlsl"
@@ -23,6 +26,7 @@ struct BidirectionalPathTraceConstants
 struct LightPathHeader
 {
 	uint2 offsetAndCount;
+    uint sampledWavelength;
 };
 
 struct LightPathNodePacked
@@ -190,7 +194,10 @@ uint reserveLightPathHeader()
 
 void storeLightPathHeader(uint offset, LightPathHeader h)
 {
-    g_lightPathHeaders.Store2((offset * 2) << 2, h.offsetAndCount);
+    uint4 val;
+    val.xy = h.offsetAndCount;
+    val.zw = uint2(h.sampledWavelength,0);
+    g_lightPathHeaders.Store4((offset * 4) << 2, val);
 }
 
 
@@ -245,7 +252,9 @@ uint getLightPathsCount()
 LightPathHeader getLightPathHeader(uint index)
 {
     LightPathHeader h;
-    h.offsetAndCount = g_lightPathHeaders.Load2((index * 2) << 2);
+    uint4 v = g_lightPathHeaders.Load4((index * 4) << 2);
+    h.offsetAndCount = v.xy;
+    h.sampledWavelength = v.z;
     return h;
 }
 

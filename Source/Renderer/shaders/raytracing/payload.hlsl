@@ -84,6 +84,7 @@ struct Payload //: RayStateInterface
 	uint pathLength;
 	
     uint2 randomDimensionOffsetAndScramble;
+    float sampledWavelength;
     float pdfThisRay;
 	uint numberVolumesEntered;
 	uint rayState;

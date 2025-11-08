@@ -2,13 +2,50 @@
 #define SPECTRAL_DISTRIBUTION_HLSL_INCL
 
 #include "../common/colorSpaces.hlsl"
+#include "../sharedIncludes/spectralConstants.h"
 
 //the resources needed are defined in raytraceCommonResources.hlsl
+
+#ifndef GET_SPECTRAL_SAMPLE_WAVELENGTH
+#error "includer or spectralDistribution.hlsl needs to define GET_SPECTRAL_SAMPLE_WAVELENGTH which is the main wavelength to sample"
+#endif
 
 #define COLORSPACE_RGB 0
 #define COLORSPACE_REC2020 1
 
 #define COLORSPACE_DEFAULT COLORSPACE_RGB
+
+#define SPECTRAL_SAMPLE_LAMBDA_RANGE (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN)
+#define SPECTRAL_SAMPLE_LAMBDA_PDF (1.f/SPECTRAL_SAMPLE_LAMBDA_RANGE)
+
+float4 getSpectralSampleLambdas()
+{
+    const uint SAMPLE_COUNT = SPECTRAL_SAMPLES_COUNT;
+    const float LAMBDA_RANGE = SPECTRAL_SAMPLE_LAMBDA_RANGE;
+    float lambdaStep = LAMBDA_RANGE / SAMPLE_COUNT;
+    float previousSample = GET_SPECTRAL_SAMPLE_WAVELENGTH;
+    float4 res;
+
+    res[0] = previousSample;
+
+    for (uint i = 1; i < SAMPLE_COUNT; ++i)
+    {
+        float lambda = previousSample + lambdaStep;
+        if (lambda > CIE_LUT_LAMBDA_MAX)
+        {
+            lambda = CIE_LUT_LAMBDA_MIN + (lambda - CIE_LUT_LAMBDA_MAX);
+        }
+        previousSample = lambda;
+        res[i] = previousSample;
+    }
+    return res;
+}
+
+float calculateSpectralSampleWavelength(float rand)
+{
+    return CIE_LUT_LAMBDA_MIN + rand * SPECTRAL_SAMPLE_LAMBDA_RANGE;
+
+}
 
 float3 getXYZCoeffsForWavelength(float lambda)
 {
@@ -42,10 +79,7 @@ float3 getRGBToSPDCoeffs(float3 color, int colorSpaceIndex = COLORSPACE_DEFAULT)
 
 float getHeroSpectralLambda()
 {
-	uint sampleSetIndex = getSpectralSampleSetIndex();
-	uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT;
-	float waveLength = getSpectralSampleLambda(sampleIndex);
-	return waveLength;
+    return GET_SPECTRAL_SAMPLE_WAVELENGTH;
 }
 
 float sigmoid(float x)
@@ -109,12 +143,10 @@ struct SpectralSamples
 		bool applyIlluminant = true;
 		if (applyIlluminant)
 		{
+            float4 lambdas = getSpectralSampleLambdas();
 			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 			{
-				uint sampleSetIndex = getSpectralSampleSetIndex();
-				uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
-				float waveLength = getSpectralSampleLambda(sampleIndex);
-
+                float waveLength = lambdas[i];
 				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV * 100.f; //multiplied by 100 because currently all values become so low. Either need to think of different way to define inputs (what are we even inserting, there is no real measure) or find some more sensible value to normalize the distributions
 			}
 		}
@@ -144,13 +176,11 @@ struct SpectralSamples
 
 	void setWithPolynomialCoeffs(float3 coeffs)
 	{
-		uint sampleSetIndex = getSpectralSampleSetIndex();
+        float4 lambdas = getSpectralSampleLambdas();
 
 		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 		{
-			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
-
-			float waveLength = getSpectralSampleLambda(sampleIndex);
+            float waveLength = lambdas[i];
 			float lambda = (waveLength - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN); //TODO: change the coefficients to target actual values rather than the normalized [0,1] range, can get rid of this then
 			float polynom = coeffs.x * lambda * lambda + coeffs.y * lambda + coeffs.z;
 			float v = sigmoid(polynom);
@@ -278,28 +308,25 @@ struct SpectralSamples
 
 	float3 ToXYZ(bool secondaryRaysTerminated = false)
 	{
-		uint sampleSetIndex = getSpectralSampleSetIndex();
 
 		float3 xyz = 0;
 
 		if (secondaryRaysTerminated)
 		{
-			uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT;
-
-			float waveLength = getSpectralSampleLambda(sampleIndex);
-			float pdf = getSpectralSampleLambdaPDF(sampleIndex);
+			float waveLength = getHeroSpectralLambda();
+			float pdf = SPECTRAL_SAMPLE_LAMBDA_PDF;
 			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
 			xyz = samples[0] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
 			return xyz;
 		}
 		else
 		{
+			float4 lambdas = getSpectralSampleLambdas();
 			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
 			{
-				uint sampleIndex = sampleSetIndex * SPECTRAL_SAMPLES_COUNT + i;
 
-				float waveLength = getSpectralSampleLambda(sampleIndex);
-				float pdf = getSpectralSampleLambdaPDF(sampleIndex);
+				float waveLength = lambdas[i];
+				float pdf = SPECTRAL_SAMPLE_LAMBDA_PDF;
 				float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
 				xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
 			}

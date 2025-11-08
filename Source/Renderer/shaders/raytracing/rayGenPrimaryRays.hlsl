@@ -26,22 +26,31 @@ RWTexture2D<float4> g_outputColor : register(u1, space3);
 [shader("raygeneration")]
 void rayGenPrimaryRays()
 {
+    Payload payload;
+    payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
+    RandomSampler rand;
+    rand.init(0, payload.rayIndex);
+	
+    g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+	
+	
 	float2 uv = (float2)DispatchRaysIndex() * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
 	float3 rayOrigin = g_cameraPosition;
 	
-    Payload payload;
+
 	payload.throughput.set(1.f);
 	payload.totalLight.set(0.f);
 	payload.rayOrigin = rayOrigin;
     payload.rayDirection = rayDir;
 	payload.rayState = RAY_STATE_ALIVE;
 	payload.pathLength = 0;
-	payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
+	
 	payload.numberVolumesEntered = 0;
 	payload.flags = 0;
     payload.pdfThisRay = 0;
-    payload.randomDimensionOffsetAndScramble = uint2(0, payload.rayIndex); //TODO: calculate scrambling here
+    payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed; //TODO: calculate scrambling here
+    payload.sampledWavelength = g_spectralMainSampleWavelength;
 	
 	#ifdef WHITE_FURNACE_TEST
     payload.rayIndex = -1;

@@ -20,13 +20,6 @@ struct RaytraceConstantData
     uint lightCount;
 };
 
-struct SpectralDataConstants
-{
-	float4 spdSampleLambda[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
-	float4 spdSamplePdf[(SPECTRAL_SAMPLES_COUNT * SPECTRAL_SAMPLESET_COUNT + 3) / 4];
-	uint sampleSetOffset;
-};
-
 struct MaterialEntryGPU
 {
 	float4 specAmountClearCoatAmountIORRoughness;
@@ -100,7 +93,6 @@ struct RenderObjectTransformDataGPU
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ByteAddressBuffer g_randomSampleLocations : register(t2, space0);
-ConstantBuffer<SpectralDataConstants> g_spectralSamplingConstants : register(b3, space0);
 StructuredBuffer<MaterialEntryGPU> g_materialEntries : register(t4, space0);
 StructuredBuffer<MeshEntryGPU> g_meshEntries : register(t5, space0);
 StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : register(t6, space0);
@@ -156,9 +148,6 @@ Buffer<float> g_buffersFloat[] : register(t0, space10002);
 
 #define g_randomSamples g_randomSampleLocations
 
-#define g_sampledWavelengths g_spectralSamplingConstants.spdSampleLambda
-#define g_sampledWavelengthPDFs g_spectralSamplingConstants.spdSamplePdf
-
 
 //helper functions
 
@@ -198,29 +187,6 @@ float4 getRandomSampleFloat4(uint dimensionSetIndex, uint seed)
     sobolSeq.xyzw = uint4(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2), scramble(sobolSeq.w, seed, dimensionSetIndex + 3));
     return uintToFloat01(sobolSeq);
 
-}
-
-float getSpectralSampleLambda(uint index)
-{
-	uint ind0 = index / 4;
-	uint ind1 = index & 0x3;
-
-	return g_sampledWavelengths[ind0][ind1];
-}
-
-float getSpectralSampleLambdaPDF(uint index)
-{
-	uint ind0 = index / 4;
-	uint ind1 = index & 0x3;
-
-	return g_sampledWavelengthPDFs[ind0][ind1];
-}
-
-uint getSpectralSampleSetIndex()
-{
-	uint spectralSampleSetIndex = g_spectralSamplingConstants.sampleSetOffset;
-	spectralSampleSetIndex = spectralSampleSetIndex % SPECTRAL_SAMPLESET_COUNT;
-	return spectralSampleSetIndex;
 }
 
 float4 sampleLUT(in SamplerState s, in Texture1D t, float uv)

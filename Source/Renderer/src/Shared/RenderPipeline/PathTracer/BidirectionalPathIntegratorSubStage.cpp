@@ -296,7 +296,7 @@ namespace YAPT
 			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
 			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
 
-			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y * 2, "lightPathHeaders");
+			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y * 4, "lightPathHeaders");
 
 			for (size_t i = 0; i < 2; ++i)
 			{
