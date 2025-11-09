@@ -77,6 +77,7 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/DebugDrawPipeline.h	
 	
 	inc/Renderer/Shared/RenderPipeline/TonemapStage.h
+	inc/Renderer/Shared/RenderPipeline/DenoiseStage.h
 	inc/Renderer/Shared/RenderPipeline/SwapChainStage.h
 	inc/Renderer/Shared/RenderPipeline/MeshDebugStage.h
 	
@@ -138,6 +139,7 @@ set(SOURCE
 	
 	src/Shared/RenderPipeline/DebugDrawPipeline.cpp
 	src/Shared/RenderPipeline/TonemapStage.cpp
+	src/Shared/RenderPipeline/DenoiseStage.cpp
 	
 	src/Shared/RenderPipeline/SwapChainStage.cpp
 	src/Shared/RenderPipeline/MeshDebugStage.cpp
