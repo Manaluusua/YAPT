@@ -26,7 +26,7 @@ struct BidirectionalPathTraceConstants
 struct LightPathHeader
 {
 	uint2 offsetAndCount;
-    uint sampledWavelength;
+    float sampledWavelength;
 };
 
 struct LightPathNodePacked
@@ -196,7 +196,7 @@ void storeLightPathHeader(uint offset, LightPathHeader h)
 {
     uint4 val;
     val.xy = h.offsetAndCount;
-    val.zw = uint2(h.sampledWavelength,0);
+    val.zw = uint2(asuint(h.sampledWavelength),0);
     g_lightPathHeaders.Store4((offset * 4) << 2, val);
 }
 
@@ -254,7 +254,7 @@ LightPathHeader getLightPathHeader(uint index)
     LightPathHeader h;
     uint4 v = g_lightPathHeaders.Load4((index * 4) << 2);
     h.offsetAndCount = v.xy;
-    h.sampledWavelength = v.z;
+    h.sampledWavelength = asfloat(v.z);
     return h;
 }
 

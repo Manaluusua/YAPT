@@ -49,7 +49,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	
     RandomSampler rand;
     rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
-	g_spectralMainSampleWavelength = rand.getRandom1();
+	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	//sample light
 	{
@@ -646,13 +646,27 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+	RandomSampler rand;
+	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
+    rand.init(g_maxVerticesPerLightPath * 4, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
+
+
 	if(groupIndex == 0)
     {
 		uint maxLightPathCount = g_lightPathsPerDim.y * g_lightPathsPerDim.x;
         uint headerCount = min(maxLightPathCount, getLightPathsCount());
-        uint headerIndex = groupId.y * g_lightPathsPerDim.x + groupId.x;
-        headerIndex = headerIndex % headerCount;
-        g_lightPathHeader = getLightPathHeader(headerIndex);
+		if(headerCount == 0)
+		{
+			g_lightPathHeader.offsetAndCount = uint2(0, 0);
+			g_lightPathHeader.sampledWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+		}
+		else
+		{
+			uint headerIndex = groupId.y * g_lightPathsPerDim.x + groupId.x;
+			headerIndex = headerIndex % headerCount;
+			g_lightPathHeader = getLightPathHeader(headerIndex);
+		}
+        
 
     }
 	
@@ -668,9 +682,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
     GroupMemoryBarrierWithGroupSync();
 	
-	RandomSampler rand;
-	uint lightPathScrambleOffset = g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
-    rand.init(0, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
+	
 
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
