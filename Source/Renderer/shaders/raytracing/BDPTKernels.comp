@@ -89,7 +89,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	//reserve header early
     uint headerOffset = reserveLightPathHeader();
 
-	if((g_lightPathsPerDim.y * g_lightPathsPerDim.x) >= headerOffset) return;
+	if((g_lightPathsPerDim.y * g_lightPathsPerDim.x) <= headerOffset) return;
 
 	BDPTRayState rayState;
     rayState.setStateFlags(0);
