@@ -1,0 +1,18 @@
+{
+	"shaderPipelines": {
+		"createGBuffer": {
+			"stages": 
+			[
+				{
+					"type": "vertex",
+					"sourceFile": "gbuffer/gbuffer.vertex"
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "gbuffer/gbuffer.frag"
+				}
+			]
+
+		}
+	}
+}
