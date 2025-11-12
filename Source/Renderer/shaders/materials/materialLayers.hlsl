@@ -2,7 +2,7 @@
 #define MATERIAL_LAYERS_HLSL_INCL
 
 #include "../common/bsdfSample.hlsl"
-#include "hitshadersCommon.hlsl"
+#include "materialsCommon.hlsl"
 #include "../common/multiscatter.hlsl"
 
 interface MaterialLayer

@@ -158,11 +158,12 @@ namespace YAPT
 		DescriptorSetUpdate updates[] = {
 			{1, 0, 1, DescriptorPtr(m_rayTraceConstants.getViewPtr())},
 			{2, 0, 1, DescriptorPtr(m_randomSamples.getViewPtr())},
-			{4, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
-			{5, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
-			{6, 0, 1, DescriptorPtr(&renderObjectsTransformBufferHandle)},
-			{7, 0, 1, DescriptorPtr(&renderObjectsMatMeshBufferHandle)},
-			{8, 0, 1, DescriptorPtr(&lightsBufferHandle)},
+			{3, 0, 1, DescriptorPtr(&renderObjectsTransformBufferHandle)},
+			{4, 0, 1, DescriptorPtr(&renderObjectsMatMeshBufferHandle)},
+			{5, 0, 1, DescriptorPtr(&lightsBufferHandle)},
+			{6, 0, 1, DescriptorPtr(&materialEntriesBuffer)},
+			{7, 0, 1, DescriptorPtr(&meshEntriesBuffer)},
+			
 
 			{12, 0, 1, DescriptorPtr(&noiseTex)},
 

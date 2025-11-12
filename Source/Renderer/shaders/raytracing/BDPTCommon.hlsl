@@ -5,6 +5,7 @@ static float g_spectralMainSampleWavelength;
 #define GET_SPECTRAL_SAMPLE_WAVELENGTH g_spectralMainSampleWavelength;
 
 #include "../globalDefinitions.hlsl"
+#include "hitShadersCommon.hlsl"
 #include "materialSample.hlsl"
 #include "rayState.hlsl"
 #include "lightSampling.hlsl"
