@@ -80,7 +80,6 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/DenoiseStage.h
 	inc/Renderer/Shared/RenderPipeline/SwapChainStage.h
 	inc/Renderer/Shared/RenderPipeline/MeshDebugStage.h
-	inc/Renderer/Shared/RenderPipeline/GBufferStage.h
 	
 	inc/Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h
 	inc/Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h	
@@ -144,7 +143,6 @@ set(SOURCE
 	
 	src/Shared/RenderPipeline/SwapChainStage.cpp
 	src/Shared/RenderPipeline/MeshDebugStage.cpp
-	src/Shared/RenderPipeline/GBufferStage.cpp
 	src/Shared/RenderPipeline/RenderPipelineManager.cpp
 	
 	src/Shared/RenderPipeline/PathTracer/PathTracerPipeline.cpp

@@ -9,8 +9,7 @@
 const char* jsonFilesToLoad[] = {
 	"shaders/postProcessPipelineDefinitions.json",
 	"shaders/rayTracePipelineDefinitions.json",
-	"shaders/toolsPipelineDefinitions.json",
-	"shaders/generalPipelineDefinitions.json"
+	"shaders/toolsPipelineDefinitions.json"
 };
 
 namespace YAPT
