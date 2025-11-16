@@ -90,6 +90,11 @@ namespace YAPT
 			TextureHandleDx12* textureHandle = new TextureHandleDx12;
 			textureDescToDx12ResourceDesc(desc, textureHandle->textureDesc);
 			D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			//rely on state promotion if usage is copy dest
+			if (state == D3D12_RESOURCE_STATE_COPY_DEST)
+			{
+				state = D3D12_RESOURCE_STATE_COMMON;
+			}
 			textureHandle->dimension = desc.dimension;
 			textureHandle->lastSeenState.init(state, desc.depthOrSlices * desc.mips);
 
