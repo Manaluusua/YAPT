@@ -48,11 +48,26 @@ namespace YAPT
 			ACCESS_FLAGS_READ_WRITE,
 			SHADERSTAGE_RT_RAYGENERATION,
 			1,
+			1},
+			{ResourceDimension::TEXTURE_2D,
+			ResourceFormat::R32_UINT,
+			RESOURCE_USAGE_STORAGE_TEXTURE,
+			ACCESS_FLAGS_WRITE,
+			SHADERSTAGE_RT_CLOSEST_HIT,
+			1,
+			1},
+			{ResourceDimension::TEXTURE_2D,
+			ResourceFormat::R32_UINT,
+			RESOURCE_USAGE_STORAGE_TEXTURE,
+			ACCESS_FLAGS_WRITE,
+			SHADERSTAGE_RT_CLOSEST_HIT,
+			1,
 			1}
+
 		};
 
 
-		m_rtNode = m_graph->createRayTraceNode(1, slotdefsRtNode, []
+		m_rtNode = m_graph->createRayTraceNode(countOf(slotdefsRtNode), slotdefsRtNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BackwardsPathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
@@ -157,14 +172,30 @@ namespace YAPT
 	void BackwardsPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 		m_renderResolution = newResolution;
-
-		RenderGraphResourceId rtTarget = m_rtNode->getRenderGraphResourceIdForSlot(0);
-		const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(rtTarget);
-
-		TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
-		TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
-		m_graph->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
-		
+		//RT color target
+		{
+			RenderGraphResourceId rtTarget = m_rtNode->getRenderGraphResourceIdForSlot(0);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(rtTarget);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
+			m_graph->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
+		}
+		//Denoise output0
+		{
+			RenderGraphResourceId res = m_rtNode->getRenderGraphResourceIdForSlot(1);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(res);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Denoise Target 0");
+			m_graph->setRenderGraphResourceTexture(res, rtTargetTex);
+		}
+		//Denoise output1
+		{
+			RenderGraphResourceId res = m_rtNode->getRenderGraphResourceIdForSlot(2);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(res);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Denoise Target 1");
+			m_graph->setRenderGraphResourceTexture(res, rtTargetTex);
+		}
 	}
 
 	void BackwardsPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
@@ -286,11 +317,15 @@ namespace YAPT
 			m_raytraceCommon.updateCommonResourcesToDescriptorSet(m_rtCommonResourcesDescSet);
 
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 0);
+			TextureViewHandle rtDenoiseUav0 = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 1);
+			TextureViewHandle rtDenoiseUav1 = m_graph->getTextureViewFromNodeSlot(m_rtNode->getSortedIndex(), 2);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
 
 			DescriptorSetUpdate updates[] = {
 			{0, 0, 1, DescriptorPtr(&accStruct)},
 			{1, 0, 1, DescriptorPtr(&rtOutputUav)},
+			{2, 0, 1, DescriptorPtr(&rtDenoiseUav0)},
+			{3, 0, 1, DescriptorPtr(&rtDenoiseUav1)},
 			};
 
 			Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), m_rtMiscResourcesDescSet, updates, countOf(updates));

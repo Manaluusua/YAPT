@@ -3,6 +3,7 @@
 
 #include "../materials/materialsCommon.hlsl"
 #include "raytraceCommonResources.hlsl"
+#include "../postprocess/materialParameterTextures.hlsl"
 
 #define MaterialMask_TwoSided (1 << 0)
 #define MaterialMask_Dispersion (1 << 1)
@@ -79,6 +80,11 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.sheenAmount = rgb.sheenAmount;
 	surfDef.flags = rgb.flags;
 	return surfDef;
+}
+
+void writeMaterialParamsForFirstBounce(SurfaceDefinitionRGB rgb, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+{
+	
 }
 
 SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)

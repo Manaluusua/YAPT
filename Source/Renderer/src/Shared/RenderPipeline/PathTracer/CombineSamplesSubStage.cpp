@@ -42,7 +42,7 @@ namespace YAPT
 		}}
 		};
 
-		m_mergeNode = m_graph->createComputeNode(2, slotdefsMergeNode, []
+		m_mergeNode = m_graph->createComputeNode(countOf(slotdefsMergeNode), slotdefsMergeNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<CombineSamplesSubStage*>(usrData)->executeMergeToPrevious(execContext);

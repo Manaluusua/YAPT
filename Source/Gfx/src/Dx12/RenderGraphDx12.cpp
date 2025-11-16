@@ -461,23 +461,28 @@ namespace YAPT
 
 				//check which subresources need to actually transition
 				subResourceIndicesToTransition.clear();
-				if (transitionFullResource)
+				//we never know the first usage barrier needs a priori so don't pregenerate them
+				if (!isFirstUsage)
 				{
-					if (statesInNode != subResourceStates[0])
+					if (transitionFullResource)
 					{
-						subResourceIndicesToTransition.push_back(0);
-					}
-				}
-				else
-				{
-					for (size_t i = 0; i < numberOfSubresources; ++i)
-					{
-						if (statesInNode != subResourceStates[i])
+						if (statesInNode != subResourceStates[0])
 						{
-							subResourceIndicesToTransition.push_back(i);
+							subResourceIndicesToTransition.push_back(0);
+						}
+					}
+					else
+					{
+						for (size_t i = 0; i < numberOfSubresources; ++i)
+						{
+							if (statesInNode != subResourceStates[i])
+							{
+								subResourceIndicesToTransition.push_back(i);
+							}
 						}
 					}
 				}
+				
 
 				size_t numberOfTransitionBarriers = subResourceIndicesToTransition.size();
 
@@ -751,7 +756,6 @@ namespace YAPT
 			else
 			{
 				//copy per resource barriers to current barriers (the amount of barriers could potentially change because of more/less resources bound to slot)
-				
 				barrierDescs.currentBeforeBarriers.resize(pregeneratedBarriersPerResourceCount * numberOfResourcesBound);
 			}
 
@@ -782,28 +786,11 @@ namespace YAPT
 
 				assert(resource != nullptr);
 
+				//if this is the first time usage of the resource in the graph, need to potentially transition from external state, so collect the "before" states for the transition barriers above 
 				if (barrierDescs.isFirstUsageForResource)
 				{
-					//if this is the first time usage of the resource in the graph, need to potentially transition from external state, so collect the "before" states for the transition barriers above 
-					if (barrierDescs.isFirstUsageForResource)
-					{
-						for (size_t barrierIndex = 0; barrierIndex < pregeneratedBarriersPerResourceCount; ++barrierIndex)
-						{
-							size_t subResourceIndex = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex].Transition.Subresource;
-							subResourceIndex = subResourceIndex == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES ? 0 : subResourceIndex;
-							D3D12_RESOURCE_STATES state = stateTracker->getStateForSubResource(subResourceIndex);
-							
-							if (state != barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex].Transition.StateAfter)
-							{
-								D3D12_RESOURCE_BARRIER b = barrierDescs.preGeneratedBeforeBarriersPerResource[barrierIndex];
-								injectResourceToBarrier(resource, b);
-								b.Transition.StateBefore = state;
-							
-								barrierDescs.currentBeforeBarriers.push_back(b);
-							}
-						}
+					assert(!"TODO: implement barriers for resources entering the graph for the first time (also including wrap around)")
 
-					}
 				}
 				else
 				{

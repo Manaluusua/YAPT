@@ -27,9 +27,6 @@ StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : regist
 ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t4, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 
-RWTexture2D<uint4> g_MaterialParamsOutput0 : register(u26, space0);
-RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u27, space0);
-
 //helper defines
 #define g_uvToViewTransform g_rayGenConstants.uvToView
 #define g_viewToWorldTransform g_rayGenConstants.viewToWorld
@@ -150,6 +147,5 @@ struct RandomSampler
 
 #include "spectralDistribution.hlsl"
 #include "rayState.hlsl"
-#include "../postprocess/materialParameterTextures.hlsl"
 
 #endif

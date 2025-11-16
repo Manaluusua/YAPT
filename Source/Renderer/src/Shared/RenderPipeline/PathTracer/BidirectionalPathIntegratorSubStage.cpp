@@ -115,6 +115,24 @@ namespace YAPT
 				1
 			},
 			{
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::R32_UINT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_RT_CLOSEST_HIT,
+				1,
+				1
+			},
+			{
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::R32_UINT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_RT_CLOSEST_HIT,
+				1,
+				1
+			},
+			{
 				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
 				ACCESS_FLAGS_READ,
 				SHADERSTAGE_COMPUTE)
@@ -138,21 +156,21 @@ namespace YAPT
 			},
 			this, "InitCountersNode");
 
-		m_lightPathsNode = m_graph->createComputeNode(3, slotdefsLightPaths, []
+		m_lightPathsNode = m_graph->createComputeNode(countOf(slotdefsLightPaths), slotdefsLightPaths, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
 			},
 			this, "LightPathsNode");
 
-		m_lightPathsSortNode = m_graph->createComputeNode(4, slotdefsSortLightPaths, []
+		m_lightPathsSortNode = m_graph->createComputeNode(countOf(slotdefsSortLightPaths), slotdefsSortLightPaths, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathSortPass(execContext);
 			},
 			this, "LightPathsSortNode");
 
-		m_cameraPathsNode = m_graph->createComputeNode(4, slotdefsCameraRaysNode, []
+		m_cameraPathsNode = m_graph->createComputeNode(countOf(slotdefsCameraRaysNode), slotdefsCameraRaysNode, []
 		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 			{
 				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
@@ -165,9 +183,9 @@ namespace YAPT
 		m_graph->createEdge(m_lightPathsNode, 1, m_lightPathsSortNode, 1);
 		m_graph->createEdge(m_lightPathsNode, 2, m_lightPathsSortNode, 2);
 
-		m_graph->createEdge(m_lightPathsSortNode, 0, m_cameraPathsNode, 1);
-		m_graph->createEdge(m_lightPathsSortNode, 3, m_cameraPathsNode, 2);
-		m_graph->createEdge(m_lightPathsSortNode, 2, m_cameraPathsNode, 3);
+		m_graph->createEdge(m_lightPathsSortNode, 0, m_cameraPathsNode, 3);
+		m_graph->createEdge(m_lightPathsSortNode, 3, m_cameraPathsNode, 4);
+		m_graph->createEdge(m_lightPathsSortNode, 2, m_cameraPathsNode, 5);
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
@@ -272,12 +290,31 @@ namespace YAPT
 	{
 		m_renderResolution = newResolution;
 
-		RenderGraphResourceId rtTarget = m_cameraPathsNode->getRenderGraphResourceIdForSlot(0);
-		const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(rtTarget);
+		{
+			RenderGraphResourceId rtTarget = m_cameraPathsNode->getRenderGraphResourceIdForSlot(0);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(rtTarget);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
+			m_graph->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
+		}
 
-		TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
-		TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Main scene RT Color Target");
-		m_graph->setRenderGraphResourceTexture(rtTarget, rtTargetTex);
+		//Denoise output0
+		{
+			RenderGraphResourceId res = m_cameraPathsNode->getRenderGraphResourceIdForSlot(1);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(res);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Denoise Target 0");
+			m_graph->setRenderGraphResourceTexture(res, rtTargetTex);
+		}
+		//Denoise output1
+		{
+			RenderGraphResourceId res = m_cameraPathsNode->getRenderGraphResourceIdForSlot(2);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(res);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, newResolution.x, newResolution.y, 1, 1);
+			TextureHandle rtTargetTex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Denoise Target 1");
+			m_graph->setRenderGraphResourceTexture(res, rtTargetTex);
+		}
+		
 
 		//dummy for now
 		{
@@ -444,6 +481,8 @@ namespace YAPT
 			m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
 
 			TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 0);
+			TextureViewHandle rtDenoiseUav0 = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 1);
+			TextureViewHandle rtDenoiseUav1 = m_graph->getTextureViewFromNodeSlot(m_cameraPathsNode->getSortedIndex(), 2);
 			TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
 			
 
@@ -458,6 +497,8 @@ namespace YAPT
 				{3, 0, 1, DescriptorPtr(&lightPathVertices)},
 				{4, 0, 1, DescriptorPtr(&counters)},
 				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
+				{6, 0, 1, DescriptorPtr(&rtDenoiseUav0)},
+				{7, 0, 1, DescriptorPtr(&rtDenoiseUav1)},
 			};
 
 			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));

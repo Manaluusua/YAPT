@@ -19,10 +19,6 @@ float3 generateRayDirection(float2 uv)
 	return rayDir;
 }
 
-
-
-RWTexture2D<float4> g_outputColor : register(u1, space3);
-
 [shader("raygeneration")]
 void rayGenPrimaryRays()
 {

@@ -14,6 +14,9 @@ void prepareResources( uint3 groupId : SV_GroupID,
 
 #ifdef CAMERA_RAYS_STAGE
 RWTexture2D<float4> g_outputColor : register(u5, space3);
+RWTexture2D<uint4> g_MaterialParamsOutput0 : register(u6, space3);
+RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u7, space3);
+
 #elif LIGHT_RAYS_STAGE
 #define WRITABLE_LIGHT_DATA
 #elif SORT_LIGHT_VERTICES_STAGE
