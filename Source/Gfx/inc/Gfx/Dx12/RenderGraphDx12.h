@@ -65,6 +65,8 @@ namespace YAPT
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
 
+		void fillBarriersForFirstUseInGraph(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to, const ResourceStateTrackerDx12& stateTracker, ID3D12Resource* resource, std::vector<D3D12_RESOURCE_BARRIER>& barriers);
+
 		void createRenderTargetResources();
 
 		void generateBarriers();
@@ -76,6 +78,7 @@ namespace YAPT
 		static D3D12_RESOURCE_STATES getD3D12StateFromResourceUsage(const ResourceStateDescription& previousState);
 		static bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to);
 		static void calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut);
+		static uint32_t calcSubresourceIndex(const RenderGraphResourceDescription& resourceDesc, size_t arrayLayer, size_t mip);
 
 		const bool useSplitBarriers = false;
 

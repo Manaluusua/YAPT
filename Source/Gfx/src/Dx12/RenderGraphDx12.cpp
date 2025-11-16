@@ -366,6 +366,11 @@ namespace YAPT
 		}
 	}
 
+	uint32_t RenderGraphDx12::calcSubresourceIndex(const RenderGraphResourceDescription& resourceDesc, size_t arrayLayer, size_t mip)
+	{
+		return D3D12CalcSubresource((UINT)mip, (UINT)arrayLayer, 0u, (UINT)resourceDesc.mipCount, (UINT)resourceDesc.arraySliceCount);
+	}
+
 
 	void RenderGraphDx12::generateBarriers()
 	{
@@ -714,6 +719,41 @@ namespace YAPT
 		return isFullResource;
 	}
 
+	void RenderGraphDx12::fillBarriersForFirstUseInGraph(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to, const ResourceStateTrackerDx12& stateTracker, ID3D12Resource* resource, std::vector<D3D12_RESOURCE_BARRIER>& barriers)
+	{
+		bool subresourcesShareState = stateTracker.allSubResourcesShareState();
+		bool fullResourceUsed = isUsingFullResource(resourceDesc, to);
+
+		D3D12_RESOURCE_BARRIER barrier;
+		barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		barrier.Transition.pResource = resource;
+		barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+
+		D3D12_RESOURCE_STATES stateAfter = getD3D12StateFromResourceUsage(to);
+
+		if (subresourcesShareState && fullResourceUsed)
+		{
+			barrier.Transition.StateBefore = stateTracker.getStateForSubResource(0);
+			barrier.Transition.StateAfter = stateAfter;
+			barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+			barriers.push_back(barrier);
+		}
+		else
+		{
+			for (uint32_t layer = 0; layer < to.resourceDescription.arraySliceCount; ++layer)
+			{
+				for (uint32_t mip = 0; mip < to.resourceDescription.mipCount; ++mip)
+				{
+					int subResourceIndex = calcSubresourceIndex(resourceDesc, to.arraySliceOffset + layer, to.mipOffset + mip);
+					barrier.Transition.StateBefore = stateTracker.getStateForSubResource(subResourceIndex);
+					barrier.Transition.StateAfter = stateAfter;
+					barrier.Transition.Subresource = subResourceIndex;
+					barriers.push_back(barrier);
+				}
+			}
+		}
+		
+	}
 
 	void RenderGraphDx12::updateBarriersForResource(RenderGraphResourceId id, size_t numberOfResourcesBound, bool onlyFirstUsage)
 	{
@@ -789,8 +829,8 @@ namespace YAPT
 				//if this is the first time usage of the resource in the graph, need to potentially transition from external state, so collect the "before" states for the transition barriers above 
 				if (barrierDescs.isFirstUsageForResource)
 				{
-					assert(!"TODO: implement barriers for resources entering the graph for the first time (also including wrap around)")
-
+					const RenderGraphResourceUsage& usage = m_resourceRequirements.getRenderGraphResourceUsage(nodeIndex, slotIndex);
+					fillBarriersForFirstUseInGraph(getRenderGraphResourceDescription(id), usage, *stateTracker, resource, barrierDescs.currentBeforeBarriers);
 				}
 				else
 				{

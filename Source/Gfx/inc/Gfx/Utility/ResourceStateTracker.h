@@ -16,7 +16,7 @@ namespace YAPT
 		void setStateForSubResource(size_t subresource, const STATE& state);
 
 		size_t getNumberOfSubResources() const;
-		STATE getStateForSubResource(size_t subresource);
+		STATE getStateForSubResource(size_t subresource) const;
 
 		void checkSharedState();
 
@@ -87,7 +87,7 @@ namespace YAPT
 
 
 	template<typename STATE>
-	STATE ResourceStateTracker<STATE>::getStateForSubResource(size_t subresource)
+	STATE ResourceStateTracker<STATE>::getStateForSubResource(size_t subresource) const
 	{
 		if (m_allSubresourcesShareState || (subresource == 0 && m_statePerSubResource.size() == 0))
 		{
