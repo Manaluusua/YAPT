@@ -1,5 +1,5 @@
 #include "BPTShared.hlsl"
-#include "raytraceCommonResources.hlsl"
+#include "hitShadersCommon.hlsl"
 #include "payload.hlsl"
 
 SpectralSamples ToSpectralSamples(float3 color)
@@ -12,6 +12,13 @@ SpectralSamples ToSpectralSamples(float3 color)
 [shader("miss")]
 void rayMissEnvironment(inout Payload payload)
 {
+	
+    bool outputShadingParams = firstBounceMaterialWriteEnabled();
+    if (outputShadingParams && payload.pathLength == 0)
+    {
+        writeEmptyMaterialParamsForFirstBounce(DispatchRaysIndex().xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+    }
+	
     g_spectralMainSampleWavelength = payload.sampledWavelength;
 	
     float4 color = getSkyBoxColor(WorldRayDirection(), g_envType, g_envTexIndex);

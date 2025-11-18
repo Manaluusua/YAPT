@@ -16,6 +16,9 @@ namespace YAPT
 	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
 	constexpr size_t ENVIRONMENT_TYPE_LONGLAT = 2;
 
+	constexpr uint32_t CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS = YAPTBIT(0);
+	constexpr uint32_t CONSTANTS_FLAG_DISABLE_TEXEL_JITTER = YAPTBIT(1);
+
 	struct RaytraceConstantData
 	{
 		mat4p uvToView;
@@ -29,6 +32,7 @@ namespace YAPT
 		uint32_t envTextureIndex;
 		uint32_t envType;
 		uint32_t lightCount;
+		uint32_t flags;
 	};
 
 	struct RandomSamples

@@ -82,7 +82,12 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	return surfDef;
 }
 
-void writeMaterialParamsForFirstBounce(SurfaceDefinitionRGB rgb, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+{
+	
+}
+
+void writeEmptyMaterialParamsForFirstBounce(uint2 outputLocation, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
 {
 	
 }

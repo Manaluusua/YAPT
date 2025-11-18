@@ -69,10 +69,20 @@ namespace YAPT
 		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
 		camPos = viewToWorld * camPos;
 
+		uint32_t flags = 0;
+
+		//first frame writes out material outputs for denoising (and disables subpixel jitter to get values from the center of the texel)
+		if (params.sampleOffset == 0)
+		{
+			flags |= CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS;
+			flags |= CONSTANTS_FLAG_DISABLE_TEXEL_JITTER;
+		}
+
 		rtConstants->maxRayDepth = 16;
 		rtConstants->rayUVOffset = rayUVOffset;
 		rtConstants->cameraPosition = camPos;
 		rtConstants->targetTexDimensions = vec4p(params.renderResolution.x, params.renderResolution.y, targetPixelWidth, targetPixelHeight);
+		rtConstants->flags = flags;
 
 		mat4 uvToViewTransform = glm::inverse(fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform());
 

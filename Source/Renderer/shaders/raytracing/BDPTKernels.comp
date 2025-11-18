@@ -739,12 +739,12 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
 			
-			bool outputShadingParams = true;
+			bool outputShadingParams = firstBounceMaterialWriteEnabled();
 			if(camVertexIndex == 0 && outputShadingParams)
 			{
 				SurfaceDefinitionRGB surfaceDefRGB;
 				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
-				writeMaterialParamsForFirstBounce(surfaceDefRGB, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			} 
 			else
@@ -843,7 +843,14 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
         }
 		else 
 		{
-			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;	
+
+			bool outputShadingParams = firstBounceMaterialWriteEnabled();
+			if (outputShadingParams && camVertexIndex == 0)
+			{
+				writeEmptyMaterialParamsForFirstBounce(dispatchThreadId.xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+			}
+
+			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);

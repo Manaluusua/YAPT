@@ -18,6 +18,7 @@ struct RaytraceConstantData
     uint envTextureIndex;
     uint envType;
     uint lightCount;
+    uint flags;
 };
 
 //uniforms
@@ -27,9 +28,13 @@ StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : regist
 ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t4, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 
+#define CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS  (1 << 0)
+#define CONSTANTS_FLAG_DISABLE_TEXEL_JITTER  (1 << 1)
+
 //helper defines
 #define g_uvToViewTransform g_rayGenConstants.uvToView
 #define g_viewToWorldTransform g_rayGenConstants.viewToWorld
+#define g_constantsFlags g_rayGenConstants.flags
 #define g_cameraPosition g_rayGenConstants.cameraPosition.xyz
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
@@ -41,6 +46,18 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_envTexIndex g_rayGenConstants.envTextureIndex
 
 #define g_randomSamples g_randomSampleLocations
+
+bool isPixelJitterEnabled()
+{
+    return (g_constantsFlags & CONSTANTS_FLAG_DISABLE_TEXEL_JITTER) == 0;
+
+}
+
+bool firstBounceMaterialWriteEnabled()
+{
+    return (g_constantsFlags & CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS) != 0;
+
+}
 
 
 uint2 getMaterialAndMeshIndicesForInstance(uint instanceIndex)
@@ -65,8 +82,15 @@ float4 getWorldCenterAndRadiusSqr()
 
 float3 generateRayDirection(float2 uv, float2 rand)
 {
-	
-    float2 texelOffset = rand.xy - 0.5f; //[-0.5, 0.5], assuming the uv is at texel center
+    float2 texelOffset;
+    if (isPixelJitterEnabled())
+    {
+        texelOffset = rand.xy - 0.5f; //[-0.5, 0.5], assuming the uv is at texel center
+    } 
+    else
+    {
+        texelOffset = 0;
+    }
     texelOffset *= g_targetTexDimensions.zw;
     
     float4 pointOnNearPlane = float4(uv + texelOffset, 0.0f, 1.0f);
