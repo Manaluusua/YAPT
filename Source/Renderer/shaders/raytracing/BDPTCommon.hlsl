@@ -161,7 +161,7 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
 #define g_maxCameraPathVertices g_bdptConstants.maxCameraPathVertices
 
-
+#define g_lightPathRandomDimensionOffset (g_maxCameraPathVertices * 4 + 4)
 
 #define g_sampleEnvLightProbabilityWeight 0.5f
 
@@ -259,22 +259,6 @@ LightPathHeader getLightPathHeader(uint index)
     return h;
 }
 
-
-
-float3 generateRayDirection(float2 uv)
-{
-	float4 pointOnNearPlane = float4(uv, 0.0f, 1.0f);
-
-	pointOnNearPlane = mul(g_uvToViewTransform, pointOnNearPlane);
-	pointOnNearPlane /= pointOnNearPlane.w;
-	pointOnNearPlane.w = 0;
-
-	float3 worldDir = mul(g_viewToWorldTransform, pointOnNearPlane).xyz;
-
-	float3 rayDir = normalize(worldDir);
-	return rayDir;
-}
-
 void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource,
 out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 {
@@ -360,16 +344,24 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     return data;
 }
 
+void calculateCommonSurfaceParams(in BDPTRayState rayState, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
+out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+{
+
+    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+
+    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+}
+
+
 void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
     SurfaceDefinitionRGB surfaceDefRGB;
     fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
-	    
-    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
-
-    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
-    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+	
+    calculateCommonSurfaceParams(rayState, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 }
 
 

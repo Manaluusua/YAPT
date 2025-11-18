@@ -35,7 +35,6 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
-		initSubpixelJitterSamples();
 		m_rayTraceConstants.init(resourcesPool);
 		m_randomSamples.init(resourcesPool);
 
@@ -65,15 +64,6 @@ namespace YAPT
 		//ray offset
 		vec2p rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
 		rayUVOffset += params.rayGenOffsetInTexels; //move to (target) pixel being updated (will be 0 if doing fullres rt)
-
-		//apply subpixel jitter
-		if (m_applySubpixelJitter)
-		{
-			uint32_t subpixelJitterSampleIndex = params.sampleOffset % NUMBER_OF_SUBPIXEL_JITTER_SAMPLES;
-			vec2p jitterSample = m_subpixelJitterSamples[subpixelJitterSampleIndex];
-			rayUVOffset.x += jitterSample.x * targetPixelWidth;
-			rayUVOffset.y += jitterSample.y * targetPixelHeight;
-		}
 
 		vec4 camPos(0.f, 0.f, 0.f, 1.f);
 		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
@@ -402,16 +392,4 @@ namespace YAPT
 		MathUtils::generateSobolSequence(NUMBER_OF_RANDOM_SAMPLES, NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS,  m_randomSamples.getData()->samples, (uint32_t)sampleOffset);
 		m_randomSamples.flush();
 	}
-
-	void RaytraceCommonResources::initSubpixelJitterSamples()
-	{
-		MathUtils::generateHaltonSequence(NUMBER_OF_SUBPIXEL_JITTER_SAMPLES, m_subpixelJitterSamples, 0);
-		//[0,1] -> [-0.5, 0.5], ie offsets from pixel center
-		for (size_t i = 0; i < NUMBER_OF_SUBPIXEL_JITTER_SAMPLES; ++i)
-		{
-			m_subpixelJitterSamples[i] = (m_subpixelJitterSamples[i] - vec2p(0.5f, 0.5f));
-		}
-
-	}
-
 }

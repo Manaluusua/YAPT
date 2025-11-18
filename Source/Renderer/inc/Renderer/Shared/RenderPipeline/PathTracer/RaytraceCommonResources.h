@@ -12,7 +12,6 @@ namespace YAPT
 {
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLES = 1;
 	constexpr uint32_t NUMBER_OF_RANDOM_SAMPLE_DIMENSIONS = 256; //keep in sync with shader
-	constexpr uint32_t NUMBER_OF_SUBPIXEL_JITTER_SAMPLES = 60;
 	constexpr size_t ENVIRONMENT_TYPE_NONE = 0;
 	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
 	constexpr size_t ENVIRONMENT_TYPE_LONGLAT = 2;
@@ -106,7 +105,6 @@ namespace YAPT
 			AABB combinedBounds;
 		};
 
-		void initSubpixelJitterSamples();
 		void updateSamples(size_t sampleOffset);
 		void setupLightDataJob(ThreadPool* threadPool);
 		void setupWorldBoundsJob(ThreadPool* threadPool);
@@ -123,10 +121,6 @@ namespace YAPT
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 
 		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
-
-		vec2p m_subpixelJitterSamples[NUMBER_OF_SUBPIXEL_JITTER_SAMPLES];
-		bool m_applySubpixelJitter;
-
 	};
 
 }

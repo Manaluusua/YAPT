@@ -4,20 +4,7 @@
 #include "../common/random.hlsl"
 #include "../common/commonMath.hlsl"
 #include "payload.hlsl"
-float3 generateRayDirection(float2 uv)
-{
-	
-	float4 pointOnNearPlane = float4(uv, 0.0f, 1.0f);
-	
-	pointOnNearPlane = mul(g_uvToViewTransform, pointOnNearPlane);
-	pointOnNearPlane /= pointOnNearPlane.w;
-	pointOnNearPlane.w = 0;
-	
-	float3 worldDir = mul(g_viewToWorldTransform, pointOnNearPlane).xyz;
-	
-	float3 rayDir = normalize(worldDir);
-	return rayDir;
-}
+
 
 [shader("raygeneration")]
 void rayGenPrimaryRays()
@@ -26,14 +13,12 @@ void rayGenPrimaryRays()
     payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
     RandomSampler rand;
     rand.init(0, payload.rayIndex);
-	
-    g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
-	
-	
+
 	float2 uv = (float2)DispatchRaysIndex() * g_targetTexDimensions.zw;
-    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
+    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getRandom2());
 	float3 rayOrigin = g_cameraPosition;
 	
+    g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	payload.throughput.set(1.f);
 	payload.totalLight.set(0.f);

@@ -51,7 +51,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	
     RandomSampler rand;
-    rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
+    rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	//sample light
@@ -651,7 +651,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 {
 	RandomSampler rand;
 	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
-    rand.init(g_maxVerticesPerLightPath * 4, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
+    rand.init(0, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
 
 
 	if(groupIndex == 0)
@@ -688,7 +688,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
-    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset);
+    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getRandom2());
 	float3 rayOrigin = g_cameraPosition;
 	
 	SpectralSamples totalLight;
@@ -739,8 +739,20 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             uint primIndex = q.CommittedPrimitiveIndex();
             float2 bary = q.CommittedTriangleBarycentrics();
 			
+			bool outputShadingParams = true;
+			if(camVertexIndex == 0 && outputShadingParams)
+			{
+				SurfaceDefinitionRGB surfaceDefRGB;
+				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
+				writeMaterialParamsForFirstBounce(surfaceDefRGB, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+			} 
+			else
+			{
+				calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+			}
 			
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+            
 			
             float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);

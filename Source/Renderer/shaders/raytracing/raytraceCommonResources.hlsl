@@ -63,6 +63,24 @@ float4 getWorldCenterAndRadiusSqr()
     return float4(c, dot(ext, ext));
 }
 
+float3 generateRayDirection(float2 uv, float2 rand)
+{
+	
+    float2 texelOffset = rand.xy - 0.5f; //[-0.5, 0.5], assuming the uv is at texel center
+    texelOffset *= g_targetTexDimensions.zw;
+    
+    float4 pointOnNearPlane = float4(uv + texelOffset, 0.0f, 1.0f);
+	
+    pointOnNearPlane = mul(g_uvToViewTransform, pointOnNearPlane);
+    pointOnNearPlane /= pointOnNearPlane.w;
+    pointOnNearPlane.w = 0;
+	
+    float3 worldDir = mul(g_viewToWorldTransform, pointOnNearPlane).xyz;
+	
+    float3 rayDir = normalize(worldDir);
+    return rayDir;
+}
+
 //helper functions
 
 uint scramble(uint random, uint scrambleSeed, uint dimension)
