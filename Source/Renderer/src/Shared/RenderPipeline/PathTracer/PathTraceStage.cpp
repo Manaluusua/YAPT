@@ -59,13 +59,20 @@ namespace YAPT
 		m_cmdBufferPool = Gfx::createCommandBufferPool(getRenderer()->getGfxHandle(), 1, Gfx::getQueueId(getRenderer()->getGfxHandle(), QueueType::QUEUE_TYPE_GRAPHICS), nullptr);
 
 		m_rtStage->initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr);
-		RenderGraphNode* rtNode;
-		size_t rtSlot;
-		m_rtStage->getOutput(&rtNode, rtSlot);
-
 		m_mergeStage.initialize(getRenderer(), getGraph());
-		m_mergeStage.setInput(rtNode, rtSlot);
-		
+
+		auto setupNodeConnection = [this](PathIntegratorSubStage::OutputResource outputId, CombineSamplesSubStage::InputResource inputId)
+			{
+				RenderGraphNode* node;
+				size_t slot;
+				m_rtStage->getOutput(outputId, node, slot);
+				m_mergeStage.setInput(inputId, node, slot);
+			};
+
+		setupNodeConnection(PathIntegratorSubStage::OutputResource::COLOR, CombineSamplesSubStage::InputResource::COLOR);
+		setupNodeConnection(PathIntegratorSubStage::OutputResource::MATERIAL_PARAMS0, CombineSamplesSubStage::InputResource::MATERIAL_PARAMS0);
+		setupNodeConnection(PathIntegratorSubStage::OutputResource::MATERIAL_PARAMS1, CombineSamplesSubStage::InputResource::MATERIAL_PARAMS1);
+
 		m_accStructureHelper.init(getRenderer());
 
 		m_firstTimeUpdate = true;
@@ -242,7 +249,7 @@ namespace YAPT
 		{
 		case RAYTRACE_STAGE_CONNECTION_COLOR:
 		{
-			m_mergeStage.getOutput(&conn.node, conn.slot);
+			m_mergeStage.getOutput(CombineSamplesSubStage::OutputResource::COLOR, &conn.node, conn.slot);
 			break;
 		}
 		default:

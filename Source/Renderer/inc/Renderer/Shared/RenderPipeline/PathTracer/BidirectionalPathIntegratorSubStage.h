@@ -28,7 +28,7 @@ namespace YAPT
 		virtual void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution) final;
 		virtual void prepare(const RenderStage::PrepareData& params) final;
 		virtual void update(const UpdateParams& params) final;
-		virtual void getOutput(RenderGraphNode** node, size_t& slotOut) final;
+		virtual void getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut) final;
 
 		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 

@@ -12,6 +12,18 @@ namespace YAPT
 	{
 	public:
 
+		enum class OutputResource
+		{
+			COLOR
+		};
+
+		enum class InputResource
+		{
+			COLOR,
+			MATERIAL_PARAMS0,
+			MATERIAL_PARAMS1
+		};
+
 		struct UpdateParams
 		{
 			uvec4p targetOffsetScaleBias;
@@ -31,8 +43,8 @@ namespace YAPT
 
 		 void update(const UpdateParams& params);
 
-		 void setInput(RenderGraphNode* node, size_t slot);
-		 void getOutput(RenderGraphNode** node, size_t& slotOut);
+		 void setInput(InputResource resource, RenderGraphNode* node, size_t slot);
+		 void getOutput(OutputResource outputResource, RenderGraphNode** node, size_t& slotOut);
 
 	private:
 
@@ -43,6 +55,11 @@ namespace YAPT
 			uint64_t sampleCount;
 		};
 
+		struct DenoiseParams
+		{
+			uvec2p textureDimensions;
+		};
+
 		struct ClearAccumulatedSamplesParams
 		{
 			uvec4p targetTextureDimensions;
@@ -50,6 +67,7 @@ namespace YAPT
 		};
 
 		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
+		void executeDenoise(const RenderGraphNodeExecutionContext& exec);
 
 
 
@@ -57,10 +75,13 @@ namespace YAPT
 		CRenderer* m_renderer;
 
 		ComputeNode* m_mergeNode;
+		ComputeNode* m_denoiseNode;
 		PostProcessComputePassUtility m_clearMergeBufferPass;
 		PostProcessComputePassUtility m_mergePass;
+		PostProcessComputePassUtility m_denoisePass;
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
+		FixedSizeGpuBufferHelper<DenoiseParams> m_denoiseConstants;
 		UpdateParams m_lastUpdateParams;
 		uvec2 m_renderResolution;
 

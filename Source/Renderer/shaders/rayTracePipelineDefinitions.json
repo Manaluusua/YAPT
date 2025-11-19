@@ -1,7 +1,8 @@
 {
 	"shaderPipelines": {
 		"rayGenPrimaryRays": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "library",
 					"sourceFile": "raytracing/rayGenPrimaryRays.hlsl",
 					"entryPoint": "rayGenPrimaryRays"
@@ -9,7 +10,8 @@
 			]
 		},
 		"rayHitDefault": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "library",
 					"sourceFile": "raytracing/rayHitDefault.hlsl",
 					"entryPoint": "rayHitDefault"
@@ -17,16 +19,18 @@
 			]
 		},
 		"rayHitDefaultWithNEE": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "library",
 					"sourceFile": "raytracing/rayHitDefault.hlsl",
 					"entryPoint": "rayHitDefault",
-					"defines": [["ENABLE_NEE", "1"]]
+					"defines": [ [ "ENABLE_NEE", "1" ] ]
 				}
 			]
 		},
 		"rayMissEnvironment": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "library",
 					"sourceFile": "raytracing/rayMissEnvironment.hlsl",
 					"entryPoint": "rayMissEnvironment"
@@ -34,44 +38,49 @@
 			]
 		},
 		"prepareResourcesBDPT": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
 					"entryPoint": "prepareResources",
-					"defines": [["PREPARE_RESOURCES", "1"]]
+					"defines": [ [ "PREPARE_RESOURCES", "1" ] ]
 				}
 			]
 		},
 		"cameraRaysBDPT": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
 					"entryPoint": "traceCameraRays",
-					"defines": [["CAMERA_RAYS_STAGE", "1"]]
+					"defines": [ [ "CAMERA_RAYS_STAGE", "1" ] ]
 				}
 			]
 		},
 		"sortLightVertices": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
 					"entryPoint": "sortLightVertices",
-					"defines": [["SORT_LIGHT_VERTICES_STAGE", "1"]]
+					"defines": [ [ "SORT_LIGHT_VERTICES_STAGE", "1" ] ]
 				}
 			]
 		},
 		"lightRaysBDPT": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
 					"entryPoint": "traceLightRays",
-					"defines": [["LIGHT_RAYS_STAGE", "1"]]
+					"defines": [ [ "LIGHT_RAYS_STAGE", "1" ] ]
 				}
 			]
 		},
-		
+
 		"clearRaytraceMergeTarget": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "postProcess/clearAccumulatedSamples.comp",
 					"entryPoint": "main"
@@ -79,14 +88,24 @@
 			]
 		},
 		"mergeRaytraceResults": {
-			"stages": [{
+			"stages": [
+				{
 					"type": "compute",
 					"sourceFile": "postProcess/mergeNewSamples.comp",
 					"entryPoint": "main"
 				}
 			]
+		},
+		"denoise": {
+			"stages": [
+				{
+					"type": "compute",
+					"sourceFile": "postProcess/denoise.comp",
+					"entryPoint": "main"
+				}
+			]
 		}
-		
-		
+
+
 	}
 }

@@ -17,6 +17,13 @@ namespace YAPT
 	{
 	public:
 
+		enum class OutputResource
+		{
+			COLOR,
+			MATERIAL_PARAMS0,
+			MATERIAL_PARAMS1
+		};
+
 		static constexpr ResourceFormat SampleImageFormat = ResourceFormat::RGBA32_SFLOAT;
 
 		struct UpdateParams
@@ -56,7 +63,7 @@ namespace YAPT
 		virtual void update(const UpdateParams& params) = 0;
 		
 
-		virtual void getOutput(RenderGraphNode** node, size_t& slotOut) = 0;
+		virtual void getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut) = 0;
 		virtual void sceneChanged(const SceneData& sceneData) = 0;
 
 		virtual ~PathIntegratorSubStage() {}

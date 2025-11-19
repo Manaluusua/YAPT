@@ -222,10 +222,23 @@ namespace YAPT
 
 	}
 
-	void BackwardsPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
+	void BackwardsPathIntegratorSubStage::getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut)
 	{
-		*node = m_rtNode;
-		slotOut = 0;
+		switch (resource)
+		{
+		case OutputResource::COLOR:
+			node = m_rtNode;
+			slotOut = 0;
+			break;
+		case OutputResource::MATERIAL_PARAMS0:
+			node = m_rtNode;
+			slotOut = 1;
+			break;
+		case OutputResource::MATERIAL_PARAMS1:
+			node = m_rtNode;
+			slotOut = 2;
+			break;
+		}
 	}
 
 	void BackwardsPathIntegratorSubStage::writeShaderTableEntryAndConstantData(size_t shaderTableIndex, const MaterialPerSubmeshArray& mat, MeshIndex meshID, size_t submeshIndex, ShaderTableEntry* entry)

@@ -377,10 +377,24 @@ namespace YAPT
 			
 	}
 
-	void BidirectionalPathIntegratorSubStage::getOutput(RenderGraphNode** node, size_t& slotOut)
+	void BidirectionalPathIntegratorSubStage::getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut)
 	{
-		*node = m_cameraPathsNode;
-		slotOut = 0;
+		switch (resource)
+		{
+		case OutputResource::COLOR:
+			node = m_cameraPathsNode;
+			slotOut = 0;
+			break;
+		case OutputResource::MATERIAL_PARAMS0:
+			node = m_cameraPathsNode;
+			slotOut = 1;
+			break;
+		case OutputResource::MATERIAL_PARAMS1:
+			node = m_cameraPathsNode;
+			slotOut = 2;
+			break;
+		}
+		
 	}
 
 
