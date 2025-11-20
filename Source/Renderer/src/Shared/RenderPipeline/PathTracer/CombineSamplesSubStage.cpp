@@ -264,8 +264,11 @@ namespace YAPT
 			}
 
 			{
+				CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
+				int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
-				denoiseParams->textureDimensions = glm::uvec2(params.sourceTextureResolution.x, params.sourceTextureResolution.y);
+				denoiseParams->denoiseMode = uvec4p(denoiseMode, 0, 0, 0);
+				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
 				m_denoiseConstants.flush();
 			}
 		}

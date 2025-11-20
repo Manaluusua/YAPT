@@ -17,6 +17,7 @@
 #define RVARNAME_SKYBOX "World.Skycube"
 
 #define RVARNAME_ACTIVE_RENDERPIPELINE "RenderPipeline"
+#define RVARNAME_DENOISE_MODE "Denoise.Mode"
 
 #define RVARNAME_TONEMAP_TOE "Tonemap.Toe"
 #define RVARNAME_TONEMAP_MID "Tonemap.Mid"

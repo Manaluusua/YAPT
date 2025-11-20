@@ -57,7 +57,8 @@ namespace YAPT
 
 		struct DenoiseParams
 		{
-			uvec2p textureDimensions;
+			vec4p textureDimensions;
+			uvec4p denoiseMode;
 		};
 
 		struct ClearAccumulatedSamplesParams

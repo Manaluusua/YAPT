@@ -1,17 +1,54 @@
 #include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
+#include "materialParameterTextures.hlsl"
 
 struct DenoiseParams
 {
-    uint2 textureDimensions;
+    float4 textureDimensions;
+    uint4 denoiseMode;
 };
 
+#define DENOISE_MODE_ON 0
+#define DENOISE_MODE_OFF 1
+#define DENOISE_MODE_MAT_PARAMS_DEBUG 2
 
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
-Texture2D g_materialParams0 : register(t2, space0);
-Texture2D g_materialParams1 : register(t3, space0);
+Texture2D<uint4> g_materialParams0 : register(t2, space0);
+Texture2D<uint4> g_materialParams1 : register(t3, space0);
 RWTexture2D<float4> g_targetTex : register(u4, space0);
+
+float4 calculateDebugMaterialParams(uint2 loc)
+{
+    float2 scaledUv = (loc * g_denoiseParams.textureDimensions.zw) * 2.f;
+    uint2 readLocation = frac(scaledUv) * g_denoiseParams.textureDimensions.xy;
+    
+    MaterialParameters2Texture matParams = readMaterialParametersFromTextures(readLocation, g_materialParams0, g_materialParams1);
+    
+    if(scaledUv.x < 1)
+    {
+        if (scaledUv.y < 1)
+        {
+            return float4(matParams.albedo, 1);
+        } 
+        else
+        {
+            return float4(matParams.normal * 0.5f + 0.5f, 1);
+        }
+    } 
+    else
+    {
+        if (scaledUv.y < 1)
+        {
+            return float4(matParams.anisotropy, matParams.ior, matParams.roughness, 1.f);
+        }
+        else
+        {
+            return float4(matParams.metalness, matParams.depth, matParams.transparency, 1.f);
+        }
+    }
+}
+
 
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
@@ -21,8 +58,23 @@ void main( uint3 groupId : SV_GroupID,
 {
     if (dispatchThreadId.x < g_denoiseParams.textureDimensions.x && dispatchThreadId.y < g_denoiseParams.textureDimensions.y)
 	{
-		float4 srcColor = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
-        g_targetTex[dispatchThreadId.xy] = srcColor;
+        float4 col = 0;
+        if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_ON)
+        {
+            col = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
+        }
+        else if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_OFF)
+        {
+            col = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
+        }
+        else if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_MAT_PARAMS_DEBUG)
+        {
+            col = calculateDebugMaterialParams(dispatchThreadId.xy);
+        }
+        
+        g_targetTex[dispatchThreadId.xy] = col;
+        
+		
 		
 	}
 }
