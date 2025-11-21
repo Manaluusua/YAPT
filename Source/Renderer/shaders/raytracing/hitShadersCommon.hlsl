@@ -82,14 +82,41 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	return surfDef;
 }
 
-void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, float depth, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
 {
+    float coatingWeight = rgb.clearCoatAmount;
+    float sheenWeight = rgb.sheenAmount;
+    float baseWeight = rgb.specularAmount;
 	
+    float weightSum = coatingWeight + sheenWeight + baseWeight;
+	if(weightSum == 0.f)
+    {
+        weightSum = 1;
+    }
+    coatingWeight /= weightSum;
+    sheenWeight /= weightSum;
+    baseWeight /= weightSum;
+	
+    MaterialParameters2Texture output;
+    output.normal = normalize(rgb.baseLayerNormal + rgb.coatingLayerNormal * rgb.clearCoatAmount);
+    output.albedo = rgb.emissive + rgb.albedo + rgb.sheenColor * rgb.sheenAmount;
+    output.roughness = rgb.roughness * baseWeight + rgb.clearCoatRoughness * coatingWeight + rgb.sheenRoughness * sheenWeight;
+    output.ior = rgb.dielectricIOR * rgb.specularAmount + rgb.clearCoatIOR * rgb.clearCoatAmount;
+    output.anisotropy = rgb.anisotropy;
+    output.metalness = rgb.metalness;
+    output.depth = depth;
+    output.transparency = rgb.transparency;
+    output.materialFlags = 0;
+	
+    writeMaterialParametersToTextures(outputLocation, output, materialOutput0, materialOutput1);
+
 }
 
 void writeEmptyMaterialParamsForFirstBounce(uint2 outputLocation, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
 {
+    MaterialParameters2Texture output = (MaterialParameters2Texture) 0;
 	
+    writeMaterialParametersToTextures(outputLocation, output, materialOutput0, materialOutput1);
 }
 
 SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)

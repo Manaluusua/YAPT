@@ -744,7 +744,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
 				SurfaceDefinitionRGB surfaceDefRGB;
 				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
-				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			} 
 			else

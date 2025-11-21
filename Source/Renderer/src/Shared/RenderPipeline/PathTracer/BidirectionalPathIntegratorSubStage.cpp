@@ -116,7 +116,7 @@ namespace YAPT
 			},
 			{
 				ResourceDimension::TEXTURE_2D,
-				ResourceFormat::R32_UINT,
+				ResourceFormat::RGBA32_UINT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_RT_CLOSEST_HIT,
@@ -125,7 +125,7 @@ namespace YAPT
 			},
 			{
 				ResourceDimension::TEXTURE_2D,
-				ResourceFormat::R32_UINT,
+				ResourceFormat::RGBA32_UINT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_RT_CLOSEST_HIT,

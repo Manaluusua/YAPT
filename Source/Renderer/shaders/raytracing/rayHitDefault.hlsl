@@ -293,7 +293,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     bool outputShadingParams = firstBounceMaterialWriteEnabled();
     if (outputShadingParams && payload.pathLength == 0)
     {
-        writeMaterialParamsForFirstBounce(DispatchRaysIndex().xy, surfaceDefRGB, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+        writeMaterialParamsForFirstBounce(DispatchRaysIndex().xy, surfaceDefRGB, RayTCurrent(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
     }
 
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
