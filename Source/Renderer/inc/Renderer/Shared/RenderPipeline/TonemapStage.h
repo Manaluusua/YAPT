@@ -63,6 +63,8 @@ namespace YAPT
 		struct LuminanceHistogramAnalysisResults
 		{
 			float averageLuminance;
+			float minLuminance;
+			float maxLuminance;
 		};
 
 		 
