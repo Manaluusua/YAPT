@@ -82,7 +82,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	return surfDef;
 }
 
-void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, float depth, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, float3x3 normalTransform, float depth, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
 {
     float coatingWeight = rgb.clearCoatAmount;
     float sheenWeight = rgb.sheenAmount;
@@ -97,8 +97,14 @@ void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRG
     sheenWeight /= weightSum;
     baseWeight /= weightSum;
 	
+    float3 normal = mul(normalTransform, rgb.baseLayerNormal);
+    if (rgb.clearCoatAmount > 0)
+    {
+        normal += mul(normalTransform, rgb.coatingLayerNormal);
+    }
+	
     MaterialParameters2Texture output;
-    output.normal = normalize(rgb.baseLayerNormal + rgb.coatingLayerNormal * rgb.clearCoatAmount);
+    output.normal = normalize(normal);
     output.albedo = rgb.emissive + rgb.albedo + rgb.sheenColor * rgb.sheenAmount;
     output.roughness = rgb.roughness * baseWeight + rgb.clearCoatRoughness * coatingWeight + rgb.sheenRoughness * sheenWeight;
     output.ior = rgb.dielectricIOR * rgb.specularAmount + rgb.clearCoatIOR * rgb.clearCoatAmount;

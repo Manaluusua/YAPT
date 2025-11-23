@@ -744,7 +744,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
 				SurfaceDefinitionRGB surfaceDefRGB;
 				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
-				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
+				transformNormal = transpose(transformNormal);
+
+
+				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, transformNormal, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			} 
 			else

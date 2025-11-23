@@ -50,6 +50,18 @@ float4 calculateDebugMaterialParams(uint2 loc)
 }
 
 
+float4 denoise(uint2 pixelLocation)
+{
+    MaterialParameters2Texture centerParams = readMaterialParametersFromTextures(pixelLocation, g_materialParams0, g_materialParams1);
+    if (dot(float3(1.f, 1.f, 1.f), abs(centerParams.normal)) == 0)
+    {
+        return g_sourceTex.Load(uint3(pixelLocation, 0));
+    }
+
+    return 0;
+}
+
+
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -61,7 +73,7 @@ void main( uint3 groupId : SV_GroupID,
         float4 col = 0;
         if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_ON)
         {
-            col = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
+            col = denoise(dispatchThreadId.xy);
         }
         else if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_OFF)
         {
