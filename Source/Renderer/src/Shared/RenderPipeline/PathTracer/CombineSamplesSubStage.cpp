@@ -38,7 +38,7 @@ namespace YAPT
 				PathIntegratorSubStage::SampleImageFormat,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
 				ACCESS_FLAGS_READ,
-				SHADERSTAGE_FRAGMENT,
+				SHADERSTAGE_COMPUTE,
 				1,
 				1
 			}}
@@ -67,27 +67,27 @@ namespace YAPT
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_READ,
-				SHADERSTAGE_FRAGMENT,
+				SHADERSTAGE_COMPUTE,
 				1,
 				1
 			}},
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_READ,
-				SHADERSTAGE_FRAGMENT,
+				SHADERSTAGE_COMPUTE,
 				1,
 				1
 			}},
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_READ,
-				SHADERSTAGE_FRAGMENT,
+				SHADERSTAGE_COMPUTE,
 				1,
 				1
 			}}
