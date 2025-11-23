@@ -293,7 +293,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     bool outputShadingParams = firstBounceMaterialWriteEnabled();
     if (outputShadingParams && payload.pathLength == 0)
     {
-        float3x3 transformNormal = (float3x3)ObjectToWorld3x4();
+        float3x3 transformNormal = (float3x3)WorldToObject3x4();
         transformNormal = transpose(transformNormal);
         writeMaterialParamsForFirstBounce(DispatchRaysIndex().xy, surfaceDefRGB, transformNormal, RayTCurrent(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
     }

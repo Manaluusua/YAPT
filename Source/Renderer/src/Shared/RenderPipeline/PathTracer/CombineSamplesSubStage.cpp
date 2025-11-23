@@ -198,6 +198,10 @@ namespace YAPT
 	{
 		bool haveTexturesChanged = m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(0));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(1));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(1));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(2));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(3));
+
 		if (haveTexturesChanged)
 		{
 			//clear accumulation buffer
