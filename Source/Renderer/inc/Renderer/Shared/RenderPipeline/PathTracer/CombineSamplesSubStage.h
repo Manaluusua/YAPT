@@ -67,6 +67,7 @@ namespace YAPT
 			vec4p clearValue;
 		};
 
+		void executeClear(const RenderGraphNodeExecutionContext& exec);
 		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
 		void executeDenoise(const RenderGraphNodeExecutionContext& exec);
 
@@ -75,6 +76,7 @@ namespace YAPT
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
 
+		ComputeNode* m_clearNode;
 		ComputeNode* m_mergeNode;
 		ComputeNode* m_denoiseNode;
 		PostProcessComputePassUtility m_clearMergeBufferPass;

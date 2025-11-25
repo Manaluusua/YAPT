@@ -68,16 +68,16 @@ namespace YAPT
 			float maxLuminance;
 		};
 
-		 
+		void executeClearHistogram(const RenderGraphNodeExecutionContext& execContext);
 		void executeGenerateHistogram(const RenderGraphNodeExecutionContext& execContext);
 		void executeAnalyzeHistogram(const RenderGraphNodeExecutionContext& execContext);
 		void executePrepareTonemapData(const RenderGraphNodeExecutionContext& execContext);
 		void executeTonemapping(const RenderGraphNodeExecutionContext& execContext);
 
 		FixedSizeGpuBufferHelper<TonemapConstants> m_tonemapConstants;
-
-		ComputeNode* m_generateHistogramNode;
+		ComputeNode* m_clearHistogramNode;
 		PostProcessComputePassUtility m_clearHistogramPass;
+		ComputeNode* m_generateHistogramNode;
 		PostProcessComputePassUtility m_generateHistogramPass;
 
 		ComputeNode* m_analyzeHistogramNode;

@@ -54,6 +54,23 @@ namespace YAPT
 		{
 			RenderGraphNodeSlotDefinition slotdefs[] =
 			{
+				{
+				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE)
+				} 
+			};
+
+			m_clearHistogramNode = getGraph()->createComputeNode(1, slotdefs, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<TonemapStage*>(usrData)->executeClearHistogram(execContext);
+				},
+				this, "clearHistogramNode");
+		}
+		{
+			RenderGraphNodeSlotDefinition slotdefs[] =
+			{
 			{RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
 				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_COMPUTE)},
@@ -151,7 +168,7 @@ namespace YAPT
 
 		}
 		
-
+		getGraph()->createEdge(m_clearHistogramNode, 0, m_generateHistogramNode, 0);
 		getGraph()->createEdge(m_generateHistogramNode, 0, m_analyzeHistogramNode, 1);
 		getGraph()->createEdge(m_analyzeHistogramNode, 0, m_preparetonemapDataNode, 1);
 		getGraph()->createEdge(m_preparetonemapDataNode, 0, m_tonemapNode, 2);
@@ -384,10 +401,15 @@ namespace YAPT
 
 		m_tonemapConstants.flush();
 	}
+
+	void TonemapStage::executeClearHistogram(const RenderGraphNodeExecutionContext& execContext)
+	{
+		m_clearHistogramPass.dispatch(execContext.cmdBuffer, 1, 1, 1);
+	}
 	
 	void TonemapStage::executeGenerateHistogram(const RenderGraphNodeExecutionContext& execContext)
 	{
-		m_clearHistogramPass.dispatch(execContext.cmdBuffer, 1, 1, 1);
+		
 		uint32_t x = (m_renderWidth + GATHER_LUMINANCE_TG_SIZE - 1) / GATHER_LUMINANCE_TG_SIZE;
 		uint32_t y = (m_renderHeight + GATHER_LUMINANCE_TG_SIZE - 1) / GATHER_LUMINANCE_TG_SIZE;
 		m_generateHistogramPass.dispatch(execContext.cmdBuffer, x, y, 1);

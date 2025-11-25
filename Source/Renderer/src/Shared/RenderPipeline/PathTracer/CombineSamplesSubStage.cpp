@@ -23,13 +23,35 @@ namespace YAPT
 		m_graph = graph;
 		m_renderer = rend;
 		
+
 		{
-			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
+			RenderGraphNodeSlotDefinition slotdefsClearNode[] =
 			{
 			{{ResourceDimension::TEXTURE_2D,
 				ResourceFormat::RGBA32_SFLOAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}}
+			};
+
+			m_clearNode = m_graph->createComputeNode(countOf(slotdefsClearNode), slotdefsClearNode, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<CombineSamplesSubStage*>(usrData)->executeClear(execContext);
+				},
+				this, "ClearRtResultsNode");
+		}
+
+		{
+			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
+			{
+			{{ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
@@ -100,10 +122,8 @@ namespace YAPT
 				},
 				this, "DenoiseNode");
 		}
-
+		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 0);
 		m_graph->createEdge(m_mergeNode, 0, m_denoiseNode, 1);
-
-
 
 	}
 
@@ -279,8 +299,7 @@ namespace YAPT
 		m_lastUpdateParams = params;
 	}
 
-
-	void CombineSamplesSubStage::executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec)
+	void CombineSamplesSubStage::executeClear(const RenderGraphNodeExecutionContext& exec)
 	{
 		if (m_lastUpdateParams.clearAccumulated)
 		{
@@ -289,8 +308,14 @@ namespace YAPT
 
 			m_clearMergeBufferPass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
 		}
+	}
+
+	
 
 
+
+	void CombineSamplesSubStage::executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec)
+	{
 		uint32_t rtWidth = m_lastUpdateParams.sourceTextureResolution.x;
 		uint32_t rtHeight = m_lastUpdateParams.sourceTextureResolution.y;
 
