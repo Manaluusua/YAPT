@@ -46,13 +46,13 @@ namespace YAPT
 		};
 
 		void setup(CRenderer* renderer, RenderGraph* renderGraph)
-		{ 
-			m_renderer = renderer; 
-			m_renderGraph = renderGraph; 
+		{
+			m_renderer = renderer;
+			m_renderGraph = renderGraph;
 		}
 
 		virtual void initialize() = 0;
-		
+
 		virtual RenderStageConnection getOutputConnection(size_t id) = 0;
 		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) = 0;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) {};
@@ -61,6 +61,7 @@ namespace YAPT
 
 		virtual void prepare(const PrepareData& data) = 0;
 		virtual void update(const UpdateData& data) = 0;
+		virtual void beforeExecute() = 0;
 
 		CRenderer* getRenderer() { return m_renderer; }
 		RenderGraph* getGraph() { return m_renderGraph; }

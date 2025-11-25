@@ -505,10 +505,6 @@ namespace YAPT
 			threadPool->waitForAllTasksCompleted();
 		}
 
-
-
-
-
 		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);
 		RenderGraphNode** nodes = getNodes();
 		size_t nodeCount = getNodeCount();

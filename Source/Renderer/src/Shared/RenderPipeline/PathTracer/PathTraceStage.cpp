@@ -141,27 +141,6 @@ namespace YAPT
 		{
 			updateInstanceOffsets();
 
-			Gfx::resetCommandPool(getRenderer()->getGfxHandle(), m_cmdBufferPool);
-			CommandBufferHandle buff = Gfx::startRecording(getRenderer()->getGfxHandle(), m_cmdBufferPool, 0);
-			
-			m_accStructureHelper.updateBottomLevelStructures(buff);
-			
-			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
-			{
-				size_t shdTblOffset = m_instanceOffsetPerRenderObject[arrayIndex];
-			
-				instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
-				instanceMaskOut = ~0;
-				hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
-			};
-			
-			m_accStructureHelper.updateTopLevelStructures(buff, assignPerInstanceParams);
-			m_accelerationStructureNeedsRebuild = false;
-			
-			
-			Gfx::stopRecording(getRenderer()->getGfxHandle(), buff);
-			Gfx::submitCommandBuffers(getRenderer()->getGfxHandle(), &buff, 1);
-
 			{
 				RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
 				const RenderObjectId* ids = roMngr.getAllIds();
@@ -184,7 +163,6 @@ namespace YAPT
 				m_rtStage->sceneChanged(sceneData);
 			}
 			
-			m_firstTimeUpdate = false;
 
 			m_lastEnvMap = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<Texture*>(RVARNAME_SKYBOX);
 		}
@@ -205,6 +183,34 @@ namespace YAPT
 
 
 		updateAccumulatedFrames();
+	}
+
+	void PathTraceStage::beforeExecute()
+	{
+		if (m_accelerationStructureNeedsRebuild || m_firstTimeUpdate)
+		{
+			Gfx::resetCommandPool(getRenderer()->getGfxHandle(), m_cmdBufferPool);
+			CommandBufferHandle buff = Gfx::startRecording(getRenderer()->getGfxHandle(), m_cmdBufferPool, 0);
+
+			m_accStructureHelper.updateBottomLevelStructures(buff);
+
+			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
+				{
+					size_t shdTblOffset = m_instanceOffsetPerRenderObject[arrayIndex];
+
+					instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
+					instanceMaskOut = ~0;
+					hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
+				};
+
+			m_accStructureHelper.updateTopLevelStructures(buff, assignPerInstanceParams);
+
+			Gfx::stopRecording(getRenderer()->getGfxHandle(), buff);
+			Gfx::submitCommandBuffers(getRenderer()->getGfxHandle(), &buff, 1);
+
+			m_firstTimeUpdate = false;
+			m_accelerationStructureNeedsRebuild = false;
+		}
 	}
 	
 	void PathTraceStage::updateInstanceOffsets()

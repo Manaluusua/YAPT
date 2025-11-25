@@ -38,19 +38,20 @@ namespace YAPT
 		virtual ~PathTraceStage();
 
 		//RenderStage
-		virtual void initialize() final;
-		virtual void shutdown() final;
-		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) final;
-		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) final;
-		virtual void prepare(const PrepareData& data) final;
-		virtual void update(const UpdateData& data) final;
+		virtual void initialize() override;
+		virtual void shutdown() override;
+		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) override;
+		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
+		virtual void prepare(const PrepareData& data) override;
+		virtual void update(const UpdateData& data) override;
+		virtual void beforeExecute() override;
 
-		virtual RenderStageConnection getOutputConnection(size_t id) final;
-		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) final;
+		virtual RenderStageConnection getOutputConnection(size_t id) override;
+		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) override;
 
 		//AccelerationStructureProvider
-		virtual void prepareAccelerationStructure() final;
-		virtual TopLevelAccelerationStructureHandle getAccelerationStructure() final;
+		virtual void prepareAccelerationStructure() override;
+		virtual TopLevelAccelerationStructureHandle getAccelerationStructure() override;
 
 		void setRayTraceResolutionReductionFactor(uint32_t factor); //0 fullres, 1 is dimensions/2^1, 2 is dimensions/2^2 etc 
 

@@ -124,6 +124,11 @@ namespace YAPT
 	}
 	void RenderPipelineBase::execute(const ExecuteContext& cntx)
 	{
+		for (size_t i = 0; i < m_stages.size(); ++i)
+		{
+			m_stages[i]->beforeExecute();
+		}
+
 		m_graph->execute(cntx.executeTasksPool);
 		
 	}

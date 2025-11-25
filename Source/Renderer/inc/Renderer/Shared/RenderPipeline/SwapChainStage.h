@@ -18,14 +18,15 @@ namespace YAPT
 		SwapChainStage();
 		~SwapChainStage();
 
-		virtual void initialize() final;
-		virtual void shutdown() final;
-		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) final;
-		virtual void prepare(const PrepareData& data) final;
-		virtual void update(const UpdateData& data) final;
+		virtual void initialize() override;
+		virtual void shutdown() override;
+		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
+		virtual void prepare(const PrepareData& data) override;
+		virtual void update(const UpdateData& data) override;
+		virtual void beforeExecute() override {};
 
-		virtual RenderStageConnection getOutputConnection(size_t id) final;
-		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) final;
+		virtual RenderStageConnection getOutputConnection(size_t id) override;
+		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) override;
 
 	private:
 

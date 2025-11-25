@@ -45,9 +45,9 @@ namespace YAPT
 
 			vec2p randomDimensionOffsetAndScramble;
 			float sampledWavelength;
+			float pdfThisRay;
 			uint32_t numberVolumesEntered;
 			uint32_t rayState;
-			uint32_t spectralSampleSetIndex;
 			uint32_t flags;
 		};
 
