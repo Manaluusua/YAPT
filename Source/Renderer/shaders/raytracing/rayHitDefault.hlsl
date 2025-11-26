@@ -178,7 +178,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 
 	//evaluate next sample direction (BRDF)
     SpectralSamples weightSumBRDF;
-    float pdfBRDF;
+    weightSumBRDF.set(0);
+    float pdfBRDF = 0.f;
     float pdfLightDir;
     TransmissionType transmissionType;
     float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities);
@@ -190,8 +191,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     rayState.pdfThisRay = pdfBRDF;
     
     if (pdfBRDF > 0.f)
-     {
-        
+    {
+
 		if (transmissionType != TRANSMISSION_TYPE_NONE)
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
