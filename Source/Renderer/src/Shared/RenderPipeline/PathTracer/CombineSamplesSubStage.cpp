@@ -89,7 +89,7 @@ namespace YAPT
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
 				ACCESS_FLAGS_READ,
 				SHADERSTAGE_COMPUTE,
 				1,
@@ -98,7 +98,7 @@ namespace YAPT
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
 				ACCESS_FLAGS_READ,
 				SHADERSTAGE_COMPUTE,
 				1,
@@ -107,7 +107,7 @@ namespace YAPT
 			{{
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
 				ACCESS_FLAGS_READ,
 				SHADERSTAGE_COMPUTE,
 				1,

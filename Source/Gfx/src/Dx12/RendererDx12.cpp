@@ -210,33 +210,35 @@ namespace YAPT
 	void RendererDx12::renderBegin()
 	{
 		UINT64 frameId = m_fenceHelper.getCurrentFrameCount();
-		FenceState fenceState;
-		bool needsFence = false;
-		if (frameId >= m_resourceManager->getPipelineLength())
+
+		size_t fenceCount = 0;
+		FenceState fenceStates[1];
+		//fence for previous frame rendering 
+		if (frameId > 1)
 		{
-			fenceState.value = frameId - m_resourceManager->getPipelineLength();
-			fenceState.fence = m_fenceHelper.getFenceForFrame(fenceState.value);
-			needsFence = true;
-			
+			fenceStates[fenceCount].value = frameId - 1;
+			fenceStates[fenceCount].fence = m_fenceHelper.getFenceForFrame(fenceStates[fenceCount].value);
+			++fenceCount;
 		}
 
-		m_resourceManager->uploadPreFrameData(&fenceState, needsFence? 1 : 0);
+		m_resourceManager->uploadPreFrameData(fenceStates, fenceCount);
 	}
 
 	void RendererDx12::executeBegin()
 	{
 		
 		UINT64 frameId = m_fenceHelper.getCurrentFrameCount();
-		FenceState fenceState;
-		bool needsFence = false;
-		if (frameId > m_resourceManager->getPipelineLength())
+		size_t fenceCount = 0;
+		FenceState fenceStates[1];
+		//fence for previous frame rendering 
+		if (frameId > 1)
 		{
-			fenceState.value = frameId - m_resourceManager->getPipelineLength();
-			fenceState.fence = m_fenceHelper.getFenceForFrame(fenceState.value);
-			needsFence = true;
-
+			fenceStates[fenceCount].value = frameId - 1;
+			fenceStates[fenceCount].fence = m_fenceHelper.getFenceForFrame(fenceStates[fenceCount].value);
+			++fenceCount;
 		}
-		m_resourceManager->uploadFrameData(&fenceState, needsFence ? 1 : 0);
+
+		m_resourceManager->uploadFrameData(fenceStates, fenceCount);
 
 		while (m_submitThread.isPending(m_lastSubmitId))
 		{
@@ -258,7 +260,6 @@ namespace YAPT
 
 	void RendererDx12::executeEnd()
 	{
-
 		m_resourceManager->issueWaitForLatestUploads(m_submitThread, SubmissionThreadDx12::COMMANDQUEUETYPE_GRAPHICS, 0);
 		m_lastSubmitId = m_submitThread.submit(SubmissionThreadDx12::COMMANDQUEUETYPE_GRAPHICS, 0, m_submittedCommandLists.data(), m_submittedCommandLists.size());
 		m_submittedCommandLists.clear();

@@ -14,8 +14,7 @@ namespace YAPT
 		m_pendingBufferUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
 		m_pendingTextureUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
 		m_pendingUnmaps(128),
-		m_commandBuffersPool(resourceMngr.getDevice()),
-		m_lastSignaledSemaphore(VK_NULL_HANDLE)
+		m_commandBuffersPool(resourceMngr.getDevice())
 
 	{
 
@@ -289,10 +288,14 @@ namespace YAPT
 						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
 						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
 						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
-
+						uint32_t arraySliceCount = 1;
+						if ((info.dstImage->createInfo.flags & VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT) != 0)
+						{
+							arraySliceCount = VK_REMAINING_ARRAY_LAYERS;
+						}
 						if (currentLayout != copyLayout || info.dstImage->owningQueueFamily != m_resMngr.getCopyQueue().queueFamilyIndex)
 						{
-							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, 1, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
+							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, arraySliceCount, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
 							layouts.setStateForSubResource(subresourceIndex, copyLayout);
 						}
 					}
@@ -315,11 +318,13 @@ namespace YAPT
 
 		}
 
+		VkSemaphore lastSignaledSemaphore = VK_NULL_HANDLE;
+
 		m_queueTransitionHelper.resetCommandBuffersForFrame(m_syncUtility.getFrameIndex());
 		m_queueTransitionHelper.clearBarriers();
 		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), true);
 		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), true);
-		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 0, semaphoresToWait, semaphoresToWaitCount, m_lastSignaledSemaphore);
+		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 0, semaphoresToWait, semaphoresToWaitCount, lastSignaledSemaphore);
 
 		m_commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
 
@@ -386,8 +391,8 @@ namespace YAPT
 		submission.semaphoresToSignal = &signalSem;
 		
 
-		submission.semaphoresToWaitCount = m_lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWaitCount :  1;
-		submission.semaphoresToWait = m_lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWait : &m_lastSignaledSemaphore;
+		submission.semaphoresToWaitCount = lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWaitCount :  1;
+		submission.semaphoresToWait = lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWait : &lastSignaledSemaphore;
 
 		submission.commandLists = &cmdBuff;
 		submission.commandListsCount = 1;
@@ -398,14 +403,14 @@ namespace YAPT
 
 		m_submissionIDs[m_syncUtility.getFrameIndex()] = m_submissionThread.submit(COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
 		
-		m_lastSignaledSemaphore = signalSem;
+		lastSignaledSemaphore = signalSem;
 
 		m_queueTransitionHelper.clearBarriers();
 		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), false);
 		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), false);
-		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 1, &m_lastSignaledSemaphore, 1, m_lastSignaledSemaphore);
+		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 1, &lastSignaledSemaphore, 1, lastSignaledSemaphore);
 
-		signaledSemaphore = m_lastSignaledSemaphore;
+		signaledSemaphore = lastSignaledSemaphore;
 
 		return true;
 

@@ -98,12 +98,14 @@ namespace YAPT
 
 	void FrameCycleFenceHelper::waitForAllFramesToFinishCPU()
 	{
-		if (m_currentFrameCount == 0)
+		
+
+		size_t lastFrame = m_currentFrameCount - 1;
+		if (lastFrame == 0)
 		{
 			return;
 		}
 
-		size_t lastFrame = m_currentFrameCount - 1;
 		m_fenceHelper.waitForFenceValueCPU(0, lastFrame, INFINITE);
 	}
 	void FrameCycleFenceHelper::resetFrameCount()

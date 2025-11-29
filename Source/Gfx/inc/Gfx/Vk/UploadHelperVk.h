@@ -81,7 +81,6 @@ namespace YAPT
 		CommandBufferPoolVk m_commandBuffersPool;
 		RingSyncUtility m_syncUtility;
 		QueueTransitionHelperVk m_queueTransitionHelper;
-		VkSemaphore m_lastSignaledSemaphore;
 
 		
 		std::vector<VkBufferMemoryBarrier> m_allBufferBarriers;

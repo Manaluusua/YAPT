@@ -97,9 +97,9 @@ namespace YAPT
 	void RendererVk::renderBegin()
 	{
 		VkSemaphore s = VK_NULL_HANDLE;
-		if (m_syncUtility.getFrameCount() >= m_gfxConfig.pipelineLength)
+		if (m_syncUtility.getFrameCount() > 0)
 		{
-			size_t frameToSync = m_syncUtility.getFrameCount() - m_gfxConfig.pipelineLength;
+			size_t frameToSync = m_syncUtility.getFrameCount() - 1;
 			s = m_syncUtility.getSemaphoreForFrameNumber(frameToSync);
 		}
 
@@ -155,6 +155,8 @@ namespace YAPT
 			m_semaphoresToWait.clear();
 			m_semaphoresToSignal.clear();
 			m_submittedCommandBuffers.clear();
+
+			m_resourceManager->clearLastSignaledSemaphore();
 		}
 		
 		//quick and dirty present. Should in reality handle presents just like commandbuffers: add them to some sequential commandlist and process it with submits. 

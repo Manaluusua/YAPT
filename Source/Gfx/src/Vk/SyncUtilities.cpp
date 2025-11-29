@@ -115,6 +115,6 @@ namespace YAPT
 	}
 	VkSemaphore RingSyncUtility::getSemaphoreForFrameIndex(size_t index) const
 	{
-		return m_syncData[m_entryDataIndex].semaphore;
+		return m_syncData[index].semaphore;
 	}
 }
