@@ -220,7 +220,7 @@ namespace YAPT
 		overallScrathSizeInBytes += D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT;
 
 		RCPtr<ID3D12Resource> scratch;
-		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, &scratch);
+		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, &scratch);
 		//for now just let go of scratch, should maybe pool the scratch memory
 		m_resourceMngr.addToPendingDestructionList(scratch.get());
 		m_resourceMngr.addToPendingDestructionList(alloc);
@@ -346,7 +346,7 @@ namespace YAPT
 		{
 
 			RCPtr<ID3D12Resource> instanceData;
-			Allocation* alloc = createBuffer(m_resourceMngr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * totalNumberOfinstanceDefinitions, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_GENERIC_READ, &instanceData);
+			Allocation* alloc = createBuffer(m_resourceMngr, sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * totalNumberOfinstanceDefinitions, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_FLAG_NONE, D3D12_RESOURCE_STATE_COMMON, &instanceData);
 
 			m_resourceMngr.addToPendingDestructionList(instanceData);
 			m_resourceMngr.addToPendingDestructionList(alloc);
@@ -403,7 +403,7 @@ namespace YAPT
 			overallScrathSizeInBytes += prebuildInfoList[tlasGroupIndex].ScratchDataSizeInBytes;
 		}
 		RCPtr<ID3D12Resource> scratch;
-		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_UNORDERED_ACCESS, &scratch);
+		Allocation* alloc = createBuffer(m_resourceMngr, overallScrathSizeInBytes, D3D12_HEAP_TYPE_DEFAULT, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COMMON, &scratch);
 
 		m_resourceMngr.addToPendingDestructionList(scratch.get());
 		m_resourceMngr.addToPendingDestructionList(alloc);
