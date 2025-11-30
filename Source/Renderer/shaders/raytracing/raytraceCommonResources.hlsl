@@ -151,10 +151,16 @@ struct RandomSampler
 	
 	void init(uint dim, uint pixelIndex)
 	{
-        dimensionOffsetAndSeed.x = dim;
+        dimensionOffsetAndSeed.x = dim + 2; //first 2 dimensions are reserved to texel offset (need to be consistent to allow inferring it in denoise)
         dimensionOffsetAndSeed.y = pixelIndex;
     }
-		
+    
+    float2 getTexelOffset()
+    {
+        float2 v = getRandomSampleFloat2(0, dimensionOffsetAndSeed.y);
+        return v;
+    }
+    
     float getRandom1()
     {
         float v = getRandomSampleFloat(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);

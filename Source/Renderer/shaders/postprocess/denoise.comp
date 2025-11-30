@@ -58,7 +58,7 @@ float4 denoise(uint2 pixelLocation)
         return g_sourceTex.Load(uint3(pixelLocation, 0));
     }
 
-    return 0;
+    return g_sourceTex.Load(uint3(pixelLocation, 0)); //todo
 }
 
 

@@ -688,7 +688,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 
 	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
-    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getRandom2());
+    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
 	float3 rayOrigin = g_cameraPosition;
 	
 	SpectralSamples totalLight;
