@@ -27,6 +27,7 @@ namespace YAPT
 		vec4p worldBoundsMax;
 		vec4p cameraPosition;
 		vec4p targetTexDimensions;
+		vec4p targetOffsetScaleBias;
 		vec2p rayUVOffset;
 		uint32_t maxRayDepth;
 		uint32_t envTextureIndex;
@@ -80,7 +81,7 @@ namespace YAPT
 			ThreadPool* updateTasksPool;
 			size_t sampleOffset;
 			size_t spectralSampleOffset;
-			uvec2p rayGenOffsetInTexels;
+			uvec4p targetOffsetScaleBias;
 			uvec2p raysPerFrame;
 			uvec2p renderResolution;
 		};

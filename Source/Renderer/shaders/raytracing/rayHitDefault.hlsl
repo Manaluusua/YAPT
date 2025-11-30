@@ -296,7 +296,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     {
         float3x3 transformNormal = (float3x3)WorldToObject3x4();
         transformNormal = transpose(transformNormal);
-        writeMaterialParamsForFirstBounce(DispatchRaysIndex().xy, surfaceDefRGB, transformNormal, RayTCurrent(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+        writeMaterialParamsForFirstBounce(dispatchIndicesToRayIndices(DispatchRaysIndex().xy), surfaceDefRGB, transformNormal, RayTCurrent(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
     }
 
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);

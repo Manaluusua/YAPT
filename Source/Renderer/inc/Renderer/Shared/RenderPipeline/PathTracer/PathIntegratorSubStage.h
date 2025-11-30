@@ -30,7 +30,7 @@ namespace YAPT
 		{
 			const RenderStage::UpdateData* stageUpdateContext;
 			size_t sampleOffset;
-			uvec2p rayGenOffsetInTexels;
+			uvec4p targetOffsetScaleBias;
 			uvec2p raysPerFrame;
 		};
 

@@ -13,6 +13,7 @@ struct RaytraceConstantData
     float4 worldBoundsMax;
 	float4 cameraPosition;
 	float4 targetTexDimensions;
+    float4 targetOffsetScaleBias;
 	float2 rayUVOffset;
 	uint maxRayDepth;
     uint envTextureIndex;
@@ -39,6 +40,7 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
 #define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
+#define g_targetOffsetScaleBias g_rayGenConstants.targetOffsetScaleBias
 #define g_lightCount g_rayGenConstants.lightCount
 #define g_worldBoundsMin g_rayGenConstants.worldBoundsMin.xyz
 #define g_worldBoundsMax g_rayGenConstants.worldBoundsMax.xyz
@@ -59,6 +61,11 @@ bool firstBounceMaterialWriteEnabled()
 
 }
 
+uint2 dispatchIndicesToRayIndices(uint2 dispatchInd)
+{
+    return dispatchInd.xy * g_targetOffsetScaleBias.xy + g_targetOffsetScaleBias.zw;
+
+}
 
 uint2 getMaterialAndMeshIndicesForInstance(uint instanceIndex)
 {

@@ -649,9 +649,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
+	uint2 rayIndices = dispatchIndicesToRayIndices(dispatchThreadId.xy);
+
 	RandomSampler rand;
 	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
-    rand.init(0, lightPathScrambleOffset + dispatchThreadId.y * g_targetTexDimensions.x + dispatchThreadId.x); //TODO: init properly
+    rand.init(0, lightPathScrambleOffset + rayIndices.y * g_targetTexDimensions.x + rayIndices.x); //TODO: init properly
 
 
 	if(groupIndex == 0)
@@ -687,7 +689,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	
 
-	float2 uv = (float2)dispatchThreadId.xy * g_targetTexDimensions.zw;
+	float2 uv = (float2)rayIndices * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
 	float3 rayOrigin = g_cameraPosition;
 	

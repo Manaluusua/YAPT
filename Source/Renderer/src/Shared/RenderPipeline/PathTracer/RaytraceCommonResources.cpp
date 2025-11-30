@@ -63,7 +63,6 @@ namespace YAPT
 
 		//ray offset
 		vec2p rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
-		rayUVOffset += params.rayGenOffsetInTexels; //move to (target) pixel being updated (will be 0 if doing fullres rt)
 
 		vec4 camPos(0.f, 0.f, 0.f, 1.f);
 		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
@@ -82,6 +81,7 @@ namespace YAPT
 		rtConstants->rayUVOffset = rayUVOffset;
 		rtConstants->cameraPosition = camPos;
 		rtConstants->targetTexDimensions = vec4p(params.renderResolution.x, params.renderResolution.y, targetPixelWidth, targetPixelHeight);
+		rtConstants->targetOffsetScaleBias = params.targetOffsetScaleBias;
 		rtConstants->flags = flags;
 
 		mat4 uvToViewTransform = glm::inverse(fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform());

@@ -169,15 +169,16 @@ namespace YAPT
 
 		CombineSamplesSubStage::UpdateParams combineUpdate;
 		combineUpdate.clearAccumulated = m_framesAccumulated == 0;
-		combineUpdate.sourceTextureResolution = uvec2(m_raysPerFrameWidth, m_raysPerFrameHeight);
+		combineUpdate.sourceTextureResolution = uvec2p(m_raysPerFrameWidth, m_raysPerFrameHeight);
 		combineUpdate.samplesPerPixel = getCurrentNumberOfSamplesPerPixel() + 1;
 		combineUpdate.targetOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
+		combineUpdate.targetTextureResolution = uvec2p(m_resolveTargetWidth, m_resolveTargetHeight);
 		m_mergeStage.update(combineUpdate);
 
 		PathIntegratorSubStage::UpdateParams integratorUpdate;
 		integratorUpdate.stageUpdateContext = &cntx;
 		integratorUpdate.sampleOffset = getCurrentNumberOfSamplesPerPixel();
-		integratorUpdate.rayGenOffsetInTexels = getCurrentRayGenerationOffset();
+		integratorUpdate.targetOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
 		integratorUpdate.raysPerFrame = uvec2p(m_raysPerFrameWidth, m_raysPerFrameHeight);
 		m_rtStage->update(integratorUpdate);
 

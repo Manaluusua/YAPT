@@ -9,12 +9,14 @@
 [shader("raygeneration")]
 void rayGenPrimaryRays()
 {
+    uint2 rayIndices = dispatchIndicesToRayIndices(DispatchRaysIndex().xy);
+	
     Payload payload;
-    payload.rayIndex = DispatchRaysIndex().y * DispatchRaysDimensions().x + DispatchRaysIndex().x;
+    payload.rayIndex = rayIndices.y * g_targetTexDimensions.x + rayIndices.x;
     RandomSampler rand;
     rand.init(0, payload.rayIndex);
 
-	float2 uv = (float2)DispatchRaysIndex() * g_targetTexDimensions.zw;
+    float2 uv = (float2) rayIndices * g_targetTexDimensions.zw;
     float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
 	float3 rayOrigin = g_cameraPosition;
 	

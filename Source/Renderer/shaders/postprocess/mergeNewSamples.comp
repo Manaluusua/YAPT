@@ -4,15 +4,50 @@
 struct MergeNewSamplesParams
 {
 	uint4 targetTextureOffsetScaleBias;
+    uint2 targetTextureDimensions;
 	uint2 sourceTextureDimensions;
 	uint64_t sampleCount;
 };
 
 //#define USE_PER_PIXEL_SAMPLE_COUNT
+#define NEAREST_SAMPLE_MERGE
 
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 RWTexture2D<float4> g_targetTex : register(u2, space0);
+
+void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float weightOut)
+{
+#ifdef NEAREST_SAMPLE_MERGE
+	//TODO
+    uint2 samplePos = g_mergeParams.targetTextureOffsetScaleBias.zw + targetPos / g_mergeParams.targetTextureOffsetScaleBias.xy;
+    weightOut = 1;
+    if (all(samplePos == targetPos))
+    {
+        colorOut = g_sourceTex[samplePos];
+    } 
+	else
+    {
+        colorOut = 0;
+    }
+#else
+	/*
+	//need random here, TODO
+    float4 colorSum = 0;
+	float2 toSrcTexMult = float2(1.f, 1.f) / g_mergeParams.targetTextureOffsetScaleBias.xy;
+    for (float x = max(targetPos.x - 1, 0) + g_mergeParams.targetTextureOffsetScaleBias.z; x < min(targetPos.x + 1, g_mergeParams.targetTextureDimensions.x - 1); x += g_mergeParams.targetTextureOffsetScaleBias.x)
+    {
+        for (float y = max(targetPos.y - 1, 0) + g_mergeParams.targetTextureOffsetScaleBias.w; y < min(targetPos.y + 1, g_mergeParams.targetTextureDimensions.y - 1); y += g_mergeParams.targetTextureOffsetScaleBias.y)
+        {
+			
+        }
+    }*/
+	
+#endif
+    
+	
+	
+}
 
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
@@ -20,10 +55,13 @@ void main( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	if(dispatchThreadId.x < g_mergeParams.sourceTextureDimensions.x && dispatchThreadId.y < g_mergeParams.sourceTextureDimensions.y)
+    if (dispatchThreadId.x < g_mergeParams.targetTextureDimensions.x && dispatchThreadId.y < g_mergeParams.targetTextureDimensions.y)
 	{
-		float4 srcColor = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
-		uint2 targetPosition = g_mergeParams.targetTextureOffsetScaleBias.xy * dispatchThreadId.xy + g_mergeParams.targetTextureOffsetScaleBias.zw;
+        uint2 targetPosition = dispatchThreadId.xy;
+        float4 srcColor;
+        float weight;
+		calculateSampleContribution(targetPosition, srcColor, weight);
+		
 		float4 dstColor = g_targetTex[targetPosition];
 #ifdef USE_PER_PIXEL_SAMPLE_COUNT
 		float w = dstColor.a + srcColor.a;

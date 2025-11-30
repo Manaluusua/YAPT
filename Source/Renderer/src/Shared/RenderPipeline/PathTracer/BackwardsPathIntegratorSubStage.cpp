@@ -210,7 +210,7 @@ namespace YAPT
 	void BackwardsPathIntegratorSubStage::update(const BackwardsPathIntegratorSubStage::UpdateParams& params)
 	{
 		RaytraceCommonResources::UpdateParams p;
-		p.rayGenOffsetInTexels = params.rayGenOffsetInTexels;
+		p.targetOffsetScaleBias = params.targetOffsetScaleBias;
 		p.raysPerFrame = params.raysPerFrame;
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;

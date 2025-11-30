@@ -283,6 +283,7 @@ namespace YAPT
 				MergeNewSamplesParams* mergeSamplesParams = m_mergeSamplesConstants.getData();
 				mergeSamplesParams->sourceTextureDimensions = glm::uvec2(params.sourceTextureResolution.x, params.sourceTextureResolution.y);
 				mergeSamplesParams->targetTextureOffsetScaleBias = params.targetOffsetScaleBias;
+				mergeSamplesParams->targetTextureDimensions = params.targetTextureResolution;
 				mergeSamplesParams->sampleCount = params.samplesPerPixel;
 				m_mergeSamplesConstants.flush();
 			}
@@ -316,8 +317,8 @@ namespace YAPT
 
 	void CombineSamplesSubStage::executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec)
 	{
-		uint32_t rtWidth = m_lastUpdateParams.sourceTextureResolution.x;
-		uint32_t rtHeight = m_lastUpdateParams.sourceTextureResolution.y;
+		uint32_t rtWidth = m_lastUpdateParams.targetTextureResolution.x;
+		uint32_t rtHeight = m_lastUpdateParams.targetTextureResolution.y;
 
 		uint32_t dispatchX = (rtWidth + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
 		uint32_t dispatchY = (rtHeight + MERGE_SAMPLES_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
@@ -329,8 +330,8 @@ namespace YAPT
 	void CombineSamplesSubStage::executeDenoise(const RenderGraphNodeExecutionContext& exec)
 	{
 
-		uint32_t rtWidth = m_lastUpdateParams.sourceTextureResolution.x;
-		uint32_t rtHeight = m_lastUpdateParams.sourceTextureResolution.y;
+		uint32_t rtWidth = m_lastUpdateParams.targetTextureResolution.x;
+		uint32_t rtHeight = m_lastUpdateParams.targetTextureResolution.y;
 
 		uint32_t dispatchX = (rtWidth + DENOISE_WG_SIZE - 1) / DENOISE_WG_SIZE;
 		uint32_t dispatchY = (rtHeight + DENOISE_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;

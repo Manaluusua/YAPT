@@ -363,7 +363,7 @@ namespace YAPT
 	void BidirectionalPathIntegratorSubStage::update(const BidirectionalPathIntegratorSubStage::UpdateParams& params)
 	{
 		RaytraceCommonResources::UpdateParams p;
-		p.rayGenOffsetInTexels = params.rayGenOffsetInTexels;
+		p.targetOffsetScaleBias = params.targetOffsetScaleBias;
 		p.raysPerFrame = params.raysPerFrame;
 		p.renderResolution = m_renderResolution;
 		p.sampleOffset = params.sampleOffset;

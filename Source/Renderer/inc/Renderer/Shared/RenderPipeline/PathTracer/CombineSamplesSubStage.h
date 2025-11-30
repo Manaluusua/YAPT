@@ -28,6 +28,7 @@ namespace YAPT
 		{
 			uvec4p targetOffsetScaleBias;
 			uvec2p sourceTextureResolution;
+			uvec2p targetTextureResolution;
 			uint64_t samplesPerPixel;
 			bool clearAccumulated;
 			
@@ -51,6 +52,7 @@ namespace YAPT
 		struct MergeNewSamplesParams
 		{
 			uvec4p targetTextureOffsetScaleBias;
+			uvec2p targetTextureDimensions;
 			uvec2p sourceTextureDimensions;
 			uint64_t sampleCount;
 		};
