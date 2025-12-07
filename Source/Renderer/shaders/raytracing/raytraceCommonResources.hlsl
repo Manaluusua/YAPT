@@ -112,94 +112,12 @@ float3 generateRayDirection(float2 uv, float2 rand)
     return rayDir;
 }
 
-//helper functions
+#define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_randomSamples.Load(dimOffset << 2))
+#define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_randomSamples.Load2(dimOffset << 2))
+#define GET_RANDOM_NUMBER_SEQUENCE_3(dimOffset) (g_randomSamples.Load3(dimOffset << 2))
+#define GET_RANDOM_NUMBER_SEQUENCE_4(dimOffset) (g_randomSamples.Load4(dimOffset << 2))
 
-uint scramble(uint random, uint scrambleSeed, uint dimension)
-{
-    uint h = hash(scrambleSeed, dimension);
-    return owenScrambleBase2(random, h);
-}
-
-float getRandomSampleFloat(uint dimensionSetIndex, uint seed)
-{
-    uint startIndex = dimensionSetIndex << 2;
-    uint sobolSeq = g_randomSamples.Load(startIndex);
-    return uintToFloat01(scramble(sobolSeq, seed, dimensionSetIndex));
-}
-
-float2 getRandomSampleFloat2(uint dimensionSetIndex, uint seed)
-{
-    uint startIndex = dimensionSetIndex << 2;
-    uint2 sobolSeq = g_randomSamples.Load2(startIndex);
-    sobolSeq.xy = uint2(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1));
-    return uintToFloat01(sobolSeq);
-}
-
-float3 getRandomSampleFloat3(uint dimensionSetIndex, uint seed)
-{
-    uint startIndex = dimensionSetIndex << 2;
-    uint3 sobolSeq = g_randomSamples.Load3(startIndex);
-    sobolSeq.xyz = uint3(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2));
-    return uintToFloat01(sobolSeq);
-}
-
-float4 getRandomSampleFloat4(uint dimensionSetIndex, uint seed)
-{
-    uint startIndex = dimensionSetIndex << 2;
-    uint4 sobolSeq = g_randomSamples.Load4(startIndex);
-    sobolSeq.xyzw = uint4(scramble(sobolSeq.x, seed, dimensionSetIndex), scramble(sobolSeq.y, seed, dimensionSetIndex + 1), scramble(sobolSeq.z, seed, dimensionSetIndex + 2), scramble(sobolSeq.w, seed, dimensionSetIndex + 3));
-    return uintToFloat01(sobolSeq);
-
-}
-
-struct RandomSampler
-{
-    uint2 dimensionOffsetAndSeed;
-	
-	void init(uint dim, uint pixelIndex)
-	{
-        dimensionOffsetAndSeed.x = dim + 2; //first 2 dimensions are reserved to texel offset (need to be consistent to allow inferring it in denoise)
-        dimensionOffsetAndSeed.y = pixelIndex;
-    }
-    
-    float2 getTexelOffset()
-    {
-        float2 v = getRandomSampleFloat2(0, dimensionOffsetAndSeed.y);
-        return v;
-    }
-    
-    float getRandom1()
-    {
-        float v = getRandomSampleFloat(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
-        ++dimensionOffsetAndSeed.x;
-        return v;
-    }
-	
-    float2 getRandom2()
-    {
-        float2 v = getRandomSampleFloat2(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
-        dimensionOffsetAndSeed.x += 2;
-        return v;
-    }
-    float3 getRandom3()
-    {
-        float3 v = getRandomSampleFloat3(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
-        dimensionOffsetAndSeed.x += 3;
-		return v;
-    }
-	
-    float4 getRandom4()
-    {
-
-        float4 v = getRandomSampleFloat4(dimensionOffsetAndSeed.x, dimensionOffsetAndSeed.y);
-        dimensionOffsetAndSeed.x += 4;
-		return v;
-    }
-	
-    
-};
-
-
+#include "../common/randomSampler.hlsl"
 #include "spectralDistribution.hlsl"
 #include "rayState.hlsl"
 
