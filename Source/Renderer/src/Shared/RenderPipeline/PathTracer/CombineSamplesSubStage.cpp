@@ -3,7 +3,7 @@
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
-
+#include <Math/RandUtility.h>
 #define MERGE_SAMPLES_WG_SIZE 8
 #define DENOISE_WG_SIZE 8
 
@@ -285,7 +285,9 @@ namespace YAPT
 				mergeSamplesParams->targetTextureOffsetScaleBias = params.targetOffsetScaleBias;
 				mergeSamplesParams->targetTextureDimensions = params.targetTextureResolution;
 				mergeSamplesParams->sampleCount = params.samplesPerPixel;
+				MathUtils::generateSobolSequence(1u, 4u, glm::value_ptr(mergeSamplesParams->randomSequence), (uint32_t)params.samplesPerPixel);
 				m_mergeSamplesConstants.flush();
+
 			}
 
 			{

@@ -52,6 +52,7 @@ namespace YAPT
 		struct MergeNewSamplesParams
 		{
 			uvec4p targetTextureOffsetScaleBias;
+			uvec4p randomSequence;
 			uvec2p targetTextureDimensions;
 			uvec2p sourceTextureDimensions;
 			uint64_t sampleCount;

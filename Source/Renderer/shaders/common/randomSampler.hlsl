@@ -1,6 +1,8 @@
 #ifndef RANDOM_SAMPLER_HLSL_INCL
 #define RANDOM_SAMPLER_HLSL_INCL
 
+#include "random.hlsl"
+
 #ifndef GET_RANDOM_NUMBER_SEQUENCE_1
 #error "GET_RANDOM_NUMBER_SEQUENCE_1 not defined. Includer of randomSampler.hlsl needs to define it"
 #endif

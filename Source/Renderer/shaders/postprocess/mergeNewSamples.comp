@@ -4,17 +4,27 @@
 struct MergeNewSamplesParams
 {
 	uint4 targetTextureOffsetScaleBias;
-    uint2 targetTextureDimensions;
+    uint4 randomSequence;
+	uint2 targetTextureDimensions;
 	uint2 sourceTextureDimensions;
 	uint64_t sampleCount;
+	
 };
-
-//#define USE_PER_PIXEL_SAMPLE_COUNT
-#define NEAREST_SAMPLE_MERGE
 
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 RWTexture2D<float4> g_targetTex : register(u2, space0);
+
+#define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_mergeParams.randomSequence.x)
+#define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_mergeParams.randomSequence.xy)
+#define GET_RANDOM_NUMBER_SEQUENCE_3(dimOffset) (g_mergeParams.randomSequence.xyz)
+#define GET_RANDOM_NUMBER_SEQUENCE_4(dimOffset) (g_mergeParams.randomSequence.xyxw)
+#include "../common/randomSampler.hlsl"
+
+//#define USE_PER_PIXEL_SAMPLE_COUNT
+//#define NEAREST_SAMPLE_MERGE
+
+
 
 void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float weightOut)
 {
@@ -31,18 +41,32 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
         colorOut = 0;
     }
 #else
-	/*
+
 	//need random here, TODO
     float4 colorSum = 0;
 	float2 toSrcTexMult = float2(1.f, 1.f) / g_mergeParams.targetTextureOffsetScaleBias.xy;
+    float2 center = targetPos.xy + 0.5f;
     for (float x = max(targetPos.x - 1, 0) + g_mergeParams.targetTextureOffsetScaleBias.z; x < min(targetPos.x + 1, g_mergeParams.targetTextureDimensions.x - 1); x += g_mergeParams.targetTextureOffsetScaleBias.x)
     {
         for (float y = max(targetPos.y - 1, 0) + g_mergeParams.targetTextureOffsetScaleBias.w; y < min(targetPos.y + 1, g_mergeParams.targetTextureDimensions.y - 1); y += g_mergeParams.targetTextureOffsetScaleBias.y)
         {
+            RandomSampler rand;
+            rand.init(0, y * g_mergeParams.targetTextureDimensions.x + x);
+            float2 samplePosFullres = float2(x, y) + rand.getTexelOffset();
+            float2 d = abs(samplePosFullres - center);
+            float2 weights = saturate(float2(1.f, 1.f) - d);
+            float weight = weights.x * weights.y;
+			if(weight > 0)
+            {
+                uint2 samplePos  = (uint2)floor(float2(x, y) * toSrcTexMult);
+                float4 color = g_sourceTex[samplePos];
+                colorSum += color * weight;
+            }
+			
 			
         }
-    }*/
-	
+    }
+    colorOut = colorSum;
 #endif
     
 	
