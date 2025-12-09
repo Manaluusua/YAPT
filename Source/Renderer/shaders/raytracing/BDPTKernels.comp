@@ -667,8 +667,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		}
 		else
 		{
-			uint headerIndex = groupId.y * g_lightPathsPerDim.x + groupId.x;
-			headerIndex = headerIndex % headerCount;
+			RandomSampler randTemp;
+			randTemp.init(0, groupId.y * g_lightPathsPerDim.x + groupId.x);
+
+			
+			uint headerIndex = min(floor(randTemp.getRandom1() * headerCount), headerCount - 1);
 			g_lightPathHeader = getLightPathHeader(headerIndex);
 		}
         

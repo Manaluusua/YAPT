@@ -339,19 +339,17 @@ struct SpectralSamples
 	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT, bool secondaryRaysTerminated = false)
 	{
 		float3 xyz = ToXYZ(secondaryRaysTerminated);
+		float3 rgb = 0;
 		if (colorSpaceIndex == COLORSPACE_RGB)
 		{
-			return mul(c_srgbXYZToRGB, xyz);
+			rgb = mul(c_srgbXYZToRGB, xyz);
 		}
 		else if (colorSpaceIndex == COLORSPACE_REC2020)
 		{
-			return mul(c_rec2020XYZToRGB, xyz);
+			rgb = mul(c_rec2020XYZToRGB, xyz);
 		}
-		else
-		{
-			return 0;
-		}
-		
+
+		return max(rgb, 0.f);
 
 		//TEST
 		//return float3(samples[0], samples[1], samples[2]);
