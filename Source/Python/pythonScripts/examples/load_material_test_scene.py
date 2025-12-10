@@ -16,11 +16,11 @@ if(env_map != None):
 sphere_mesh = resources.load_meshes_from_path("D:/Random/3DSampleAssets/Sphere/sphere.glb")[0]
 
 #enclosing light
-createEnclosingSphereLight = False
+createEnclosingSphereLight = True
 if createEnclosingSphereLight == True:
 	light = scene.create_object("enclosingLightObject")
 	mat = renderer.createMaterial("lightMaterial")
-	mat.setEmission(vec3([100, 100, 100]))
+	mat.setEmission(vec3([1, 1, 1]))
 	light.setMesh(sphere_mesh)
 	light.setMaterial(mat, 0)
 	light.getTransform().setScale(vec3(1000));

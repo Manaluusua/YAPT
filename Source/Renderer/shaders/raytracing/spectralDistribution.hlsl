@@ -349,7 +349,7 @@ struct SpectralSamples
 			rgb = mul(c_rec2020XYZToRGB, xyz);
 		}
 
-		return max(rgb, 0.f);
+    return rgb;
 
 		//TEST
 		//return float3(samples[0], samples[1], samples[2]);
