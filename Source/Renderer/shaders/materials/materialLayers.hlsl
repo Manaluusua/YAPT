@@ -7,13 +7,13 @@
 
 interface MaterialLayer
 {
-	float3 sampleWi(float3 wo, float rand);
+	float3 sampleWi(float3 wo, float2 rand);
 	SpectralSamples evaluate(float3 wo, float3 wi);
 	float pdf(float3 wo, float3 wi);
 	float getEnergyLeftAfterLayer(float3 wo, float3 wi, float layerWeight);
 };
 
-struct ReflectionDielectric: MaterialLayer
+struct ReflectionDielectric//: MaterialLayer
 {
 	static ReflectionDielectric init(float2 a2, float linearRoughness, float eta)
 	{
@@ -24,7 +24,7 @@ struct ReflectionDielectric: MaterialLayer
 		return l;
 	}
 
-	float3 sampleWi(float3 wo, float rand)
+	float3 sampleWi(float3 wo, float2 rand)
 	{
 		return sampleGGXReflectionDielectric(roughness2.x, roughness2.y, wo, rand);
 	}
@@ -81,7 +81,7 @@ struct ReflectionDielectric: MaterialLayer
 };
 
 
-struct ReflectionSheen : MaterialLayer
+struct ReflectionSheen// : MaterialLayer
 {
 	static ReflectionSheen init(SpectralSamples sheenTint, float r)
 	{
@@ -91,7 +91,7 @@ struct ReflectionSheen : MaterialLayer
 		return l;
 	}
 
-	float3 sampleWi(float3 wo, float rand)
+	float3 sampleWi(float3 wo, float2 rand)
 	{
 		return sampleSheen(roughness, wo, rand);
 	}
@@ -129,7 +129,7 @@ struct ReflectionSheen : MaterialLayer
 	SpectralSamples color;
 };
 
-struct ReflectionConductor : MaterialLayer
+struct ReflectionConductor// : MaterialLayer
 {
 	static ReflectionConductor init(SpectralSamples colorIncident, SpectralSamples colorGlancing, float2 a2, float linearRoughness, float fromIOR)
 	{
@@ -142,7 +142,7 @@ struct ReflectionConductor : MaterialLayer
 		return l;
 	}
 
-	float3 sampleWi(float3 wo, float rand)
+	float3 sampleWi(float3 wo, float2 rand)
 	{
 		return sampleGGXReflectionConductor(roughness2.x, roughness2.y, wo, rand);
 	}
@@ -204,7 +204,7 @@ struct ReflectionConductor : MaterialLayer
 	float fromIOR;
 };
 
-struct DiffuseLayer : MaterialLayer
+struct DiffuseLayer// : MaterialLayer
 {
 	static DiffuseLayer init(SpectralSamples color, float2 a2)
 	{
@@ -214,7 +214,7 @@ struct DiffuseLayer : MaterialLayer
 		return l;
 	}
 
-	float3 sampleWi(float3 wo, float rand)
+	float3 sampleWi(float3 wo, float2 rand)
 	{
 		return sampleDiffuseLambertian(roughness2.x, roughness2.y, wo, rand);
 	}
@@ -251,7 +251,7 @@ struct DiffuseLayer : MaterialLayer
 	float2 roughness2;
 };
 
-struct TransmittedLayer : MaterialLayer
+struct TransmittedLayer// : MaterialLayer
 {
 
 	static TransmittedLayer init(float2 a2, float linearRoughness, float eta)
@@ -264,7 +264,7 @@ struct TransmittedLayer : MaterialLayer
 		return l;
 	}
 
-	float3 sampleWi(float3 wo, float rand)
+	float3 sampleWi(float3 wo, float2 rand)
 	{
 		return sampleGGXTransmitted(etaR, roughness2.x, roughness2.y, wo, rand);
 	}
