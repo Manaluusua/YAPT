@@ -191,6 +191,11 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	return wi;
 }
 
+float compensateForShadingNormal(float absDotWoShading, float absDotWiShading, float absDotWoGeometry, float absDotWiGeometry)
+{
+    return (absDotWoShading * absDotWiGeometry) / (absDotWoGeometry * absDotWiShading);
+}
+
 void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
 {
 	float2 a2 = precalculatedSurfData.a2;
@@ -216,12 +221,17 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
     bool onlyPDF = (evaluateFlags &  EVALUATE_FLAGS_PDF_ONLY) != 0;
     bool lightPath = (evaluateFlags & EVALUATE_FLAGS_LIGHT_PATH) != 0;
 	
+    float dotWoGeometry = dot(woObjSpace, surfaceDef.geometryNormal);
+    float dotWiGeometry = dot(wiObjSpace, surfaceDef.geometryNormal);
 	
-    bool baseReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
-    bool baseRefracted = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) < 0;
+    bool baseReflected = dotWoGeometry * dotWiGeometry > 0;
+    bool baseRefracted = dotWoGeometry * dotWiGeometry < 0;
 	float energyLeft = 1.f;
     float energyLeftFromLayer = 1.f;
 	
+    float shadingNormalCompensationMultiplierCoating = lightPath ? compensateForShadingNormal(abs(woCoating.y), abs(wiCoating.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
+    float shadingNormalCompensationMultiplierBase = lightPath ? compensateForShadingNormal(abs(woBase.y), abs(wiBase.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
+    
 	//coating layer (ggx & sheen)
 	{
         if (samplingProbabilities[LAYERIND_COATING_GGX] > 0)
@@ -236,8 +246,10 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             {
                 if (!onlyPDF)
                 {
-                    weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft);
+                    weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating;
                     energyLeftFromLayer *= coating.getEnergyLeftAfterLayer(woCoating, wiCoating, surfaceDef.clearCoatAmount);
+
+                    
                 }
                 
                 pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
@@ -253,7 +265,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             {
                 if (!onlyPDF)
                 {
-                    weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft);
+                    weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase;
                     energyLeftFromLayer *= sheen.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.sheenAmount);
                 }
                 pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
@@ -268,6 +280,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	
 	
     float dielAmount = 1.f - surfaceDef.metalness;
+
 	
 	//spec layer dielelectric & conductor
 	{
@@ -280,7 +293,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             {
                 if (!onlyPDF)
                 {
-                    weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft);
+                    weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft) * shadingNormalCompensationMultiplierBase;
                     energyLeftFromLayer *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
                 }
                 pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
@@ -298,7 +311,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 if (!onlyPDF)
                 {
                     float specAmount = dielAmount * surfaceDef.specularAmount;
-                    weightSum = weightSum + evaluateLayer(spec, woBase, wiBase, specAmount * energyLeft);
+                    weightSum = weightSum + evaluateLayer(spec, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase;
                     energyLeftFromLayer *= spec.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
                 }
                 pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
@@ -322,7 +335,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 if (!onlyPDF)
                 {
                     float diffuseAmount = (1.f - surfaceDef.transparency) * dielAmount;
-                    weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft);
+                    weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft) * shadingNormalCompensationMultiplierBase;
                     energyLeftFromLayer *= diff.getEnergyLeftAfterLayer(woBase, wiBase, diffuseAmount);
                 }
                 pdfSum += samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf;
@@ -381,7 +394,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 float transparencyAmount = surfaceDef.transparency * dielAmount;
                 if (!onlyPDF)
                 {
-                    weightSum = weightSum + evaluateLayer(transmitted, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression;
+                    weightSum = weightSum + evaluateLayer(transmitted, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression * shadingNormalCompensationMultiplierBase;
                     energyLeftFromLayer *= transmitted.getEnergyLeftAfterLayer(woBase, wiBase, transparencyAmount);
                 }
             }
