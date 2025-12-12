@@ -54,7 +54,14 @@ void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir
     uint primCount = (meshEntry.indexCount / 3);
     uint primitiveIndex = min(primCount * randValuesPos.z, primCount - 1);
 
-    float3 barycentrics = float3(1 - randValuesPos.x - randValuesPos.y, randValuesPos.x, randValuesPos.y);
+    float2 randBary = randValuesPos.xy;
+    if(randBary.x + randBary.y > 1)
+    {
+        randBary.x = 1.f - randBary.x;
+        randBary.y = 1.f - randBary.y;
+    }
+    
+    float3 barycentrics = float3(1 - randBary.x - randBary.y, randBary.x, randBary.y);
     uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
 
     float3 p1, p2, p3;
@@ -76,16 +83,14 @@ void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir
     SurfaceDefinitionRGB surfaceDefRGB;
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
     modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
+    
 
-    geometryNormal = mul(lightEntry.transformInvTransp, float4(geometryNormal, 0.f)).xyz;
     tangent = mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz;
     
     float3x3 tanToWS = constructBasisTransform(geometryNormal, tangent);
     float3 lightDir = sampleHemisphere(randValuesDir);
     lightDir = mul(tanToWS, lightDir);
-
-	
-
+    
     radianceOut.setFromRGBUnbounded(surfaceDefRGB.emissive);
     
     pdfPosOut = 1.f / (primCount * area);
