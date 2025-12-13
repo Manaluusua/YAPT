@@ -826,7 +826,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float pdfBackward;
             evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, w, pdfForward, pdfBackward);
 
-			if(pdfForward == 0 || pdfBackward == 0)
+			if(pdfForward == 0)
 			{
 				break;
 			}
