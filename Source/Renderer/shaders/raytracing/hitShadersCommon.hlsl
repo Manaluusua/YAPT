@@ -148,7 +148,7 @@ float3 getRaySpawnOffsetUsingNormal(float3 geometryNormal, float3 nextSampleDir)
 
 float3 getRaySpawnOffsetTowardsRay(float3 nextSampleDir)
 {
-    float offsetEpsilon = 0.001f;
+    float offsetEpsilon = 0.01f;
     return nextSampleDir * offsetEpsilon;
 }
 
