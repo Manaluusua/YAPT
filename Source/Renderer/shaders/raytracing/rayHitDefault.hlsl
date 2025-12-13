@@ -32,9 +32,16 @@ void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 l
     sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormalWS, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
 
     float3 toLight = positionOnLight - currentPosWS;
-    
-    emissionOut = emissionOut * geometryTerm(normalWS, lightNormalWS, toLight);
-    pdfOut = lightSelectionPDF * lightPositionPDF; //* areaDensityToSolidAngleMultiplier(toLight, lightNormalWS);
+
+    //light twosided?
+    /*if(dot(toLight, lightNormalWS) > 0)
+    {
+        lightNormalWS = -lightNormalWS;
+    }*/
+
+
+    emissionOut = emissionOut;// * geometryTerm(normalWS, lightNormalWS, toLight);
+    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityToSolidAngleMultiplier(toLight, lightNormalWS);
     
     lightSamplePositionOut = positionOnLight;
     primitiveIndexOut = primitiveIndex;
@@ -114,6 +121,7 @@ float weightMIS(float a, float b)
 {
     float aSqr = a * a;
     float bSqr = b * b;
+    
     return aSqr / (aSqr + bSqr);
 
 }
@@ -148,7 +156,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
     
         sampleExplicitLight(currentPosWS, normalWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
-    
+        
         if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
         {
             float3 toLightWS = lightSamplePosWS - currentPosWS;
@@ -159,16 +167,16 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
             
             SpectralSamples weightSumLight = (SpectralSamples) 0.f;
-            float pdfBRDF = 0;
+            float brdfPdf = 0;
             TransmissionType transmissionTypeDummy;
-            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, pdfBRDF, transmissionTypeDummy);
+            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeDummy);
     
             if (!weightSumLight.allSamplesEqual(0))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
                 if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
-                    weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, pdfBRDF);
+                    weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
                     rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
                 }
             }
