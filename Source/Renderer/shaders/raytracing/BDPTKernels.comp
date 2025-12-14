@@ -643,6 +643,14 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
 	
 }
 
+bool shouldPathContribute(uint cameraNodeIndex, uint lightNodeIndex)
+{
+	bool skipCameraNode = (cameraNodeIndex < g_effectiveCameraPathNodesRange.x) ||  (cameraNodeIndex > g_effectiveCameraPathNodesRange.y);
+	bool skipLightNode = (lightNodeIndex < g_effectiveLightPathNodesRange.x) ||  (lightNodeIndex > g_effectiveLightPathNodesRange.y);
+
+	return !skipCameraNode && !skipLightNode;
+}
+
 [numthreads(8, 8, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -781,7 +789,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
                 float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
-                totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
+				if(shouldPathContribute(camVertexIndex, g_effectiveLightPathNodesRange.x))
+				{
+					totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
+				}
+                
                 break; 
             } 
 			else
@@ -800,8 +812,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					
                     SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, rayState);
                     
-                    totalLight = totalLight + lightConnectionRadiance;
-					
+					if(shouldPathContribute(camVertexIndex, lightVertexIndex))
+					{
+						totalLight = totalLight + lightConnectionRadiance;
+					}
+
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
                     lightVertexContext.prevNodePosWS = lightNode.positionWS;
                     lightVertexContext.previousPDFForwardMIS = lightNode.pdfForwardMIS;
@@ -863,11 +878,14 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
+			if(shouldPathContribute(camVertexIndex, g_effectiveLightPathNodesRange.x))
+			{
 #ifdef WHITE_FURNACE_TEST
-			totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
+				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
 #else
-            totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
+				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
 #endif
+			}
 			break;
 		}
 	}

@@ -164,6 +164,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_lightPathRandomDimensionOffset (g_maxCameraPathVertices * 4 + 4)
 
 #define g_sampleEnvLightProbabilityWeight 0.5f
+#define g_effectiveCameraPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.zw)
+#define g_effectiveLightPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.xy)
 
 #ifdef WRITABLE_LIGHT_DATA
 
