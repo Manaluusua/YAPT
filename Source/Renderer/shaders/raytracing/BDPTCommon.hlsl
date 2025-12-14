@@ -236,7 +236,7 @@ LightPathNodePacked compressLightPathNode(LightPathNode node)
                     node.nextIndex, node.instanceIndex);
     p.data2 = uint4(asuint(node.positionWS.x), asuint(node.positionWS.y), asuint(node.positionWS.z), node.primitiveIndex);
     p.data3 = asuint(float4(node.barycentrics.x, node.barycentrics.y, node.pdfForwardMIS, node.pdfBackwardMIS));
-    p.data4 = uint4(node.riSum, node.iorPrevious, node.iorCurrent, 0);
+    p.data4 = asuint(float4(node.riSum, node.iorPrevious, node.iorCurrent, 0));
     
     return p;
 }
