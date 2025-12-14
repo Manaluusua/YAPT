@@ -789,7 +789,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
                 float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
-				if(shouldPathContribute(camVertexIndex, g_effectiveLightPathNodesRange.x))
+				if(shouldPathContribute(camVertexIndex, 0))
 				{
 					totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
 				}
@@ -812,7 +812,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					
                     SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, rayState);
                     
-					if(shouldPathContribute(camVertexIndex, lightVertexIndex))
+					if(shouldPathContribute(camVertexIndex, lightVertexIndex + 1))
 					{
 						totalLight = totalLight + lightConnectionRadiance;
 					}
@@ -878,7 +878,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
-			if(shouldPathContribute(camVertexIndex, g_effectiveLightPathNodesRange.x))
+			if(shouldPathContribute(camVertexIndex, 0))
 			{
 #ifdef WHITE_FURNACE_TEST
 				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
