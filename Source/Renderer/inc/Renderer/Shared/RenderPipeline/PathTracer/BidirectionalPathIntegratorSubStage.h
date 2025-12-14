@@ -36,6 +36,7 @@ namespace YAPT
 
 		struct BidirectionalPathTraceConstants
 		{
+			uvec4 lightAndCameraPathConstraints;
 			uvec2 lightPathsPerDim;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;

@@ -16,7 +16,7 @@ static float g_spectralMainSampleWavelength;
 
 struct BidirectionalPathTraceConstants
 {
-
+    uint4 lightAndCameraPathConstraints;
 	uint2 lightPathsPerDim;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
