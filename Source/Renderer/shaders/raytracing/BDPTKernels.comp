@@ -246,8 +246,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 #ifdef SORT_LIGHT_VERTICES_STAGE
 StructuredBuffer<LightPathNodePacked> g_lightPathVerticesUnsorted : register(t5, space3);
 
-groupshared LightPathNode g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
-
 [numthreads(64, 1, 1)]
 void sortLightVertices( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -260,50 +258,23 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 	LightPathHeader header = getLightPathHeader(dispatchThreadId.x);
 	uint vCount = header.offsetAndCount.y;
 	if(vCount == 0) return;
-	
-	//fetch to local memory
-	{	
-		//fetch tail		
-		LightPathNode lastNode = decompressLightPathNode(g_lightPathVerticesUnsorted[header.offsetAndCount.x]);
 
-		g_localNodes[0] = lastNode;
-	
-		//copy entries to linearly
-		uint nextIndex = lastNode.nextIndex;
+	uint vOffset;
+	reserveLightPathNodeSpaceForSorting(vCount, vOffset);
+	uint nextIndex = header.offsetAndCount.x;
 
-		for(uint i = 1; i < vCount; ++i)
-		{
-			LightPathNode node = decompressLightPathNode(g_lightPathVerticesUnsorted[nextIndex]);
-			g_localNodes[i] = lastNode;
-			nextIndex = node.nextIndex;
-		}
-	}
-
-	//sort
+	for(uint i = 0; i < vCount; ++i)
 	{
-		//precalculate MIS weight ratio sums and store sorted path
-		float riSum = 0;
-
-		uint vOffset;
-		reserveLightPathNodeSpaceForSorting(vCount, vOffset);
-		for(uint i = 0 ; i < vCount; ++i)
-		{
-			LightPathNode node = g_localNodes[vCount - 1 - i];
-			node.riSum = riSum;
-
-			storeLightPathVertex(vOffset + i, compressLightPathNode(node));			
-
-
-			float pdfRatio = node.pdfBackwardMIS / node.pdfForwardMIS;
-			riSum *= pdfRatio;
-			riSum += pdfRatio;
-		}		
-
-		//store modified header
-		header.offsetAndCount.x = vOffset;
-		storeLightPathHeader(dispatchThreadId.x, header);
-
+		LightPathNodePacked node = g_lightPathVerticesUnsorted[nextIndex];
+		uint storeIndex = vOffset + vCount - i - 1 ;
+		storeLightPathVertex(storeIndex, node);		
+		nextIndex = getNextIndexFromPackedNode(node);
 	}
+	
+
+	//store modified header
+	header.offsetAndCount.x = vOffset;
+	storeLightPathHeader(dispatchThreadId.x, header);
 
 }
 #endif
@@ -324,14 +295,14 @@ SpectralSamples ToSpectralSamples(float3 color)
 	return s;
 }
 
-bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, SpectralSamples weightOut)
+bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut)
 {
     if (lightNodeIndex == 0)
     {
         pdfForwardOut = 1;
         pdfBackwardOut = 1;
 		
-        weightOut.fromFloat4(lightNode.radiance);
+        weightOut.fromFloat4(float4(1, 1, 1, 1));
     }
     else
     {
@@ -340,7 +311,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         float3 prevLightPosOS = mul(toLocalFrame, float4(prevVertexPos, 1)).xyz;
         float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
         float3 wiOS = normalize(camNodePosOS - lightPosOS);
-        float3 woOSLightConnection = prevLightPosOS - lightPosOS;
+        float3 woOSLightConnection = normalize(prevLightPosOS - lightPosOS);
         uint lightNodeFlags = asuint(lightNode.flags);
         bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;
                             
@@ -397,6 +368,7 @@ struct LightVertexContext
     float previousPDFForwardMIS;
     float3 prevNodeNormalWS;
     uint originatingNodeFlags;
+	float riSum;
 };
 
 float calculateMISWeight( uint cameraVertexIndex, in CameraVertexContext camVertex,
@@ -418,7 +390,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     }
 
 	
-    float riSumLight = lightNode.riSum;
+    float riSumLight = lightVertex.riSum;
     if (lightVertexIndex == 0)
     {
         bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
@@ -800,6 +772,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			//try to connect path to light nodes
 			{
                 LightVertexContext lightVertexContext;
+				lightVertexContext.riSum = 0;
                 for (uint lightVertexIndex = 0; lightVertexIndex < g_lightPathHeader.offsetAndCount.y; ++lightVertexIndex)
                 {
                     uint lightNodeIndex = lightVertexIndex;
@@ -816,6 +789,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					{
 						totalLight = totalLight + lightConnectionRadiance;
 					}
+
+					float pdfRatio = lightNode.pdfBackwardMIS / lightNode.pdfForwardMIS;
+					lightVertexContext.riSum *= pdfRatio;
+					lightVertexContext.riSum += pdfRatio;
 
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
                     lightVertexContext.prevNodePosWS = lightNode.positionWS;
