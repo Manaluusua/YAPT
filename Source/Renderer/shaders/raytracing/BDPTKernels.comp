@@ -54,6 +54,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
+	float lightSamplePdf;
+
 	//sample light
 	{
 		float4 randomSamples0 = rand.getRandom4();
@@ -68,7 +70,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
 
-		radiance = radiance / (lightPosPDF * lightDirPDF * lightSamplePDF);
+		//radiance = radiance / (lightPosPDF * lightDirPDF * lightSamplePDF);
+		lightSamplePdf = lightPosPDF * lightDirPDF * lightSamplePDF;
+		
+		radiance = radiance;
 
 		nodes[0].instanceIndex = -1;
 		nodes[0].primitiveIndex = -1;
@@ -157,6 +162,11 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				{
 					radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
 				}
+			}
+
+			if(i == 1)
+			{
+				radiance = radiance *  toAreaDensityForward / (lightSamplePdf); //area density -> solid angle (ie. divide by solid angle -> area density)
 			}
 
 
@@ -608,7 +618,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         }
 
 		//TODO: weightlastlightnode produces nan/inf. Also radianceFromLight sometimes very high.
-        retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm;
+        retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm * misWeight;
 
         return retVal;
     }
