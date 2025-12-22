@@ -4,6 +4,7 @@ include("../../CMakeCommon.txt")
 SET(GRAPHICS_API "DirectX12" CACHE STRING "Graphics API to build")
 
 SET_PROPERTY(CACHE GRAPHICS_API PROPERTY STRINGS DirectX12 Vulkan) 
+option(ENABLE_GPU_PERF_MARKERS "Enable GPU perf markers" ON)
 
 if(${GRAPHICS_API} MATCHES "DirectX12")
 	set(BUILD_DX12_BACKEND TRUE)
@@ -18,7 +19,6 @@ list(APPEND CMAKE_MODULE_PATH
 )
 
 project(Gfx)
-
 
 set(HEADERS
 
@@ -135,6 +135,20 @@ if(${BUILD_DX12_BACKEND})
 	find_package(Dx12 REQUIRED)
 	
 	target_link_libraries(Gfx PRIVATE d3d12::d3d12 d3d12::dxgi d3d12::dxc)
+	
+	#add pix perf markers support
+	if(${ENABLE_GPU_PERF_MARKERS})
+		set(PIX_VERSION 1.0.240308001)
+		set(PIX_INSTALL_PATH "")
+		install_with_nuget(WinPixEventRuntime ${PIX_VERSION} PIX_INSTALL_PATH)
+
+		target_include_directories(Gfx PRIVATE "${PIX_INSTALL_PATH}/Include/")
+		target_link_libraries(Gfx PRIVATE "${PIX_INSTALL_PATH}/bin/${CMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE}/WinPixEventRuntime.lib")
+		add_custom_command(TARGET Gfx POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different "${PIX_INSTALL_PATH}/bin/${CMAKE_VS_PLATFORM_TOOLSET_HOST_ARCHITECTURE}/WinPixEventRuntime.dll" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/WinPixEventRuntime.dll")
+		
+		target_compile_definitions(Gfx PRIVATE USE_PIX)
+	endif()
 	
 	#dx12 memory allocator
 	add_library(Dx12MemoryAllocator STATIC)

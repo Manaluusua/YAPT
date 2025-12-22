@@ -11,6 +11,10 @@
 #include <Gfx/Dx12/Dx12MiscUtils.h>
 #include <Gfx/Dx12/d3dx12.h>
 
+#ifdef USE_PIX
+#include <WinPixEventRuntime/pix3.h>
+#endif
+
 #include <array>
 
 
@@ -298,6 +302,10 @@ namespace YAPT
 		for (size_t i = 0; i < nodeCount; ++i)
 		{
 			size_t nodeIndex = nodes[i]->getSortedIndex();
+#ifdef USE_PIX
+			uint32_t col = PIX_COLOR_INDEX((BYTE)i);
+			PIXScopedEvent(context.cmdBuffer->cmdList, col, nodes[i]->getName());
+#endif
 			issuePreBarriers(nodeIndex, context.cmdBuffer);
 
 			switch (nodes[i]->getType())
@@ -316,6 +324,7 @@ namespace YAPT
 			
 			invokeNodeCallback(nodes[i],context);
 			issuePostBarriers(nodeIndex, context.cmdBuffer);
+
 		}
 	}
 

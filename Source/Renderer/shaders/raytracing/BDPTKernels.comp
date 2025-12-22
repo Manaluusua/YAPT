@@ -54,8 +54,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
-	float lightSamplePdf;
-
 	//sample light
 	{
 		float4 randomSamples0 = rand.getRandom4();
@@ -70,9 +68,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
 
-		//radiance = radiance / (lightPosPDF * lightDirPDF * lightSamplePDF);
-		lightSamplePdf = lightPosPDF * lightDirPDF * lightSamplePDF;
-		
 		radiance = radiance;
 
 		nodes[0].instanceIndex = -1;
@@ -90,6 +85,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		rayDir = lightDir;
 		rayOrigin = lightPos + getRaySpawnOffsetUsingNormal(lightNormal, lightDir);
+
+		radiance = radiance * abs(dot(lightNormal, lightDir)) / (lightSamplePDF * lightPosPDF * lightDirPDF);
+		
     }
 
     uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
@@ -162,11 +160,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				{
 					radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
 				}
-			}
-
-			if(i == 1)
-			{
-				radiance = radiance *  toAreaDensityForward / (lightSamplePdf); //area density -> solid angle (ie. divide by solid angle -> area density)
 			}
 
 
