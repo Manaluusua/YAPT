@@ -700,6 +700,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	float pdfForwardCamera = 1;
 	uint camVertexIndex = 0;
+	uint pathCount = 0;
 
 	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
@@ -774,6 +775,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				if(shouldPathContribute(camVertexIndex, 0))
 				{
 					totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
+					++pathCount;
 				}
                 
                 break; 
@@ -798,11 +800,13 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					if(shouldPathContribute(camVertexIndex, lightVertexIndex + 1))
 					{
 						totalLight = totalLight + lightConnectionRadiance;
+						++pathCount;
 					}
 
 					float pdfRatio = lightNode.pdfBackwardMIS / lightNode.pdfForwardMIS;
+					lightVertexContext.riSum += 1;
 					lightVertexContext.riSum *= pdfRatio;
-					lightVertexContext.riSum += pdfRatio;
+					
 
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
                     lightVertexContext.prevNodePosWS = lightNode.positionWS;
@@ -838,8 +842,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             {
                 float pdfBackwardPrevNode = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
                 float ratio = pdfBackwardPrevNode / camVertexContext.previousPDFForwardMIS;
-                camVertexContext.pdfRatioSum *= ratio;
-                camVertexContext.pdfRatioSum += ratio;
+				camVertexContext.pdfRatioSum += 1;
+				camVertexContext.pdfRatioSum *= ratio;
+
             }
 			
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
@@ -872,6 +877,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 #else
 				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
 #endif
+				++pathCount;
 			}
 			break;
 		}
@@ -879,6 +885,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
     float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
+
+	color /= pathCount;
 
 	g_outputColor[dispatchThreadId.xy]  = float4(color, 1.f);
     
