@@ -63,15 +63,17 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		float lightSamplePDF;
 		float lightPosPDF;
 		float lightDirPDF;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment);
+		uint InstanceID;
+		uint primitiveIndex;
+        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex);
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
 
 		radiance = radiance;
 
-		nodes[0].instanceIndex = -1;
-		nodes[0].primitiveIndex = -1;
+		nodes[0].instanceIndex = InstanceID;
+		nodes[0].primitiveIndex = primitiveIndex;
 		nodes[0].barycentrics = -1;
 		nodes[0].normalWS = lightNormal;
 		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
@@ -555,10 +557,10 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         uint rayFlags = RAY_FLAG_NONE;
         uint InstanceInclusionMask = ~0;
         RayDesc ray;
-        ray.Origin = camVertex.posWS + getRaySpawnOffsetUsingNormal(camVertex.normalWS, toLightDir);
+        ray.Origin = camVertex.posWS + getRaySpawnOffsetTowardsRay(toLightDir);
         ray.Direction = toLightDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
-        ray.TMax = toLightLen + VISIBILITY_RAY_EPSILON;
+        ray.TMax = DEFAULT_RAY_MIN_T + toLightLen + VISIBILITY_RAY_EPSILON;
 
         RayQuery < RAY_FLAG_NONE > q;
         q.TraceRayInline(
@@ -570,19 +572,24 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         while (q.Proceed());
 						
         bool lightNodeVisible = false;
+		bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
 						
         if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
         {
             uint visInstId = q.CommittedInstanceID();
             uint visPrimIndex = q.CommittedPrimitiveIndex();
 							
-							//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
+			//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
             if (visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
             {
                 lightNodeVisible = true;
             }
 
-        }
+        } 
+		else if(isEnvLight)
+		{
+			lightNodeVisible = true;
+		}
 						
         if (!lightNodeVisible)
         {

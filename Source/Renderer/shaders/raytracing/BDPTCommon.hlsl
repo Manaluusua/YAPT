@@ -162,7 +162,7 @@ ByteAddressBuffer g_counters : register(t4, space3);
 
 #define g_lightPathRandomDimensionOffset (g_maxCameraPathVertices * 4 + 4)
 
-#define g_sampleEnvLightProbabilityWeight 0.5f
+#define g_sampleEnvLightProbabilityWeight 0.0f
 #define g_effectiveCameraPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.zw)
 #define g_effectiveLightPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.xy)
 
@@ -375,7 +375,7 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float e
     pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
 }
 
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment)
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment, out uint instanceOut, out uint primitiveOut)
 {
     if (g_lightCount == 0)
     {
@@ -383,6 +383,8 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
         pdflightSelection = 1.f;
         sampledEnvironment = true;
         normalOut = 0;
+        instanceOut = -1;
+        primitiveOut = -1;
         return;
     }
 
@@ -394,12 +396,14 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
         pdflightSelection = envSampleRelativeProbability / lightProb;
         sampledEnvironment = true;
         normalOut = 0;
+        instanceOut = -1;
+        primitiveOut = -1;
 
     }
     else
     {
         uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
-        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut);
+        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceOut, primitiveOut);
         pdflightSelection = 1 / lightProb;
         sampledEnvironment = false;
 

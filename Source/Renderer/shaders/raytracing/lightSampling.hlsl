@@ -105,12 +105,10 @@ void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir
 
 }
 
-void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut)
+void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out uint instanceOut, out uint primitiveOut)
 {
-    uint instanceDummy;
-    uint primDummy;
     float2 barysDummy;
-    sampleLightFull(lightIndex, randValuesPos, randValuesDir, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceDummy, primDummy, barysDummy);
+    sampleLightFull(lightIndex, randValuesPos, randValuesDir, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceOut, primitiveOut, barysDummy);
 }
 
 void sampleRandomLightPosition(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 normalOut, out float pdfLightSelection, out float pdfPosOut, out uint instanceIndexOut, out uint primitiveIndexOut, out float2 baryCentricsOut)
