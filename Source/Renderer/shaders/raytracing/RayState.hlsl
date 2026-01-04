@@ -2,6 +2,7 @@
 #define RAYSTATE_HLSL_INCL
 
 #define RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED (1 << 0)
+#define RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE (1 << 1)
 
 class RayStateInterface
 {

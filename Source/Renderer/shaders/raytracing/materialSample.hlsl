@@ -50,6 +50,16 @@ typedef uint TransmissionType;
 #define EVALUATE_FLAGS_PDF_ONLY 1
 #define EVALUATE_FLAGS_LIGHT_PATH 2
 
+bool isConsideredDiffuseGGX(float2 roughness)
+{
+    return min(roughness.x, roughness.y) > 0.3f;
+}
+
+bool isConsideredDiffuseSheen(float roughness)
+{
+    return roughness > 0.3f;
+}
+
 void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef,
 	in float3 woBase, in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, out float samplingProbabilities[LAYER_COUNT])
 {
@@ -94,7 +104,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT])
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut)
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
@@ -107,6 +117,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
     float3 woCoating = preCalcData.woCoating;
     float2 a2 = preCalcData.a2;
     bool exiting = preCalcData.exiting;
+    bool isDiffuseBounce = false;
     
 	uint sampleLayer;
 	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
@@ -125,6 +136,8 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
             wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, preCalcData.woCoating, randSampleBrdf);
             wi = mul(wi, preCalcData.toCoatingLayerTangentSpace(surfaceDef.tangent));
+            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2CC);
+
         }
 	}
 	else if(sampleLayer == LAYERIND_COATING_SHEEN)
@@ -133,6 +146,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 		{
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseSheen(surfaceDef.sheenRoughness);
         }
 	} 
 	else if(sampleLayer == LAYERIND_SPEC_CONDUCTOR)
@@ -142,6 +156,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
 
 		}
 	}
@@ -150,6 +165,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
         
         wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
         wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+        isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
         
     } 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
@@ -158,6 +174,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 		{
 			wi = sampleDiffuseLambertian(a2.x, a2.y, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+            isDiffuseBounce = true;
         }
 	} 
 	else if(sampleLayer == LAYERIND_TRANSMITTED)
@@ -179,8 +196,9 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 		
 		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
         wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-		
-	} 
+        
+        isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
+    } 
 
 	//since the normal might not be the real geometry normal, could reflect ray inside object and assume reflection. Figure out better way to handle this later on.
 	if(!allowTransmitted && (dot(surfaceDef.geometryNormal, wi) < 0))
@@ -188,6 +206,8 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 		wi = 0.f;
 	}
 	
+    isDiffuseBounceOut = isDiffuseBounce;
+    
 	return wi;
 }
 

@@ -175,8 +175,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
 			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
 			nodes[currentNodeIndex].flags = lightNodeFlags;
-
-			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities);
+			
+			bool isDiffuseBounce;
+			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities, isDiffuseBounce);
             if (isZero(wiOS))
             {
                 break;
@@ -819,14 +820,19 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                 }
 				//TODO
 			}
-
-            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, camVertexContext.samplingProbabilities);
+			bool isDiffuseBounce;
+            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, camVertexContext.samplingProbabilities, isDiffuseBounce);
 
             if (isZero(wiOS))
             {
                 break;
             }
                 
+			if(isDiffuseBounce)
+			{
+				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE); 
+			}
+
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;

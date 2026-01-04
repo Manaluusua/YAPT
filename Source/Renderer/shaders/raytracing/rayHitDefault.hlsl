@@ -190,10 +190,16 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float pdfBRDF = 0.f;
     float pdfLightDir;
     TransmissionType transmissionType;
-    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities);
+    bool isDiffuseBounce;
+    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities, isDiffuseBounce);
     if (!isZero(wiObjSpace))
     {
         evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
+        
+        if (isDiffuseBounce)
+        {
+            rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE);
+        }
     }
 	
     rayState.pdfThisRay = pdfBRDF;
@@ -205,8 +211,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
 		    {
-		        rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
-		    }
+                rayState.addFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
+            }
 			
 		    bool entered = (transmissionType & TRANSMISSION_TYPE_ENTERED) != 0;
 		    bool exited = (transmissionType & TRANSMISSION_TYPE_EXITED) != 0;
