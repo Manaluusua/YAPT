@@ -300,8 +300,13 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	MaterialEntryGPU matEntry = getMaterialEntry(materialAndMeshIndices.x);
 	SurfaceDefinitionRGB surfaceDefRGB;
 	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
-
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+    
+    if ((payload.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
+    {
+        regularizeMaterial(surfaceDefRGB);
+    }
+    
     setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
 
     

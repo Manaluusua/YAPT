@@ -354,6 +354,11 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 {
 
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+    
+    if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
+    {
+        regularizeMaterial(surfaceDefRGB);
+    }
 
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
     calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
@@ -365,7 +370,10 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 {
     SurfaceDefinitionRGB surfaceDefRGB;
     fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
-	
+    if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
+    {
+        regularizeMaterial(surfaceDefRGB);
+    }
     calculateCommonSurfaceParams(rayState, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 }
 
