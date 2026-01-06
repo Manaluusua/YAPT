@@ -32,7 +32,7 @@ float2 hammersley(int i, int n)
     return float2(vanDerCorputSequence(i), float(i)/float(n));
 }
 
-uint murmurhash(uint x)
+uint finalizeHashMurmur(uint x)
 {
     x ^= x >> 16;
     x *= 0x85ebca6b;
@@ -44,16 +44,36 @@ uint murmurhash(uint x)
 
 uint hash(uint a)
 {
-    return murmurhash(a);
+    return finalizeHashMurmur(a);
 }
 
 uint hash(uint a, uint b)
 {
     uint key = ((a + b) * (a + b + 1)) / (2 + b);
-    return murmurhash(key);
+    return finalizeHashMurmur(key);
 }
 
-uint owenScrambleBase2(uint v, uint seed)
+
+uint owenScramble(uint v, uint seed)
+{
+    if (seed & 1)
+    {
+        v ^= 1u << 31;
+    }
+            
+    for (uint b = 1; b < 32; ++b)
+    {
+        uint mask = (~0u) << (32 - b);
+        if (finalizeHashMurmur((v & mask) ^ seed) & (1u << b))
+        {
+            v ^= 1u << (31 - b);
+        }
+    }
+    
+    return v;
+}
+
+uint owenScrambleBase2Fast(uint v, uint seed)
 {
     v = reversebits(v);
     v ^= v * 0x3d20adea;

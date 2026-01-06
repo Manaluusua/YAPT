@@ -23,7 +23,7 @@
 uint scramble(uint random, uint scrambleSeed, uint dimension)
 {
     uint h = hash(scrambleSeed, dimension);
-    return owenScrambleBase2(random, h);
+    return owenScrambleBase2Fast(random, h);
 }
 
 float getRandomSampleFloat(uint dimensionSetIndex, uint seed)
