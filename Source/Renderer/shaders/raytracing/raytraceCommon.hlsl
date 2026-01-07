@@ -18,7 +18,7 @@
 
 #define IOR_DEFAULT (1.0f)
 
-#define DEFAULT_RAY_MIN_T (0.001f)
+#define DEFAULT_RAY_MIN_T (0.0f)
 #define DEFAULT_RAY_MAX_T (1.0f / 0.0f)
 
 //#define WHITE_FURNACE_TEST
