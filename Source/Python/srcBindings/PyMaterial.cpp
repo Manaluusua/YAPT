@@ -1,5 +1,6 @@
 #include <PyMaterial.h>
 #include <PyRenderer.h>
+#include <PyTexture.h>
 #include <Renderer/Renderer.h>
 #include <Renderer/Material.h>
 #include <assert.h>
@@ -237,6 +238,35 @@ namespace YAPT
         return m_material->getEnableDispersion();
     }
 
+    void PyMaterial::setAlbedoTexture(const PyTexture& tex, const vec2p& scale)
+    {
+        Material::TextureParameter texParam;
+        texParam.texture = tex.getTexture();
+        texParam.scale = scale;
+        m_material->setAlbedoTexture(texParam);
+    }
+    void PyMaterial::setNormalTexture(const PyTexture& tex, const vec2p& scale)
+    {
+        Material::TextureParameter texParam;
+        texParam.texture = tex.getTexture();
+        texParam.scale = scale;
+        m_material->setNormalTexture(texParam);
+    }
+    void PyMaterial::setORMTexture(const PyTexture& tex, const vec2p& scale)
+    {
+        Material::TextureParameter texParam;
+        texParam.texture = tex.getTexture();
+        texParam.scale = scale;
+        m_material->setORMTexture(texParam);
+    }
+    void PyMaterial::setEmissiveTexture(const PyTexture& tex, const vec2p& scale)
+    {
+        Material::TextureParameter texParam;
+        texParam.texture = tex.getTexture();
+        texParam.scale = scale;
+        m_material->setEmissiveTexture(texParam);
+    }
+
 
 	BINDING_FUNC(PyMaterial, m)
 	{
@@ -285,7 +315,11 @@ namespace YAPT
             .def("setCauchysCoefficients", &PyMaterial::setCauchysCoefficients)
             .def("getCauchysCoefficients", &PyMaterial::getCauchysCoefficients)
             .def("setEnableDispersion", &PyMaterial::setEnableDispersion)
-            .def("getEnableDispersion", &PyMaterial::getEnableDispersion);
+            .def("getEnableDispersion", &PyMaterial::getEnableDispersion)
+            .def("setAlbedoTexture", &PyMaterial::setAlbedoTexture)
+            .def("setNormalTexture", &PyMaterial::setNormalTexture)
+            .def("setORMTexture", &PyMaterial::setORMTexture)
+            .def("setEmissiveTexture", &PyMaterial::setEmissiveTexture);
 
 		pybind11::enum_<MaterialPreset>(mat, "MaterialPreset")
 			.value("BLANK", MaterialPreset::BLANK)

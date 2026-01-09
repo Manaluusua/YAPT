@@ -34,7 +34,7 @@ class Resources:
         tex = self.__load_tex_with_oiio(path_str, img_name, verbose)
         #tex = self.__load_tex_with_iio(path_str, img_name)
         if(tex):
-            self._textures[path_str] = self.__load_tex_with_oiio(path_str, img_name, verbose)
+            self._textures[path_str] = tex
         return tex
 
     def load_meshes_from_path(self, mesh_path, verbose = False):
@@ -93,7 +93,7 @@ class Resources:
                 tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, mips, depth)
                 data = image.read_image(format=oiio.UNKNOWN)
                 ptr = data.ctypes.data
-                tex.upload(0, 0, mips, depth, row_pitch, ptr)
+                tex.upload(0, 0, mips, depth, row_pitch, ptr, 0)
 
         except Exception as e:
             print(f"failed to load {path_str}, {e}")

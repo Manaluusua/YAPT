@@ -6,6 +6,7 @@
 namespace YAPT
 {
 	class Renderer;
+	class PyTexture;
 	class PyMaterial : public RCObject
 	{
 	public:
@@ -81,6 +82,11 @@ namespace YAPT
 
 		void setEnableDispersion(bool val);
 		bool getEnableDispersion() const;
+
+		void setAlbedoTexture(const PyTexture& tex, const vec2p& scale);
+		void setNormalTexture(const PyTexture& tex, const vec2p& scale);
+		void setORMTexture(const PyTexture& tex, const vec2p& scale);
+		void setEmissiveTexture(const PyTexture& tex, const vec2p& scale);
 
 	private:
 		std::string m_name;
