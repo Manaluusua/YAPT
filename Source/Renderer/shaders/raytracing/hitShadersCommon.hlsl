@@ -39,6 +39,7 @@ struct SurfaceDefinition
 	float thinFilmThickness;
 	float sheenRoughness;
 	float sheenAmount;
+    uint occlusionSpecDiffPacked;
 	uint flags;
 };
 
@@ -78,6 +79,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 
 	surfDef.sheenRoughness = rgb.sheenRoughness;
 	surfDef.sheenAmount = rgb.sheenAmount;
+    surfDef.occlusionSpecDiffPacked = rgb.occlusionSpecDiffPacked;
 	surfDef.flags = rgb.flags;
 	return surfDef;
 }

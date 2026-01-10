@@ -36,6 +36,7 @@ struct SurfaceDefinitionRGB
 	
     float thinFilmThickness;
 	float sheenAmount;
+    uint occlusionSpecDiffPacked;
 	uint flags;
 };
 
@@ -280,6 +281,16 @@ float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)
 	return barycentrics.x * uv1 + barycentrics.y * uv2 + barycentrics.z * uv3;
 }
 
+uint packOcclusion(float diffuseOcclusion, float specularOcclusion)
+{
+    return f32tof16(diffuseOcclusion) | f32tof16(specularOcclusion) << 16;
+}
+
+void unpackOcclusion(uint packedDiffSpecOcclusion, out float diffuseOcclusion, out float specOcclusion)
+{
+    diffuseOcclusion = f16tof32(packedDiffSpecOcclusion & 0xFFFF);
+    specOcclusion = f16tof32(packedDiffSpecOcclusion >> 16);
+}
 
 void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceDefinitionRGB surfaceDef)
 {
@@ -309,6 +320,7 @@ void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceD
 	surfaceDef.sheenAmount = matEntry.sheenAmount;
 	
 	surfaceDef.sheenRoughness = max(surfaceDef.sheenRoughness, 0.07f); //minimum sheen roughness is 0.07
+    surfaceDef.occlusionSpecDiffPacked = packOcclusion(1.0f, 1.0f);
 
 }
 
@@ -323,18 +335,21 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 		surfaceDef.albedo *= atex.rgb;
 	}
 	
-	if(matEntry.normalTexIndexAndScale.x != TEX_UNBOUND_INDEX) //TODO
+	if(matEntry.normalTexIndexAndScale.x != TEX_UNBOUND_INDEX)
 	{
 		float2 uvScale = unpackTextureTransformScale(matEntry.normalTexIndexAndScale.y);
-		float4 n = g_textures2D[matEntry.normalTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
-		//surfaceDef.albedo = atex.rgb;
-	}
+		float3 n = g_textures2D[matEntry.normalTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0).xyz; //TODO: pack normal to something better, octahedral?
+        float3x3 tbase = constructBasisTransform(surfaceDef.baseLayerNormal, surfaceDef.tangent);
+        float3 newNormal = mul(tbase, n);
+        surfaceDef.baseLayerNormal = newNormal;
+
+    }
 	
 	if(matEntry.ormTexIndexAndScale.x != TEX_UNBOUND_INDEX)
 	{
 		float2 uvScale = unpackTextureTransformScale(matEntry.ormTexIndexAndScale.y);
 		float4 orm = g_textures2D[matEntry.ormTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
-		surfaceDef.roughness = orm.x;
+        surfaceDef.occlusionSpecDiffPacked = packOcclusion(orm.x, orm.x); //for now assume both. accumulate instead of set?
 		surfaceDef.roughness = orm.y;
 		surfaceDef.metalness = orm.z;
 	}

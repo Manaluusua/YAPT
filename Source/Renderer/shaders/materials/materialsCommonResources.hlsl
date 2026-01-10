@@ -5,7 +5,7 @@
 #include "../common/commonMath.hlsl"
 #include "../common/random.hlsl"
 
-
+//TODO: pack
 struct MaterialEntryGPU
 {
 	float4 specAmountClearCoatAmountIORRoughness;
