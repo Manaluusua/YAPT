@@ -19,7 +19,7 @@ class Resources:
         self._textures = None
         self._meshes = None
 
-    def load_texture_from_path(self, tex_path, verbose = False):
+    def load_texture_from_path(self, tex_path, verbose = False, assume_srgb = False):
         path = Path(tex_path)
         path_str = str(path)
 
@@ -31,7 +31,7 @@ class Resources:
         if(verbose):
             print(f"loading {path_str} as {img_name}")
 
-        tex = self.__load_tex_with_oiio(path_str, img_name, verbose)
+        tex = self.__load_tex_with_oiio(path_str, img_name, verbose, assume_srgb)
         #tex = self.__load_tex_with_iio(path_str, img_name)
         if(tex):
             self._textures[path_str] = tex
@@ -63,7 +63,7 @@ class Resources:
         return mesh_list
 
     ###TEXTURES INTERNAL###
-    def __load_tex_with_oiio(self, path_str, img_name, verbose = False):
+    def __load_tex_with_oiio(self, path_str, img_name, verbose = False, assume_srgb = False):
         image = oiio.ImageInput.open(path_str)
 
         if image == None:
@@ -76,7 +76,7 @@ class Resources:
             width, height, depth = spec.width, spec.height, spec.depth
             mips = 1 #TODO support
             dim = ConvUtility.oiio_spec_to_dimension(spec, verbose)
-            form = ConvUtility.oiio_spec_to_format(spec, verbose)
+            form = ConvUtility.oiio_spec_to_format(spec, verbose, assume_srgb)
             row_pitch = spec.scanline_bytes() 
             
             if(dim == ResourceDimension.TEXTURE_CUBEMAP):

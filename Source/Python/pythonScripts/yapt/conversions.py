@@ -10,7 +10,7 @@ class ConvUtility:
     def iio_image_props_to_format(props):
         raise NotImplementedError
 
-    def oiio_spec_to_format(spec, print_debug = False):
+    def oiio_spec_to_format(spec, print_debug = False, assume_srgb = False):
         channels = spec.nchannels
         channel_format = spec.format
         bytes_per_channel = spec.channel_bytes
@@ -25,7 +25,6 @@ class ConvUtility:
         #if(channels > 2): components_str += "B"
         #if(channels > 3): components_str += "A"
         
-        assume_srgb = True
         unorm_type = "SRGB" if assume_srgb is True else "UNORM"
 
         use_norm = True
