@@ -81,7 +81,7 @@ void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir
 
     MaterialEntryGPU matEntry = getMaterialEntry(lightEntry.matIndex);
     SurfaceDefinitionRGB surfaceDefRGB;
-    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, geometryNormal, geometryNormal, tangent);
     modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
     
 

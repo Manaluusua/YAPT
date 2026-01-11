@@ -299,7 +299,8 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	//fetch surface material parameters
 	MaterialEntryGPU matEntry = getMaterialEntry(materialAndMeshIndices.x);
 	SurfaceDefinitionRGB surfaceDefRGB;
-	fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, normal, normal, tangent);
+    setupSurfaceOrientation(surfaceDefRGB);
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
     
     if ((payload.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
@@ -307,7 +308,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         regularizeMaterial(surfaceDefRGB);
     }
     
-    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
+    
 
     
     bool outputShadingParams = firstBounceMaterialWriteEnabled();

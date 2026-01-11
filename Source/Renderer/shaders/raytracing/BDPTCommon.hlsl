@@ -333,9 +333,10 @@ void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 
 	//fetch surface material parameters
     MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
     SurfaceDefinitionRGB surfaceDefRGB;
-    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB);
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, normal, normal, tangent);
+    setupSurfaceOrientation(surfaceDefRGB);
     modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
-    setupSurfaceOrientation(geometryNormal, normal, normal, tangent, surfaceDefRGB);
+    
     
     surfaceDefOut = surfaceDefRGB;
 }

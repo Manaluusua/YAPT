@@ -292,7 +292,7 @@ void unpackOcclusion(uint packedDiffSpecOcclusion, out float diffuseOcclusion, o
     specOcclusion = f16tof32(packedDiffSpecOcclusion >> 16);
 }
 
-void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceDefinitionRGB surfaceDef)
+void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceDefinitionRGB surfaceDef, float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangent)
 {
 	
 
@@ -321,6 +321,11 @@ void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceD
 	
 	surfaceDef.sheenRoughness = max(surfaceDef.sheenRoughness, 0.07f); //minimum sheen roughness is 0.07
     surfaceDef.occlusionSpecDiffPacked = packOcclusion(1.0f, 1.0f);
+	
+    surfaceDef.coatingLayerNormal = normalCoating;
+    surfaceDef.baseLayerNormal = normalBase;
+    surfaceDef.geometryNormal = geometryNormal;
+    surfaceDef.tangent = tangent;
 
 }
 
@@ -343,7 +348,6 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
         float3x3 tbase = constructBasisTransform(surfaceDef.baseLayerNormal, surfaceDef.tangent);
         float3 newNormal = mul(tbase, n.xzy);
         surfaceDef.baseLayerNormal = newNormal;
-
     }
 	
 	if(matEntry.ormTexIndexAndScale.x != TEX_UNBOUND_INDEX)
@@ -430,7 +434,7 @@ float3 nudgeNormal(float3 rayDir, float3 normal, float roughness, float transpar
     return normal;
 }
 
-void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 normalCoating, float3 tangent, inout SurfaceDefinitionRGB surfaceDef)
+void setupSurfaceOrientation(inout SurfaceDefinitionRGB surfaceDef)
 {
 	//add tangent space rotation (could later on optimize out the sin & cos by providing these precalculated on cpu)
     if (surfaceDef.anisotropyRotation > 0)
@@ -441,15 +445,9 @@ void setupSurfaceOrientation(float3 geometryNormal, float3 normalBase, float3 no
         float3x3 rot = float3x3(cosA, 0, sinA,
 								0, 1, 0,
 								-sinA, 0, cosA);
-        tangent = mul(rot, tangent);
+        surfaceDef.tangent = mul(rot, surfaceDef.tangent);
 		
     }
-
-    surfaceDef.coatingLayerNormal = normalCoating;
-    surfaceDef.baseLayerNormal = normalBase;
-    surfaceDef.geometryNormal = geometryNormal;
-    surfaceDef.tangent = tangent;
-
 }
 
 float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
