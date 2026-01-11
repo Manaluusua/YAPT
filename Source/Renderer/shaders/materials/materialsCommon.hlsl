@@ -397,6 +397,26 @@ void modifySurfaceEmissionWithTexture(in MaterialEntryGPU matEntry, in float2 uv
     }
 }
 
+float3 orientToSameSide(float3 wo, float3 n)
+{
+    if (dot(wo, n) < 0)
+    {
+        return -n;
+    }
+    return n;
+
+}
+
+void handleTwoSidedMaterialOrientation(inout SurfaceDefinitionRGB surfaceDef, float3 wo)
+{
+    if (surfaceDef.transparency == 0 && isTwoSided(surfaceDef.flags))
+    {
+        surfaceDef.baseLayerNormal = orientToSameSide(wo, surfaceDef.baseLayerNormal);
+        surfaceDef.coatingLayerNormal = orientToSameSide(wo, surfaceDef.coatingLayerNormal);
+        surfaceDef.geometryNormal = orientToSameSide(wo, surfaceDef.geometryNormal);
+    }
+}
+
 float3 nudgeNormal(float3 rayDir, float3 normal, float roughness, float transparency, bool twoSided)
 {
 	//if two sided, flip normal if view ray hitting from backside

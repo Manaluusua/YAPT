@@ -354,6 +354,8 @@ void calculateCommonSurfaceParams(in BDPTRayState rayState, SurfaceDefinitionRGB
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
 
+    handleTwoSidedMaterialOrientation(surfaceDefRGB, woOS);
+    
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
     
     if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)

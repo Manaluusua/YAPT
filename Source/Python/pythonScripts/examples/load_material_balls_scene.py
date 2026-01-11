@@ -109,6 +109,7 @@ def loadMaterialBalls():
         mat2 = renderer.createMaterial(f"materialBall_mat2")
         mat2.setFromMaterialPreset(Material.MaterialPreset.METAL_ALUMINIUM)
         mat2.setRoughness(0.2)
+        mat2.setTwoSided(True)
         setupMaterialBallMaterials(obj, mat, mat2)
 
 

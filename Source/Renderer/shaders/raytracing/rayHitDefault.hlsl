@@ -300,6 +300,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	MaterialEntryGPU matEntry = getMaterialEntry(materialAndMeshIndices.x);
 	SurfaceDefinitionRGB surfaceDefRGB;
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, normal, normal, tangent);
+    handleTwoSidedMaterialOrientation(surfaceDefRGB, -rayDir);
     setupSurfaceOrientation(surfaceDefRGB);
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
     
