@@ -634,13 +634,28 @@ bool shouldPathContribute(uint cameraNodeIndex, uint lightNodeIndex)
 	return !skipCameraNode && !skipLightNode;
 }
 
-[numthreads(8, 8, 1)]
+#define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
+
+uint2 calculateSourceTextureTexelCoordinates(uint2 groupThreadId, uint2 groupIndex)
+{
+	const uint SPACING_BETWEEN_TEXELS = 4;
+	uint2 blockOffset = (groupIndex / SPACING_BETWEEN_TEXELS) * THREAD_GROUP_DIM_SIZE_CAM_RAY * SPACING_BETWEEN_TEXELS;
+	uint2 inBlockGroupOffset = groupIndex % SPACING_BETWEEN_TEXELS;
+	uint2 threadOffset = groupThreadId * SPACING_BETWEEN_TEXELS;
+
+	return blockOffset + inBlockGroupOffset + threadOffset;
+}
+
+[numthreads(THREAD_GROUP_DIM_SIZE_CAM_RAY, THREAD_GROUP_DIM_SIZE_CAM_RAY, 1)]
 void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	uint2 rayIndices = dispatchIndicesToRayIndices(dispatchThreadId.xy);
+	uint2 sourceTextureIndices = calculateSourceTextureTexelCoordinates(groupThreadId.xy, groupId.xy);
+	uint2 rayIndices = dispatchIndicesToRayIndices(sourceTextureIndices);
+
+	if(rayIndices.x >= g_targetTexDimensions.x || rayIndices.y >= g_targetTexDimensions.y) return;
 
 	RandomSampler rand;
 	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
@@ -745,7 +760,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				transformNormal = transpose(transformNormal);
 
 
-				writeMaterialParamsForFirstBounce(dispatchThreadId.xy, surfaceDefRGB, transformNormal, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				writeMaterialParamsForFirstBounce(sourceTextureIndices.xy, surfaceDefRGB, transformNormal, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			} 
 			else
@@ -869,7 +884,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			bool outputShadingParams = firstBounceMaterialWriteEnabled();
 			if (outputShadingParams && camVertexIndex == 0)
 			{
-				writeEmptyMaterialParamsForFirstBounce(dispatchThreadId.xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				writeEmptyMaterialParamsForFirstBounce(sourceTextureIndices.xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 			}
 
 			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
@@ -894,25 +909,25 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	color /= pathCount;
 
-	g_outputColor[dispatchThreadId.xy]  = float4(color, 1.f);
+	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1.f);
     
 	/*
 	if(camVertexIndex == 0)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
 	} else if(camVertexIndex == 1)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
 	} else if(camVertexIndex < 6)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 1.0f,  10.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 1.0f,  10.f);
 	} else if(camVertexIndex < 15)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 1.0f,  20.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 1.0f,  20.f);
 	}
 	else 
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 1.0f, 1.0f,  1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 1.0f, 1.0f,  1.f);
 	}
 	return;
 	*/
@@ -921,13 +936,13 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	/*
 	if(payload.numberVolumesEntered == 0 || payload.rayState == RAY_STATE_CANCELLED)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
 	} else if(payload.numberVolumesEntered < 2)
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
 	} else
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 1.0f,  1.f);
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 1.0f,  1.f);
 	}
 	return;
 	*/
@@ -937,13 +952,13 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
 	{
-		g_outputColor[dispatchThreadId.xy] = color;
+		g_outputColor[sourceTextureIndices.xy] = color;
 	} 
 	else
 	{
-		g_outputColor[dispatchThreadId.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-		//g_outputColor[dispatchThreadId.xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
-		//g_outputColor[dispatchThreadId.xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		//g_outputColor[sourceTextureIndices.xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
+		//g_outputColor[sourceTextureIndices.xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
 	}*/
 }
 
