@@ -85,8 +85,11 @@ def createSurrounding():
             wall.getTransform().setScale(vec3(wallScale));
 
 def createLight():
-    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Suzanne/suzanne.glb", v3(0, 100, 0), 10)
-    emission_val = 40
+    obj, mesh, mat = createObject("monkey", "D:/Random/3DSampleAssets/Plane/plane.glb", v3(0, 50, 300), 10)
+
+    rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), 240)
+    obj.getTransform().setOrientation(v4(rot.x(), rot.y(), rot.z(), rot.scalar()))
+    emission_val = 100
     mat.setEmission(v3(emission_val, emission_val, emission_val))
 
 def loadMaterialBalls():
