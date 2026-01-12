@@ -38,6 +38,8 @@ namespace YAPT
 		{
 			uvec4 lightAndCameraPathConstraints;
 			uvec2 lightPathsPerDim;
+			uvec2 cameraRayWorkGroupCount;
+			uint32_t cameraWorkGroupSwizzleOffset;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;
 			uint32_t maxCameraPathVertices;

@@ -18,6 +18,8 @@ struct BidirectionalPathTraceConstants
 {
     uint4 lightAndCameraPathConstraints;
 	uint2 lightPathsPerDim;
+    uint2 cameraRayWorkGroupCount;
+    uint cameraWorkGroupSwizzleOffset;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
     uint maxCameraPathVertices;
@@ -161,6 +163,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_maxCameraPathVertices g_bdptConstants.maxCameraPathVertices
 
 #define g_lightPathRandomDimensionOffset (g_maxCameraPathVertices * 4 + 4)
+#define g_cameraRayWorkGroupCount (g_bdptConstants.cameraRayWorkGroupCount)
+#define g_cameraWorkGroupOffset (g_bdptConstants.cameraWorkGroupSwizzleOffset)
 
 #define g_sampleEnvLightProbabilityWeight 0.0f
 #define g_effectiveCameraPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.zw)

@@ -187,7 +187,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float pdfBackward;
             evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, w, pdfForward, pdfBackward);
 
-			if(pdfForward == 0 || pdfBackward == 0)
+			if(pdfBackward == 0)
 			{
 				break;
 			}
@@ -207,7 +207,12 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 
-            radiance = radiance * w / pdfForward;
+            radiance = radiance * w * safeDiv(1.f, pdfForward);
+
+			if(radiance.allSamplesEqual(0))
+			{
+				break;
+			}
 
 			rayDir = normalize(mul(transformNormal, wiOS));
 			rayOrigin = posWS + getRaySpawnOffsetUsingNormal(normalWS, rayDir);
@@ -338,12 +343,12 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
         evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, weightOut, pdfForwardOut, pdfBackwardOut);
 					
-        if (pdfForwardOut == 0 || pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
+        if (pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
         {
             return false;
         }
 						
-        weightOut = weightOut / pdfForwardOut;
+        weightOut = weightOut * safeDiv(1.f, pdfForwardOut);
     }
 	
     return true;
@@ -386,12 +391,12 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     if (cameraVertexIndex > 1)
     {
         float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
-        float ratioPrevCam = pdfBackwardPrevNodeCam / camVertex.previousPDFForwardMIS;
+        float ratioPrevCam = safeDiv(pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
         riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
     }
     if (cameraVertexIndex > 0)
     {
-        float ratioLastCamNode = (pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS)) / camVertex.currentNodeForwardPDFMIS;
+        float ratioLastCamNode = safeDiv(pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
         riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
     }
 
@@ -420,7 +425,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
             misWeightToLight = pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
-        riSumLight = pdfForwardLastCameraNode / (lightPickPDF * lightPosPDF);
+        riSumLight = safeDiv(pdfForwardLastCameraNode, (lightPickPDF * lightPosPDF));
 		
     } else
     {
@@ -435,10 +440,10 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         }
 		
          
-        float ratioPrevLightNode = pdfBackwardPrevNodeLight / lightVertex.previousPDFForwardMIS;
+        float ratioPrevLightNode = safeDiv(pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
         riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
 
-		float ratioLastLightNode = (pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS)) / lightNode.pdfForwardMIS;
+		float ratioLastLightNode = safeDiv(pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
 		riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
     }
 	
@@ -464,8 +469,8 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
-    float ratioAtLight = (lightPickPDF * lightPosPDF) / camVertexContext.currentNodeForwardPDFMIS;
-    float ratioBeforeLight = (lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS)) / camVertexContext.previousPDFForwardMIS;
+    float ratioAtLight = safeDiv(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
+    float ratioBeforeLight = safeDiv(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -520,7 +525,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         float pdfBackward;
         evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, weightLastCameraNode, pdfForward, pdfBackward);
 					
-        if (pdfForward == 0 || pdfBackward == 0 || weightLastCameraNode.allSamplesEqual(0) )
+        if (pdfForward == 0 || weightLastCameraNode.allSamplesEqual(0) )
         {
             return retVal;
         }
@@ -618,7 +623,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
             weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
         }
 
-		//TODO: weightlastlightnode produces nan/inf. Also radianceFromLight sometimes very high.
+		
         retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm * misWeight;
 
         return retVal;
@@ -638,10 +643,20 @@ bool shouldPathContribute(uint cameraNodeIndex, uint lightNodeIndex)
 
 uint2 calculateSourceTextureTexelCoordinates(uint2 groupThreadId, uint2 groupIndex)
 {
-	const uint SPACING_BETWEEN_TEXELS = 4;
-	uint2 blockOffset = (groupIndex / SPACING_BETWEEN_TEXELS) * THREAD_GROUP_DIM_SIZE_CAM_RAY * SPACING_BETWEEN_TEXELS;
-	uint2 inBlockGroupOffset = groupIndex % SPACING_BETWEEN_TEXELS;
-	uint2 threadOffset = groupThreadId * SPACING_BETWEEN_TEXELS;
+	const uint WORKGROUPS_IN_SWIZZLE = 8;
+	
+	uint2 blockIndex = (groupIndex / WORKGROUPS_IN_SWIZZLE);
+	uint2 workGroupsInSwizzle = min(uint2(WORKGROUPS_IN_SWIZZLE, WORKGROUPS_IN_SWIZZLE), g_cameraRayWorkGroupCount - blockIndex * WORKGROUPS_IN_SWIZZLE);
+	uint2 blockOffset = blockIndex * THREAD_GROUP_DIM_SIZE_CAM_RAY * WORKGROUPS_IN_SWIZZLE;	
+
+	//offset workgroup
+	uint2 blockGroupIndex = groupIndex - blockOffset;
+	uint flatGroupsCount = workGroupsInSwizzle.x * workGroupsInSwizzle.y;
+	uint flatGroupIndex = blockGroupIndex.y * workGroupsInSwizzle.x + blockGroupIndex.x;
+	flatGroupIndex = (flatGroupIndex + g_cameraWorkGroupOffset) % flatGroupsCount;
+
+	uint2 inBlockGroupOffset = uint2(flatGroupIndex % workGroupsInSwizzle.x, flatGroupIndex / workGroupsInSwizzle.x);
+	uint2 threadOffset = groupThreadId * workGroupsInSwizzle;
 
 	return blockOffset + inBlockGroupOffset + threadOffset;
 }

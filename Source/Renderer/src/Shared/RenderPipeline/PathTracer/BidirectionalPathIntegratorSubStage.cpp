@@ -377,6 +377,8 @@ namespace YAPT
 		ivec2p lightPathNodesRange = config.getRendererVarValueInternal<ivec2p>(RVARNAME_DEBUG_BDPT_LIGHTPATHNODES);
 		ivec2p cameraPathNodesRange = config.getRendererVarValueInternal<ivec2p>(RVARNAME_DEBUG_BDPT_CAMERAPATHNODES);
 		m_constantsGPU.getData()->lightAndCameraPathConstraints = uvec4(lightPathNodesRange.x, lightPathNodesRange.y, cameraPathNodesRange.x, cameraPathNodesRange.y);
+		m_constantsGPU.getData()->cameraRayWorkGroupCount = DivRoundUp(glm::uvec2(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y), glm::uvec2(WG_SIZE_CAM_STAGE.x, WG_SIZE_CAM_STAGE.y));
+		m_constantsGPU.getData()->cameraWorkGroupSwizzleOffset = (uint32_t)params.sampleOffset;
 
 		m_constantsGPU.flush();
 			
