@@ -1,4 +1,5 @@
 #include "BPTShared.hlsl"
+#include "hitShadersCommon.hlsl"
 #include "materialSample.hlsl"
 #include "payload.hlsl"
 #include "lightSampling.hlsl"

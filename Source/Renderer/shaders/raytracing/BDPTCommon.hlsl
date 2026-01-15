@@ -127,7 +127,7 @@ struct BDPTRayState //: RayStateInterface
     }
 
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
-    float ior[RAY_MAX_VOLUMES_ENTERED];
+    float4 ior;
     uint numberVolumesEntered;
     uint flags;
 };
