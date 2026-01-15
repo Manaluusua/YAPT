@@ -77,7 +77,7 @@ struct Payload //: RayStateInterface
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
 	SpectralSamples throughput;
 	SpectralSamples totalLight;
-    float ior[RAY_MAX_VOLUMES_ENTERED];
+    float4 ior;
 	float3 rayOrigin;
 	uint rayIndex;
 	float3 rayDirection;

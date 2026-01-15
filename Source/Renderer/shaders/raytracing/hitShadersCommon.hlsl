@@ -130,11 +130,8 @@ void writeEmptyMaterialParamsForFirstBounce(uint2 outputLocation, RWTexture2D<ui
 SpectralSamples calculateTransmittance(float distance, SpectralSamples absorption)
 {
 	SpectralSamples s;
-	for (uint i = 0; i < absorption.getSampleCount(); ++i)
-	{
-		float v = exp(-absorption[i] * distance);
-		s.setInd(i, v);
-	}
+    float4 ab = exp(-absorption.toFloat4() * distance);
+    s.fromFloat4(ab);
 	return s;
 }
 
@@ -153,5 +150,7 @@ float3 getRaySpawnOffsetTowardsRay(float3 nextSampleDir)
     float offsetEpsilon = 0.01f;
     return nextSampleDir * offsetEpsilon;
 }
+
+
 
 #endif

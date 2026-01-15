@@ -156,7 +156,7 @@ struct ReflectionConductor// : MaterialLayer
 			SpectralSamples real;
 			SpectralSamples img;
 
-			for (uint i = 0; i < color0.getSampleCount(); ++i)
+			for (uint i = 0; i < 4; ++i)
 			{
 				float2 v = getConductorRefractiveIndexAndExtinctionthroughputSquared(color0[i], color1[i]);
 				real.setInd(i, v.x);

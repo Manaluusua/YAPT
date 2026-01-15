@@ -20,7 +20,7 @@
 
 float4 getSpectralSampleLambdas()
 {
-    const uint SAMPLE_COUNT = SPECTRAL_SAMPLES_COUNT;
+    const uint SAMPLE_COUNT = 4;
     const float LAMBDA_RANGE = SPECTRAL_SAMPLE_LAMBDA_RANGE;
     float lambdaStep = LAMBDA_RANGE / SAMPLE_COUNT;
     float previousSample = GET_SPECTRAL_SAMPLE_WAVELENGTH;
@@ -97,31 +97,24 @@ float sigmoidInv(float x)
 
 struct SpectralSamples
 {
-	float samples[SPECTRAL_SAMPLES_COUNT];
+	float4 samples;
 
-	uint getSampleCount() { return SPECTRAL_SAMPLES_COUNT; }
-	
     float4 toFloat4()
     {
-        return float4(samples[0], samples[1], samples[2], samples[3]);
+        return samples;
 
     }
 	
     void fromFloat4(float4 v)
     {
-        samples[0] = v.x;
-        samples[1] = v.y;
-        samples[2] = v.z;
-        samples[3] = v.w;
-
+        samples = v;
     }
 
 	float getMaxSampleValue() 
 	{
 		float v = samples[0];
-		for (uint i = 1; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 1; i < 4; ++i)
 		{
-
 			v = max(samples[i], v);
 		}
 
@@ -134,17 +127,13 @@ struct SpectralSamples
 		float scale = 2.f * m;
 		setFromRGB(safeDiv(values, scale));
 
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
-		{
-			
-			samples[i] *= scale;
-		}
-
+        samples *= scale;
+		
 		bool applyIlluminant = true;
 		if (applyIlluminant)
 		{
             float4 lambdas = getSpectralSampleLambdas();
-			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+			for (uint i = 0; i < 4; ++i)
 			{
                 float waveLength = lambdas[i];
 				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV * 100.f; //multiplied by 100 because currently all values become so low. Either need to think of different way to define inputs (what are we even inserting, there is no real measure) or find some more sensible value to normalize the distributions
@@ -178,7 +167,7 @@ struct SpectralSamples
 	{
         float4 lambdas = getSpectralSampleLambdas();
 
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
             float waveLength = lambdas[i];
 			float lambda = (waveLength - CIE_LUT_LAMBDA_MIN) / (CIE_LUT_LAMBDA_MAX - CIE_LUT_LAMBDA_MIN); //TODO: change the coefficients to target actual values rather than the normalized [0,1] range, can get rid of this then
@@ -190,7 +179,7 @@ struct SpectralSamples
 
 	void set(float v)
 	{
-		for (int i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (int i = 0; i < 4; ++i)
 		{
 			samples[i] = v;
 		}
@@ -203,7 +192,7 @@ struct SpectralSamples
 
 	bool allSamplesEqual(float v)
 	{
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			if (samples[i] != v) return false;
 		}
@@ -213,7 +202,7 @@ struct SpectralSamples
 	SpectralSamples operator*(float v) 
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] * v;
 		}
@@ -223,7 +212,7 @@ struct SpectralSamples
 	SpectralSamples operator/(float v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] / v;
 		}
@@ -234,7 +223,7 @@ struct SpectralSamples
 	SpectralSamples operator+(float v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] + v;
 		}
@@ -244,7 +233,7 @@ struct SpectralSamples
 	SpectralSamples operator-(float v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] - v;
 		}
@@ -254,7 +243,7 @@ struct SpectralSamples
 	SpectralSamples operator*(SpectralSamples v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] * v[i];
 		}
@@ -264,7 +253,7 @@ struct SpectralSamples
 	SpectralSamples operator/(SpectralSamples v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] / v[i];
 		}
@@ -275,7 +264,7 @@ struct SpectralSamples
 	SpectralSamples operator+(SpectralSamples v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] + v[i];
 		}
@@ -285,7 +274,7 @@ struct SpectralSamples
 	SpectralSamples operator-(SpectralSamples v)
 	{
 		SpectralSamples s;
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			s.samples[i] = samples[i] - v[i];
 		}
@@ -299,7 +288,7 @@ struct SpectralSamples
 
 	void terminateSecondaryWavelengths()
 	{
-		for (uint i = 1; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 1; i < 4; ++i)
 		{
 			samples[i] = 0;
 		}
@@ -322,7 +311,7 @@ struct SpectralSamples
 		else
 		{
 			float4 lambdas = getSpectralSampleLambdas();
-			for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+			for (uint i = 0; i < 4; ++i)
 			{
 
 				float waveLength = lambdas[i];
@@ -330,7 +319,7 @@ struct SpectralSamples
 				float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
 				xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
 			}
-			return xyz / SPECTRAL_SAMPLES_COUNT;
+			return xyz / 4;
 		}
 
 		
@@ -357,7 +346,7 @@ struct SpectralSamples
 
 	bool hasNan()
 	{
-		for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+		for (uint i = 0; i < 4; ++i)
 		{
 			if (isNan(samples[i])) return true;
 		}
@@ -368,7 +357,7 @@ struct SpectralSamples
 SpectralSamples sqrt(SpectralSamples v)
 {
 	SpectralSamples s;
-	for (uint i = 0; i < SPECTRAL_SAMPLES_COUNT; ++i)
+	for (uint i = 0; i < 4; ++i)
 	{
 		s.samples[i] = sqrt(v[i]);
 	}

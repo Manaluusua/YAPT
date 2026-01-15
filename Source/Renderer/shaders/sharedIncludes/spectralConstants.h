@@ -1,8 +1,6 @@
 #ifndef SPECTRAL_CONSTANTS_H
 #define SPECTRAL_CONSTANTS_H
 
-#define SPECTRAL_SAMPLES_COUNT 4
-
 #define CIE_LUT_ORIGINAL_RESOLUTION 471
 
 //Values for full range of 360-830 from CIE database

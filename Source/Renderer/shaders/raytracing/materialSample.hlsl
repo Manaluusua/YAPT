@@ -1,7 +1,9 @@
 #ifndef MATERIALSAMPLE_HLSL_INCL
 #define MATERIALSAMPLE_HLSL_INCL
 
-#include "materialLayers.hlsl"
+#include "../materials/materialsCommonResources.hlsl"
+#include "spectralDistribution.hlsl"
+#include "../materials/materialLayers.hlsl"
 
 #define LAYERIND_COATING_GGX 0
 #define LAYERIND_COATING_SHEEN 1
