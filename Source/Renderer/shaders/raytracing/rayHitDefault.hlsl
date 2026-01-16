@@ -23,32 +23,21 @@ float geometryTerm(float3 fromNormal, float3 toNormal, float3 fromToUnnormalized
 
 void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
 {
-    float3 positionOnLight;
-    float3 lightNormalWS;
+
+    LightSampleOutput lightSampleOutput;
     float lightSelectionPDF;
-    float lightPositionPDF;
-    uint instanceIndex;
-    uint primitiveIndex;
-    float2 baryCentrics;
-    sampleRandomLightPosition(lightSampleRand, emissionOut, positionOnLight, lightNormalWS, lightSelectionPDF, lightPositionPDF, instanceIndex, primitiveIndex, baryCentrics);
+    sampleRandomLightPosition(lightSampleRand, lightSampleOutput, lightSelectionPDF);
 
-    float3 toLight = positionOnLight - currentPosWS;
-
-    //light twosided?
-    /*if(dot(toLight, lightNormalWS) > 0)
-    {
-        lightNormalWS = -lightNormalWS;
-    }*/
-
-
-    emissionOut = emissionOut;// * geometryTerm(normalWS, lightNormalWS, toLight);
-    pdfOut = lightSelectionPDF * lightPositionPDF * areaDensityToSolidAngleMultiplier(toLight, lightNormalWS);
+    float3 toLight = lightSampleOutput.positionWS - currentPosWS;
+    emissionOut = lightSampleOutput.radiance;
+    pdfOut = lightSelectionPDF * lightSampleOutput.pdfPos * areaDensityToSolidAngleMultiplier(toLight, lightSampleOutput.normalWS);
     
-    lightSamplePositionOut = positionOnLight;
-    primitiveIndexOut = primitiveIndex;
-    instanceIndexOut = instanceIndex;
+    lightSamplePositionOut = lightSampleOutput.positionWS;
+    primitiveIndexOut = lightSampleOutput.primitiveIndex;
+    instanceIndexOut = lightSampleOutput.instanceIndex;
 
-    if(dot(toLight, lightNormalWS) >= 0)
+    //if light is not two sided, ignore if we are not facing the light (direction pdf would be wrong but we don't care about it here anyway)
+    if(!lightSampleOutput.sampledAsTwoSided && dot(toLight, lightSampleOutput.normalWS) >= 0) 
     {
         emissionOut.set(0);
         pdfOut = 0;

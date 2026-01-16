@@ -40,7 +40,7 @@ struct SurfaceDefinitionRGB
 	uint flags;
 };
 
-bool isTwoSided(uint flags)
+bool isSurfaceTwoSided(uint flags)
 {
 	return (flags & MaterialMask_TwoSided) != 0;
 }
@@ -409,7 +409,7 @@ float3 orientToSameSide(float3 wo, float3 n)
 
 void handleTwoSidedMaterialOrientation(inout SurfaceDefinitionRGB surfaceDef, float3 wo)
 {
-    if (surfaceDef.transparency == 0 && isTwoSided(surfaceDef.flags))
+    if (surfaceDef.transparency == 0 && isSurfaceTwoSided(surfaceDef.flags))
     {
         surfaceDef.baseLayerNormal = orientToSameSide(wo, surfaceDef.baseLayerNormal);
         surfaceDef.coatingLayerNormal = orientToSameSide(wo, surfaceDef.coatingLayerNormal);

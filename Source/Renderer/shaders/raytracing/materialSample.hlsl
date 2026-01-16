@@ -394,7 +394,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
                 pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
 
-                bool twoSided = isTwoSided(surfaceDef.flags);
+                bool twoSided = isSurfaceTwoSided(surfaceDef.flags);
                 bool wasTransmitted = !twoSided;
 
                 float solidAngleCompression = 1.f;
@@ -462,7 +462,7 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
     {
         //surfaceDataOut.baseLayerNormal = reflect(-surfaceDataOut.baseLayerNormal, surfaceDef.geometryNormal);
         //surfaceDataOut.baseLayerNormal = surfaceDef.geometryNormal;
-        surfaceDataOut.baseLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.baseLayerNormal, surfaceDef.roughness, surfaceDef.transparency, isTwoSided(surfaceDef.flags));
+        surfaceDataOut.baseLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.baseLayerNormal, surfaceDef.roughness, surfaceDef.transparency, isSurfaceTwoSided(surfaceDef.flags));
 
     }
     
@@ -470,7 +470,7 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
     {
         //surfaceDataOut.coatingLayerNormal = reflect(-surfaceDataOut.coatingLayerNormal, surfaceDef.geometryNormal);
         //surfaceDataOut.coatingLayerNormal = surfaceDef.geometryNormal;
-        surfaceDataOut.coatingLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.coatingLayerNormal, surfaceDef.clearCoatRoughness, surfaceDef.transparency, isTwoSided(surfaceDef.flags));
+        surfaceDataOut.coatingLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.coatingLayerNormal, surfaceDef.clearCoatRoughness, surfaceDef.transparency, isSurfaceTwoSided(surfaceDef.flags));
     }
     
     float3 woCoating = mul(surfaceDataOut.toCoatingLayerTangentSpace(surfaceDef.tangent), woObjSpace);

@@ -3,6 +3,19 @@
 
 #include "../common/miscBrdf.hlsl"
 
+struct LightSampleOutput
+{
+    SpectralSamples radiance;
+    float3 positionWS;
+    float3 directionWS;
+    float3 normalWS;
+    float pdfPos;
+    float pdfDir;
+    uint instanceIndex;
+    uint primitiveIndex;
+    float2 baryCentrics;
+    bool sampledAsTwoSided;
+};
 
 void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float pdfPosOut, out float pdfDirOut)
 {
@@ -46,7 +59,7 @@ void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOu
 }
 
 
-void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out uint instanceIndexOut, out uint primitiveIndexOut, out float2 baryCentricsOut)
+void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out LightSampleOutput output)
 {
     LightEntryGPU lightEntry = g_lights[lightIndex];
     MeshEntryGPU meshEntry = getMeshEntry(lightEntry.meshIndex);
@@ -84,42 +97,40 @@ void sampleLightFull(uint lightIndex, float3 randValuesPos, float2 randValuesDir
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, geometryNormal, geometryNormal, tangent);
     modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
     
-
     tangent = mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz;
-    
+    bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
+    float3 lightDir;
+    if(twoSided)
+    {
+        lightDir = sampleSphere(randValuesDir);
+    }
+    else
+    {
+        lightDir = sampleHemisphere(randValuesDir);
+    }
     float3x3 tanToWS = constructBasisTransform(geometryNormal, tangent);
-    float3 lightDir = sampleHemisphere(randValuesDir);
+
     lightDir = mul(tanToWS, lightDir);
     
-    radianceOut.setFromRGBUnbounded(surfaceDefRGB.emissive);
-    
-    pdfPosOut = 1.f / (primCount * area);
-    pdfDirOut = pdfHemisphere();
-    
-    posOut = pos;
-    dirOut = lightDir;
-    normalOut = geometryNormal;
-    instanceIndexOut = lightEntry.instanceIndex;
-    primitiveIndexOut = primitiveIndex;
-    baryCentricsOut = barycentrics.yz;
+    output.radiance.setFromRGBUnbounded(surfaceDefRGB.emissive);
+    output.pdfPos = 1.f / (primCount * area);
+    output.pdfDir = twoSided ? pdfSphere() : pdfHemisphere();
+    output.positionWS = pos;
+    output.directionWS = lightDir;
+    output.normalWS = geometryNormal;
+    output.instanceIndex = lightEntry.instanceIndex;
+    output.primitiveIndex = primitiveIndex;
+    output.baryCentrics = barycentrics.yz;
+    output.sampledAsTwoSided = twoSided;
 
 }
 
-void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out uint instanceOut, out uint primitiveOut)
-{
-    float2 barysDummy;
-    sampleLightFull(lightIndex, randValuesPos, randValuesDir, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceOut, primitiveOut, barysDummy);
-}
-
-void sampleRandomLightPosition(float4 randValues, out SpectralSamples radianceOut, out float3 posOut, out float3 normalOut, out float pdfLightSelection, out float pdfPosOut, out uint instanceIndexOut, out uint primitiveIndexOut, out float2 baryCentricsOut)
+void sampleRandomLightPosition(float4 randValues, out LightSampleOutput output, out float pdfLightSelection)
 {
     float selectLightRand = randValues.w;
     uint lightIndex = min((uint) floor(selectLightRand * g_lightCount), g_lightCount - 1);
-    
-    float3 dummyDir;
-    float pdfDirDummy;
-    
-    sampleLightFull(lightIndex, randValues.xyz, float2(0, 0), radianceOut, posOut, dummyDir, normalOut, pdfPosOut, pdfDirDummy, instanceIndexOut, primitiveIndexOut, baryCentricsOut);
+
+    sampleLight(lightIndex, randValues.xyz, float2(0, 0), output);
     pdfLightSelection = 1.f / g_lightCount;
 }
 
@@ -145,9 +156,17 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     p2 = mul(transf, float4(p2, 1)).xyz;
     p3 = mul(transf, float4(p3, 1)).xyz;
     float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
-
+    
     posPDF = 1.f / (primCount * area);
-    dirPDF = dot(lightSurfaceNormal, towardsDir) >= 0 ? pdfHemisphere() : 0;
+    bool twoSided = false; ///TODO: check material or cache in light data?
+    if (twoSided)
+    {
+        dirPDF = pdfSphere();
+    } 
+    else
+    {
+        dirPDF = dot(lightSurfaceNormal, towardsDir) >= 0 ? pdfHemisphere() : 0;
+    }
 
 }
 

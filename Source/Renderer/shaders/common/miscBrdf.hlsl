@@ -11,9 +11,22 @@ float3 sampleHemisphere(in float2 s)
     return float3(r * cos(phi), z,  r * sin(phi));
 }
 
+float3 sampleSphere(in float2 s)
+{
+    float z = 1 - 2 * s.x;
+    float r = sqrt(1.f - sqr(z));
+    float phi = 2.f * PI * s.y;
+    return float3(r * cos(phi), z,  r * sin(phi));
+}
+
 float pdfHemisphere()
 {
     return 1.f / (2.f * PI);
+}
+
+float pdfSphere()
+{
+    return 1.f / (4.f * PI);
 }
 
 float3 evaluateLambertian(in float3 albedo, in float3 wi) 

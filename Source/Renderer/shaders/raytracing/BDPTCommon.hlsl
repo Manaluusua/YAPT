@@ -418,7 +418,17 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
     else
     {
         uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
-        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, radianceOut, posOut, dirOut, normalOut, pdfPosOut, pdfDirOut, instanceOut, primitiveOut);
+        LightSampleOutput output;
+        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, output);
+        
+        radianceOut = output.radiance;
+        posOut = output.positionWS;
+        dirOut = output.directionWS;
+        normalOut = output.normalWS;
+        pdfPosOut = output.pdfPos;
+        pdfDirOut = output.pdfDir;
+        instanceOut = output.instanceIndex;
+        primitiveOut = output.primitiveIndex;
         pdflightSelection = 1 / lightProb;
         sampledEnvironment = false;
 
