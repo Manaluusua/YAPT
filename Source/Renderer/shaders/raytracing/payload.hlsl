@@ -57,8 +57,8 @@ struct Payload //: RayStateInterface
     }
 	void exitedVolume()
 	{
-		numberVolumesEntered = max(0, numberVolumesEntered - 1);
-	}
+        numberVolumesEntered = numberVolumesEntered == 0 ? 0 : numberVolumesEntered - 1;
+    }
 
 	uint getStateFlags()
 	{

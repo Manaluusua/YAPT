@@ -345,7 +345,8 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         }
 		
 #endif
-		payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS;
+        float sideMultiplier = dot(surfaceDef.geometryNormal, -rayDir) < 0 ? 0 : 1;
+        payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS * sideMultiplier;
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
 	else
