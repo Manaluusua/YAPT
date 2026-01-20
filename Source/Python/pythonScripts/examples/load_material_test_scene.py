@@ -21,6 +21,7 @@ if createEnclosingSphereLight == True:
 	light = scene.create_object("enclosingLightObject")
 	mat = renderer.createMaterial("lightMaterial")
 	mat.setEmission(vec3([1, 1, 1]))
+	mat.setTwoSided(True)
 	light.setMesh(sphere_mesh)
 	light.setMaterial(mat, 0)
 	light.getTransform().setScale(vec3(1000));
