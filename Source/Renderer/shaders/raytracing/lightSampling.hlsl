@@ -144,6 +144,7 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
     RenderObjectTransformDataGPU transformData = getTransformDataForInstance(instanceIndex);
     MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+    bool twoSided = (getMaterialEntry(matMeshIndices.x).materialMask & MaterialMask_TwoSided) != 0;
     uint primCount = (meshEntry.indexCount / 3);
 
     float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
@@ -158,7 +159,7 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
     
     posPDF = 1.f / (primCount * area);
-    bool twoSided = false; ///TODO: check material or cache in light data?
+    
     if (twoSided)
     {
         dirPDF = pdfSphere();
