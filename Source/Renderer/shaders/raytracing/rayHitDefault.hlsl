@@ -261,15 +261,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 {
     
     g_spectralMainSampleWavelength = payload.sampledWavelength;
-    
-#ifdef WHITE_FURNACE_TEST
-    if (!handleWhiteFurnaceTest(payload))
-    {
-        return;
-    }
-#endif
-    
-    
+
 	uint2 materialAndMeshIndices = SHADERTABLE_EXTRADATA.materialAndMeshIndices;
 	MeshEntryGPU meshEntry = getMeshEntry(materialAndMeshIndices.y);
 
@@ -340,7 +332,14 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	}
 	else
 	{
-		
+        #ifdef WHITE_FURNACE_TEST
+        if (!handleWhiteFurnaceTest(payload))
+        {
+            return;
+        }
+#endif
+        
+        
         RandomSampler rand;
         rand.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
         

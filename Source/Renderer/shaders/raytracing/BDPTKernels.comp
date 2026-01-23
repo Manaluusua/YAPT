@@ -425,7 +425,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
             misWeightToLight = pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
-        riSumLight = safeDiv(pdfForwardLastCameraNode, (lightPickPDF * lightPosPDF));
+        riSumLight = safeDiv(misWeightToLight, (lightPickPDF * lightPosPDF));
 		
     } else
     {
@@ -835,8 +835,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					}
 
 					float pdfRatio = lightNode.pdfBackwardMIS / lightNode.pdfForwardMIS;
-					lightVertexContext.riSum += 1;
 					lightVertexContext.riSum *= pdfRatio;
+					lightVertexContext.riSum += pdfRatio;
+					
 					
 
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
@@ -878,8 +879,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             {
                 float pdfBackwardPrevNode = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
                 float ratio = pdfBackwardPrevNode / camVertexContext.previousPDFForwardMIS;
-				camVertexContext.pdfRatioSum += 1;
 				camVertexContext.pdfRatioSum *= ratio;
+				camVertexContext.pdfRatioSum += ratio;
+				
 
             }
 			
