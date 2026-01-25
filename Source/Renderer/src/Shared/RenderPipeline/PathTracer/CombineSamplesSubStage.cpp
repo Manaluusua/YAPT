@@ -34,6 +34,14 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{ResourceDimension::TEXTURE_2D,
+				ResourceFormat::R32_UINT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
 			}}
 			};
 
@@ -48,6 +56,14 @@ namespace YAPT
 		{
 			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
 			{
+			{{ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
 			{{ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
@@ -123,6 +139,7 @@ namespace YAPT
 				this, "DenoiseNode");
 		}
 		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 0);
+		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 1);
 		m_graph->createEdge(m_mergeNode, 0, m_denoiseNode, 1);
 
 	}
@@ -132,7 +149,7 @@ namespace YAPT
 		switch (resource)
 		{
 		case InputResource::COLOR:
-			m_graph->createEdge(node, slot, m_mergeNode, 1);
+			m_graph->createEdge(node, slot, m_mergeNode, 2);
 			break;
 		case InputResource::MATERIAL_PARAMS0:
 			m_graph->createEdge(node, slot, m_denoiseNode, 2);
@@ -204,6 +221,14 @@ namespace YAPT
 		}
 
 		{
+			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(1);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Sample Count");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
+
+		{
 			RenderGraphResourceId resId = m_denoiseNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
@@ -227,10 +252,12 @@ namespace YAPT
 			//clear accumulation buffer
 			{
 				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
+				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&mergeTarget)},
+					{2, 0, 1, DescriptorPtr(&sampleCountTarget)},
 				};
 				m_clearMergeBufferPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -238,12 +265,14 @@ namespace YAPT
 			//Merge
 			{
 				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
-				TextureViewHandle mergeSource = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
+				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
+				TextureViewHandle mergeSource = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&mergeSource)},
-					{2, 0, 1, DescriptorPtr(&mergeTarget)}
+					{2, 0, 1, DescriptorPtr(&mergeTarget)},
+					{3, 0, 1, DescriptorPtr(&sampleCountTarget)}
 				};
 				m_mergePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}

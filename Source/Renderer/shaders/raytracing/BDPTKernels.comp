@@ -926,7 +926,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	color /= pathCount;
 
-	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1.f);
+	g_outputColor[sourceTextureIndices.xy]  = float4(color, pathCount);
     
 	/*
 	if(camVertexIndex == 0)
@@ -963,20 +963,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	}
 	return;
 	*/
-	
-	/*
-	bool resultsValid = !payload.totalLight.hasNan();
-	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
-	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
-	{
-		g_outputColor[sourceTextureIndices.xy] = color;
-	} 
-	else
-	{
-		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-		//g_outputColor[sourceTextureIndices.xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
-		//g_outputColor[sourceTextureIndices.xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
-	}*/
+
 }
 
 #endif

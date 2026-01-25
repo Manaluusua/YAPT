@@ -9,6 +9,7 @@ struct ClearAccumulatedSamplesParams
 
 ConstantBuffer<ClearAccumulatedSamplesParams> g_mergeParams : register(b0, space0);
 RWTexture2D<float4> g_targetTex : register(u1, space0);
+RWTexture2D<uint> g_sampleCountsTex : register(u2, space0);
 
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
@@ -19,6 +20,7 @@ void main( uint3 groupId : SV_GroupID,
 	if(dispatchThreadId.x < g_mergeParams.targetTextureDimensions.x && dispatchThreadId.y < g_mergeParams.targetTextureDimensions.y)
 	{
 		g_targetTex[dispatchThreadId.xy] = g_mergeParams.clearValue;
+        g_sampleCountsTex[dispatchThreadId.xy] = 0;
 	}
 }
 

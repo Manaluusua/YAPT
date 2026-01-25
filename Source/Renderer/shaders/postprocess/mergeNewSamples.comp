@@ -14,6 +14,7 @@ struct MergeNewSamplesParams
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 RWTexture2D<float4> g_targetTex : register(u2, space0);
+RWTexture2D<uint> g_sampleCountsTex : register(u3, space0);
 
 #define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_mergeParams.randomSequence.x)
 #define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_mergeParams.randomSequence.xy)
@@ -21,8 +22,8 @@ RWTexture2D<float4> g_targetTex : register(u2, space0);
 #define GET_RANDOM_NUMBER_SEQUENCE_4(dimOffset) (g_mergeParams.randomSequence.xyxw)
 #include "../common/randomSampler.hlsl"
 
-//#define USE_PER_PIXEL_SAMPLE_COUNT
-//#define NEAREST_SAMPLE_MERGE
+#define USE_PER_PIXEL_SAMPLE_COUNT
+#define NEAREST_SAMPLE_MERGE
 
 
 
@@ -88,15 +89,19 @@ void main( uint3 groupId : SV_GroupID,
 		
 		float4 dstColor = g_targetTex[targetPosition];
 #ifdef USE_PER_PIXEL_SAMPLE_COUNT
-		float w = dstColor.a + srcColor.a;
-		if(w > 0)
+        uint newSamples = srcColor.a;
+        if (newSamples > 0)
 		{
-			float destBlend = dstColor.a / w;
-			float srcBlend = srcColor.a / w;
+            uint oldSamples = g_sampleCountsTex[targetPosition];
+            double totalSamples = newSamples + oldSamples;
+            double destBlend = oldSamples / totalSamples;
+            double srcBlend = newSamples / totalSamples;
 			
-			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, w);
+			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, 1);
 			g_targetTex[targetPosition] = output;
-		}
+            g_sampleCountsTex[targetPosition] = newSamples + oldSamples;
+
+        }
 #else
 		if(srcColor.a > 0)
 		{
