@@ -834,7 +834,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 						++pathCount;
 					}
 
-					float pdfRatio = lightNode.pdfBackwardMIS / lightNode.pdfForwardMIS;
+					float pdfRatio = safeDiv(lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
 					lightVertexContext.riSum *= pdfRatio;
 					lightVertexContext.riSum += pdfRatio;
 					
@@ -878,7 +878,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			if(camVertexIndex > 0)
             {
                 float pdfBackwardPrevNode = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
-                float ratio = pdfBackwardPrevNode / camVertexContext.previousPDFForwardMIS;
+                float ratio = safeDiv(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
 				camVertexContext.pdfRatioSum *= ratio;
 				camVertexContext.pdfRatioSum += ratio;
 				
@@ -924,7 +924,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
     float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
 
-	color /= pathCount;
+	//color /= pathCount;
 
 	g_outputColor[sourceTextureIndices.xy]  = float4(color, pathCount);
     
