@@ -132,8 +132,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     if (g_lightCount > 0)
     {
         float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-        float3x4 toObjectSpace = WorldToObject3x4();
-        
+
         float4 randomSamplesLight = rand.getRandom4();
         SpectralSamples emission;
         float lightSamplePdf;
@@ -332,7 +331,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	}
 	else
 	{
-        #ifdef WHITE_FURNACE_TEST
+#ifdef WHITE_FURNACE_TEST
         if (!handleWhiteFurnaceTest(payload))
         {
             return;
@@ -351,7 +350,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         
         if (isZero(nextSampleDirBRDF) || payload.pdfThisRay == 0.0f)
         {
-            payload.rayState = RAY_STATE_TERMINATED;
+            payload.rayState = RAY_STATE_CANCELLED;
         }
     }
 
