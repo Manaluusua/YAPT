@@ -212,7 +212,7 @@ namespace YAPT
 
 		float invEta = 1.f / etaR;
 		  
-		if (sample.z <= F)
+		if (sample.z < F)
 		{
 			wi = reflect(-wo, wm);
 			if (wi.y <= 0.f)
@@ -286,6 +286,7 @@ namespace YAPT
 			weight = (1.f - F) * G2 * D * VdotH * jRefraction(etaR, wo, wm, wi);
 			weight = MathUtils::safeDiv(weight, denom) * solidAngleCompression;
 		}
+
 		return weight;
 	}
 

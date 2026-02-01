@@ -206,7 +206,7 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 
 float2 getReflAndRefrProbabilities(in float etaR, in float3 wo, in float3 wm, bool allowReflection, bool allowTransmission)
 {
-    float VdotH = abs(dot(wo, wm));
+    float VdotH = saturate(dot(wo, wm));
     float reflProb = fresnelDielectricDielectric2(etaR, VdotH);
     float refrProb = 1 - reflProb;
 	
@@ -253,7 +253,7 @@ float3 sampleDielectric(float etaR, in float ax, in float ay, in float3 wo, in f
     }
 	
 	//reflect
-    if (sc < reflAndRefrProbabilities.x)
+    if (sc < reflAndRefrProbabilities.x || reflAndRefrProbabilities.y == 0)
     {
         float3 wi = reflect(-wo, wm);
         if (!onSameHemisphere(wo, wi))

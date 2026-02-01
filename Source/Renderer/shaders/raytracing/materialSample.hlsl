@@ -83,7 +83,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * fromInsideMultiplier);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, dielAmount * surfaceDef.specularAmount);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, dielAmount * (surfaceDef.specularAmount + surfaceDef.transparency));
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, dielAmount * (1.f - surfaceDef.transparency) * fromInsideMultiplier);
 
     sampleSum = max(0.000001f, sampleSum);
@@ -332,7 +332,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
             float pdf = specLayer.pdf(woBase, wiBase);
 
-            if (pdf > 0 && baseReflected)
+            if (pdf > 0)
             {
                 if (!onlyPDF)
                 {
@@ -381,12 +381,13 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
                 }
+                transmissionTypeOut |= TRANSMISSION_TYPE_DISPERSED;
             }
         
             float etaR = toIOR / fromIOR;
             SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
             float pdf = specLayer.pdf(woBase, wiBase);
-            if (pdf > 0  && baseRefracted)
+            if (pdf > 0 )
             {
                 pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
 

@@ -109,7 +109,7 @@ void rayGenPrimaryRays()
 		
        
 	}
-	
+    g_spectralMainSampleWavelength = payload.sampledWavelength;
 	/*
 	if(payload.pathLength == 1)
 	{
@@ -156,7 +156,7 @@ void rayGenPrimaryRays()
     } 
 	else
 	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		g_outputColor[DispatchRaysIndex().xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 		//g_outputColor[DispatchRaysIndex().xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
 		//g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
 	}
