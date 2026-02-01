@@ -44,7 +44,6 @@ T evaluateGGXReflectionConductor(in T etaR, in T etaK,in float ax ,in float ay, 
 	return F * G2 * D / max(4.f * wo.y * wi.y, 0.00001f);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float2 s)
 {
@@ -160,7 +159,6 @@ float pdfGGXTransmitted(in float etaR, in float3 wo, in float3 wi, in float ax, 
 
 	float pdf = pdfWMGGX(wo, wm, ax, ay);
 
-	if (dot(wi, wm) > 0) return 0.f;
 	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
 	
 	pdf *= jRefraction(etaR, wo, wm, wi);
@@ -189,7 +187,7 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 	
 	float weight;
 
-	float VdotH = saturate(dot(wo, wm));
+	float VdotH = abs(dot(wo, wm));
 	
 	float F = fresnelDielectricDielectric2(etaR, VdotH);
 	float G2 = G2GGX(wo, wi, wm, ax, ay);
@@ -202,6 +200,97 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 	
 
 	return weight;
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////// 
+
+float2 getReflAndRefrProbabilities(in float etaR, in float3 wo, in float3 wm, bool allowReflection, bool allowTransmission)
+{
+    float VdotH = abs(dot(wo, wm));
+    float reflProb = fresnelDielectricDielectric2(etaR, VdotH);
+    float refrProb = 1 - reflProb;
+	
+    if (!allowReflection)
+    {
+        reflProb = 0;
+    }
+    if (!allowTransmission)
+    {
+        refrProb = 0;
+    }
+
+    if (reflProb == 0 && refrProb == 0)
+    {
+        return 0;
+    }
+	
+    float sum = reflProb + refrProb;
+	
+    reflProb = safeDiv(reflProb, sum);
+    refrProb = safeDiv(refrProb, sum);
+    return float2(reflProb, refrProb);
+	
+}
+
+float3 sampleDielectric(float etaR, in float ax, in float ay, in float3 wo, in float2 s, in float sc, bool allowReflection, bool allowTransmission)
+{
+    float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    if (dot(wo, wm) < 0.f)
+    {
+        return 0.f;
+    }
+	
+    if (etaR == 1.f)
+    {
+        etaR = 1.001f;
+    }
+	
+    float2 reflAndRefrProbabilities = getReflAndRefrProbabilities(etaR, wo, wm, allowReflection, allowTransmission);
+	
+    if (reflAndRefrProbabilities.x == 0 && reflAndRefrProbabilities.y == 0)
+    {
+        return 0;
+    }
+	
+	//reflect
+    if (sc < reflAndRefrProbabilities.x)
+    {
+        float3 wi = reflect(-wo, wm);
+        if (!onSameHemisphere(wo, wi))
+        {
+            return 0.f;
+        }
+        return wi;
+    } 
+	else //refract
+    {
+        float invEta = 1.f / etaR;
+        float3 wi = refract(-wo, wm, invEta);
+        if (onSameHemisphere(wo, wi))
+        {
+            return 0.f;
+        }
+		return wi;
+    }
+
+}
+
+float pdfDielectric(in float etaR, in float3 wo, in float3 wi, in float ax, in float ay, bool allowReflection, bool allowTransmission)
+{
+    float3 wm = getWMTranslucent(wo, wi, etaR);
+    float2 reflAndRefrProbabilities = getReflAndRefrProbabilities(etaR, wo, wm, allowReflection, allowTransmission);
+    float pdf;
+    if (onSameHemisphere(wo, wi))
+    {
+        pdf = pdfGGXReflectionDielectric(wo, wi, ax, ay) * reflAndRefrProbabilities.x;
+
+    }
+    else
+    {
+        pdf = pdfGGXTransmitted(etaR, wo, wi, ax, ay) * reflAndRefrProbabilities.y;
+    }
+    return pdf;
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -10,9 +10,9 @@
 #define LAYERIND_SPEC_CONDUCTOR 2
 #define LAYERIND_SPEC_DIELECTRIC 3
 #define LAYERIND_DIFFUSE_REFL 4
-#define LAYERIND_TRANSMITTED 5
 
-#define LAYER_COUNT (LAYERIND_TRANSMITTED + 1)
+
+#define LAYER_COUNT (LAYERIND_DIFFUSE_REFL + 1)
 
 #define MAT_SAMPLING_ADD_LAYER(layer, probability) samplingProbabilities[layer] = (probability); sampleSum += (probability);
 
@@ -67,10 +67,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 {
     bool comingFromInside = woBase.y < 0;
     float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
-    float ratioRefr = 1.f - getAvgFresnel(toIOR/fromIOR); 
     float dielAmount = 1.f - surfaceDef.metalness;
-    float refrProb = ratioRefr * surfaceDef.transparency * dielAmount;
-    float reflProb = 1.f - refrProb;
 	
 	//explicit TIR handling (enable if Fresnel doesn't take TIR into account)
 	/*float3 wi = refract(-woBase, wm, fromIOR/toIOR);
@@ -83,14 +80,12 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
     
 
     float sampleSum = 0.f;
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * reflProb * fromInsideMultiplier);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * reflProb * fromInsideMultiplier);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * reflProb * fromInsideMultiplier);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, dielAmount * surfaceDef.specularAmount * reflProb);
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, dielAmount * (1.f - surfaceDef.transparency) * reflProb * fromInsideMultiplier);
-	
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_TRANSMITTED, dielAmount * refrProb);
-	
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_GGX, surfaceDef.clearCoatAmount * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, dielAmount * surfaceDef.specularAmount);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, dielAmount * (1.f - surfaceDef.transparency) * fromInsideMultiplier);
+
     sampleSum = max(0.000001f, sampleSum);
 	
     for (uint i = 0; i < LAYER_COUNT; ++i)
@@ -106,7 +101,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut)
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut)
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
@@ -164,8 +159,22 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	}
 	else if(sampleLayer == LAYERIND_SPEC_DIELECTRIC)
 	{
+        if (hasDispersion(surfaceDef.flags))
+        {
+            if (exiting)
+            {
+                fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+            }
+            else
+            {
+                toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+            }
+        }
         
-        wi = sampleGGXReflectionDielectric(a2.x, a2.y, woBase, randSampleBrdf);
+        float etaR = toIOR / fromIOR;
+        SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
+
+        wi = specLayer.sampleWi(woBase, randSampleBrdf, randbsdfSelect);
         wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
         isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
         
@@ -179,28 +188,6 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
             isDiffuseBounce = true;
         }
 	} 
-	else if(sampleLayer == LAYERIND_TRANSMITTED)
-	{
-		if (hasDispersion(surfaceDef.flags))
-		{
-			if (exiting)
-			{
-				fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
-			} 
-			else
-			{
-				toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
-			}
-		}
-
-
-		float etaR = toIOR/fromIOR;
-		
-		wi = sampleGGXTransmitted(etaR, a2.x, a2.y, woBase, randSampleBrdf);
-        wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-        
-        isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
-    } 
 
 	//since the normal might not be the real geometry normal, could reflect ray inside object and assume reflection. Figure out better way to handle this later on.
 	if(!allowTransmitted && (dot(surfaceDef.geometryNormal, wi) < 0))
@@ -327,18 +314,31 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         }
 
 
-        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0)
+        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseReflected) //spec reflection
         {
-            ReflectionDielectric spec = ReflectionDielectric::init(a2, surfaceDef.roughness, toIOR / fromIOR);
-            float pdf = spec.pdf(woBase, wiBase);
+            if (hasDispersion(surfaceDef.flags))
+            {
+                if (exiting)
+                {
+                    fromIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+                }
+                else
+                {
+                    toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
+                }
+            }
+        
+            float etaR = toIOR / fromIOR;
+            SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
+            float pdf = specLayer.pdf(woBase, wiBase);
 
             if (pdf > 0 && baseReflected)
             {
                 if (!onlyPDF)
                 {
                     float specAmount = dielAmount * surfaceDef.specularAmount;
-                    weightSum = weightSum + evaluateLayer(spec, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= spec.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
+                    weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                    energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
                 }
                 pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
             }
@@ -369,7 +369,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
         }
 
-        if (samplingProbabilities[LAYERIND_TRANSMITTED] > 0)
+        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseRefracted) //spec refraction
         {
             if (hasDispersion(surfaceDef.flags))
             {
@@ -381,18 +381,14 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
                 }
-                transmissionTypeOut |= TRANSMISSION_TYPE_DISPERSED;
             }
-
+        
             float etaR = toIOR / fromIOR;
-
-            TransmittedLayer transmitted = TransmittedLayer::init(a2, surfaceDef.roughness, etaR);
-            float pdf = transmitted.pdf(woBase, wiBase);
-
+            SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
+            float pdf = specLayer.pdf(woBase, wiBase);
             if (pdf > 0  && baseRefracted)
             {
-
-                pdfSum += samplingProbabilities[LAYERIND_TRANSMITTED] * pdf;
+                pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
 
                 bool twoSided = isSurfaceTwoSided(surfaceDef.flags);
                 bool wasTransmitted = !twoSided;
@@ -420,8 +416,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 float transparencyAmount = surfaceDef.transparency * dielAmount;
                 if (!onlyPDF)
                 {
-                    weightSum = weightSum + evaluateLayer(transmitted, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= transmitted.getEnergyLeftAfterLayer(woBase, wiBase, transparencyAmount);
+                    weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression * shadingNormalCompensationMultiplierBase * specOcclusion;
+                    energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, transparencyAmount);
                 }
             }
         }

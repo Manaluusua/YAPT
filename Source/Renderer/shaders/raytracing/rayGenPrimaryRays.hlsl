@@ -148,7 +148,7 @@ void rayGenPrimaryRays()
 	
 	bool resultsValid = !payload.totalLight.hasNan();
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
-	if((payload.rayState == RAY_STATE_TERMINATED) && resultsValid) 
+	if(resultsValid) 
 	{
         bool rayDispersed = (payload.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
         float3 color = payload.totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
@@ -156,7 +156,7 @@ void rayGenPrimaryRays()
     } 
 	else
 	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		g_outputColor[DispatchRaysIndex().xy] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 		//g_outputColor[DispatchRaysIndex().xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
 		//g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
 	}

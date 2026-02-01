@@ -177,7 +177,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].flags = lightNodeFlags;
 			
 			bool isDiffuseBounce;
-			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, samplingProbabilities, isDiffuseBounce);
+			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, samplingProbabilities, isDiffuseBounce);
             if (isZero(wiOS))
             {
                 break;
@@ -852,7 +852,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				//TODO
 			}
 			bool isDiffuseBounce;
-            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.w, randomSamples0.xy, camVertexContext.samplingProbabilities, isDiffuseBounce);
+            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, camVertexContext.samplingProbabilities, isDiffuseBounce);
 
             if (isZero(wiOS))
             {
@@ -924,7 +924,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
     float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
 
-	g_outputColor[sourceTextureIndices.xy]  = float4(color, pathCount);
+	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1);
     
 	/*
 	if(camVertexIndex == 0)

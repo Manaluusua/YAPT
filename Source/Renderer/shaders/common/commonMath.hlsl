@@ -5,8 +5,11 @@
 #define PI 3.14159265f
 #define PI_OVER_2 1.57079633f
 #define PI_OVER_4 0.785398163f
-#define sqr(x) (x*x)
 
+float sqr(float x)
+{
+    return x * x;
+}
 
 float3 refr(float etaR, float3 wm, float3 wo)
 {
@@ -32,10 +35,10 @@ float jReflection(float3 wi, float3 wm)
 float jRefraction(float eta, float3 wo, float3 wm, float3 wi)
 {
 	float dotMO = dot(wo, wm);
-	float dotMI = abs(dot(wi, wm));
+	float dotMI = dot(wi, wm);
 	
-	float denom = sqr(dotMO + eta * dotMI);
-    return safeDiv(sqr(eta) * dotMI, denom);
+	float denom = sqr(dotMO / eta + dotMI);
+    return safeDiv(abs(dotMI), denom);
 }
 
 

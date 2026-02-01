@@ -309,6 +309,90 @@ struct TransmittedLayer// : MaterialLayer
 
 };
 
+struct SpecularLayer// : MaterialLayer
+{
+
+    static SpecularLayer init(float2 a2, float linearRoughness, float eta, bool allowReflection, bool allowRefraction)
+    {
+        SpecularLayer l;
+        l.roughness2 = a2;
+        l.linearRoughness = linearRoughness;
+        l.etaR = eta;
+        l.allowReflection = allowReflection;
+        l.allowRefraction = allowRefraction;
+        return l;
+    }
+
+    float3 sampleWi(float3 wo, float2 rand, float fresnelSelectionRand)
+    {
+        return sampleDielectric(etaR, roughness2.x, roughness2.y, wo, rand, fresnelSelectionRand, allowReflection, allowRefraction);
+    }
+
+    SpectralSamples evaluate(float3 wo, float3 wi)
+    {
+        SpectralSamples w;
+		
+
+        if (onSameHemisphere(wo, wi))
+        {
+            float weight = evaluateGGXReflectionDielectric(etaR, roughness2.x, roughness2.y, wo, wi);
+			
+			//multiscatter
+            float msbrdf;
+            bool useTranslucentCompensation = false;
+            if (useTranslucentCompensation)
+            {
+                msbrdf = getEnergyCompensationTranslucent(etaR, wo.y, wi.y, linearRoughness, weight);
+            }
+            else
+            {
+                float3 wm = normalize(wo + wi);
+                float fms = getFmsDielectric(etaR, linearRoughness, abs(dot(wo, wm)));
+                msbrdf = getEnergyCompensation(fms, abs(wo.y), abs(wi.y), linearRoughness, weight);
+            }
+            weight += msbrdf;
+            weight *= abs(wi.y);
+
+            w.set(weight);
+        }
+        else
+        {
+            float weight = evaluateGGXTransmitted(etaR, roughness2.x, roughness2.y, wo, wi);
+            float msbrdf = getEnergyCompensationTranslucent(etaR, wo.y, wi.y, linearRoughness, weight);
+            weight += msbrdf;
+            weight *= abs(wi.y);
+
+            w.set(weight);
+        }
+
+        return w;
+    }
+
+    float pdf(float3 wo, float3 wi)
+    {
+        return pdfDielectric(etaR, wo, wi, roughness2.x, roughness2.y, allowReflection, allowRefraction);
+    }
+
+    float getEnergyLeftAfterLayer(float3 wo, float3 wi, float layerWeight)
+    {
+        if (onSameHemisphere(wo, wi))
+        {
+            return getEnergyRemainingAfterSpecular(etaR, wo.y, wi.y, linearRoughness, layerWeight);
+        }
+		else
+        {
+            return 0;
+        }
+    }
+
+    float2 roughness2;
+    float linearRoughness;
+    float etaR;
+    bool allowReflection;
+    bool allowRefraction;
+};
+
+
 
 //utilities
 template<typename MATERIALTYPE>

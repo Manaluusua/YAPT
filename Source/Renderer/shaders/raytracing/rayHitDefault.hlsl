@@ -42,6 +42,11 @@ void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 l
         emissionOut.set(0);
         pdfOut = 0;
     }
+    /*lightSamplePositionOut = sampleSphere(lightSampleRand.xy) * 1000.f;
+    emissionOut.setFromRGBUnbounded(float3(1, 1, 1));
+    pdfOut = pdfSphere();
+    instanceIndexOut = 0;
+    primitiveIndexOut = 0;*/
 }
 
 bool checkLightVisibility(in float3 rayPos, in float3 rayDir, float rayLen, uint lightInstanceID, uint lightPrimitiveIndex)
@@ -103,6 +108,8 @@ float calculateExplicitLightConnectionPDF(float3 fromPointToLightUnnormalized, i
     float posPDF = 1.f / (primCount * area);
 
     return posPDF * lightPickPDF * areaDensityToSolidAngleMultiplier(fromPointToLightUnnormalized, geometryNormal);
+
+    //return pdfSphere();
     
 }
 #endif
@@ -163,7 +170,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             if (!weightSumLight.allSamplesEqual(0))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
-                if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
+                //if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
                     weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
                     rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
@@ -180,7 +187,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float pdfLightDir;
     TransmissionType transmissionType;
     bool isDiffuseBounce;
-    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.w, randomSamplesBRDF.xy, samplingProbabilities, isDiffuseBounce);
+    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.x,randomSamplesBRDF.y, randomSamplesBRDF.zw, samplingProbabilities, isDiffuseBounce);
     if (!isZero(wiObjSpace))
     {
         evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
