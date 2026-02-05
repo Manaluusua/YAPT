@@ -308,12 +308,27 @@ SpectralSamples ToSpectralSamples(float3 color)
 
 bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut)
 {
+	uint lightNodeFlags = asuint(lightNode.flags);
+    bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;     
+    SurfaceDefinitionRGB surfaceDefRGB = g_localNodes[lightNodeIndex].surfaceDefRGB;
+
     if (lightNodeIndex == 0)
     {
-        pdfForwardOut = 1;
-        pdfBackwardOut = 1;
-		
-        weightOut.fromFloat4(float4(1, 1, 1, 1));
+		bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
+		float3 fromLightWS = nextVertexPos - lightNode.positionWS;
+		if(dot(fromLightWS, lightNode.normalWS) > 0 || twoSided)
+		{
+			pdfForwardOut = 1;
+			pdfBackwardOut = 1;
+			weightOut.fromFloat4(float4(1, 1, 1, 1));
+		} 
+		else
+		{
+			pdfForwardOut = 0;
+			pdfBackwardOut = 0;
+			weightOut.fromFloat4(float4(0, 0, 0, 0));
+		}
+        
     }
     else
     {
@@ -323,10 +338,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
         float3 wiOS = normalize(camNodePosOS - lightPosOS);
         float3 woOSLightConnection = normalize(prevLightPosOS - lightPosOS);
-        uint lightNodeFlags = asuint(lightNode.flags);
-        bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;
-                            
-        SurfaceDefinitionRGB surfaceDefRGB = g_localNodes[lightNodeIndex].surfaceDefRGB;
+        
 	    
         SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
         PrecalculatedSurfaceData precalculatedSurfaceData;
@@ -411,7 +423,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
 		
         float3 camToLight = lightNode.positionWS.xyz - camVertex.posWS;
         float camToLightLength = length(camToLight);
-        float3 lightToCam = camToLight / camToLightLength;
+        float3 lightToCam = -camToLight / camToLightLength;
 		
         float misWeightToLight;
         if (isEnvLight)
@@ -454,7 +466,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
 
 float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint instanceIndex, uint primitiveIndex, float2 bary, CameraVertexContext camVertexContext)
 {
-	//if we hit directly to light from camera, this path can only be done this way and MIS is 1
+	//if we hit directly to light from camera (or one bounce), this path can only be done this way and MIS is 1.
 	if (cameraVertexIndex == 0)
 	{
 		return 1.f;
