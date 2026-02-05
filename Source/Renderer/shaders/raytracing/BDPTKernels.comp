@@ -316,19 +316,22 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
     {
 		bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
 		float3 fromLightWS = nextVertexPos - lightNode.positionWS;
-		if(dot(fromLightWS, lightNode.normalWS) > 0 || twoSided)
-		{
-			pdfForwardOut = 1;
-			pdfBackwardOut = 1;
-			weightOut.fromFloat4(float4(1, 1, 1, 1));
-		} 
-		else
+		if(dot(fromLightWS, lightNode.normalWS) <= 0 && !twoSided)
 		{
 			pdfForwardOut = 0;
 			pdfBackwardOut = 0;
 			weightOut.fromFloat4(float4(0, 0, 0, 0));
-		}
-        
+			return false;
+		} 
+		
+		//TODO: calculate pdf to for light (and return solid angle pdf)
+		float pdf = lightNode.pdfForwardMIS; //for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
+		float dirPDF = twoSided ? pdfSphere() : pdfHemisphere();
+		pdfForwardOut = pdf * dirPDF; //tosolidangle?
+
+		weightOut.set(1);
+		weightOut = weightOut * (1.f / pdfForwardOut);
+		pdfBackwardOut = 0;
     }
     else
     {
