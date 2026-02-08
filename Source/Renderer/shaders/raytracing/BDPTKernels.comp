@@ -206,8 +206,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			}
 
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
-
-            radiance = radiance * w * safeDiv(1.f, pdfForward);
+	
+			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
+			float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal));  //use shading normal?
+            radiance = radiance * w * fromSolidAngle * safeDiv(1.f, pdfForward);
 
 			if(radiance.allSamplesEqual(0))
 			{
@@ -311,7 +313,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 	uint lightNodeFlags = asuint(lightNode.flags);
     bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;     
     SurfaceDefinitionRGB surfaceDefRGB = g_localNodes[lightNodeIndex].surfaceDefRGB;
-
+	float3x4 toLocalFrame = g_localNodes[lightNodeIndex].worldToObjSpace;
     if (lightNodeIndex == 0)
     {
 		bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
@@ -323,19 +325,22 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 			weightOut.fromFloat4(float4(0, 0, 0, 0));
 			return false;
 		} 
-		
-		//TODO: calculate pdf to for light (and return solid angle pdf)
-		float pdf = lightNode.pdfForwardMIS; //for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
+
+		float3x3 toWorldDir = transpose((float3x3)toLocalFrame);
+		float3 surfaceNormalWS = normalize(mul(toWorldDir, surfaceDefRGB.geometryNormal));
+
+		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
+		float pdf = lightNode.pdfForwardMIS; 
 		float dirPDF = twoSided ? pdfSphere() : pdfHemisphere();
-		pdfForwardOut = pdf * dirPDF; //tosolidangle?
+		pdfForwardOut = pdf * dirPDF;
 
 		weightOut.set(1);
-		weightOut = weightOut * (1.f / pdfForwardOut);
+		weightOut = weightOut * abs(dot(normalize(fromLightWS), surfaceNormalWS)) * (1.f / pdfForwardOut);
 		pdfBackwardOut = 0;
     }
     else
     {
-        float3x4 toLocalFrame = g_localNodes[lightNodeIndex].worldToObjSpace;
+        
         float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
         float3 prevLightPosOS = mul(toLocalFrame, float4(prevVertexPos, 1)).xyz;
         float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
@@ -544,8 +549,11 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         {
             return retVal;
         }
-						
-        weightLastCameraNode = weightLastCameraNode / pdfForward;
+		if(lightVertexIndex > 0)
+		{
+			weightLastCameraNode = weightLastCameraNode / pdfForward;
+		}
+        
 
         pdfForwardLastCameraNode = pdfForward;
         pdfBackwardLastCameraNode = pdfBackward;
@@ -624,7 +632,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
 
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);
-						
+		
         float geometryTerm = 1.f / toLightLenSqr;
 		geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
 		if((lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) == 0)
@@ -638,8 +646,10 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
             weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
         }
 
+		retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm * misWeight;
 		
-        retVal =  weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight  * geometryTerm * misWeight;
+		
+       
 
         return retVal;
     }
@@ -905,7 +915,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
 			pdfForwardCamera = pdfForward;
 
-            camVertexContext.throughput = camVertexContext.throughput * w / pdfForward;
+			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
+			float fromSolidAngle = abs(dot(wiOS, camVertexContext.surfaceDef.geometryNormal));  //use shading normal?
+            camVertexContext.throughput = camVertexContext.throughput * w * fromSolidAngle / pdfForward;
 
 			rayDir = normalize(mul(transformNormal, wiOS));
             rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
