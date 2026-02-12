@@ -332,10 +332,10 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
 		float pdf = lightNode.pdfForwardMIS; 
 		float dirPDF = twoSided ? pdfSphere() : pdfHemisphere();
-		pdfForwardOut = pdf * dirPDF;
+		pdfForwardOut = pdf * dirPDF * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
 		weightOut.set(1);
-		weightOut = weightOut * abs(dot(normalize(fromLightWS), surfaceNormalWS)) * (1.f / pdfForwardOut);
+		weightOut = weightOut * abs(dot(normalize(fromLightWS), surfaceNormalWS)) * (1.f / pdfForwardOut);  //Geometry term and solidAngle -> area density cancel, leaving only abs(dot(lightToSurfaceDir, surfaceNormal)
 		pdfBackwardOut = 0;
     }
     else
@@ -633,12 +633,18 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);
 		
-        float geometryTerm = 1.f / toLightLenSqr;
-		geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
-		if((lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) == 0)
+        float geometryTerm = 1.f;
+
+		if(lightVertexIndex > 0)
 		{
-			geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
+			geometryTerm = 1.f / toLightLenSqr;
+			geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
+			if((lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) == 0)
+			{
+				geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
+			}
 		}
+		
 
 		SpectralSamples absorptionOnConnection = rayState.getAbsorption();
 		if(!absorptionOnConnection.allSamplesEqual(0))
