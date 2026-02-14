@@ -13,6 +13,7 @@ static float g_spectralMainSampleWavelength;
 #define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1 << 0)
 #define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
 #define LIGHT_PATH_NODE_FLAG_ENV_LIGHT (1 << 2)
+#define LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION (1 << 3)
 
 struct BidirectionalPathTraceConstants
 {

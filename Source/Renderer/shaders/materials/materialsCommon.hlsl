@@ -50,7 +50,22 @@ bool hasDispersion(uint flags)
 	return (flags & MaterialMask_Dispersion) != 0;
 }
 
+template<typename Surface>
+bool isDeltaDistribution(Surface surface)
+{
+    float roughnessMin = 0.1;
+    if (surface.metalness == 1.f || surface.transparency == 1.f)
+    {
+        bool coatingIsRough = (surface.clearCoatAmount > 0 && surface.clearCoatRoughness > roughnessMin) ||
+								(surface.sheenAmount > 0 && surface.sheenRoughness > roughnessMin);
+        bool baseIsRough = surface.roughness > roughnessMin;
+		
+        return !coatingIsRough && !baseIsRough;
 
+    }
+    return false;
+
+}
 
 float bbLoadFloat(in uint bufferIndex, in uint bufferOffset)
 {

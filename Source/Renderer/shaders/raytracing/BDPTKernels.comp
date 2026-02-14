@@ -146,6 +146,12 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			lightNodeFlags |= (rayState.getStateFlags() & TRANSMISSION_TYPE_DISPERSED) != 0 ? LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS : 0;
 			
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+			bool deltaDistr = isDeltaDistribution(surfaceDef);
+			if(deltaDistr)
+			{
+                lightNodeFlags |= LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION;
+
+            }
 			
             float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
             transformNormal = transpose(transformNormal);
@@ -207,9 +213,17 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 	
-			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
-			float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal));  //use shading normal?
-            radiance = radiance * w * fromSolidAngle * safeDiv(1.f, pdfForward);
+			
+            float pdfMult = safeDiv(1.f, pdfForward);
+			if(!deltaDistr)
+            {
+				//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
+                float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal)); //use shading normal?
+                pdfMult *= fromSolidAngle;
+
+            }
+			
+            radiance = radiance * w * pdfMult;
 
 			if(radiance.allSamplesEqual(0))
 			{
@@ -819,7 +833,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             transformNormal = transpose(transformNormal);
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
-			
+			bool deltaDistr = isDeltaDistribution(camVertexContext.surfaceDef);
             camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
@@ -841,7 +855,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                 
                 break; 
             } 
-			else
+			else if(!deltaDistr)
 			//try to connect path to light nodes
 			{
                 LightVertexContext lightVertexContext;
@@ -850,6 +864,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                 {
                     uint lightNodeIndex = lightVertexIndex;
                     LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
+					bool lightNodeIsDelta = (lightNode.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
+
+					//TODO: no point trying to connect if light is delta
                     
                     float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
                     float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
@@ -879,7 +896,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                     }
 
                 }
-				//TODO
+
 			}
 			bool isDiffuseBounce;
             float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, camVertexContext.samplingProbabilities, isDiffuseBounce);
@@ -922,9 +939,14 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			float3 wiWS = normalize(mul(transformNormal, wiOS));
 
-			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
-			float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
-            camVertexContext.throughput = camVertexContext.throughput * w * fromSolidAngle / pdfForward;
+			float pdfMult = safeDiv(1.f, pdfForward);
+			if(!deltaDistr)
+            {
+                float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
+				pdfMult *= fromSolidAngle;
+            }
+			
+            camVertexContext.throughput = camVertexContext.throughput * w * pdfMult;
 
 			rayDir = wiWS;
             rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
