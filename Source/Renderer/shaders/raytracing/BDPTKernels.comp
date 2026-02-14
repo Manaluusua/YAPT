@@ -332,7 +332,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
 		float pdf = lightNode.pdfForwardMIS; 
 		float dirPDF = twoSided ? pdfSphere() : pdfHemisphere();
-		pdfForwardOut = pdf * dirPDF * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
+		pdfForwardOut = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
 		weightOut.set(1);
 		weightOut = weightOut * abs(dot(normalize(fromLightWS), surfaceNormalWS)) * (1.f / pdfForwardOut);  //Geometry term and solidAngle -> area density cancel, leaving only abs(dot(lightToSurfaceDir, surfaceNormal)
@@ -367,7 +367,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
         {
             return false;
         }
-						
+
         weightOut = weightOut * safeDiv(1.f, pdfForwardOut);
     }
 	
@@ -513,9 +513,12 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 
 	pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, -rayDir, lightPickPDF, lightPosPDF, lightDirPDF);
 
+	float3 towardsPreviousCameraNode = context.prevNodePosWS - context.posWS;
+	float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
+
 	float riSumCam = context.pdfRatioSum;
-    float ratioAtLight = (lightPickPDF * lightPosPDF) / context.currentNodeForwardPDFMIS;
-    float ratioBeforeLight = lightDirPDF / context.previousPDFForwardMIS; //this hits a surface. Should it have solidAngleToAreaDensityMultiplier with distance being world bounds or smth?
+    float ratioAtLight = safeDiv((lightPickPDF * lightPosPDF), context.currentNodeForwardPDFMIS);
+    float ratioBeforeLight = lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS) / context.previousPDFForwardMIS; 
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -639,12 +642,8 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
 		{
 			geometryTerm = 1.f / toLightLenSqr;
 			geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
-			if((lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) == 0)
-			{
-				geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
-			}
+			geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
 		}
-		
 
 		SpectralSamples absorptionOnConnection = rayState.getAbsorption();
 		if(!absorptionOnConnection.allSamplesEqual(0))
@@ -921,11 +920,13 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
 			pdfForwardCamera = pdfForward;
 
+			float3 wiWS = normalize(mul(transformNormal, wiOS));
+
 			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
-			float fromSolidAngle = abs(dot(wiOS, camVertexContext.surfaceDef.geometryNormal));  //use shading normal?
+			float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
             camVertexContext.throughput = camVertexContext.throughput * w * fromSolidAngle / pdfForward;
 
-			rayDir = normalize(mul(transformNormal, wiOS));
+			rayDir = wiWS;
             rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
         }
 		else 
