@@ -177,7 +177,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].normalWS = normalWS;
 			nodes[currentNodeIndex].radiance = radiance.toFloat4();
 			nodes[currentNodeIndex].positionWS = posWS;
-			nodes[currentNodeIndex].pdfForwardMIS = pdfForward * toAreaDensityForward;
+			nodes[currentNodeIndex].pdfForwardMIS = deltaDistr ? -1.f : pdfForward * toAreaDensityForward;
 			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
 			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
 			nodes[currentNodeIndex].flags = lightNodeFlags;
@@ -198,7 +198,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}
 
-			nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
+			nodes[previousNodeIndex].pdfBackwardMIS = deltaDistr ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
 			//store previous vertex
 			{
@@ -503,8 +503,8 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
-    float ratioAtLight = safeDiv(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
-    float ratioBeforeLight = safeDiv(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
+    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
+    float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -531,8 +531,8 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 	float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
 
 	float riSumCam = context.pdfRatioSum;
-    float ratioAtLight = safeDiv((lightPickPDF * lightPosPDF), context.currentNodeForwardPDFMIS);
-    float ratioBeforeLight = lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS) / context.previousPDFForwardMIS; 
+    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
+    float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS); 
 
     riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
@@ -682,6 +682,8 @@ bool shouldPathContribute(uint cameraNodeIndex, uint lightNodeIndex)
 
 	return !skipCameraNode && !skipLightNode;
 }
+
+
 
 #define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
 
@@ -834,7 +836,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
 			bool deltaDistr = isDeltaDistribution(camVertexContext.surfaceDef);
-            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? 1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -867,21 +869,23 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					bool lightNodeIsDelta = (lightNode.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
 
 					//TODO: no point trying to connect if light is delta
-                    
-                    float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
-                    float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
-                    float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
-                    camVertexContext.wiOS = normalize(lightPosOS - posOS);
-					
-                    SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, rayState);
-                    
-					if(shouldPathContribute(camVertexIndex, lightVertexIndex + 1))
+                    if(!lightNodeIsDelta)
 					{
-						totalLight = totalLight + lightConnectionRadiance;
-						++pathCount;
+						float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
+						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+						float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
+						camVertexContext.wiOS = normalize(lightPosOS - posOS);
+					
+						SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, lightVertexIndex, lightVertexContext, rayState);
+                    
+						if(shouldPathContribute(camVertexIndex, lightVertexIndex + 1))
+						{
+							totalLight = totalLight + lightConnectionRadiance;
+							++pathCount;
+						}
 					}
-
-					float pdfRatio = safeDiv(lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
+                    
+					float pdfRatio = calculatePDFRatio(lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
 					lightVertexContext.riSum *= pdfRatio;
 					lightVertexContext.riSum += pdfRatio;
 					
@@ -924,18 +928,16 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
-                float ratio = safeDiv(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
+                float pdfBackwardPrevNode = deltaDistr ? 1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+                float ratio = calculatePDFRatio(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
 				camVertexContext.pdfRatioSum *= ratio;
 				camVertexContext.pdfRatioSum += ratio;
-				
-
             }
 			
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
             camVertexContext.prevNodePosWS = camVertexContext.posWS;
             camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
-			pdfForwardCamera = pdfForward;
+			pdfForwardCamera = deltaDistr ? -1.f : pdfForward;
 
 			float3 wiWS = normalize(mul(transformNormal, wiOS));
 

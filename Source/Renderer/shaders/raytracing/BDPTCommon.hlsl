@@ -321,6 +321,13 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
     }
 }
 
+float calculatePDFRatio(float nom, float denom)
+{
+    nom = nom < 0 ? 1.f : nom;
+    denom = denom < 0 ? 1.f : denom;
+    return safeDiv(nom, denom);
+}
+
 void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
 {
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
