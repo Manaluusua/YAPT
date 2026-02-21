@@ -4,12 +4,29 @@
 #include "ggx.hlsl"
 #include "miscBrdf.hlsl"
 
+bool isDeltaGGX(float roughness)
+{
+    float roughnessMin = 0.01;
+    return roughness < roughnessMin;
+}
+
+bool isDeltaGGX(float2 roughness)
+{
+    return isDeltaGGX(max(roughness.x, roughness.y));
+}
+
+bool isDeltaSheen(float roughness)
+{
+    float roughnessMin = 0.01;
+    return roughness < roughnessMin;
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in float2 s)
 {
-	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    float3 wm = isDeltaGGX(float2(ax, ay)) ? float3(0, 1, 0) : sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
 	if(wi.y < 0.f)
 	{
@@ -20,11 +37,19 @@ float3 sampleGGXReflectionConductor(in float ax ,in float ay, in float3 wo, in f
 
 float pdfGGXReflectionConductor(in float3 wo, in float3 wi, in float ax, in float ay)
 {
+
 	float3 wm = normalize(wo + wi);
 	if(dot(wm, wo) < 0.f)
 	{
 		return 0.f;
 	}
+	
+    if (isDeltaGGX(float2(ax, ay)))
+    {
+        return 1.f;
+    }
+	
+	
 	return pdfWMGGX(wo, wm, ax, ay) * jReflection(wo, wm);
 }
 
@@ -38,16 +63,23 @@ T evaluateGGXReflectionConductor(in T etaR, in T etaK,in float ax ,in float ay, 
 	}
 
 	T F = fresnelDielectricConductor(etaR, etaK, dot(wo, wm));
-	float G2 = G2GGX(wo, wi, wm, ax, ay);
-	float D = DGGX(wm, ax, ay);
+	if (isDeltaGGX(float2(ax, ay)))
+	{
+        return F / abs(wi.y);
+    } 
+	else
+    {
+        float G2 = G2GGX(wo, wi, wm, ax, ay);
+        float D = DGGX(wm, ax, ay);
+        return F * G2 * D / max(4.f * wo.y * wi.y, 0.00001f);
+    }
 	
-	return F * G2 * D / max(4.f * wo.y * wi.y, 0.00001f);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////// 
 float3 sampleGGXReflectionDielectric(in float ax ,in float ay, in float3 wo, in float2 s)
 {
-	float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    float3 wm = isDeltaGGX(float2(ax, ay)) ? float3(0, 1, 0) : sampleWMGGX(wo, ax, ay, s.x, s.y);
 	float3 wi = reflect(-wo, wm);
 	if(!onSameHemisphere(wo, wi))
 	{
@@ -62,6 +94,11 @@ float pdfGGXReflectionDielectric(in float3 wo, in float3 wi, in float ax, in flo
 	{
 		return 0.f;
 	}
+	
+    if (isDeltaGGX(float2(ax, ay)))
+    {
+        return 1.f;
+    }
 	
     float3 wm = normalize(wo + wi);	
 	float pdf = pdfWMGGX(wo, wm, ax, ay) * jReflection(wo, wm);
@@ -79,6 +116,11 @@ float evaluateGGXReflectionDielectric(in float etaR, in float ax ,in float ay, i
 	if( dot(wi, wm) > 0.f && dot(wo, wm) > 0)
 	{
 		float F = fresnelDielectricDielectric2(etaR, dot(wo, wm));
+		
+        if (isDeltaGGX(float2(ax, ay)))
+        {
+            return F / abs(wi.y);
+        }
 
 		float D = DGGX(wm, ax, ay);
 		float G2 = G2GGX(wo, wi, wm, ax, ay);
@@ -121,7 +163,7 @@ float3 sampleGGXTransmitted(in float etaR, in float ax ,in float ay, in float3 w
 	float3 wm;
 	float3 wi;
 
-	wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    wm = isDeltaGGX(float2(ax, ay)) ? float3(0, 1, 0) : sampleWMGGX(wo, ax, ay, s.x, s.y);
 	
 	if(dot(wo, wm) < 0.f)
 	{
@@ -156,6 +198,11 @@ float pdfGGXTransmitted(in float etaR, in float3 wo, in float3 wi, in float ax, 
 	{
 		return 0.f;
 	}
+	
+    if (isDeltaGGX(float2(ax, ay)))
+    {
+        return 1.f;
+    }
 
 	float pdf = pdfWMGGX(wo, wm, ax, ay);
 
@@ -184,12 +231,18 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 	}
 	
 	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
-	
+
 	float weight;
 
 	float VdotH = abs(dot(wo, wm));
 	
 	float F = fresnelDielectricDielectric2(etaR, VdotH);
+	
+    if (isDeltaGGX(float2(ax, ay)))
+    {
+        return (1.f - F) / abs(wi.y);
+    }
+	
 	float G2 = G2GGX(wo, wi, wm, ax, ay);
 	float D = DGGX(wm, ax, ay);
 	
@@ -234,7 +287,17 @@ float2 getReflAndRefrProbabilities(in float etaR, in float3 wo, in float3 wm, bo
 
 float3 sampleDielectric(float etaR, in float ax, in float ay, in float3 wo, in float2 s, in float sc, bool allowReflection, bool allowTransmission)
 {
-    float3 wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    float3 wm;
+    if (isDeltaGGX(float2(ax, ay)))
+    {
+        wm = wo.y < 0 ? float3(0, -1, 0) : float3(0, 1, 0);
+    } 
+	else
+    {
+        wm = sampleWMGGX(wo, ax, ay, s.x, s.y);
+    }
+    
+    
     if (dot(wo, wm) < 0.f)
     {
         return 0.f;
@@ -326,7 +389,7 @@ T evaluateDiffuseLambertian(in T albedo, in float ax, in float ay, in float3 wo,
 float3 sampleSheen(in float r, in float3 wo, in float2 s)
 {
 	float3 wi;
-	wi = sampleHemisphere(s.xy);
+    wi = isDeltaSheen(r) ? reflect(-wo, float3(0, 1, 0)) : sampleHemisphere(s.xy);
 	if(wi.y < 0.f)
 	{
 		return 0.f;
@@ -341,7 +404,7 @@ float pdfSheen(in float3 wo, in float3 wi, in float r)
 	{
 		return 0.f;
 	}
-	float pdf =  pdfHemisphere();
+    float pdf = isDeltaSheen(r) ? 1.f : pdfHemisphere();
 	return pdf;
 }
 
@@ -360,7 +423,10 @@ T evaluateSheen(in T sheenColor, in float r, in float3 wo, in float3 wi)
 	{
 		//replace with schlick?
 		T F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
-
+        if (isDeltaSheen(r))
+        {
+            return F / abs(wi.y);
+        }
 		float D = DSheen(wm, r);
 		float G = GSheen(wo, wi, r);
 		float DGDenom = D * G / max(4.f * wo.y * wi.y, 0.00001f);

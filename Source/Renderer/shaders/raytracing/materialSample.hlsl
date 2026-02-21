@@ -255,46 +255,50 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
     float shadingNormalCompensationMultiplierCoating = lightPath ? compensateForShadingNormal(abs(woCoating.y), abs(wiCoating.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
     float shadingNormalCompensationMultiplierBase = lightPath ? compensateForShadingNormal(abs(woBase.y), abs(wiBase.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
     
-    //TODO: filter out layers based on delta distribution
-    
 	//coating layer (ggx & sheen)
 	{
-        if (samplingProbabilities[LAYERIND_COATING_GGX] > 0 && (isDeltaGGX(surfaceDef.clearCoatRoughness) == treatAsDelta))
+        if (surfaceDef.clearCoatAmount > 0)
         {
             float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
             ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
-            float pdf = coating.pdf(woCoating, wiCoating);
-
-            bool coatingReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
-		
-            if (pdf > 0 && coatingReflected)
+            
+            if (isDeltaGGX(surfaceDef.clearCoatRoughness) == treatAsDelta)
             {
-                if (!onlyPDF)
+                float pdf = coating.pdf(woCoating, wiCoating);
+                bool coatingReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;
+                if (pdf > 0 && coatingReflected)
                 {
-                    weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating * specOcclusion;
-                    energyLeftFromLayer *= coating.getEnergyLeftAfterLayer(woCoating, wiCoating, surfaceDef.clearCoatAmount);
-
-                    
-                }
+                    if (!onlyPDF)
+                    {
+                        weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating * specOcclusion;
+                    }
                 
-                pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
+                    pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
+                }
             }
+            
+            energyLeftFromLayer *= coating.getEnergyLeftAfterLayer(woCoating, wiCoating, surfaceDef.clearCoatAmount);
+            
         }
 
-        if (samplingProbabilities[LAYERIND_COATING_SHEEN] > 0 && (isDeltaSheen(surfaceDef.sheenRoughness) == treatAsDelta))
+        if (surfaceDef.sheenAmount > 0)
         {
             ReflectionSheen sheen = ReflectionSheen::init(surfaceDef.sheenColor, surfaceDef.sheenRoughness);
-            float pdf = sheen.pdf(woBase, wiBase);
-
-            if (pdf > 0 &&  baseReflected)
+            if (isDeltaSheen(surfaceDef.sheenRoughness) == treatAsDelta)
             {
-                if (!onlyPDF)
+                float pdf = sheen.pdf(woBase, wiBase);
+                if (pdf > 0 && baseReflected)
                 {
-                    weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= sheen.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.sheenAmount);
+                    if (!onlyPDF)
+                    {
+                        weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                        
+                    }
+                    pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
                 }
-                pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
             }
+            
+            energyLeftFromLayer *= sheen.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.sheenAmount);
         }
     }
 	
@@ -309,24 +313,28 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	
 	//spec layer dielelectric & conductor
 	{
-        if (samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0 && (isDeltaGGX(a2) == treatAsDelta))
+        if (surfaceDef.metalness > 0)
         {
             ReflectionConductor conductor = ReflectionConductor::init(surfaceDef.albedo, surfaceDef.specular, a2, surfaceDef.roughness, fromIOR);
-            float pdf = conductor.pdf(woBase, wiBase);
-
-            if (pdf > 0 && baseReflected)
+            
+            if (isDeltaGGX(a2) == treatAsDelta)
             {
-                if (!onlyPDF)
+                float pdf = conductor.pdf(woBase, wiBase);
+
+                if (pdf > 0 && baseReflected)
                 {
-                    weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
+                    if (!onlyPDF)
+                    {
+                        weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                    }
+                    pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
                 }
-                pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
             }
+            energyLeftFromLayer *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
         }
 
-
-        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseReflected && (isDeltaGGX(a2) == treatAsDelta)) //spec reflection
+        float specAmount = dielAmount * surfaceDef.specularAmount;
+        if (specAmount > 0 && baseReflected) //spec reflection
         {
             if (hasDispersion(surfaceDef.flags))
             {
@@ -342,19 +350,22 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         
             float etaR = toIOR / fromIOR;
             SpecularLayer specLayer = SpecularLayer::init(a2, surfaceDef.roughness, etaR, surfaceDef.specularAmount > 0, surfaceDef.transparency > 0);
-            float pdf = specLayer.pdf(woBase, wiBase);
-
-            if (pdf > 0)
+            
+            
+            if (isDeltaGGX(a2) == treatAsDelta)
             {
-                if (!onlyPDF)
+                float pdf = specLayer.pdf(woBase, wiBase);
+                if (pdf > 0)
                 {
-                    float specAmount = dielAmount * surfaceDef.specularAmount;
-                    weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
+                    if (!onlyPDF)
+                    {
+                        
+                        weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                    }
+                    pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
                 }
-                pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
             }
-
+            energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
         }
     }
 	
@@ -363,7 +374,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
 	//bottom layer (diffuse and transmittance)
 	{
-        if (samplingProbabilities[LAYERIND_DIFFUSE_REFL] > 0 && !treatAsDelta)
+        float diffuseAmount = (1.f - surfaceDef.transparency) * dielAmount;
+        if (diffuseAmount > 0 && !treatAsDelta)
         {
             DiffuseLayer diff = DiffuseLayer::init(surfaceDef.albedo, a2);
             float pdf = diff.pdf(woBase, wiBase);
@@ -372,7 +384,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             {
                 if (!onlyPDF)
                 {
-                    float diffuseAmount = (1.f - surfaceDef.transparency) * dielAmount;
+                    
                     weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft) * shadingNormalCompensationMultiplierBase * diffOcclusion;
                     energyLeftFromLayer *= diff.getEnergyLeftAfterLayer(woBase, wiBase, diffuseAmount);
                 }
@@ -381,7 +393,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
         }
 
-        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseRefracted && (isDeltaGGX(a2) == treatAsDelta)) //spec refraction
+        float transparencyAmount = surfaceDef.transparency * dielAmount;
+        if (transparencyAmount > 0 && baseRefracted && (isDeltaGGX(a2) == treatAsDelta)) //spec refraction
         {
             if (hasDispersion(surfaceDef.flags))
             {
@@ -426,11 +439,10 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
                 }
 
-                float transparencyAmount = surfaceDef.transparency * dielAmount;
+                
                 if (!onlyPDF)
                 {
                     weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, transparencyAmount);
                 }
             }
         }

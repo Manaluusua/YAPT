@@ -2,6 +2,7 @@
 #define MATERIALS_COMMON_HLSL_INCL
 
 #include "materialsCommonResources.hlsl"
+#include "../common/bsdfSample.hlsl"
 
 #define MaterialMask_TwoSided (1 << 0)
 #define MaterialMask_Dispersion (1 << 1)
@@ -50,22 +51,6 @@ bool hasDispersion(uint flags)
 	return (flags & MaterialMask_Dispersion) != 0;
 }
 
-bool isDeltaGGX(float roughness)
-{
-    float roughnessMin = 0.01;
-    return roughness < roughnessMin;
-}
-
-bool isDeltaGGX(float2 roughness)
-{
-    return isDeltaGGX(max(roughness.x, roughness.y));
-}
-
-bool isDeltaSheen(float roughness)
-{
-    float roughnessMin = 0.01;
-    return roughness < roughnessMin;
-}
 
 template<typename Surface>
 bool isDeltaDistribution(in float2 a2, in Surface surface)

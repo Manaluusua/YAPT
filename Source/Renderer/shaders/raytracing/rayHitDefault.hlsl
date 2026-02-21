@@ -239,10 +239,8 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 			
 		    
 		}
-        //if (!isDeltaDistr)
-        {
-            weightSumBRDF = weightSumBRDF / pdfBRDF;
-        }
+
+        weightSumBRDF = weightSumBRDF / pdfBRDF;
     }
     //weightSumBRDF.set(0);
     weightOut = weightSumBRDF;
