@@ -51,6 +51,7 @@ typedef uint TransmissionType;
 #define EVALUATE_FLAGS_NONE 0
 #define EVALUATE_FLAGS_PDF_ONLY 1
 #define EVALUATE_FLAGS_LIGHT_PATH 2
+#define EVALUATE_FLAGS_TREAT_AS_DELTA 4
 
 bool isConsideredDiffuseGGX(float2 roughness)
 {
@@ -61,6 +62,7 @@ bool isConsideredDiffuseSheen(float roughness)
 {
     return roughness > 0.3f;
 }
+
 
 void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition surfaceDef,
 	in float3 woBase, in float3 woCoating, in float fromIOR, in float toIOR, in float2 a2, out float samplingProbabilities[LAYER_COUNT])
@@ -101,7 +103,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut)
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
 {	
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
@@ -115,6 +117,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
     float2 a2 = preCalcData.a2;
     bool exiting = preCalcData.exiting;
     bool isDiffuseBounce = false;
+    bool isDeltaDistribution = false;
     
 	uint sampleLayer;
 	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
@@ -134,6 +137,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
             wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, preCalcData.woCoating, randSampleBrdf);
             wi = mul(wi, preCalcData.toCoatingLayerTangentSpace(surfaceDef.tangent));
             isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2CC);
+            isDeltaDistribution = isDeltaGGX(a2);
 
         }
 	}
@@ -144,6 +148,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
             isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseSheen(surfaceDef.sheenRoughness);
+            isDeltaDistribution = isDeltaSheen(surfaceDef.sheenRoughness);
         }
 	} 
 	else if(sampleLayer == LAYERIND_SPEC_CONDUCTOR)
@@ -154,6 +159,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
             isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
+            isDeltaDistribution = isDeltaGGX(a2);
 
 		}
 	}
@@ -177,6 +183,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
         wi = specLayer.sampleWi(woBase, randSampleBrdf, randbsdfSelect);
         wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
         isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
+        isDeltaDistribution = isDeltaGGX(a2);
         
     } 
 	else if(sampleLayer == LAYERIND_DIFFUSE_REFL)
@@ -186,6 +193,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			wi = sampleDiffuseLambertian(a2.x, a2.y, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
             isDiffuseBounce = true;
+            isDeltaDistribution = false;
         }
 	} 
 
@@ -196,6 +204,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	}
 	
     isDiffuseBounceOut = isDiffuseBounce;
+    isDeltaDistributionOut = isDeltaDistribution;
     
 	return wi;
 }
@@ -233,6 +242,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
     
     bool onlyPDF = (evaluateFlags &  EVALUATE_FLAGS_PDF_ONLY) != 0;
     bool lightPath = (evaluateFlags & EVALUATE_FLAGS_LIGHT_PATH) != 0;
+    bool treatAsDelta = (evaluateFlags & EVALUATE_FLAGS_TREAT_AS_DELTA) != 0;
 	
     float dotWoGeometry = dot(woObjSpace, surfaceDef.geometryNormal);
     float dotWiGeometry = dot(wiObjSpace, surfaceDef.geometryNormal);
@@ -245,9 +255,11 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
     float shadingNormalCompensationMultiplierCoating = lightPath ? compensateForShadingNormal(abs(woCoating.y), abs(wiCoating.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
     float shadingNormalCompensationMultiplierBase = lightPath ? compensateForShadingNormal(abs(woBase.y), abs(wiBase.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
     
+    //TODO: filter out layers based on delta distribution
+    
 	//coating layer (ggx & sheen)
 	{
-        if (samplingProbabilities[LAYERIND_COATING_GGX] > 0)
+        if (samplingProbabilities[LAYERIND_COATING_GGX] > 0 && (isDeltaGGX(surfaceDef.clearCoatRoughness) == treatAsDelta))
         {
             float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
             ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
@@ -269,7 +281,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             }
         }
 
-        if (samplingProbabilities[LAYERIND_COATING_SHEEN] > 0)
+        if (samplingProbabilities[LAYERIND_COATING_SHEEN] > 0 && (isDeltaSheen(surfaceDef.sheenRoughness) == treatAsDelta))
         {
             ReflectionSheen sheen = ReflectionSheen::init(surfaceDef.sheenColor, surfaceDef.sheenRoughness);
             float pdf = sheen.pdf(woBase, wiBase);
@@ -297,7 +309,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	
 	//spec layer dielelectric & conductor
 	{
-        if (samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0)
+        if (samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] > 0 && (isDeltaGGX(a2) == treatAsDelta))
         {
             ReflectionConductor conductor = ReflectionConductor::init(surfaceDef.albedo, surfaceDef.specular, a2, surfaceDef.roughness, fromIOR);
             float pdf = conductor.pdf(woBase, wiBase);
@@ -314,7 +326,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         }
 
 
-        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseReflected) //spec reflection
+        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseReflected && (isDeltaGGX(a2) == treatAsDelta)) //spec reflection
         {
             if (hasDispersion(surfaceDef.flags))
             {
@@ -351,7 +363,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
 	//bottom layer (diffuse and transmittance)
 	{
-        if (samplingProbabilities[LAYERIND_DIFFUSE_REFL] > 0)
+        if (samplingProbabilities[LAYERIND_DIFFUSE_REFL] > 0 && !treatAsDelta)
         {
             DiffuseLayer diff = DiffuseLayer::init(surfaceDef.albedo, a2);
             float pdf = diff.pdf(woBase, wiBase);
@@ -369,7 +381,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
         }
 
-        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseRefracted) //spec refraction
+        if (samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] > 0 && baseRefracted && (isDeltaGGX(a2) == treatAsDelta)) //spec refraction
         {
             if (hasDispersion(surfaceDef.flags))
             {

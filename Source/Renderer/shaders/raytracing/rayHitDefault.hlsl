@@ -136,7 +136,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 	//Next Event Estimation (explicit light connections)
 #ifdef ENABLE_NEE
     
-    if (g_lightCount > 0)
+    if (g_lightCount > 0 && !isDeltaDistribution(precalculatedSurfData.a2, surfaceDef))
     {
         float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
@@ -187,10 +187,11 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float pdfLightDir;
     TransmissionType transmissionType;
     bool isDiffuseBounce;
-    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.x,randomSamplesBRDF.y, randomSamplesBRDF.zw, samplingProbabilities, isDiffuseBounce);
+    bool isDeltaDistr;
+    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.x, randomSamplesBRDF.y, randomSamplesBRDF.zw, samplingProbabilities, isDiffuseBounce, isDeltaDistr);
     if (!isZero(wiObjSpace))
     {
-        evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
+        evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, isDeltaDistr ? EVALUATE_FLAGS_TREAT_AS_DELTA : EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
         
         if (isDiffuseBounce)
         {
@@ -199,6 +200,16 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     }
 	
     rayState.pdfThisRay = pdfBRDF;
+    
+    if (isDeltaDistr)
+    {
+        rayState.addFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
+
+    }
+    else
+    {
+        rayState.removeFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
+    }
     
     if (pdfBRDF > 0.f)
     {
@@ -228,8 +239,10 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 			
 		    
 		}
-
-        weightSumBRDF = weightSumBRDF / pdfBRDF;
+        //if (!isDeltaDistr)
+        {
+            weightSumBRDF = weightSumBRDF / pdfBRDF;
+        }
     }
     //weightSumBRDF.set(0);
     weightOut = weightSumBRDF;
@@ -325,7 +338,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     {
         float wMIS = 1.f;
 #ifdef ENABLE_NEE
-        if (g_lightCount > 0 && payload.pdfThisRay > 0)
+        if (g_lightCount > 0 && payload.pdfThisRay > 0 && !payload.hasFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION))
         {
             float lightPDF = calculateExplicitLightConnectionPDF(WorldRayDirection() * RayTCurrent(), InstanceID(), PrimitiveIndex(), attr.barycentrics);
             wMIS = weightMIS(payload.pdfThisRay, lightPDF);

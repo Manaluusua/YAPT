@@ -50,15 +50,32 @@ bool hasDispersion(uint flags)
 	return (flags & MaterialMask_Dispersion) != 0;
 }
 
+bool isDeltaGGX(float roughness)
+{
+    float roughnessMin = 0.01;
+    return roughness < roughnessMin;
+}
+
+bool isDeltaGGX(float2 roughness)
+{
+    return isDeltaGGX(max(roughness.x, roughness.y));
+}
+
+bool isDeltaSheen(float roughness)
+{
+    float roughnessMin = 0.01;
+    return roughness < roughnessMin;
+}
+
 template<typename Surface>
-bool isDeltaDistribution(Surface surface)
+bool isDeltaDistribution(in float2 a2, in Surface surface)
 {
     float roughnessMin = 0.1;
     if (surface.metalness == 1.f || surface.transparency == 1.f)
     {
-        bool coatingIsRough = (surface.clearCoatAmount > 0 && surface.clearCoatRoughness > roughnessMin) ||
-								(surface.sheenAmount > 0 && surface.sheenRoughness > roughnessMin);
-        bool baseIsRough = surface.roughness > roughnessMin;
+        bool coatingIsRough = (surface.clearCoatAmount > 0 && isDeltaGGX(surface.clearCoatRoughness)) ||
+								(surface.sheenAmount > 0 && isDeltaSheen(surface.sheenRoughness));
+        bool baseIsRough = isDeltaGGX(a2);
 		
         return !coatingIsRough && !baseIsRough;
 

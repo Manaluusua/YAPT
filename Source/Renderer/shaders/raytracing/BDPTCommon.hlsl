@@ -126,6 +126,17 @@ struct BDPTRayState //: RayStateInterface
     {
         setStateFlags(getStateFlags() | flags);
     }
+    
+    void removeFlags(uint flags)
+    {
+        setStateFlags(getStateFlags() & ~flags);
+    }
+    
+    bool hasFlags(uint flags)
+    {
+        return (getStateFlags() & flags) == flags;
+
+    }
 
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
     float4 ior;
@@ -269,7 +280,7 @@ LightPathHeader getLightPathHeader(uint index)
     return h;
 }
 
-void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource,
+void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
 out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 {
 
@@ -281,8 +292,12 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
     if (isFromLightSource)
     {
         flags |= EVALUATE_FLAGS_LIGHT_PATH;
-
     }
+    if (treatAsDelta)
+    {
+        flags |= EVALUATE_FLAGS_TREAT_AS_DELTA;
+    }
+    
     evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags, weightOut, pdfForward, transmissionType);
     
     //This is silly but surface data is not the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on

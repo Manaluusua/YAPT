@@ -146,7 +146,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			lightNodeFlags |= (rayState.getStateFlags() & TRANSMISSION_TYPE_DISPERSED) != 0 ? LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS : 0;
 			
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-			bool deltaDistr = isDeltaDistribution(surfaceDef);
+			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
 			if(deltaDistr)
 			{
                 lightNodeFlags |= LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION;
@@ -183,7 +183,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].flags = lightNodeFlags;
 			
 			bool isDiffuseBounce;
-			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, samplingProbabilities, isDiffuseBounce);
+			bool sampledDeltaDir;
+			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, samplingProbabilities, isDiffuseBounce, sampledDeltaDir);
             if (isZero(wiOS))
             {
                 break;
@@ -191,14 +192,14 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
             SpectralSamples w;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, w, pdfForward, pdfBackward);
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward);
 
 			if(pdfBackward == 0)
 			{
 				break;
 			}
 
-			nodes[previousNodeIndex].pdfBackwardMIS = deltaDistr ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
+			nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
 			//store previous vertex
 			{
@@ -213,17 +214,19 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 	
-			
-            float pdfMult = safeDiv(1.f, pdfForward);
-			if(!deltaDistr)
-            {
+			float pdfMult = safeDiv(1.f, pdfForward);
+			if(!sampledDeltaDir)
+			{
 				//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
-                float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal)); //use shading normal?
-                pdfMult *= fromSolidAngle;
+				float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal)); //use shading normal?
+				pdfMult *= fromSolidAngle;
+			}
 
-            }
+
+
+			radiance = radiance * w * pdfMult;
 			
-            radiance = radiance * w * pdfMult;
+            
 
 			if(radiance.allSamplesEqual(0))
 			{
@@ -375,7 +378,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
 
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, weightOut, pdfForwardOut, pdfBackwardOut);
+        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut);
 					
         if (pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
         {
@@ -560,7 +563,7 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
 						
         float pdfForward;
         float pdfBackward;
-        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, weightLastCameraNode, pdfForward, pdfBackward);
+        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward);
 					
         if (pdfForward == 0 || weightLastCameraNode.allSamplesEqual(0) )
         {
@@ -835,7 +838,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             transformNormal = transpose(transformNormal);
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
-			bool deltaDistr = isDeltaDistribution(camVertexContext.surfaceDef);
+			bool deltaDistr = isDeltaDistribution(camVertexContext.precalculatedSurfaceData.a2, camVertexContext.surfaceDef);
             camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? 1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
@@ -903,7 +906,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			}
 			bool isDiffuseBounce;
-            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, camVertexContext.samplingProbabilities, isDiffuseBounce);
+			bool sampledDeltaDir;
+            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, camVertexContext.samplingProbabilities, isDiffuseBounce, sampledDeltaDir);
 
             if (isZero(wiOS))
             {
@@ -918,7 +922,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, w, pdfForward, pdfBackward);
+            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward);
 
 			if(pdfForward == 0)
 			{
@@ -928,7 +932,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = deltaDistr ? 1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+                float pdfBackwardPrevNode = sampledDeltaDir ? 1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
                 float ratio = calculatePDFRatio(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
 				camVertexContext.pdfRatioSum *= ratio;
 				camVertexContext.pdfRatioSum += ratio;
@@ -937,17 +941,16 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
             camVertexContext.prevNodePosWS = camVertexContext.posWS;
             camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
-			pdfForwardCamera = deltaDistr ? -1.f : pdfForward;
+			pdfForwardCamera = sampledDeltaDir ? -1.f : pdfForward;
 
 			float3 wiWS = normalize(mul(transformNormal, wiOS));
-
 			float pdfMult = safeDiv(1.f, pdfForward);
-			if(!deltaDistr)
-            {
-                float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
+			if(!sampledDeltaDir)
+			{
+				float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
 				pdfMult *= fromSolidAngle;
-            }
-			
+			}
+
             camVertexContext.throughput = camVertexContext.throughput * w * pdfMult;
 
 			rayDir = wiWS;

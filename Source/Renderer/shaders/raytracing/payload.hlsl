@@ -74,6 +74,16 @@ struct Payload //: RayStateInterface
 		setStateFlags(getStateFlags() | flags);
 	}
 	
+    void removeFlags(uint flags)
+    {
+        setStateFlags(getStateFlags() & ~flags);
+    }
+	
+	bool hasFlags(uint flags)
+    {
+        return (getStateFlags() & flags) == flags;
+    }
+	
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
 	SpectralSamples throughput;
 	SpectralSamples totalLight;
