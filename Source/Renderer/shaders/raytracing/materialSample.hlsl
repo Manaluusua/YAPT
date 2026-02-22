@@ -137,7 +137,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
             wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, preCalcData.woCoating, randSampleBrdf);
             wi = mul(wi, preCalcData.toCoatingLayerTangentSpace(surfaceDef.tangent));
             isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2CC);
-            isDeltaDistribution = isDeltaGGX(a2);
+            isDeltaDistribution = isDeltaGGX(a2CC);
 
         }
 	}
@@ -262,7 +262,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
             ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
             
-            if (isDeltaGGX(surfaceDef.clearCoatRoughness) == treatAsDelta)
+            if (isDeltaGGX(a2CC) == treatAsDelta)
             {
                 float pdf = coating.pdf(woCoating, wiCoating);
                 bool coatingReflected = dot(woObjSpace, surfaceDef.geometryNormal) * dot(wiObjSpace, surfaceDef.geometryNormal) > 0;

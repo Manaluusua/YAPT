@@ -37,6 +37,7 @@ struct ReflectionDielectric//: MaterialLayer
 		if (onSameHemisphere(wo, wi))
 		{
 			float weight = evaluateGGXReflectionDielectric(etaR, roughness2.x, roughness2.y, wo, wi);
+            weight *= abs(wi.y);
 			
 			//multiscatter
             float msbrdf;
@@ -52,7 +53,6 @@ struct ReflectionDielectric//: MaterialLayer
             }
 			
 			weight += msbrdf;
-			weight *= abs(wi.y);
 
 			w.set(weight);
 		}
