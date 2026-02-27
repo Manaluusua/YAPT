@@ -506,10 +506,14 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
-    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
-    float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
+   
+	if(cameraVertexIndex > 1)
+	{
+		float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
+		riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+	}
 
-    riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+	float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
 
     float misWeight = 1.f / (1 + riSumCam);
@@ -534,10 +538,14 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 	float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
 
 	float riSumCam = context.pdfRatioSum;
-    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
-    float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS); 
+   
+	if(cameraVertexIndex > 1)
+	{
+		float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS); 
+		riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+	}
 
-    riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
     riSumCam = ratioAtLight * riSumCam + ratioAtLight;
 
 	float misWeight = 1.f / (1 + riSumCam);

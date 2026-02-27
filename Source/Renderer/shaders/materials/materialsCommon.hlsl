@@ -58,9 +58,9 @@ bool isDeltaDistribution(in float2 a2, in Surface surface)
     float roughnessMin = 0.1;
     if (surface.metalness == 1.f || surface.transparency == 1.f)
     {
-        bool coatingIsRough = (surface.clearCoatAmount > 0 && isDeltaGGX(surface.clearCoatRoughness)) ||
-								(surface.sheenAmount > 0 && isDeltaSheen(surface.sheenRoughness));
-        bool baseIsRough = isDeltaGGX(a2);
+        bool coatingIsRough = (surface.clearCoatAmount > 0 && !isDeltaGGX(surface.clearCoatRoughness)) ||
+								(surface.sheenAmount > 0 && !isDeltaSheen(surface.sheenRoughness));
+        bool baseIsRough = !isDeltaGGX(a2);
 		
         return !coatingIsRough && !baseIsRough;
 
