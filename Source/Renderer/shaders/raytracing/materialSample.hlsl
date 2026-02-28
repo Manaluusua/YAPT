@@ -48,10 +48,11 @@ typedef uint TransmissionType;
 #define TRANSMISSION_TYPE_EXITED 2
 #define TRANSMISSION_TYPE_DISPERSED 4
 
-#define EVALUATE_FLAGS_NONE 0
-#define EVALUATE_FLAGS_PDF_ONLY 1
-#define EVALUATE_FLAGS_LIGHT_PATH 2
-#define EVALUATE_FLAGS_TREAT_AS_DELTA 4
+#define EVALUATE_FLAGS_NONE (1 << 0)
+#define EVALUATE_FLAGS_PDF_ONLY (1 << 1)
+#define EVALUATE_FLAGS_LIGHT_PATH (1 << 2)
+#define EVALUATE_FLAGS_TREAT_AS_DELTA (1 << 3)
+#define EVALUATE_FLAGS_DONT_PROJECT_SOLID_ANGLE (1 << 4)
 
 bool isConsideredDiffuseGGX(float2 roughness)
 {
@@ -243,6 +244,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
     bool onlyPDF = (evaluateFlags &  EVALUATE_FLAGS_PDF_ONLY) != 0;
     bool lightPath = (evaluateFlags & EVALUATE_FLAGS_LIGHT_PATH) != 0;
     bool treatAsDelta = (evaluateFlags & EVALUATE_FLAGS_TREAT_AS_DELTA) != 0;
+    bool negateSolidAngleProjection = (evaluateFlags & EVALUATE_FLAGS_DONT_PROJECT_SOLID_ANGLE) != 0;
 	
     float dotWoGeometry = dot(woObjSpace, surfaceDef.geometryNormal);
     float dotWiGeometry = dot(wiObjSpace, surfaceDef.geometryNormal);
@@ -254,6 +256,13 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	
     float shadingNormalCompensationMultiplierCoating = lightPath ? compensateForShadingNormal(abs(woCoating.y), abs(wiCoating.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
     float shadingNormalCompensationMultiplierBase = lightPath ? compensateForShadingNormal(abs(woBase.y), abs(wiBase.y), abs(dotWoGeometry), abs(dotWiGeometry)) : 1.f;
+    
+    //append to normal compensation multiplier negation of solid angle 
+    if (negateSolidAngleProjection)
+    {
+        shadingNormalCompensationMultiplierCoating = safeDiv(shadingNormalCompensationMultiplierCoating, abs(wiCoating.y));
+        shadingNormalCompensationMultiplierBase = safeDiv(shadingNormalCompensationMultiplierBase, abs(wiBase.y));
+    }
     
 	//coating layer (ggx & sheen)
 	{

@@ -213,18 +213,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			}
 
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
-	
-			float pdfMult = safeDiv(1.f, pdfForward);
-			if(!sampledDeltaDir)
-			{
-				//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext)
-				float fromSolidAngle = abs(dot(wiOS, surfaceDef.geometryNormal)); //use shading normal?
-				pdfMult *= fromSolidAngle;
-			}
 
-
-
-			radiance = radiance * w * pdfMult;
+			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext), which is included in material sample. So just divide with solid angle pdf
+			radiance = radiance * w * safeDiv(1.f, pdfForward);
 			
             
 
@@ -666,8 +657,9 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
 		if(lightVertexIndex > 0)
 		{
 			geometryTerm = 1.f / toLightLenSqr;
-			geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
-			geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
+			//the solid angle projection of dot(wi,shadingNormal) is already included in surface eval
+			//geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
+			//geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
 		}
 
 		SpectralSamples absorptionOnConnection = rayState.getAbsorption();
@@ -952,14 +944,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			pdfForwardCamera = sampledDeltaDir ? -1.f : pdfForward;
 
 			float3 wiWS = normalize(mul(transformNormal, wiOS));
-			float pdfMult = safeDiv(1.f, pdfForward);
-			if(!sampledDeltaDir)
-			{
-				float fromSolidAngle = abs(dot(wiWS, camVertexContext.normalWS)); 
-				pdfMult *= fromSolidAngle;
-			}
-
-            camVertexContext.throughput = camVertexContext.throughput * w * pdfMult;
+            camVertexContext.throughput = camVertexContext.throughput * w * safeDiv(1.f, pdfForward);
 
 			rayDir = wiWS;
             rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
