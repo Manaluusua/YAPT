@@ -376,7 +376,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(LightPathNode lightNode, uint li
             return false;
         }
 
-        weightOut = weightOut * safeDiv(1.f, pdfForwardOut);
+        weightOut = weightOut;
     }
 	
     return true;
@@ -568,10 +568,6 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in BDPTRayState raySta
         {
             return retVal;
         }
-		if(lightVertexIndex > 0)
-		{
-			weightLastCameraNode = weightLastCameraNode / pdfForward;
-		}
         
 
         pdfForwardLastCameraNode = pdfForward;
