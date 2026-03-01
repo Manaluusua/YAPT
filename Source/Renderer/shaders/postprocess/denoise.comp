@@ -5,18 +5,25 @@
 struct DenoiseParams
 {
     float4 textureDimensions;
-    uint4 denoiseMode;
+    uint4 denoiseParams;
 };
 
-#define DENOISE_MODE_ON 0
-#define DENOISE_MODE_OFF 1
-#define DENOISE_MODE_MAT_PARAMS_DEBUG 2
+
+
+#define DENOISE_MODE_OFF 0
+#define DENOISE_MODE_MAT_PARAMS_DEBUG 1
+#define DENOISE_MODE_LANCZOS 2
 
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
-Texture2D g_sourceTex : register(t1, space0);
-Texture2D<uint4> g_materialParams0 : register(t2, space0);
-Texture2D<uint4> g_materialParams1 : register(t3, space0);
-RWTexture2D<float4> g_targetTex : register(u4, space0);
+ByteAddressBuffer g_precalculatedKernelWeights : register(t1, space0);
+Texture2D g_sourceTex : register(t2, space0);
+Texture2D<uint4> g_materialParams0 : register(t3, space0);
+Texture2D<uint4> g_materialParams1 : register(t4, space0);
+RWTexture2D<float4> g_targetTex : register(u5, space0);
+
+#define g_denoiseMode (g_denoiseParams.denoiseParams.x)
+#define g_denoiseKernelWidth (g_denoiseParams.denoiseParams.y)
+#define g_denoiseTextureSize (g_denoiseParams.textureDimensions.xy)
 
 float4 calculateDebugMaterialParams(uint2 loc)
 {
@@ -49,8 +56,8 @@ float4 calculateDebugMaterialParams(uint2 loc)
     }
 }
 
-
-float4 denoise(uint2 pixelLocation)
+/*
+float4 denoise(uint2 pixelLocation, int kernelWidth, uint2 targetWidthHeight)
 {
     MaterialParameters2Texture centerParams = readMaterialParametersFromTextures(pixelLocation, g_materialParams0, g_materialParams1);
     if (dot(float3(1.f, 1.f, 1.f), abs(centerParams.normal)) == 0)
@@ -59,6 +66,31 @@ float4 denoise(uint2 pixelLocation)
     }
 
     return g_sourceTex.Load(uint3(pixelLocation, 0)); //todo
+}*/
+
+//TODO: optimize with LDS 
+float4 lanczosFilter(uint2 pixelLocation, uint kernelWidth, uint2 targetWidthHeight)
+{
+    uint fromX = pixelLocation.x < kernelWidth ? 0 : pixelLocation.x - kernelWidth;
+    uint fromY = pixelLocation.y < kernelWidth ? 0 : pixelLocation.y - kernelWidth;
+    uint toX = min(pixelLocation.x + kernelWidth, targetWidthHeight.x - 1);
+    uint toY = min(pixelLocation.y + kernelWidth, targetWidthHeight.y - 1);
+    
+    float4 sum = 0;
+    for (uint y = fromY; y < toY; ++y)
+    {
+        for (uint x = fromX; x < toX; ++x)
+        {
+            float4 v = g_sourceTex.Load(uint3(x, y, 0));
+            uint deltaX = x < pixelLocation.x ? pixelLocation.x - x : x - pixelLocation.x;
+            uint deltaY = y < pixelLocation.y ? pixelLocation.y - y : y - pixelLocation.y;
+            float weight = g_precalculatedKernelWeights.Load(deltaX << 2) * g_precalculatedKernelWeights.Load(deltaY << 2);
+            sum += weight * v;
+
+        }
+    }
+    
+    return sum;
 }
 
 
@@ -68,18 +100,18 @@ void main( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-    if (dispatchThreadId.x < g_denoiseParams.textureDimensions.x && dispatchThreadId.y < g_denoiseParams.textureDimensions.y)
+    if (dispatchThreadId.x < g_denoiseTextureSize.x && dispatchThreadId.y < g_denoiseTextureSize.y)
 	{
         float4 col = 0;
-        if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_ON)
+        if (g_denoiseMode == DENOISE_MODE_LANCZOS)
         {
-            col = denoise(dispatchThreadId.xy);
+            col = lanczosFilter(dispatchThreadId.xy, g_denoiseKernelWidth, g_denoiseTextureSize);
         }
-        else if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_OFF)
+        else if (g_denoiseMode == DENOISE_MODE_OFF)
         {
             col = g_sourceTex.Load(uint3(dispatchThreadId.xy, 0));
         }
-        else if (g_denoiseParams.denoiseMode.x == DENOISE_MODE_MAT_PARAMS_DEBUG)
+        else if (g_denoiseMode == DENOISE_MODE_MAT_PARAMS_DEBUG)
         {
             col = calculateDebugMaterialParams(dispatchThreadId.xy);
         }

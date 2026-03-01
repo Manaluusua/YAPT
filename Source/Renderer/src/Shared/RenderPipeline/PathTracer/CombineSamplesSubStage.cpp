@@ -10,6 +10,9 @@
 namespace YAPT
 {
 	CombineSamplesSubStage::CombineSamplesSubStage()
+		:m_precalculatedDenoiseKernelWeightsBuffer(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
+		m_lastKernelSize(0),
+		m_lastKernelTau(0)
 	{
 
 	}
@@ -201,6 +204,7 @@ namespace YAPT
 			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
 			m_denoisePass.init(m_renderer, denoise, nullptr, 0);
 			m_denoiseConstants.init(data.renderGraphLifetimeResources);
+			m_precalculatedDenoiseKernelWeightsBuffer.init(m_renderer->getGfxHandle());
 		}
 	}
 	void CombineSamplesSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
@@ -247,6 +251,23 @@ namespace YAPT
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(2));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(3));
 
+		CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
+		int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
+		int32_t kernelWidth = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_WIDTH);
+		float tau = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_TAU);
+
+		if(kernelWidth != m_lastKernelSize || m_lastKernelTau != tau)
+		{
+			if (m_precalculatedDenoiseKernelWeightsBuffer.getAllocatedEntryCount() < kernelWidth)
+			{
+				m_precalculatedDenoiseKernelWeightsBuffer.allocate(kernelWidth, "precalculatedKernelWeights");
+			}
+			char* data = m_precalculatedDenoiseKernelWeightsBuffer.map(0, kernelWidth);
+			precalculateKernelWeights(kernelWidth, tau, reinterpret_cast<float*>(data));
+			m_lastKernelSize = kernelWidth;
+			m_lastKernelTau = tau;
+		}
+
 		if (haveTexturesChanged)
 		{
 			//clear accumulation buffer
@@ -284,12 +305,15 @@ namespace YAPT
 				TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 2);
 				TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 3);
 
+				BufferViewHandle precalculatedKernelWeights = m_precalculatedDenoiseKernelWeightsBuffer.getBufferViewHandle();
+
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_denoiseConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&denoiseSource)},
-					{2, 0, 1, DescriptorPtr(&matParams0)},
-					{3, 0, 1, DescriptorPtr(&matParams1)},
-					{4, 0, 1, DescriptorPtr(&denoiseTarget) }
+					{1, 0, 1, DescriptorPtr(&precalculatedKernelWeights)},
+					{2, 0, 1, DescriptorPtr(&denoiseSource)},
+					{3, 0, 1, DescriptorPtr(&matParams0)},
+					{4, 0, 1, DescriptorPtr(&matParams1)},
+					{5, 0, 1, DescriptorPtr(&denoiseTarget) }
 				};
 				m_denoisePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -316,14 +340,11 @@ namespace YAPT
 				mergeSamplesParams->sampleCount = params.samplesPerPixel;
 				MathUtils::generateSobolSequence(1u, 4u, glm::value_ptr(mergeSamplesParams->randomSequence), (uint32_t)params.samplesPerPixel);
 				m_mergeSamplesConstants.flush();
-
 			}
 
 			{
-				CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
-				int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
-				denoiseParams->denoiseMode = uvec4p(denoiseMode, 0, 0, 0);
+				denoiseParams->denoiseMode = uvec4p(denoiseMode, kernelWidth, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
 				m_denoiseConstants.flush();
 			}
@@ -368,5 +389,25 @@ namespace YAPT
 		uint32_t dispatchY = (rtHeight + DENOISE_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
 
 		m_denoisePass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
+	}
+
+	float sinc(float x)
+	{
+		if (x == 0)
+			return 1;
+		x *= glm::pi<float>();
+		return std::sin(x) / x;
+	}
+
+	void CombineSamplesSubStage::precalculateKernelWeights(uint32_t width, float tau, float* dataPtr)
+	{
+		if (width == 0) return;
+		dataPtr[0] = 1;
+
+		for (uint32_t i = 1; i < width; ++i)
+		{
+			float w = sinc((float)i) * sinc((float)i / tau);
+			dataPtr[i] = w;
+		}
 	}
 }
