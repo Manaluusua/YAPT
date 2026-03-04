@@ -493,4 +493,43 @@ float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
     return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLengthum * waveLengthum)); //assume cauchys coeffs are in micrometers
 }
 
+//assume that the incident surface is aligned with the surface beneath the film
+float calculateOpticalPathDifference(float etaR, float cosIncident, float nFilm, float filmThickness)
+{
+    float cos2 = 1.f - etaR * etaR * (1.f - cosIncident * cosIncident);
+    if (cos2 < 0)
+    {
+        return 0;
+    }
+	
+    return 2 * nFilm * filmThickness * cos2;
+}
+//-1 fully destructive, 1 fully constructive
+float calculateThinFilmInferenceWithOPD(float waveLambda, float opd)
+{
+    float m = opd / waveLambda;
+    float fraction = m - floor(m);
+    return lerp(-1.f, 1.f, 2.f * abs(fraction - 0.5f)); //constructive if m is integer multiple, destructive if frac(m) == 0.5f
+}
+
+float calculateThinFilmInferenceMultiplier1(float waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
+{
+    float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
+    return calculateThinFilmInferenceWithOPD(waveLength, opd) + 1.f;
+}
+
+float4 calculateThinFilmInference4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
+{
+    float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
+    float4 v = float4(	calculateThinFilmInferenceWithOPD(waveLength.x, opd),
+						calculateThinFilmInferenceWithOPD(waveLength.y, opd),
+						calculateThinFilmInferenceWithOPD(waveLength.z, opd),
+						calculateThinFilmInferenceWithOPD(waveLength.w, opd));
+    return (v + 1.f);
+
+}
+
+
+
+
 #endif

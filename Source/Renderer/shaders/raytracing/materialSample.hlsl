@@ -368,8 +368,14 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     if (!onlyPDF)
                     {
+                        SpectralSamples weight = evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                        //thinfilm inference
+                        if (surfaceDef.thinFilmThickness > 0)
+                        {
+        
+                        }
+                        weightSum = weightSum + weight;
                         
-                        weightSum = weightSum + evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
                     }
                     pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
                 }
@@ -456,8 +462,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             }
         }
     }
-	
-	
+    
 	pdfOut = pdfSum;
 	weightOut = weightSum;
 }
