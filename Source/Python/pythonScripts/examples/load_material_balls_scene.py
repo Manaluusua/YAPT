@@ -140,9 +140,9 @@ def loadMaterialBalls():
             mat.setFromMaterialPreset(Material.MaterialPreset.METAL_COPPER)
             mat.setRoughness(0.0001)
         elif i == 4:
-            mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
-            mat.setRoughness(0.0)
+            mat.setRoughness(0.1)
             mat.setThinFilmThicknessNM(360)
+            mat.setAlbedo(v3(0, 0, 0))
 
     
 

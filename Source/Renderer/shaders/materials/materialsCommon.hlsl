@@ -515,7 +515,7 @@ float calculateThinFilmInferenceWithOPD(float waveLambda, float opd, float phase
 float calculateThinFilmInferenceMultiplier1(float waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
 {
     float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    return calculateThinFilmInferenceWithOPD(waveLength, opd, etaR > 1 ? 0.5f : 0.0f) * 0.5f + 0.5f;
+    return calculateThinFilmInferenceWithOPD(waveLength, opd, etaR > 1 ? 0.5f : 0.0f) + 1.f;
 }
 
 float4 calculateThinFilmInferenceMultiplier4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
@@ -525,7 +525,7 @@ float4 calculateThinFilmInferenceMultiplier4(float4 waveLength, float etaR, floa
 						calculateThinFilmInferenceWithOPD(waveLength.y, opd, etaR > 1 ? 0.5f : 0.0f),
 						calculateThinFilmInferenceWithOPD(waveLength.z, opd, etaR > 1 ? 0.5f : 0.0f),
 						calculateThinFilmInferenceWithOPD(waveLength.w, opd, etaR > 1 ? 0.5f : 0.0f));
-    return (v * 0.5f + 0.5f);
+    return (v + 1.f);
 
 }
 
