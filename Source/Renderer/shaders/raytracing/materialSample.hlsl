@@ -372,7 +372,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                         //thinfilm inference
                         if (surfaceDef.thinFilmThicknessNM > 0)
                         {
-                            float4 m = calculateThinFilmInferenceMultiplier4(getSpectralSampleLambdas(), etaR, woBase.y, toIOR, surfaceDef.thinFilmThicknessNM);
+                            float3 wm = normalize(woBase + wiBase);
+                            float4 m = calculateThinFilmInferenceMultiplier4(getSpectralSampleLambdas(), etaR, dot(woBase, wm), toIOR, surfaceDef.thinFilmThicknessNM);
                             float4 w = weight.toFloat4();
                             weight.fromFloat4(w * m);
 
