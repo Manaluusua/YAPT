@@ -74,8 +74,8 @@ namespace YAPT
 		void setSheenAmount(float val);
 		float getSheenAmount() const;
 
-		void setThinFilmThickness(float val);
-		float getThinFilmThickness() const;
+		void setThinFilmThicknessNM(float val);
+		float getThinFilmThicknessNM() const;
 
 		void setCauchysCoefficients(const vec2p& val);
 		const vec2p& getCauchysCoefficients() const;

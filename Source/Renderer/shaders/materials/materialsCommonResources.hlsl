@@ -17,7 +17,7 @@ struct MaterialEntryGPU
 	float anisotropy;
 	float anisotropyRotation;
 	uint materialMask;
-	float thinFilmThickness;
+	float thinFilmThicknessNM;
 
 	float2 cauchysCoefficients;
 	float sheenAmount;

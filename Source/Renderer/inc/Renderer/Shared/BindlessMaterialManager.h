@@ -16,7 +16,7 @@ namespace YAPT
 		float anisotropy;
 		float anisotropyRotation;
 		uint32_t materialMask;
-		float thinFilmThickness;
+		float thinFilmThicknessNM;
 
 		vec2p cauchysCoefficients;
 		float sheenAmount;

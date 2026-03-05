@@ -86,7 +86,7 @@ namespace YAPT
 			dst.anisotropyRotation = matParams.anisotropyRotation;
 
 			dst.materialMask = matParams.materialMask;
-			dst.thinFilmThickness = matParams.thinFilmThickness;
+			dst.thinFilmThicknessNM = matParams.thinFilmThicknessNM;
 
 			dst.cauchysCoefficients = matParams.cauchysCoeffs;
 			dst.sheenAmount = matParams.sheenAmount;

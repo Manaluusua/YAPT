@@ -249,14 +249,14 @@ namespace YAPT
 	}
 
 
-	void MaterialProxy::setThinFilmThickness(float val)
+	void MaterialProxy::setThinFilmThicknessNM(float val)
 	{
-		m_materialParams.thinFilmThickness = val;
+		m_materialParams.thinFilmThicknessNM = val;
 		setDirty();
 	}
-	float MaterialProxy::getThinFilmThickness() const
+	float MaterialProxy::getThinFilmThicknessNM() const
 	{
-		return m_materialParams.thinFilmThickness;
+		return m_materialParams.thinFilmThicknessNM;
 	}
 
 	void MaterialProxy::setCauchysCoefficients(const vec2p& val)

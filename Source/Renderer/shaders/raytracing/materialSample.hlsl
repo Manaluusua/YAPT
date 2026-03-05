@@ -370,9 +370,12 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     {
                         SpectralSamples weight = evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
                         //thinfilm inference
-                        if (surfaceDef.thinFilmThickness > 0)
+                        if (surfaceDef.thinFilmThicknessNM > 0)
                         {
-        
+                            float4 m = calculateThinFilmInferenceMultiplier4(getSpectralSampleLambdas(), etaR, woBase.y, toIOR, surfaceDef.thinFilmThicknessNM);
+                            float4 w = weight.toFloat4();
+                            weight.fromFloat4(w * m);
+
                         }
                         weightSum = weightSum + weight;
                         

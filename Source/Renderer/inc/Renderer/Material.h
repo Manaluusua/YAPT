@@ -89,8 +89,8 @@ namespace YAPT
 		virtual void setSheenTint(const vec3p& v) = 0;
 		virtual const vec3p& getSheenTint() const = 0;
 
-		virtual void setThinFilmThickness(float val) = 0;
-		virtual float getThinFilmThickness() const = 0;
+		virtual void setThinFilmThicknessNM(float val) = 0;
+		virtual float getThinFilmThicknessNM() const = 0;
 
 		virtual void setCauchysCoefficients(const vec2p& val) = 0;
 		virtual const vec2p& getCauchysCoefficients() const = 0;

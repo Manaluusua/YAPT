@@ -81,8 +81,8 @@ namespace YAPT
 		virtual void setSheenAmount(float val) final;
 		virtual float getSheenAmount() const final;
 
-		virtual void setThinFilmThickness(float val) final;
-		virtual float getThinFilmThickness() const final;
+		virtual void setThinFilmThicknessNM(float val) final;
+		virtual float getThinFilmThicknessNM() const final;
 
 		virtual void setCauchysCoefficients(const vec2p& val) final;
 		virtual const vec2p& getCauchysCoefficients() const final;

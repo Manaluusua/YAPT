@@ -97,7 +97,7 @@ def loadMaterialBalls():
     center = vec3([0, -50, 0])
     radius = 200
 
-    count = 4
+    count = 5
     
 
     for i in range(count):
@@ -123,22 +123,26 @@ def loadMaterialBalls():
 
         obj.getTransform().setOrientation(quat)
         
-        if i % 4 == 0:
+        if i == 0:
             mat.setFromMaterialPreset(Material.MaterialPreset.METAL_GOLD)
-        elif i % 4 == 1:
+        elif i == 1:
             mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
             mat.setEnableDispersion(True)
             mat.setCauchysCoefficients(vec2([1.5046, 0.00420]))
             mat.setRoughness(0.0)
             mat.setAbsorption(vec3([0.02, 0.01, 0.03]))
             pass
-        elif i % 4 == 2:
+        elif i == 2:
             mat.setSheenAmount(1)
             mat.setSheenTint( vec3([0.4, 0.4, 1.0]))
             pass
-        elif i % 4 == 3:
+        elif i == 3:
             mat.setFromMaterialPreset(Material.MaterialPreset.METAL_COPPER)
             mat.setRoughness(0.0001)
+        elif i == 4:
+            mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
+            mat.setRoughness(0.0)
+            mat.setThinFilmThicknessNM(800)
 
     
 

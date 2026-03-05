@@ -210,14 +210,14 @@ namespace YAPT
         return m_material->getSheenAmount();
     }
 
-    void PyMaterial::setThinFilmThickness(float val)
+    void PyMaterial::setThinFilmThicknessNM(float val)
     {
-        m_material->setThinFilmThickness(val);
+        m_material->setThinFilmThicknessNM(val);
     }
 
-    float PyMaterial::getThinFilmThickness() const
+    float PyMaterial::getThinFilmThicknessNM() const
     {
-        return m_material->getThinFilmThickness();
+        return m_material->getThinFilmThicknessNM();
     }
 
     void PyMaterial::setCauchysCoefficients(const vec2p& val)
@@ -310,8 +310,8 @@ namespace YAPT
             .def("getSheenTint", &PyMaterial::getSheenTint, pybind11::return_value_policy::reference_internal)
             .def("setSheenAmount", &PyMaterial::setSheenAmount)
             .def("getSheenAmount", &PyMaterial::getSheenAmount)
-            .def("setThinFilmThickness", &PyMaterial::setThinFilmThickness)
-            .def("getThinFilmThickness", &PyMaterial::getThinFilmThickness)
+            .def("setThinFilmThicknessNM", &PyMaterial::setThinFilmThicknessNM)
+            .def("getThinFilmThicknessNM", &PyMaterial::getThinFilmThicknessNM)
             .def("setCauchysCoefficients", &PyMaterial::setCauchysCoefficients)
             .def("getCauchysCoefficients", &PyMaterial::getCauchysCoefficients)
             .def("setEnableDispersion", &PyMaterial::setEnableDispersion)

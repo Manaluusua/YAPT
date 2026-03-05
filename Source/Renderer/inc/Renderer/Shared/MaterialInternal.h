@@ -57,7 +57,7 @@ namespace YAPT
 			sheenRoughness(0.5f),
 
 			sheenAmount(0.f),
-			thinFilmThickness(0.f),
+			thinFilmThicknessNM(0.f),
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
@@ -91,7 +91,7 @@ namespace YAPT
 			sheenRoughness(0.5f),
 
 			sheenAmount(0.f),
-			thinFilmThickness(0.f),
+			thinFilmThicknessNM(0.f),
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
@@ -124,7 +124,7 @@ namespace YAPT
 		float sheenRoughness;
 
 		float sheenAmount;
-		float thinFilmThickness;
+		float thinFilmThicknessNM;
 
 		vec2p cauchysCoeffs;
 

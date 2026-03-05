@@ -36,7 +36,7 @@ struct SurfaceDefinition
 	float anisotropy;
 	float anisotropyRotation;
 	
-	float thinFilmThickness;
+    float thinFilmThicknessNM;
 	float sheenRoughness;
 	float sheenAmount;
     uint occlusionSpecDiffPacked;
@@ -73,7 +73,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 
 	surfDef.anisotropy = rgb.anisotropy;
 	surfDef.anisotropyRotation = rgb.anisotropyRotation;
-	surfDef.thinFilmThickness = rgb.thinFilmThickness;
+    surfDef.thinFilmThicknessNM = rgb.thinFilmThicknessNM;
 
 	surfDef.cauchysCoeffs = rgb.cauchysCoeffs;
 

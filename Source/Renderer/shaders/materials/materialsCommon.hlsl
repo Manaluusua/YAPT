@@ -35,7 +35,7 @@ struct SurfaceDefinitionRGB
 	float3 sheenColor;
 	float sheenRoughness;
 	
-    float thinFilmThickness;
+    float thinFilmThicknessNM;
 	float sheenAmount;
     uint occlusionSpecDiffPacked;
 	uint flags;
@@ -329,7 +329,7 @@ void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceD
 
 	surfaceDef.anisotropy = matEntry.anisotropy;
 	surfaceDef.anisotropyRotation = matEntry.anisotropyRotation;
-	surfaceDef.thinFilmThickness = matEntry.thinFilmThickness;
+    surfaceDef.thinFilmThicknessNM = matEntry.thinFilmThicknessNM;
 	surfaceDef.flags = matEntry.materialMask;
 	
 	surfaceDef.sheenColor = matEntry.sheenColorRoughness.rgb;
@@ -515,17 +515,17 @@ float calculateThinFilmInferenceWithOPD(float waveLambda, float opd)
 float calculateThinFilmInferenceMultiplier1(float waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
 {
     float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    return calculateThinFilmInferenceWithOPD(waveLength, opd) + 1.f;
+    return calculateThinFilmInferenceWithOPD(waveLength, opd) * 0.5f + 0.5f;
 }
 
-float4 calculateThinFilmInference4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
+float4 calculateThinFilmInferenceMultiplier4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
 {
     float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
     float4 v = float4(	calculateThinFilmInferenceWithOPD(waveLength.x, opd),
 						calculateThinFilmInferenceWithOPD(waveLength.y, opd),
 						calculateThinFilmInferenceWithOPD(waveLength.z, opd),
 						calculateThinFilmInferenceWithOPD(waveLength.w, opd));
-    return (v + 1.f);
+    return (v * 0.5f + 0.5f);
 
 }
 
