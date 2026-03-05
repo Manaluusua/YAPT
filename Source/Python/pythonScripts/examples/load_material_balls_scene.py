@@ -134,7 +134,7 @@ def loadMaterialBalls():
             pass
         elif i == 2:
             mat.setSheenAmount(1)
-            mat.setSheenTint( vec3([0.4, 0.4, 1.0]))
+            mat.setSheenTint(vec3([0.4, 0.4, 1.0]))
             pass
         elif i == 3:
             mat.setFromMaterialPreset(Material.MaterialPreset.METAL_COPPER)
@@ -142,7 +142,7 @@ def loadMaterialBalls():
         elif i == 4:
             mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
             mat.setRoughness(0.0)
-            mat.setThinFilmThicknessNM(800)
+            mat.setThinFilmThicknessNM(360)
 
     
 

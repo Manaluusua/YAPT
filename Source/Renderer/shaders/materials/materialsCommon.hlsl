@@ -505,9 +505,9 @@ float calculateOpticalPathDifference(float etaR, float cosIncident, float nFilm,
     return 2 * nFilm * filmThickness * cos2;
 }
 //-1 fully destructive, 1 fully constructive
-float calculateThinFilmInferenceWithOPD(float waveLambda, float opd)
+float calculateThinFilmInferenceWithOPD(float waveLambda, float opd, float phaseShift)
 {
-    float m = opd / waveLambda;
+    float m = (opd + phaseShift) / waveLambda;
     float fraction = m - floor(m);
     return lerp(-1.f, 1.f, 2.f * abs(fraction - 0.5f)); //constructive if m is integer multiple, destructive if frac(m) == 0.5f
 }
@@ -515,16 +515,16 @@ float calculateThinFilmInferenceWithOPD(float waveLambda, float opd)
 float calculateThinFilmInferenceMultiplier1(float waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
 {
     float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    return calculateThinFilmInferenceWithOPD(waveLength, opd) * 0.5f + 0.5f;
+    return calculateThinFilmInferenceWithOPD(waveLength, opd, etaR > 1 ? 0.5f : 0.0f) * 0.5f + 0.5f;
 }
 
 float4 calculateThinFilmInferenceMultiplier4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
 {
     float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    float4 v = float4(	calculateThinFilmInferenceWithOPD(waveLength.x, opd),
-						calculateThinFilmInferenceWithOPD(waveLength.y, opd),
-						calculateThinFilmInferenceWithOPD(waveLength.z, opd),
-						calculateThinFilmInferenceWithOPD(waveLength.w, opd));
+    float4 v = float4(calculateThinFilmInferenceWithOPD(waveLength.x, opd, etaR > 1 ? 0.5f : 0.0f),
+						calculateThinFilmInferenceWithOPD(waveLength.y, opd, etaR > 1 ? 0.5f : 0.0f),
+						calculateThinFilmInferenceWithOPD(waveLength.z, opd, etaR > 1 ? 0.5f : 0.0f),
+						calculateThinFilmInferenceWithOPD(waveLength.w, opd, etaR > 1 ? 0.5f : 0.0f));
     return (v * 0.5f + 0.5f);
 
 }
