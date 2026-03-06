@@ -508,28 +508,36 @@ float calculateOpticalPathDifference(float etaR, float cosIncident, float nFilm,
 float calculateThinFilmInferenceWithOPD(float waveLambda, float opd, float phaseShift)
 {
     float m = (opd + phaseShift) / waveLambda;
-    float fraction = m - floor(m);
-    return lerp(-1.f, 1.f, 2.f * abs(fraction - 0.5f)); //constructive if m is integer multiple, destructive if frac(m) == 0.5f
+    return cos(2 * m * PI);
+	
+	//faster (incorrect) inference approx
+    //float fraction = m - floor(m);
+    //return lerp(-1.f, 1.f, 2.f * abs(fraction - 0.5f)); //constructive if m is integer multiple, destructive if frac(m) == 0.5f
 }
 
-float calculateThinFilmInferenceMultiplier1(float waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
+float4 calculateThinFilmInference(float4 waveLength, float nFilm, float etaRTop, float phaseShift, float cosIncident, float filmThickness)
 {
-    float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    return calculateThinFilmInferenceWithOPD(waveLength, opd, etaR > 1 ? 0.5f : 0.0f) + 1.f;
+    const float INCOHERENCE_THRESHOLD = 1200;
+    const float INCOHERENCE_FADE = 200;
+    const float INCOHERENCE_FADE_INV = 1.f / 200;
+    if (filmThickness > INCOHERENCE_THRESHOLD)
+        return 1.f;
+	
+    float opd = calculateOpticalPathDifference(etaRTop, cosIncident, nFilm, filmThickness);
+    float4 v = float4(calculateThinFilmInferenceWithOPD(waveLength.x, opd, phaseShift),
+						calculateThinFilmInferenceWithOPD(waveLength.y, opd, phaseShift),
+						calculateThinFilmInferenceWithOPD(waveLength.z, opd, phaseShift),
+						calculateThinFilmInferenceWithOPD(waveLength.w, opd, phaseShift));
+	
+    return lerp(v, 0.f, max(0, filmThickness - INCOHERENCE_THRESHOLD + INCOHERENCE_FADE) * INCOHERENCE_FADE_INV);
+
 }
 
-float4 calculateThinFilmInferenceMultiplier4(float4 waveLength, float etaR, float cosIncident, float nfilm, float filmThickness)
+float4 applyThinFilmInference(float4 waveLength, float4 A1, float4 A2, float nFilm, float etaRTop, float phaseShift, float cosIncident, float filmThickness)
 {
-    float opd = calculateOpticalPathDifference(etaR, cosIncident, nfilm, filmThickness);
-    float4 v = float4(calculateThinFilmInferenceWithOPD(waveLength.x, opd, etaR > 1 ? 0.5f : 0.0f),
-						calculateThinFilmInferenceWithOPD(waveLength.y, opd, etaR > 1 ? 0.5f : 0.0f),
-						calculateThinFilmInferenceWithOPD(waveLength.z, opd, etaR > 1 ? 0.5f : 0.0f),
-						calculateThinFilmInferenceWithOPD(waveLength.w, opd, etaR > 1 ? 0.5f : 0.0f));
-    return (v + 1.f);
-
+    float4 m = calculateThinFilmInference(waveLength, nFilm, etaRTop, phaseShift, cosIncident, filmThickness);
+    return max(float4(0, 0, 0, 0), sqrt(A1 * A1 + A2 * A2 + 2 * A1 * A2 * m));
 }
-
-
 
 
 #endif

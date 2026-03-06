@@ -264,12 +264,14 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         shadingNormalCompensationMultiplierBase = safeDiv(shadingNormalCompensationMultiplierBase, abs(wiBase.y));
     }
     
+    bool applyInference = surfaceDef.thinFilmThicknessNM > 0 && surfaceDef.clearCoatAmount > 0;
 	//coating layer (ggx & sheen)
 	{
         if (surfaceDef.clearCoatAmount > 0)
         {
             float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
-            ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, surfaceDef.clearCoatIOR / fromIOR);
+            float etaR = surfaceDef.clearCoatIOR / fromIOR;
+            ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, etaR);
             
             if (isDeltaGGX(a2CC) == treatAsDelta)
             {
@@ -279,7 +281,20 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     if (!onlyPDF)
                     {
-                        weightSum = weightSum + evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating * specOcclusion;
+                        SpectralSamples weight = evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating * specOcclusion;
+                        //thinfilm inference. This is an approximate: in reality we should evaluate the reflection from the substrate (ie. the layer below: specular, metallic and/or lambertian) and interfere that with the amplitude of coating.
+                        //Also there might be another phaseshift depending on the eta of film&substrate. However, this gets annoying with different roughness values so I rather have the ability to have different roughness, this seems to behave good enough
+                        if (applyInference)
+                        {
+                            float3 wm = normalize(woCoating + wiCoating);
+                            float4 w = weight.toFloat4();
+                            float phaseShift = etaR > 1 ? 0.5f : 0.f;
+                            float4 m = applyThinFilmInference(getSpectralSampleLambdas(), w, w, surfaceDef.clearCoatIOR, etaR, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
+                            
+                            weight.fromFloat4(m);
+
+                        }
+                        weightSum = weightSum + weight;
                     }
                 
                     pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
@@ -369,15 +384,6 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     if (!onlyPDF)
                     {
                         SpectralSamples weight = evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
-                        //thinfilm inference
-                        if (surfaceDef.thinFilmThicknessNM > 0)
-                        {
-                            float3 wm = normalize(woBase + wiBase);
-                            float4 m = calculateThinFilmInferenceMultiplier4(getSpectralSampleLambdas(), etaR, dot(woBase, wm), toIOR, surfaceDef.thinFilmThicknessNM);
-                            float4 w = weight.toFloat4();
-                            weight.fromFloat4(w * m);
-
-                        }
                         weightSum = weightSum + weight;
                         
                     }
