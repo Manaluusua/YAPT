@@ -6,7 +6,7 @@
 
 bool isDeltaGGX(float roughness)
 {
-    float roughnessMin = 0.01;
+    float roughnessMin = 0.002;
     return roughness < roughnessMin;
 }
 

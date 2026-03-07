@@ -141,10 +141,11 @@ def loadMaterialBalls():
             mat.setRoughness(0.0001)
         elif i == 4:
             mat.setClearCoatAmount(1)
-            mat.setClearCoatIOR(1.4)
-            mat.setClearCoatRoughness(0.0)
-            mat.setRoughness(0.6)
-            mat.setThinFilmThicknessNM(346)
+            mat.setClearCoatIOR(1.5) #oil
+            mat.setDielectricIOR(1.3) #water
+            mat.setClearCoatRoughness(0.01)
+            mat.setRoughness(0.01)
+            mat.setThinFilmThicknessNM(351)
             mat.setAlbedo(v3(0.0, 0.0, 0.0))
 
     

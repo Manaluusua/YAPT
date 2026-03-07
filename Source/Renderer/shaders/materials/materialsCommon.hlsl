@@ -535,6 +535,15 @@ float4 calculateThinFilmInference(float4 waveLength, float nFilm, float etaRTop,
 
 float4 applyThinFilmInference(float4 waveLength, float4 A1, float4 A2, float nFilm, float etaRTop, float phaseShift, float cosIncident, float filmThickness)
 {
+    if (!any(A1))
+    {
+        return A2;
+    }
+    if (!any(A2))
+    {
+        return A1;
+    }
+	
     float4 m = calculateThinFilmInference(waveLength, nFilm, etaRTop, phaseShift, cosIncident, filmThickness);
     return max(float4(0, 0, 0, 0), sqrt(A1 * A1 + A2 * A2 + 2 * A1 * A2 * m));
 }

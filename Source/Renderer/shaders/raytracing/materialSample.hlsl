@@ -218,6 +218,7 @@ float compensateForShadingNormal(float absDotWoShading, float absDotWiShading, f
 void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
 {
 	float2 a2 = precalculatedSurfData.a2;
+    float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
 
 	float3 woCoating = precalculatedSurfData.woCoating;
 	float3 woBase = precalculatedSurfData.woBase;
@@ -264,15 +265,20 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         shadingNormalCompensationMultiplierBase = safeDiv(shadingNormalCompensationMultiplierBase, abs(wiBase.y));
     }
     
-    bool applyInference = surfaceDef.thinFilmThicknessNM > 0 && surfaceDef.clearCoatAmount > 0;
+    float dielAmount = 1.f - surfaceDef.metalness;
+    float specAmount = dielAmount * surfaceDef.specularAmount;
+    
+    bool applyInference = surfaceDef.thinFilmThicknessNM > 0 && surfaceDef.clearCoatAmount > 0 && (surfaceDef.metalness > 0 || specAmount > 0);
+    applyInference = applyInference && (isDeltaGGX(a2CC) == isDeltaGGX(a2));
+    float4 coatingAmplitude = 0;
 	//coating layer (ggx & sheen)
 	{
         if (surfaceDef.clearCoatAmount > 0)
         {
-            float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
+           
             float etaR = surfaceDef.clearCoatIOR / fromIOR;
             ReflectionDielectric coating = ReflectionDielectric::init(a2CC, surfaceDef.clearCoatRoughness, etaR);
-            
+
             if (isDeltaGGX(a2CC) == treatAsDelta)
             {
                 float pdf = coating.pdf(woCoating, wiCoating);
@@ -282,22 +288,22 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     if (!onlyPDF)
                     {
                         SpectralSamples weight = evaluateLayer(coating, woCoating, wiCoating, surfaceDef.clearCoatAmount * energyLeft) * shadingNormalCompensationMultiplierCoating * specOcclusion;
-                        //thinfilm inference. This is an approximate: in reality we should evaluate the reflection from the substrate (ie. the layer below: specular, metallic and/or lambertian) and interfere that with the amplitude of coating.
-                        //Also there might be another phaseshift depending on the eta of film&substrate. However, this gets annoying with different roughness values so I rather have the ability to have different roughness, this seems to behave good enough
+
                         if (applyInference)
                         {
-                            float3 wm = normalize(woCoating + wiCoating);
-                            float4 w = weight.toFloat4();
-                            float phaseShift = etaR > 1 ? 0.5f : 0.f;
-                            float4 m = applyThinFilmInference(getSpectralSampleLambdas(), w, w, surfaceDef.clearCoatIOR, etaR, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
-                            
-                            weight.fromFloat4(m);
-
+                            coatingAmplitude = weight.toFloat4();
                         }
-                        weightSum = weightSum + weight;
+                        else
+                        {
+                            weightSum = weightSum + weight;
+                        }
+                        
                     }
-                
-                    pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
+                    if(isDeltaGGX(a2CC) == treatAsDelta)
+                    {
+                        pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
+                    }
+                    
                 }
             }
             
@@ -326,14 +332,9 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         }
     }
 	
-
 	//reduce energy from coating
     energyLeft *= energyLeftFromLayer;
     energyLeftFromLayer = 1.f;
-	
-	
-    float dielAmount = 1.f - surfaceDef.metalness;
-
 	
 	//spec layer dielelectric & conductor
 	{
@@ -349,15 +350,31 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     if (!onlyPDF)
                     {
-                        weightSum = weightSum + evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                        SpectralSamples weight = evaluateLayer(conductor, woBase, wiBase, surfaceDef.metalness * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                        if (applyInference)
+                        {
+                            float etaRCoating = surfaceDef.clearCoatIOR / fromIOR;
+                            float3 wm = normalize(woCoating + wiCoating);
+                            float4 w = weight.toFloat4();
+                            float phaseShift = etaRCoating > 1 ? 0.5f : 0.f; //with metal, always assuming that the substrate (metal) is denser than film
+                            float4 m = applyThinFilmInference(getSpectralSampleLambdas(), coatingAmplitude, w, surfaceDef.clearCoatIOR, etaRCoating, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
+                            weight.fromFloat4(m);
+
+                        }
+                        
+                        weightSum = weightSum + weight;
                     }
-                    pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
+                    if (isDeltaGGX(a2) == treatAsDelta)
+                    {
+                        pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
+                    }
+                    
                 }
             }
             energyLeftFromLayer *= conductor.getEnergyLeftAfterLayer(woBase, wiBase, surfaceDef.metalness);
         }
 
-        float specAmount = dielAmount * surfaceDef.specularAmount;
+        
         if (specAmount > 0 && baseReflected) //spec reflection
         {
             if (hasDispersion(surfaceDef.flags))
@@ -384,10 +401,25 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     if (!onlyPDF)
                     {
                         SpectralSamples weight = evaluateLayer(specLayer, woBase, wiBase, specAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
+                        if (applyInference)
+                        {
+                            float etaRCoating = surfaceDef.clearCoatIOR / fromIOR;
+                            float3 wm = normalize(woCoating + wiCoating);
+                            float4 w = weight.toFloat4();
+                            float phaseShift = (etaRCoating > 1 && toIOR < surfaceDef.clearCoatIOR) ? 0.5f : 0.f;
+                            float4 m = applyThinFilmInference(getSpectralSampleLambdas(), coatingAmplitude, w, surfaceDef.clearCoatIOR, etaRCoating, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
+                            weight.fromFloat4(m);
+
+                        }
                         weightSum = weightSum + weight;
                         
                     }
-                    pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
+                    
+                    if (isDeltaGGX(a2) == treatAsDelta)
+                    {
+                        pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
+                    }
+                    
                 }
             }
             energyLeftFromLayer *= specLayer.getEnergyLeftAfterLayer(woBase, wiBase, specAmount);
