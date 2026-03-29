@@ -26,42 +26,6 @@ typedef uint TransmissionType;
 #define EVALUATE_FLAGS_LIGHT_PATH (1 << 2)
 #define EVALUATE_FLAGS_TREAT_AS_DELTA (1 << 3)
 #define EVALUATE_FLAGS_DONT_PROJECT_SOLID_ANGLE (1 << 4)
-/*
-#ifndef MATERIAL_EVAL_RETURN_TYPE
-#error "MATERIAL_EVAL_RETURN_TYPE not defined"
-#endif
-*/
-
-struct ResultTypeCombineAll
-{
-    SpectralSamples weightSum;
-    TransmissionType transmissionType;
-    float pdfSum;
-    
-    void init()
-    {
-        weightSum.set(0);
-        pdfSum = 0;
-        transmissionType = TRANSMISSION_TYPE_NONE;
-    }
-    
-    void addWeight(in int layer, in SpectralSamples weight)
-    {
-        weightSum = weightSum + weight;
-    }
-
-    void addPdf(in int layer, in float pdf)
-    {
-        pdfSum += pdf;
-    }
-    
-    void setTransmissionType(TransmissionType t)
-    {
-        transmissionType = t;
-    }
-};
-
-#define MATERIAL_EVAL_RETURN_TYPE ResultTypeCombineAll
 
 struct PrecalculatedSurfaceData
 {
@@ -251,9 +215,66 @@ float compensateForShadingNormal(float absDotWoShading, float absDotWiShading, f
     return (absDotWoShading * absDotWiGeometry) / (absDotWoGeometry * absDotWiShading);
 }
 
-MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
+bool isRoughForResultGGX(float2 a2)
 {
-    MATERIAL_EVAL_RETURN_TYPE result;
+    return max(a2.x, a2.y) > 0.3; //TODO
+
+}
+
+bool isRoughForResultSheen(float sheen)
+{
+    return sheen > 0.4;
+}
+
+struct ResultTypeSeparateRoughSmooth
+{
+    SpectralSamples weightSumSmooth;
+    SpectralSamples weightSumRough;
+    TransmissionType transmissionType;
+    float pdfSum;
+    
+    void init()
+    {
+        weightSumRough.set(0);
+        weightSumSmooth.set(0);
+        pdfSum = 0;
+    }
+    
+    void addWeight(in bool isRough, in SpectralSamples weight)
+    {
+        if (isRough)
+        {
+            weightSumRough = weightSumRough + weight;
+        } 
+        else
+        {
+            weightSumSmooth = weightSumSmooth + weight;
+
+        }
+    }
+
+    void addPdf(in float pdf)
+    {
+        pdfSum += pdf;
+    }
+    
+    void setTransmissionType(TransmissionType t)
+    {
+        transmissionType = t;
+    }
+};
+
+struct ResultTypeCombined
+{
+    SpectralSamples weightSum;
+    TransmissionType transmissionType;
+    float pdfSum;
+};
+
+
+ResultTypeSeparateRoughSmooth evaluateSurfaceSeparate(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
+{
+    ResultTypeSeparateRoughSmooth result;
     result.init();
 	float2 a2 = precalculatedSurfData.a2;
     float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
@@ -330,13 +351,13 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
                         }
                         else
                         {
-                            result.addWeight(LAYERIND_COATING_GGX, weight);
+                            result.addWeight(isRoughForResultGGX(a2CC), weight);
                         }
                         
                     }
                     if(isDeltaGGX(a2CC) == treatAsDelta)
                     {
-                        result.addPdf(LAYERIND_COATING_GGX, samplingProbabilities[LAYERIND_COATING_GGX] * pdf);
+                        result.addPdf(samplingProbabilities[LAYERIND_COATING_GGX] * pdf);
                     }
                     
                 }
@@ -356,9 +377,9 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
                 {
                     if (!onlyPDF)
                     {
-                        result.addWeight(LAYERIND_COATING_SHEEN, evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion);
+                        result.addWeight(isRoughForResultSheen(surfaceDef.sheenRoughness), evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion);
                     }
-                    result.addPdf(LAYERIND_COATING_SHEEN, samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf);
+                    result.addPdf(samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf);
                 }
             }
             
@@ -395,11 +416,11 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
                             weight.fromFloat4(m);
 
                         }
-                        result.addWeight(LAYERIND_SPEC_CONDUCTOR, weight);
+                        result.addWeight(isRoughForResultGGX(a2), weight);
                     }
                     if (isDeltaGGX(a2) == treatAsDelta)
                     {
-                        result.addPdf(LAYERIND_SPEC_CONDUCTOR, samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf);
+                        result.addPdf(samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf);
                     }
                     
                 }
@@ -444,12 +465,12 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
                             weight.fromFloat4(m);
 
                         }
-                        result.addWeight(LAYERIND_SPEC_DIELECTRIC, weight);                        
+                        result.addWeight(isRoughForResultGGX(a2), weight);
                     }
                     
                     if (isDeltaGGX(a2) == treatAsDelta)
                     {
-                        result.addPdf(LAYERIND_SPEC_DIELECTRIC, samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf);
+                        result.addPdf(samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf);
                     }
                     
                 }
@@ -473,10 +494,10 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
             {
                 if (!onlyPDF)
                 {
-                    result.addWeight(LAYERIND_DIFFUSE_REFL, evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft) * shadingNormalCompensationMultiplierBase * diffOcclusion);
+                    result.addWeight(true, evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft) * shadingNormalCompensationMultiplierBase * diffOcclusion);
                     energyLeftFromLayer *= diff.getEnergyLeftAfterLayer(woBase, wiBase, diffuseAmount);
                 }
-                result.addPdf(LAYERIND_DIFFUSE_REFL, samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf);
+                result.addPdf(samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf);
             }
 
         }
@@ -502,7 +523,7 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
             float pdf = specLayer.pdf(woBase, wiBase);
             if (pdf > 0 )
             {
-                result.addPdf(LAYERIND_SPEC_DIELECTRIC, samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf);
+                result.addPdf(samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf);
 
                 bool twoSided = isSurfaceTwoSided(surfaceDef.flags);
                 bool wasTransmitted = !twoSided;
@@ -531,7 +552,7 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
                 if (!onlyPDF)
                 {
                     SpectralSamples weight = evaluateLayer(specLayer, woBase, wiBase, transparencyAmount * energyLeft) * solidAngleCompression * shadingNormalCompensationMultiplierBase * specOcclusion;
-                    result.addWeight(LAYERIND_SPEC_DIELECTRIC, weight);
+                    result.addWeight(isRoughForResultGGX(a2), weight);
                 }
             }
         }
@@ -540,6 +561,16 @@ MATERIAL_EVAL_RETURN_TYPE evaluateSurface(in SurfaceDefinition surfaceDef, in fl
     
     return result;
 
+}
+
+ResultTypeCombined evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
+{
+    ResultTypeSeparateRoughSmooth res = evaluateSurfaceSeparate(surfaceDef, woObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, evaluateFlags);
+    ResultTypeCombined resCombined;
+    resCombined.pdfSum = res.pdfSum;
+    resCombined.weightSum = res.weightSumRough + res.weightSumSmooth;
+    resCombined.transmissionType = res.transmissionType;
+    return resCombined;
 }
 
 void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)

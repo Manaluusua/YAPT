@@ -162,7 +162,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             float3x3 toOSLight = (float3x3)WorldToObject3x4();
             float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
 
-            ResultTypeCombineAll resNEE = evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE);
+            ResultTypeCombined resNEE = evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE);
     
             if (!resNEE.weightSum.allSamplesEqual(0))
             {
@@ -178,7 +178,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 #endif
 
 	//evaluate next sample direction (BRDF)
-    ResultTypeCombineAll surfResult;
+    ResultTypeCombined surfResult;
     float pdfLightDir;
     TransmissionType transmissionType;
     bool isDiffuseBounce;

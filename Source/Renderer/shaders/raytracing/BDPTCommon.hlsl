@@ -295,7 +295,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
         flags |= EVALUATE_FLAGS_TREAT_AS_DELTA;
     }
     
-    ResultTypeCombineAll res = evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags);
+    ResultTypeCombined res = evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags);
     weightOut = res.weightSum;
     pdfForward = res.pdfSum;
     
@@ -310,7 +310,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
         }
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
-        ResultTypeCombineAll res2 = evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY); //generate pdf for reversed order
+        ResultTypeCombined res2 = evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY); //generate pdf for reversed order
         pdfBackward = res2.pdfSum;
     }
     
