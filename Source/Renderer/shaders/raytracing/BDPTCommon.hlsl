@@ -283,9 +283,6 @@ LightPathHeader getLightPathHeader(uint index)
 void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
 out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
 {
-
-    SpectralSamples weightDummy;
-
     TransmissionType transmissionType;
     
     uint flags = EVALUATE_FLAGS_NONE;
@@ -298,9 +295,11 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
         flags |= EVALUATE_FLAGS_TREAT_AS_DELTA;
     }
     
-    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags, weightOut, pdfForward, transmissionType);
+    ResultTypeCombineAll res = evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags);
+    weightOut = res.weightSum;
+    pdfForward = res.pdfSum;
     
-    //This is silly but surface data is not the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on
+    //surface data might not be the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on
     {
         TransmissionType transmissionTypeDummy;
         bool triangleHitFrontfaceReverseDir = triangleHitFrontFace;
@@ -309,10 +308,10 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
             triangleHitFrontfaceReverseDir = !triangleHitFrontfaceReverseDir;
 
         }
-        
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
-        evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
+        ResultTypeCombineAll res2 = evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY); //generate pdf for reversed order
+        pdfBackward = res2.pdfSum;
     }
     
     

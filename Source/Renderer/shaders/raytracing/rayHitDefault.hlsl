@@ -161,19 +161,16 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     
             float3x3 toOSLight = (float3x3)WorldToObject3x4();
             float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
-            
-            SpectralSamples weightSumLight = (SpectralSamples) 0.f;
-            float brdfPdf = 0;
-            TransmissionType transmissionTypeDummy;
-            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeDummy);
+
+            ResultTypeCombineAll resNEE = evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE);
     
-            if (!weightSumLight.allSamplesEqual(0))
+            if (!resNEE.weightSum.allSamplesEqual(0))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
-                //if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
+                if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
-                    weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
-                    rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
+                    resNEE.weightSum = (resNEE.weightSum / lightSamplePdf) * weightMIS(lightSamplePdf, resNEE.pdfSum);
+                    rayState.totalLight = rayState.totalLight + rayState.throughput * resNEE.weightSum * emission;
                 }
             }
         }
@@ -181,9 +178,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 #endif
 
 	//evaluate next sample direction (BRDF)
-    SpectralSamples weightSumBRDF;
-    weightSumBRDF.set(0);
-    float pdfBRDF = 0.f;
+    ResultTypeCombineAll surfResult;
     float pdfLightDir;
     TransmissionType transmissionType;
     bool isDiffuseBounce;
@@ -191,7 +186,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.x, randomSamplesBRDF.y, randomSamplesBRDF.zw, samplingProbabilities, isDiffuseBounce, isDeltaDistr);
     if (!isZero(wiObjSpace))
     {
-        evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, isDeltaDistr ? EVALUATE_FLAGS_TREAT_AS_DELTA : EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
+        surfResult = evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, isDeltaDistr ? EVALUATE_FLAGS_TREAT_AS_DELTA : EVALUATE_FLAGS_NONE);
         
         if (isDiffuseBounce)
         {
@@ -199,7 +194,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         }
     }
 	
-    rayState.pdfThisRay = pdfBRDF;
+    rayState.pdfThisRay = surfResult.pdfSum;
     
     if (isDeltaDistr)
     {
@@ -211,9 +206,9 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         rayState.removeFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
     }
     
-    if (pdfBRDF > 0.f)
+    if (rayState.pdfThisRay > 0.f)
     {
-
+        TransmissionType transmissionType = surfResult.transmissionType;
 		if (transmissionType != TRANSMISSION_TYPE_NONE)
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
@@ -240,10 +235,10 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		    
 		}
 
-        weightSumBRDF = weightSumBRDF / pdfBRDF;
+        surfResult.weightSum = surfResult.weightSum / rayState.pdfThisRay;
     }
     //weightSumBRDF.set(0);
-    weightOut = weightSumBRDF;
+    weightOut = surfResult.weightSum;
     nextSampleDirOut = wiObjSpace;
 }
 
