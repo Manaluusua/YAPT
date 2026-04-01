@@ -295,8 +295,8 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
         flags |= EVALUATE_FLAGS_TREAT_AS_DELTA;
     }
     
-    ResultTypeCombined res = evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags);
-    weightOut = res.weightSum;
+    ResultTypePerLayer res = evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags);
+    weightOut.fromFloat4(res.weightsRoughSmooth[0] + res.weightsRoughSmooth[1]);
     pdfForward = res.pdfSum;
     
     //surface data might not be the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on
@@ -310,7 +310,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
         }
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
-        ResultTypeCombined res2 = evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY); //generate pdf for reversed order
+        ResultTypePerLayer res2 = evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY); //generate pdf for reversed order
         pdfBackward = res2.pdfSum;
     }
     

@@ -23,10 +23,16 @@ void rayMissEnvironment(inout Payload payload)
 	
     float4 color = getSkyBoxColor(WorldRayDirection(), g_envType, g_envTexIndex);
 #ifdef WHITE_FURNACE_TEST
-	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(float3(1,1,1));
+	SpectralSamples spectralSamples = ToSpectralSamples(float3(1,1,1));
 #else
-	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(color.xyz);
+	
+	SpectralSamples spectralSamples = ToSpectralSamples(color.xyz);
 #endif
+	
+    for (int i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+    {
+        payload.totalLight[i] = payload.totalLight[i] + payload.throughput[i] * spectralSamples;
+    }
 	//payload.totalLight += payload.throughput * color.a * (rayDir * 0.5 + 0.5) * 0.2 + 0.9;
 	payload.rayState = RAY_STATE_TERMINATED; //terminate ray
 }

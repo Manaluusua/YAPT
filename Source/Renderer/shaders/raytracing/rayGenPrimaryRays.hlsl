@@ -21,9 +21,13 @@ void rayGenPrimaryRays()
 	float3 rayOrigin = g_cameraPosition;
 	
     g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+    for (uint i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+    {
+        payload.throughput[i].set(1.f);
+        payload.totalLight[i].set(0.f);
 
-	payload.throughput.set(1.f);
-	payload.totalLight.set(0.f);
+    }
+	
 	payload.rayOrigin = rayOrigin;
     payload.rayDirection = rayDir;
 	payload.rayState = RAY_STATE_ALIVE;
@@ -78,8 +82,11 @@ void rayGenPrimaryRays()
 		{
 			SpectralSamples s;
 			s.setFromRGBUnbounded(float3(1.f, 1.f, 1.f));
-
-			payload.totalLight = payload.throughput * s;
+			
+            for (uint i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+            {
+                payload.totalLight[i] = payload.throughput[i] * s;
+            }
 			payload.rayState = RAY_STATE_TERMINATED;
 			break;
 		}
@@ -145,13 +152,18 @@ void rayGenPrimaryRays()
 	}
 	return;
 	*/
-	
-	bool resultsValid = !payload.totalLight.hasNan();
+    SpectralSamples totalLightCombined;
+    totalLightCombined.set(0);
+    for (uint i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+    {
+        totalLightCombined = totalLightCombined + payload.totalLight[i];
+    }
+    bool resultsValid = !totalLightCombined.hasNan();
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if(resultsValid) 
 	{
         bool rayDispersed = (payload.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
-        float3 color = payload.totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
+        float3 color = totalLightCombined.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
         g_outputColor[DispatchRaysIndex().xy] = float4(color, 1.f);
     } 
 	else

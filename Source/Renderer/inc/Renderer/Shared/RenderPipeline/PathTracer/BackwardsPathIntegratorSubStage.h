@@ -16,6 +16,7 @@ namespace YAPT
 	{
 	public:
 		constexpr static uint32_t RAY_MAX_VOLUMES_ENTERED = 4;
+		constexpr static uint32_t RAY_RESULT_LAYERS_COUNT = 2;
 
 		BackwardsPathIntegratorSubStage(bool useNextEventEstimation);
 		virtual ~BackwardsPathIntegratorSubStage();
@@ -35,8 +36,8 @@ namespace YAPT
 		struct RaytracePayload
 		{
 			vec4p absorption[RAY_MAX_VOLUMES_ENTERED];
-			vec4p throughput;
-			vec4p totalLight;
+			vec4p throughput[RAY_RESULT_LAYERS_COUNT];
+			vec4p totalLight[RAY_RESULT_LAYERS_COUNT];
 			vec4p ior;
 			vec3p rayOrigin;
 			uint32_t rayIndex;

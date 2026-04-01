@@ -95,6 +95,8 @@ float sigmoidInv(float x)
 	return (x - 0.5f) / sqrt(x * (1 - x));
 }
 
+
+
 struct SpectralSamples
 {
 	float4 samples;
@@ -364,6 +366,11 @@ SpectralSamples sqrt(SpectralSamples v)
 	return s;
 }
 
-
+SpectralSamples toSpectralSamples(float4 v)
+{
+    SpectralSamples s;
+    s.fromFloat4(v);
+    return s;
+}
 
 #endif

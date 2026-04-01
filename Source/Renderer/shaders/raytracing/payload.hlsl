@@ -85,8 +85,8 @@ struct Payload //: RayStateInterface
     }
 	
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
-	SpectralSamples throughput;
-	SpectralSamples totalLight;
+    SpectralSamples throughput[RAY_RESULT_LAYERS_COUNT];
+    SpectralSamples totalLight[RAY_RESULT_LAYERS_COUNT];
     float4 ior;
 	float3 rayOrigin;
 	uint rayIndex;

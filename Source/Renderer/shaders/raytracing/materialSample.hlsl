@@ -226,29 +226,37 @@ bool isRoughForResultSheen(float sheen)
     return sheen > 0.4;
 }
 
-struct ResultTypeSeparateRoughSmooth
+float4 flattenResultTypePerLayer(float2x4 v)
 {
-    SpectralSamples weightSumSmooth;
-    SpectralSamples weightSumRough;
+    float4 res = 0;
+    for (int i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+    {
+        res += v[i];
+    }
+    return res;
+}
+
+struct ResultTypePerLayer
+{
+    float2x4 weightsRoughSmooth;
     TransmissionType transmissionType;
     float pdfSum;
     
     void init()
     {
-        weightSumRough.set(0);
-        weightSumSmooth.set(0);
+        weightsRoughSmooth = 0;
         pdfSum = 0;
     }
     
     void addWeight(in bool isRough, in SpectralSamples weight)
     {
-        if (isRough)
+        if (isRough && false)
         {
-            weightSumRough = weightSumRough + weight;
+            weightsRoughSmooth[0] = weightsRoughSmooth[0] + weight.toFloat4();
         } 
         else
         {
-            weightSumSmooth = weightSumSmooth + weight;
+            weightsRoughSmooth[1] = weightsRoughSmooth[1] + weight.toFloat4();
 
         }
     }
@@ -264,17 +272,9 @@ struct ResultTypeSeparateRoughSmooth
     }
 };
 
-struct ResultTypeCombined
+ResultTypePerLayer evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
 {
-    SpectralSamples weightSum;
-    TransmissionType transmissionType;
-    float pdfSum;
-};
-
-
-ResultTypeSeparateRoughSmooth evaluateSurfaceSeparate(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
-{
-    ResultTypeSeparateRoughSmooth result;
+    ResultTypePerLayer result;
     result.init();
 	float2 a2 = precalculatedSurfData.a2;
     float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
@@ -561,16 +561,6 @@ ResultTypeSeparateRoughSmooth evaluateSurfaceSeparate(in SurfaceDefinition surfa
     
     return result;
 
-}
-
-ResultTypeCombined evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags)
-{
-    ResultTypeSeparateRoughSmooth res = evaluateSurfaceSeparate(surfaceDef, woObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, evaluateFlags);
-    ResultTypeCombined resCombined;
-    resCombined.pdfSum = res.pdfSum;
-    resCombined.weightSum = res.weightSumRough + res.weightSumSmooth;
-    resCombined.transmissionType = res.transmissionType;
-    return resCombined;
 }
 
 void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)

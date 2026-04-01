@@ -123,7 +123,7 @@ float weightMIS(float a, float b)
 
 }
 
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
+void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, in bool evaluateSeparateResultLayers, out float2x4 weightsOut, out float3 nextSampleDirOut)
 {
     float4 randomSamplesBRDF = rand.getRandom4();
 	
@@ -162,15 +162,23 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             float3x3 toOSLight = (float3x3)WorldToObject3x4();
             float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
 
-            ResultTypeCombined resNEE = evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE);
-    
-            if (!resNEE.weightSum.allSamplesEqual(0))
+            ResultTypePerLayer surfaceEvalResSeparate = evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE);
+            float2x4 bsdfWeights = surfaceEvalResSeparate.weightsRoughSmooth;
+
+            if (any(bsdfWeights))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
                 if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
-                    resNEE.weightSum = (resNEE.weightSum / lightSamplePdf) * weightMIS(lightSamplePdf, resNEE.pdfSum);
-                    rayState.totalLight = rayState.totalLight + rayState.throughput * resNEE.weightSum * emission;
+                    bsdfWeights = bsdfWeights * weightMIS(lightSamplePdf, surfaceEvalResSeparate.pdfSum) / lightSamplePdf;
+                
+                    float4 bsdfWeightSum = evaluateSeparateResultLayers ? 0 : flattenResultTypePerLayer(bsdfWeights);
+                
+                    for(int i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+                    {
+                        float4 bsdfWeight = evaluateSeparateResultLayers ? bsdfWeights[i] : bsdfWeightSum;
+                        rayState.totalLight[i] = rayState.totalLight[i] + rayState.throughput[i] * toSpectralSamples(bsdfWeight) * emission;
+                    }
                 }
             }
         }
@@ -178,7 +186,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 #endif
 
 	//evaluate next sample direction (BRDF)
-    ResultTypeCombined surfResult;
+    ResultTypePerLayer surfResult;
     float pdfLightDir;
     TransmissionType transmissionType;
     bool isDiffuseBounce;
@@ -205,7 +213,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     {
         rayState.removeFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
     }
-    
+    float2x4 bsdfWeights = surfResult.weightsRoughSmooth;
     if (rayState.pdfThisRay > 0.f)
     {
         TransmissionType transmissionType = surfResult.transmissionType;
@@ -235,10 +243,10 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		    
 		}
 
-        surfResult.weightSum = surfResult.weightSum / rayState.pdfThisRay;
+        bsdfWeights = bsdfWeights / rayState.pdfThisRay;
     }
-    //weightSumBRDF.set(0);
-    weightOut = surfResult.weightSum;
+
+    weightsOut = bsdfWeights;
     nextSampleDirOut = wiObjSpace;
 }
 
@@ -256,7 +264,11 @@ bool handleWhiteFurnaceTest(inout Payload payload)
         {
             SpectralSamples s;
             s.setFromRGBUnbounded(float3(1, 1, 1));
-            payload.totalLight = payload.totalLight + payload.throughput * s;
+            for (uint i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+            {
+                payload.totalLight[i] = payload.totalLight[i] + payload.throughput[i] * s;
+            }
+
             payload.rayState |= RAY_STATE_TERMINATED;
             return false;
         }
@@ -303,9 +315,6 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         regularizeMaterial(surfaceDefRGB);
     }
     
-    
-
-    
     bool outputShadingParams = firstBounceMaterialWriteEnabled();
     if (outputShadingParams && payload.pathLength == 0)
     {
@@ -324,8 +333,12 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     SpectralSamples absorb = payload.getAbsorption();
     if (!absorb.allSamplesEqual(0))
 	{
-        payload.throughput = payload.throughput * calculateTransmittance(rayDistance, absorb);
-	}
+        SpectralSamples transmittance = calculateTransmittance(rayDistance, absorb);
+        for (int i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+        {
+            payload.throughput[i] = payload.throughput[i] * transmittance;
+        }
+    }
 	
 	if(!surfaceDef.emissive.allSamplesEqual(0))
     {
@@ -339,7 +352,11 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 		
 #endif
         float sideMultiplier = dot(surfaceDef.geometryNormal, -rayDir) < 0 ? 0 : 1;
-        payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS * sideMultiplier;
+        for (int i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+        {
+            payload.totalLight[i] = payload.totalLight[i] + payload.throughput[i] * surfaceDef.emissive * wMIS * sideMultiplier;
+        }
+        
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
 	else
@@ -355,9 +372,15 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         RandomSampler rand;
         rand.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
         
-        SpectralSamples w;
-        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
-        payload.throughput = payload.throughput * w;
+        bool evaluateLayersSeparate = payload.pathLength == 0;
+        float2x4 bsdfWeights;
+        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, evaluateLayersSeparate, bsdfWeights, nextSampleDirBRDF);
+        float4 bsdfWeightSum = evaluateLayersSeparate ? 0 : flattenResultTypePerLayer(bsdfWeights);
+        for (uint i = 0; i < RAY_RESULT_LAYERS_COUNT; ++i)
+        {
+            float4 bsdfWeight = evaluateLayersSeparate ? bsdfWeights[i] : bsdfWeightSum;
+            payload.throughput[i] = payload.throughput[i] * toSpectralSamples(bsdfWeight);
+        }
         
         payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed;
         
