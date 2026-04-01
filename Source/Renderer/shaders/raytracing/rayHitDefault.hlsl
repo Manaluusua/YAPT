@@ -170,7 +170,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             if (!weightSumLight.allSamplesEqual(0))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
-                //if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
+                if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
                     weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
                     rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;

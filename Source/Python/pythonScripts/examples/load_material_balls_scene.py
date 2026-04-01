@@ -89,7 +89,7 @@ def createLight():
 
     #rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), 240)
     #obj.getTransform().setOrientation(v4(rot.x(), rot.y(), rot.z(), rot.scalar()))
-    emission_val = 80
+    emission_val = 200
     mat.setEmission(v3(emission_val, emission_val, emission_val))
 
 def loadMaterialBalls():
@@ -168,7 +168,7 @@ def loadSimpleBalls():
         if i == 0:
             mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
             mat.setRoughness(0.4)
-            mat.setAbsorption(vec3([0.1, 0.1, 0.01]))
+            mat.setAbsorption(vec3([0.05, 0.05, 0.004]))
             pass
         elif i == 1:
             mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
