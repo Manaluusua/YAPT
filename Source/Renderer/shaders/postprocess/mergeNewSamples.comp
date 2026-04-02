@@ -15,6 +15,7 @@ ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 RWTexture2D<float4> g_targetTex : register(u2, space0);
 RWTexture2D<uint> g_sampleCountsTex : register(u3, space0);
+RWTexture2D<float> g_varianceTex : register(u4, space0);
 
 #define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_mergeParams.randomSequence.x)
 #define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_mergeParams.randomSequence.xy)
@@ -74,6 +75,11 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 	
 }
 
+float toPerceptualDiff(float3 color)
+{
+    return (color.x + color.y + color.z) * 0.33333; //TODO
+}
+
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
@@ -88,32 +94,48 @@ void main( uint3 groupId : SV_GroupID,
 		calculateSampleContribution(targetPosition, srcColor, weight);
 		
 		float4 dstColor = g_targetTex[targetPosition];
+
+        uint oldSamples = 0;
+        uint newSamples = 0;
+        
 #ifdef USE_PER_PIXEL_SAMPLE_COUNT
-        uint newSamples = srcColor.a;
+        newSamples = srcColor.a;
+        
         if (newSamples > 0)
 		{
-            uint oldSamples = g_sampleCountsTex[targetPosition];
-            double totalSamples = newSamples + oldSamples;
-            double destBlend = oldSamples / totalSamples;
-            double srcBlend = newSamples / totalSamples;
-			
-			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, 1);
-			g_targetTex[targetPosition] = output;
+            oldSamples = g_sampleCountsTex[targetPosition];
             g_sampleCountsTex[targetPosition] = newSamples + oldSamples;
-
         }
 #else
 		if(srcColor.a > 0)
 		{
-			double w = 1.0/double(g_mergeParams.sampleCount);
-			//TODO: keep everything 64 bit and have the target format match?
-			float srcBlend = float(w);
-			float destBlend = float(1 - w);
-			
-			float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, dstColor.w + 1);
-			g_targetTex[targetPosition] = output;
+            newSamples = 1;
+            oldSamples = g_mergeParams.sampleCount;
 		}
 #endif
+        if(newSamples > 0)
+        {
+            double totalSamples = newSamples + oldSamples;
+            double destBlend = oldSamples / totalSamples;
+            double srcBlend = newSamples / totalSamples;
+			
+            float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, 1);
+            g_targetTex[targetPosition] = output;
+            
+            if(totalSamples > 1)
+            {
+                float delta = toPerceptualDiff(srcColor.xyz - dstColor.xyz);
+                float delta2 = toPerceptualDiff(srcColor.xyz - output.xyz);
+                float var = g_varianceTex[targetPosition];
+                
+                g_varianceTex[targetPosition] = var * destBlend + (delta * delta2) * srcBlend;
+
+            }
+            
+
+        }
+        
+        
 		
 	}
 }

@@ -90,11 +90,7 @@ namespace YAPT
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
 		FixedSizeGpuBufferHelper<DenoiseParams> m_denoiseConstants;
-		DynamicSizeGpuBufferHelper<float> m_precalculatedDenoiseKernelWeightsBuffer;
 		UpdateParams m_lastUpdateParams;
 		uvec2 m_renderResolution;
-		uint32_t m_lastKernelSize;
-		float m_lastKernelTau;
-
 	};
 }

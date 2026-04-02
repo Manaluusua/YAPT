@@ -10,9 +10,6 @@
 namespace YAPT
 {
 	CombineSamplesSubStage::CombineSamplesSubStage()
-		:m_precalculatedDenoiseKernelWeightsBuffer(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
-		m_lastKernelSize(0),
-		m_lastKernelTau(0)
 	{
 
 	}
@@ -45,6 +42,14 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{ResourceDimension::TEXTURE_2D,
+				ResourceFormat::R32_SFLOAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
 			}}
 			};
 
@@ -59,6 +64,14 @@ namespace YAPT
 		{
 			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
 			{
+			{{ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
 			{{ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
@@ -131,6 +144,15 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
 			}}
 			};
 
@@ -143,8 +165,9 @@ namespace YAPT
 		}
 		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 0);
 		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 1);
+		m_graph->createEdge(m_clearNode, 2, m_mergeNode, 2);
 		m_graph->createEdge(m_mergeNode, 0, m_denoiseNode, 1);
-
+		m_graph->createEdge(m_mergeNode, 2, m_denoiseNode, 2);
 	}
 
 	void CombineSamplesSubStage::setInput(InputResource resource, RenderGraphNode* node, size_t slot)
@@ -152,13 +175,13 @@ namespace YAPT
 		switch (resource)
 		{
 		case InputResource::COLOR:
-			m_graph->createEdge(node, slot, m_mergeNode, 2);
+			m_graph->createEdge(node, slot, m_mergeNode, 3);
 			break;
 		case InputResource::MATERIAL_PARAMS0:
-			m_graph->createEdge(node, slot, m_denoiseNode, 2);
+			m_graph->createEdge(node, slot, m_denoiseNode, 3);
 			break;
 		case InputResource::MATERIAL_PARAMS1:
-			m_graph->createEdge(node, slot, m_denoiseNode, 3);
+			m_graph->createEdge(node, slot, m_denoiseNode, 4);
 			break;
 		default:
 			assert(!"unknown input resource");
@@ -204,7 +227,6 @@ namespace YAPT
 			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
 			m_denoisePass.init(m_renderer, denoise, nullptr, 0);
 			m_denoiseConstants.init(data.renderGraphLifetimeResources);
-			m_precalculatedDenoiseKernelWeightsBuffer.init(m_renderer->getGfxHandle());
 		}
 	}
 	void CombineSamplesSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
@@ -233,6 +255,14 @@ namespace YAPT
 		}
 
 		{
+			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(2);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Variance");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
+
+		{
 			RenderGraphResourceId resId = m_denoiseNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
@@ -250,23 +280,10 @@ namespace YAPT
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(1));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(2));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(3));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(4));
 
 		CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
 		int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
-		int32_t kernelWidth = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_WIDTH);
-		float tau = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_TAU);
-
-		if(kernelWidth != m_lastKernelSize || m_lastKernelTau != tau)
-		{
-			if (m_precalculatedDenoiseKernelWeightsBuffer.getAllocatedEntryCount() < kernelWidth)
-			{
-				m_precalculatedDenoiseKernelWeightsBuffer.allocate(kernelWidth, "precalculatedKernelWeights");
-			}
-			char* data = m_precalculatedDenoiseKernelWeightsBuffer.map(0, kernelWidth);
-			precalculateKernelWeights(kernelWidth, tau, reinterpret_cast<float*>(data));
-			m_lastKernelSize = kernelWidth;
-			m_lastKernelTau = tau;
-		}
 
 		if (haveTexturesChanged)
 		{
@@ -274,11 +291,13 @@ namespace YAPT
 			{
 				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
 				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
+				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&mergeTarget)},
 					{2, 0, 1, DescriptorPtr(&sampleCountTarget)},
+					{3, 0, 1, DescriptorPtr(&varianceTarget)},
 				};
 				m_clearMergeBufferPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -287,13 +306,15 @@ namespace YAPT
 			{
 				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
 				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
-				TextureViewHandle mergeSource = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
+				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
+				TextureViewHandle mergeSource = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 3);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&mergeSource)},
 					{2, 0, 1, DescriptorPtr(&mergeTarget)},
-					{3, 0, 1, DescriptorPtr(&sampleCountTarget)}
+					{3, 0, 1, DescriptorPtr(&sampleCountTarget)},
+					{4, 0, 1, DescriptorPtr(&varianceTarget) }
 				};
 				m_mergePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -302,17 +323,16 @@ namespace YAPT
 			{
 				TextureViewHandle denoiseTarget = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 0);
 				TextureViewHandle denoiseSource = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 1);
-				TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 2);
-				TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 3);
-
-				BufferViewHandle precalculatedKernelWeights = m_precalculatedDenoiseKernelWeightsBuffer.getBufferViewHandle();
+				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 2);
+				TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 3);
+				TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 4);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_denoiseConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&precalculatedKernelWeights)},
-					{2, 0, 1, DescriptorPtr(&denoiseSource)},
-					{3, 0, 1, DescriptorPtr(&matParams0)},
-					{4, 0, 1, DescriptorPtr(&matParams1)},
+					{1, 0, 1, DescriptorPtr(&denoiseSource)},
+					{2, 0, 1, DescriptorPtr(&matParams0)},
+					{3, 0, 1, DescriptorPtr(&matParams1)},
+					{4, 0, 1, DescriptorPtr(&varianceTarget)},
 					{5, 0, 1, DescriptorPtr(&denoiseTarget) }
 				};
 				m_denoisePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
@@ -344,7 +364,7 @@ namespace YAPT
 
 			{
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
-				denoiseParams->denoiseMode = uvec4p(denoiseMode, kernelWidth, 0, 0);
+				denoiseParams->denoiseMode = uvec4p(denoiseMode, 0, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
 				m_denoiseConstants.flush();
 			}
