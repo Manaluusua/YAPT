@@ -131,6 +131,7 @@ namespace YAPT
 	}
 	void PathTraceStage::update(const UpdateData& cntx)
 	{
+
 		if (m_accelerationStructureNeedsRebuild || hasCameraMoved())
 		{
 			clearAccumulatedFrames();

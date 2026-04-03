@@ -14,13 +14,15 @@ struct DenoiseParams
 #define DENOISE_MODE_ON 1
 #define DENOISE_MODE_MAT_PARAMS_DEBUG 2
 #define DENOISE_MODE_VARIANCE_DEBUG 3
+#define DENOISE_SHOW_SAMPLE_SOURCES 4
 
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 Texture2D<uint4> g_materialParams0 : register(t2, space0);
 Texture2D<uint4> g_materialParams1 : register(t3, space0);
 Texture2D<float> g_varianceTex : register(t4, space0);
-RWTexture2D<float4> g_targetTex : register(u5, space0);
+Texture2D g_lastSamples : register(t5, space0);
+RWTexture2D<float4> g_targetTex : register(u6, space0);
 
 #define g_denoiseMode (g_denoiseParams.denoiseParams.x)
 #define g_denoiseKernelWidth (g_denoiseParams.denoiseParams.y)
@@ -118,7 +120,13 @@ void main( uint3 groupId : SV_GroupID,
         }
         else if (g_denoiseMode == DENOISE_MODE_VARIANCE_DEBUG)
         {
-            col = g_varianceTex.Load(uint3(dispatchThreadId.xy, 0));
+            float var = g_varianceTex.Load(uint3(dispatchThreadId.xy, 0));
+            col = sqrt(var);
+
+        }
+        else if (g_denoiseMode == DENOISE_SHOW_SAMPLE_SOURCES)
+        {
+            col = g_lastSamples.Load(uint3(dispatchThreadId.xy, 0)); //TODO
         }
         
         g_targetTex[dispatchThreadId.xy] = col;

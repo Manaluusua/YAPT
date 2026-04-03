@@ -153,6 +153,15 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
 			}}
 			};
 
@@ -176,6 +185,7 @@ namespace YAPT
 		{
 		case InputResource::COLOR:
 			m_graph->createEdge(node, slot, m_mergeNode, 3);
+			m_graph->createEdge(node, slot, m_denoiseNode, 5);
 			break;
 		case InputResource::MATERIAL_PARAMS0:
 			m_graph->createEdge(node, slot, m_denoiseNode, 3);
@@ -183,6 +193,7 @@ namespace YAPT
 		case InputResource::MATERIAL_PARAMS1:
 			m_graph->createEdge(node, slot, m_denoiseNode, 4);
 			break;
+
 		default:
 			assert(!"unknown input resource");
 		}
@@ -284,6 +295,7 @@ namespace YAPT
 
 		CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
 		int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
+		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
 		if (haveTexturesChanged)
 		{
@@ -326,6 +338,7 @@ namespace YAPT
 				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 2);
 				TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 3);
 				TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 4);
+				TextureViewHandle latestSamples = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 5);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_denoiseConstants.getViewPtr())},
@@ -333,7 +346,9 @@ namespace YAPT
 					{2, 0, 1, DescriptorPtr(&matParams0)},
 					{3, 0, 1, DescriptorPtr(&matParams1)},
 					{4, 0, 1, DescriptorPtr(&varianceTarget)},
-					{5, 0, 1, DescriptorPtr(&denoiseTarget) }
+					{5, 0, 1, DescriptorPtr(&latestSamples) },
+					{6, 0, 1, DescriptorPtr(&denoiseTarget) }
+					
 				};
 				m_denoisePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}

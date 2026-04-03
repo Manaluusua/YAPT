@@ -124,8 +124,8 @@ void main( uint3 groupId : SV_GroupID,
             
             if(totalSamples > 1)
             {
-                float delta = toPerceptualDiff(srcColor.xyz - dstColor.xyz);
-                float delta2 = toPerceptualDiff(srcColor.xyz - output.xyz);
+                float delta = toPerceptualDiff(abs(srcColor.xyz - dstColor.xyz));
+                float delta2 = toPerceptualDiff(abs(srcColor.xyz - output.xyz));
                 float var = g_varianceTex[targetPosition];
                 
                 g_varianceTex[targetPosition] = var * destBlend + (delta * delta2) * srcBlend;

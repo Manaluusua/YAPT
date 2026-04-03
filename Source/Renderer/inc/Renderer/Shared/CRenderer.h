@@ -18,6 +18,7 @@
 
 #define RVARNAME_ACTIVE_RENDERPIPELINE "RenderPipeline"
 #define RVARNAME_DENOISE_MODE "Denoise.Mode"
+#define RVARNAME_ACCUMULATION_DISABLE "_DEBUG.Accumulation.Disable"
 #define RVARNAME_DEBUG_BDPT_LIGHTPATHNODES "_DEBUG.BDPT.EffectiveLightPathNodes"
 #define RVARNAME_DEBUG_BDPT_CAMERAPATHNODES "_DEBUG.BDPT.EffectiveCameraPathNodes"
 
