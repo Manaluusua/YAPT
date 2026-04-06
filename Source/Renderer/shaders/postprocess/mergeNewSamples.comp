@@ -8,14 +8,16 @@ struct MergeNewSamplesParams
 	uint2 targetTextureDimensions;
 	uint2 sourceTextureDimensions;
 	uint64_t sampleCount;
+    uint accumulationTargetCount;
 	
 };
 
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
-Texture2D g_sourceTex : register(t1, space0);
-RWTexture2D<float4> g_targetTex : register(u2, space0);
+RWTexture2D<float4> g_mergedResTex : register(u1, space0);
+RWTexture2DArray<float4> g_accumTex : register(u2, space0);
 RWTexture2D<uint> g_sampleCountsTex : register(u3, space0);
 RWTexture2D<float> g_varianceTex : register(u4, space0);
+Texture2D g_newSamples : register(t5, space0);
 
 #define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_mergeParams.randomSequence.x)
 #define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_mergeParams.randomSequence.xy)
@@ -36,7 +38,7 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
     weightOut = 1;
     if (all(samplePos == targetPos))
     {
-        colorOut = g_sourceTex[samplePos];
+        colorOut = g_newSamples[samplePos];
     } 
 	else
     {
@@ -61,7 +63,7 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 			if(weight > 0)
             {
                 uint2 samplePos  = (uint2)floor(float2(x, y) * toSrcTexMult);
-                float4 color = g_sourceTex[samplePos];
+                float4 color = g_newSamples[samplePos];
                 colorSum += color * weight;
             }
 			
@@ -93,8 +95,6 @@ void main( uint3 groupId : SV_GroupID,
         float weight;
 		calculateSampleContribution(targetPosition, srcColor, weight);
 		
-		float4 dstColor = g_targetTex[targetPosition];
-
         uint oldSamples = 0;
         uint newSamples = 0;
         
@@ -113,28 +113,47 @@ void main( uint3 groupId : SV_GroupID,
             oldSamples = g_mergeParams.sampleCount;
 		}
 #endif
+        uint accumLayer = g_mergeParams.sampleCount % g_mergeParams.accumulationTargetCount;
         if(newSamples > 0)
         {
+            uint3 targetTexCoord = uint3(targetPosition.x, targetPosition.y, accumLayer);
+            
+            oldSamples = oldSamples / g_mergeParams.accumulationTargetCount;
+            float4 dstColor = g_accumTex[targetTexCoord];
             double totalSamples = newSamples + oldSamples;
             double destBlend = oldSamples / totalSamples;
             double srcBlend = newSamples / totalSamples;
 			
             float4 output = float4(dstColor.xyz * destBlend + srcBlend * srcColor.xyz, 1);
-            g_targetTex[targetPosition] = output;
-            
-            if(totalSamples > 1)
-            {
-                float delta = toPerceptualDiff(abs(srcColor.xyz - dstColor.xyz));
-                float delta2 = toPerceptualDiff(abs(srcColor.xyz - output.xyz));
-                float var = g_varianceTex[targetPosition];
-                
-                g_varianceTex[targetPosition] = var * destBlend + (delta * delta2) * srcBlend;
-
-            }
-            
+            g_accumTex[targetTexCoord] = output;
 
         }
+        uint3 targetTexCoord = uint3(targetPosition.x, targetPosition.y, 0);
+        float4 resultSum = g_accumTex[targetTexCoord];
+        float3 compareColor = resultSum.xyz;
+        float variance = 0;
+        uint accumTargets = min(g_mergeParams.sampleCount + 1, g_mergeParams.accumulationTargetCount);
+        for (uint i = 1; i < accumTargets; ++i)
+        {
+            targetTexCoord = uint3(targetPosition.x, targetPosition.y, i);
+            float4 r = g_accumTex[targetTexCoord];
+            resultSum += r;
+
+            float3 d = r.xyz - compareColor;
+            variance += dot(d * d, float3(0.333f, 0.333f, 0.333f));
+        }
+        resultSum /= accumTargets;
+        g_mergedResTex[targetPosition] = resultSum;
         
+        if (g_mergeParams.sampleCount == 0)
+        {
+            g_varianceTex[targetPosition] = 0;
+
+        }
+        else
+        {
+            g_varianceTex[targetPosition] = variance;
+        }
         
 		
 	}

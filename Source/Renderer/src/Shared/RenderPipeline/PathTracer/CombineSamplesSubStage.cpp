@@ -6,6 +6,8 @@
 #include <Math/RandUtility.h>
 #define MERGE_SAMPLES_WG_SIZE 8
 #define DENOISE_WG_SIZE 8
+#define ACCUMULATION_TARGET_COUNT 2
+#define ACCUMULATION_TARGET_FORMAT (ResourceFormat::RGBA32_SFLOAT)
 
 namespace YAPT
 {
@@ -27,24 +29,16 @@ namespace YAPT
 		{
 			RenderGraphNodeSlotDefinition slotdefsClearNode[] =
 			{
-			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::RGBA32_SFLOAT,
+			{{ResourceDimension::TEXTURE_2D_ARRAY,
+				ACCUMULATION_TARGET_FORMAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_COMPUTE,
 				1,
-				1
+				ACCUMULATION_TARGET_COUNT
 			}},
 			{{ResourceDimension::TEXTURE_2D,
 				ResourceFormat::R32_UINT,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE,
-				1,
-				1
-			}},
-			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::R32_SFLOAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_COMPUTE,
@@ -65,12 +59,20 @@ namespace YAPT
 			RenderGraphNodeSlotDefinition slotdefsMergeNode[] =
 			{
 			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::UNKNOWN,
+				ACCUMULATION_TARGET_FORMAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
 				ACCESS_FLAGS_READ_WRITE,
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{ResourceDimension::TEXTURE_2D_ARRAY,
+				ACCUMULATION_TARGET_FORMAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				ACCUMULATION_TARGET_COUNT
 			}},
 			{{ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
@@ -81,9 +83,9 @@ namespace YAPT
 				1
 			}},
 			{{ResourceDimension::TEXTURE_2D,
-				ResourceFormat::UNKNOWN,
+				ResourceFormat::R32_SFLOAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_READ_WRITE,
+				ACCESS_FLAGS_WRITE,
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
@@ -172,11 +174,10 @@ namespace YAPT
 				},
 				this, "DenoiseNode");
 		}
-		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 0);
-		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 1);
-		m_graph->createEdge(m_clearNode, 2, m_mergeNode, 2);
+		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 1);
+		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 2);
 		m_graph->createEdge(m_mergeNode, 0, m_denoiseNode, 1);
-		m_graph->createEdge(m_mergeNode, 2, m_denoiseNode, 2);
+		m_graph->createEdge(m_mergeNode, 3, m_denoiseNode, 2);
 	}
 
 	void CombineSamplesSubStage::setInput(InputResource resource, RenderGraphNode* node, size_t slot)
@@ -184,7 +185,7 @@ namespace YAPT
 		switch (resource)
 		{
 		case InputResource::COLOR:
-			m_graph->createEdge(node, slot, m_mergeNode, 3);
+			m_graph->createEdge(node, slot, m_mergeNode, 4);
 			m_graph->createEdge(node, slot, m_denoiseNode, 5);
 			break;
 		case InputResource::MATERIAL_PARAMS0:
@@ -253,12 +254,20 @@ namespace YAPT
 			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
-			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "merged RT result");
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Merged RT results");
 			m_graph->setRenderGraphResourceTexture(resId, tex);
 		}
 
 		{
 			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(1);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, desc.arraySliceCount);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Accumulation Targets");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
+
+		{
+			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(2);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
 			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Sample Count");
@@ -266,7 +275,7 @@ namespace YAPT
 		}
 
 		{
-			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(2);
+			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(3);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
 			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Variance");
@@ -301,15 +310,14 @@ namespace YAPT
 		{
 			//clear accumulation buffer
 			{
-				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
-				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
-				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
+				TextureViewHandle accumulationTargets = m_graph->getTextureViewFromNodeSlot(m_clearNode->getSortedIndex(), 0);
+				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_clearNode->getSortedIndex(), 1);
+
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&mergeTarget)},
-					{2, 0, 1, DescriptorPtr(&sampleCountTarget)},
-					{3, 0, 1, DescriptorPtr(&varianceTarget)},
+					{1, 0, 1, DescriptorPtr(&accumulationTargets)},
+					{2, 0, 1, DescriptorPtr(&sampleCountTarget)}
 				};
 				m_clearMergeBufferPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -317,16 +325,18 @@ namespace YAPT
 			//Merge
 			{
 				TextureViewHandle mergeTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 0);
-				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
-				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
-				TextureViewHandle mergeSource = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 3);
+				TextureViewHandle accumulationTargets = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 1);
+				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
+				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 3);
+				TextureViewHandle newSamples = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 4);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&mergeSource)},
-					{2, 0, 1, DescriptorPtr(&mergeTarget)},
+					{1, 0, 1, DescriptorPtr(&mergeTarget)},
+					{2, 0, 1, DescriptorPtr(&accumulationTargets)},
 					{3, 0, 1, DescriptorPtr(&sampleCountTarget)},
-					{4, 0, 1, DescriptorPtr(&varianceTarget) }
+					{4, 0, 1, DescriptorPtr(&varianceTarget) },
+					{5, 0, 1, DescriptorPtr(&newSamples)},
 				};
 				m_mergePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -364,6 +374,7 @@ namespace YAPT
 				ClearAccumulatedSamplesParams* params = m_clearMergeBufferConstants.getData();
 				params->targetTextureDimensions = glm::uvec4(m_renderResolution.x, m_renderResolution.y, 0, 0);
 				params->clearValue = vec4p(0.0, 0.f, 0.f, 0.f);
+				params->accumulationTargetCount = ACCUMULATION_TARGET_COUNT;
 				m_clearMergeBufferConstants.flush();
 			}
 
@@ -373,6 +384,7 @@ namespace YAPT
 				mergeSamplesParams->targetTextureOffsetScaleBias = params.targetOffsetScaleBias;
 				mergeSamplesParams->targetTextureDimensions = params.targetTextureResolution;
 				mergeSamplesParams->sampleCount = params.samplesPerPixel;
+				mergeSamplesParams->accumulationTargetCount = ACCUMULATION_TARGET_COUNT;
 				MathUtils::generateSobolSequence(1u, 4u, glm::value_ptr(mergeSamplesParams->randomSequence), (uint32_t)params.samplesPerPixel);
 				m_mergeSamplesConstants.flush();
 			}

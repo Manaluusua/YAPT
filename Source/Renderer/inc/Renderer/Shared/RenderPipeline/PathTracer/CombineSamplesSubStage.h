@@ -56,6 +56,7 @@ namespace YAPT
 			uvec2p targetTextureDimensions;
 			uvec2p sourceTextureDimensions;
 			uint64_t sampleCount;
+			uint32_t accumulationTargetCount;
 		};
 
 		struct DenoiseParams
@@ -68,6 +69,7 @@ namespace YAPT
 		{
 			uvec4p targetTextureDimensions;
 			vec4p clearValue;
+			uint32_t accumulationTargetCount;
 		};
 
 		void executeClear(const RenderGraphNodeExecutionContext& exec);
