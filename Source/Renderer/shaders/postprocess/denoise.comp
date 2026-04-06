@@ -121,7 +121,7 @@ void main( uint3 groupId : SV_GroupID,
         else if (g_denoiseMode == DENOISE_MODE_VARIANCE_DEBUG)
         {
             float var = g_varianceTex.Load(uint3(dispatchThreadId.xy, 0));
-            col = sqrt(var);
+            col = var;
 
         }
         else if (g_denoiseMode == DENOISE_SHOW_SAMPLE_SOURCES)

@@ -29,4 +29,23 @@ static const float3x3 c_srgbRGBToXYZ =
 	0.0193, 0.1192, 0.9505
 };
 
+float3 fromRGBToYCoCg(float3 rgb)
+{
+    float orange = rgb.r - rgb.b;
+    float tmp = rgb.b + orange * 0.5f;
+    float green = rgb.g - tmp;
+    float y = tmp + green * 0.5f;
+    return float3(y, orange, green);
+}
+
+float3 fromYCoCgtoRGB(float3 yog)
+{
+    float tmp = yog.x - yog.z * 0.5f;
+    float g = yog.z + tmp;
+    float b = tmp - yog.y * 0.5f;
+    float r = b + yog.y;
+	
+    return float3(r, g, b);
+}
+
 #endif

@@ -1,5 +1,6 @@
 #include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
+#include "../common/colorSpaces.hlsl"
 
 struct MergeNewSamplesParams
 {
@@ -139,8 +140,8 @@ void main( uint3 groupId : SV_GroupID,
             float4 r = g_accumTex[targetTexCoord];
             resultSum += r;
 
-            float3 d = r.xyz - compareColor;
-            variance += dot(d * d, float3(0.333f, 0.333f, 0.333f));
+            float3 d = fromRGBToYCoCg(r.xyz) - fromRGBToYCoCg(compareColor);
+            variance += dot(d.yz * d.yz, float2(0.333f, 0.333f));
         }
         resultSum /= accumTargets;
         g_mergedResTex[targetPosition] = resultSum;
