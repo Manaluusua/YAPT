@@ -339,7 +339,7 @@ struct SpecularLayer// : MaterialLayer
 			
 			//multiscatter
             float msbrdf;
-            bool useTranslucentCompensation = false;
+            bool useTranslucentCompensation = allowReflection && allowRefraction;
             if (useTranslucentCompensation)
             {
                 msbrdf = getEnergyCompensationTranslucent(etaR, wo.y, wi.y, linearRoughness, weight);
