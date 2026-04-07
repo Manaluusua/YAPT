@@ -151,7 +151,7 @@ void rayGenPrimaryRays()
 	if(resultsValid) 
 	{
         bool rayDispersed = (payload.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
-        float3 color = payload.totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
+        float3 color = payload.totalLight.ToXYZ(rayDispersed);
         g_outputColor[DispatchRaysIndex().xy] = float4(color, 1.f);
     } 
 	else

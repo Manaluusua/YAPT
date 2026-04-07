@@ -130,21 +130,27 @@ void main( uint3 groupId : SV_GroupID,
 
         }
         uint3 targetTexCoord = uint3(targetPosition.x, targetPosition.y, 0);
-        float4 resultSum = g_accumTex[targetTexCoord];
-        float3 compareColor = resultSum.xyz;
+        float3 resultSum = g_accumTex[targetTexCoord].xyz;
+        //TODO: make chromaticity also account for something
+        float compareLuminance = resultSum.y;
+        compareLuminance = log(1.f + compareLuminance);
         float variance = 0;
         uint accumTargets = min(g_mergeParams.sampleCount + 1, g_mergeParams.accumulationTargetCount);
         for (uint i = 1; i < accumTargets; ++i)
         {
             targetTexCoord = uint3(targetPosition.x, targetPosition.y, i);
-            float4 r = g_accumTex[targetTexCoord];
+            float3 r = g_accumTex[targetTexCoord].xyz;
             resultSum += r;
-
-            float3 d = fromRGBToYCoCg(r.xyz) - fromRGBToYCoCg(compareColor);
-            variance += dot(d.yz * d.yz, float2(0.333f, 0.333f));
+            
+            float lum = r.y;
+            lum = log(1.f + lum);
+            float d = abs(compareLuminance - lum);
+            variance += d * d;
         }
         resultSum /= accumTargets;
-        g_mergedResTex[targetPosition] = resultSum;
+        variance /= accumTargets;
+        resultSum = mul(c_srgbXYZToRGB, resultSum);
+        g_mergedResTex[targetPosition] = float4(resultSum, 1.f);
         
         if (g_mergeParams.sampleCount == 0)
         {

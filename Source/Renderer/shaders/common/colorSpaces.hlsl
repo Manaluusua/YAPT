@@ -38,7 +38,7 @@ float3 fromRGBToYCoCg(float3 rgb)
     return float3(y, orange, green);
 }
 
-float3 fromYCoCgtoRGB(float3 yog)
+float3 fromYCoCgToRGB(float3 yog)
 {
     float tmp = yog.x - yog.z * 0.5f;
     float g = yog.z + tmp;
@@ -46,6 +46,30 @@ float3 fromYCoCgtoRGB(float3 yog)
     float r = b + yog.y;
 	
     return float3(r, g, b);
+}
+
+float3 fromXYZToCIELAB(float3 xyz)
+{
+
+    float Xn = 95.047f, Yn = 100.f, Zn = 108.883f;
+
+    float delta = 6.f / 29.f;
+
+    float delta3 = delta * delta * delta;
+
+    float3 normalized = xyz / float3(Xn, Yn, Zn);
+    float3 ft;
+    float c = 4.f / 29.f;
+    for (uint i = 0; i < 3; ++i)
+    {
+        ft[i] = normalized[i] > delta3 ? pow(normalized[i], 0.333) : c + normalized[i] / (3.f * delta * delta);
+    }
+
+    double L = 116.f * ft.y - 16;
+    double a = 500.f * (ft.x - ft.y);
+    double b = 200.f * (ft.y - ft.z);
+
+    return float3(L, a, b);
 }
 
 #endif

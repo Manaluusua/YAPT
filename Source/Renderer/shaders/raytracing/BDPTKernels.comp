@@ -972,7 +972,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	}
 
 	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
-    float3 color = totalLight.ToRGB(COLORSPACE_DEFAULT, rayDispersed);
+    float3 color = totalLight.ToXYZ(rayDispersed);
 
 	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1);
     
