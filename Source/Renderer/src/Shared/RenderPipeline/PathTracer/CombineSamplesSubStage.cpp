@@ -390,8 +390,9 @@ namespace YAPT
 			}
 
 			{
+				uint32_t denoiseKernelHalfWidth = 4; //TODO
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
-				denoiseParams->denoiseMode = uvec4p(denoiseMode, 0, 0, 0);
+				denoiseParams->denoiseMode = uvec4p(denoiseMode, denoiseKernelHalfWidth, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
 				m_denoiseConstants.flush();
 			}
