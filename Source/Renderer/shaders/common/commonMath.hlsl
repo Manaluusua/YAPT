@@ -103,5 +103,17 @@ float3x3 constructBasisTransform(in float3 n, float3 t)
     return float3x3(t, n, b);
 }
 
+float gaussian(float x, float sigma)
+{
+    return exp(-(x * x) / (2.0 * sigma * sigma));
+}
+
+float gaussian(float2 xy, float sigma)
+{
+    float denom = 1.f / (2.0 * sigma * sigma);
+    float x2 = xy.x * xy.x;
+    float y2 = xy.y * xy.y;
+    return exp(-(x2 + y2) * denom);
+}
 
 #endif

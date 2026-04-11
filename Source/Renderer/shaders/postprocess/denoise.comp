@@ -1,5 +1,6 @@
 #include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
+#include "../common/commonMath.hlsl"
 #include "materialParameterTextures.hlsl"
 
 struct DenoiseParams
@@ -67,7 +68,7 @@ float3 calculateNeighbouringVariance(uint2 location, uint kernelHalfSize)
     float samples = 0;
     for (float x = max(location.x - kernelHalfSize, 0); x < min(location.x + kernelHalfSize, g_denoiseTextureSize.x - 1); x++)
     {
-        for (float y = max(location.y - kernelHalfSize, 0); x < min(location.y + kernelHalfSize, g_denoiseTextureSize.y - 1); y++)
+        for (float y = max(location.y - kernelHalfSize, 0); y < min(location.y + kernelHalfSize, g_denoiseTextureSize.y - 1); y++)
         {
             float var = g_varianceTex[uint2(x, y)];
             avgVariance += var;
@@ -94,7 +95,8 @@ float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialPa
 
 float calculateKernelDistanceWeight(float2 deltaFromCenter)
 {
-    return 1;
+    float sigma = 1.f; //TODO: configurable
+    return gaussian(deltaFromCenter, sigma);
 }
 
 uint floatToUint(float v)
@@ -104,8 +106,8 @@ uint floatToUint(float v)
 
 float4 denoise(uint2 loc)
 {
-    float denoiseKernelHalfSize = 4.f;
-    /*{
+    float denoiseKernelHalfSize;
+    {
         float3 varMinMaxAvg = calculateNeighbouringVariance(loc.xy, g_denoiseKernelWidth);
         float minKernelHalfSize = 0;
         float maxKernelHalfSize = 4;
@@ -115,7 +117,7 @@ float4 denoise(uint2 loc)
         float t = saturate((varMinMaxAvg.y - minKernelVar) / (maxKernelVar - minKernelVar));
         denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, t);
     }
-    */
+
     float4 colorOut;
     {
         float4 centerSample = g_sourceTex.Load(uint3(loc.xy, 0));
@@ -127,7 +129,7 @@ float4 denoise(uint2 loc)
             float2 locf = loc;
             for (float x = max(locf.x - denoiseKernelHalfSize, 0); x < min(locf.x + denoiseKernelHalfSize, g_denoiseTextureSize.x - 1); x++)
             {
-                for (float y = max(locf.y - denoiseKernelHalfSize, 0); x < min(locf.y + denoiseKernelHalfSize, g_denoiseTextureSize.y - 1); y++)
+                for (float y = max(locf.y - denoiseKernelHalfSize, 0); y < min(locf.y + denoiseKernelHalfSize, g_denoiseTextureSize.y - 1); y++)
                 {
                     uint2 sampleLoc = uint2(floatToUint(x), floatToUint(y));
                     if (sampleLoc.x != loc.x || sampleLoc.y != loc.y)
