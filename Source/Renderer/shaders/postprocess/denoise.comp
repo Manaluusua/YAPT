@@ -93,9 +93,8 @@ float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialPa
     return 1.f; // todo
 }
 
-float calculateKernelDistanceWeight(float2 deltaFromCenter)
+float calculateKernelDistanceWeight(float2 deltaFromCenter, float sigma)
 {
-    float sigma = 1.f; //TODO: configurable
     return gaussian(deltaFromCenter, sigma);
 }
 
@@ -117,7 +116,7 @@ float4 denoise(uint2 loc)
         float t = saturate((varMinMaxAvg.y - minKernelVar) / (maxKernelVar - minKernelVar));
         denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, t);
     }
-
+    float sigma = 0.3f * (denoiseKernelHalfSize - 1.5f) + 0.8f;
     float4 colorOut;
     {
         float4 centerSample = g_sourceTex.Load(uint3(loc.xy, 0));
@@ -136,7 +135,7 @@ float4 denoise(uint2 loc)
                     {
                         MaterialParameters2Texture matParams = readMaterialParametersFromTextures(sampleLoc, g_materialParams0, g_materialParams1);
                         float matWeight = calculateMaterialParamsDiffWeight(centerMatParams, matParams);
-                        float distWeight = calculateKernelDistanceWeight(float2(x, y) - locf.xy);
+                        float distWeight = calculateKernelDistanceWeight(float2(x, y) - locf.xy, sigma);
                         float sampleWeight = matWeight * distWeight;
                         float4 colorSample = g_sourceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
                         sampleSum += sampleWeight * colorSample;

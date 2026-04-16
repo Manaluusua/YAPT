@@ -304,6 +304,7 @@ namespace YAPT
 
 		CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
 		int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
+		int32_t kernelSize = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_KERNEL_HALF_WIDTH) ;
 		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
 		if (haveTexturesChanged)
@@ -390,7 +391,7 @@ namespace YAPT
 			}
 
 			{
-				uint32_t denoiseKernelHalfWidth = 4; //TODO
+				uint32_t denoiseKernelHalfWidth = kernelSize;
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
 				denoiseParams->denoiseMode = uvec4p(denoiseMode, denoiseKernelHalfWidth, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
