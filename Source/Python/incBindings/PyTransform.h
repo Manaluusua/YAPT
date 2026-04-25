@@ -27,6 +27,8 @@ namespace YAPT
 
 		void lookAt(const vec3p& eye, const vec3p& at, const vec3p& up);
 
+		void setParent(PyTransform* transform);
+
 		vec3p right();
 		vec3p up();
 		vec3p forward();

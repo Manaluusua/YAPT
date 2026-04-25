@@ -59,6 +59,11 @@ namespace YAPT
 		m_transform->lookAt(eye, at, up);
 	}
 
+	void PyTransform::setParent(PyTransform* transform)
+	{
+		m_transform->setParent(transform != nullptr ? transform->m_transform : nullptr)
+	}
+
 	vec3p PyTransform::right()
 	{
 		return m_transform->right();
@@ -91,7 +96,8 @@ namespace YAPT
 
 			.def("right", &PyTransform::right)
 			.def("up", &PyTransform::up)
-			.def("forward", &PyTransform::forward);
+			.def("forward", &PyTransform::forward)
+			.def("setParent", &PyTransform::setParent);
 	}
 
 }
