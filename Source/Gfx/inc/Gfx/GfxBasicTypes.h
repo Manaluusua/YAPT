@@ -567,8 +567,10 @@ namespace YAPT
 
 	struct Attribute
 	{
+		static constexpr uint32_t INFER_OFFSET_FROM_LAYOUT = 0xFFFFFFFF;
 		ResourceFormat format;
 		AttributeSemantic semantic;
+		uint32_t offset;
 	};
 
 	struct TextureDataDefinition

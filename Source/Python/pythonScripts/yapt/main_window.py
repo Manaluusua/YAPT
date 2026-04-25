@@ -2,7 +2,9 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QFileDialog, QVBoxLayout
 from PySide6.QtGui import QAction, QPalette, QColor
 from yapt.renderer_vars_window import RendererVarsWindow
 from yapt.objects_dialog import ObjectsDialog
+from yapt.scene_loader import SceneLoader
 import os
+import traceback
 from pathlib import Path
 
 class MainWindow(QMainWindow):
@@ -58,9 +60,12 @@ class MainWindow(QMainWindow):
         file_menu = menu_bar.addMenu("File")
         run_script_action = QAction("Run Script", self)
         run_script_action.triggered.connect(self.run_script)
+        open_scene_action = QAction("Open Scene", self)
+        open_scene_action.triggered.connect(self.open_scene)
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.exit)
         file_menu.addAction(run_script_action)
+        file_menu.addAction(open_scene_action)
         file_menu.addAction(exit_action)
         
         # Options Menu
@@ -80,8 +85,8 @@ class MainWindow(QMainWindow):
         return self._renderAreaWidget
 
     def run_script(self):
-        openPath = Path(os.path.abspath(__file__)).parent
-        file_name, _ = QFileDialog.getOpenFileName(self, "Open Python Script", str(openPath), "All Files (*);;Text Files (*.py)")
+        openPath = self._get_default_open_path()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Python Script", str(openPath), "Text Files (*.py);;All Files (*)")
         if(file_name):
             try:
                 with open(file_name, 'r') as f:
@@ -96,7 +101,20 @@ class MainWindow(QMainWindow):
                 print("The script file was not found.")
             except Exception as e:
                 print(f"An error occurred: {e}")
+                traceback.print_exc()
     
+    def open_scene(self):
+        openPath = self._get_default_open_path()
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open Scene", str(openPath), " gltf(*.glb *.gltf);;All Files (*)")
+        if(file_name):
+            resources = self._app.get_resources()
+            renderer = self._app.get_renderer()
+            scene = self._app.get_scene()
+
+            sceneLoader = SceneLoader(resources, scene, renderer)
+            sceneLoader.load_scene_gltf(os.path.abspath(file_name))
+              
+
     def show_rvars(self):
         if self._rvars_window == None:
             self._rvars_window = RendererVarsWindow(self, self._app.get_renderer())
@@ -146,3 +164,7 @@ class MainWindow(QMainWindow):
 
     def keyReleaseEvent(self, event):
         self._app.get_camera_controller().keyReleaseEvent(event)
+
+
+    def _get_default_open_path(self):
+        return Path(str(Path(os.path.abspath(__file__)).parent.parent) + "/examples")

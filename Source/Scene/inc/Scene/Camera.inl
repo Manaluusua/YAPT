@@ -34,17 +34,8 @@ namespace YAPT
 
     inline const mat4& Camera::getViewMatrix() const
     {
-        if (m_transform.isMatrixDirty())
-        {
-            const mat4& m = m_transform.getMatrix();
 
-            m_viewMatrix = mat4(1.f);
-            m_viewMatrix = glm::translate(m_viewMatrix, -m_transform.getTranslation());
-
-            mat4 rotMat = glm::mat4_cast(glm::inverse(m_transform.getOrientation()));;
-
-            m_viewMatrix = rotMat * m_viewMatrix;
-        }
+            m_viewMatrix = glm::inverse(getTransform().getMatrixWS());
         return m_viewMatrix;
     }
 

@@ -7,7 +7,7 @@
 namespace YAPT
 {
 	class Camera;
-	class CModel;
+	class CRenderableObject;
 	class CScene : public Scene
 	{
 	public:
@@ -15,17 +15,18 @@ namespace YAPT
 		virtual bool initialize(Renderer* renderer);
 		virtual void update(const SceneUpdateParameters& update) final;
 		virtual Camera* getMainCamera() final;
-		virtual Model* createModel() final;
+		virtual RenderableObject* createRenderableObject() final;
+		virtual SceneObject* createSceneObject() final;
 
 		virtual void addSceneListener(SceneListener* l) final;
 		virtual void removeSceneListener(SceneListener* l) final;
 
-		void needsRefresh(CModel* model);
+		void needsRefresh(CRenderableObject* model);
 
 	protected:
 		Renderer* m_renderer;
 		RCObjectPtr<Camera> m_defaultCamera;
-		std::vector<CModel*> m_dirtyModels;
+		std::vector<CRenderableObject*> m_dirtyRenderables;
 		std::unordered_set<SceneListener*> m_listeners;
 
 		virtual ~CScene();

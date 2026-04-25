@@ -3,6 +3,7 @@
 #include "common.hlsl"
 
 #define PI 3.14159265f
+#define INVPI 0.31830988f
 #define PI_OVER_2 1.57079633f
 #define PI_OVER_4 0.785398163f
 
@@ -114,6 +115,15 @@ float gaussian(float2 xy, float sigma)
     float x2 = xy.x * xy.x;
     float y2 = xy.y * xy.y;
     return exp(-(x2 + y2) * denom);
+}
+
+float2 cartesianToSpherical(float3 v)
+{
+    v = normalize(v);
+    float theta = atan2(v.z, v.x);
+    float phi = acos(clamp(v.y, -1.0, 1.0));
+
+    return float2(theta, phi);
 }
 
 #endif

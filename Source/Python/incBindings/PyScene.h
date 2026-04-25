@@ -7,6 +7,7 @@ namespace YAPT
 	class PyCamera;
 	class Scene;
 	class PyRenderObject;
+	class PySceneObject;
 	class PyScene
 	{
 	public:
@@ -19,6 +20,7 @@ namespace YAPT
 		void update(float deltaTime);
 
 		PyRenderObject* createRenderObject(const char* name);
+		PySceneObject* createSceneObject(const char* name);
 		
 		PyCamera* getMainCamera();
 

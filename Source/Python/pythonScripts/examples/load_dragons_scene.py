@@ -13,7 +13,7 @@ def createObject(name, meshPath, pos, scale):
     global scene
 
     mesh = resources.load_meshes_from_path(meshPath)[0]
-    obj = scene.create_object(f"{name}_obj")
+    obj = scene.create_render_object(f"{name}_obj")
     mat = renderer.createMaterial(f"{name}_mat")
     mat.setFromMaterialPreset(Material.MaterialPreset.PLASTIC)
     mat.setRoughness(0.2)
@@ -42,7 +42,7 @@ def createSurrounding():
 
     if(createWalls):
         for i in range(4):
-            wall = scene.create_object(f"wallPlane_obj_{i}")
+            wall = scene.create_render_object(f"wallPlane_obj_{i}")
             wall.setMesh(mesh);
             wall.setMaterial(mat, 0);
 
@@ -111,7 +111,7 @@ def letThereBeDragons():
     
 
 #envmap
-env_map = resources.load_texture_from_path("D:/Random/3DSampleAssets/EnvMaps/env_room_studio_bgra8.dds")
+env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
 
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)

@@ -35,6 +35,7 @@ namespace YAPT
 				Attribute attrib;
 				attrib.format = sl.attributes[k].format;
 				attrib.semantic = AttributeSemantic(sl.attributes[k].semanticName, sl.attributes[k].semanticIndex);
+				attrib.offset = sl.attributes[k].offset;
 				attributesNative.push_back(attrib);
 			}
 			layoutsNative.push_back(dl);
@@ -107,6 +108,7 @@ namespace YAPT
 		pybind11::class_<PyMeshAttribute>(m, "MeshAttribute")
 			.def(pybind11::init<>())  // Default constructor
 			.def(pybind11::init<ResourceFormat, AttributeSemanticName, int>())
+			.def(pybind11::init<ResourceFormat, AttributeSemanticName, int, int>())
 			.def_readwrite("format", &PyMeshAttribute::format)
 			.def_readwrite("semanticName", &PyMeshAttribute::semanticName)
 			.def_readwrite("semanticIndex", &PyMeshAttribute::semanticIndex);

@@ -7,10 +7,10 @@ class SceneWrapper:
         self._scene = Scene()
         self._scene.init(self._renderer)
         self._cam = CameraController(self._scene.getMainCamera())
-        self._render_objects = set()
+        self._objects = set()
 
     def shutdown(self):
-        self._render_objects.clear()
+        self._objects.clear()
         self._scene.shutdown()
 
         
@@ -26,16 +26,21 @@ class SceneWrapper:
         self._scene.update(dt);
 
 
-    def create_object(self, name):
+    def create_render_object(self, name):
         ro = self.get_scene().createRenderObject(name)
-        self._render_objects.add(ro)
+        self._objects.add(ro)
         return ro
 
+    def create_scene_object(self, name):
+       ro = self.get_scene().createSceneObject(name)
+       self._objects.add(ro)
+       return ro
+
     def destroy_object(self, obj):
-        self._render_objects.remove(obj)
+        self._objects.remove(obj)
 
     def get_all_objects_list(self):
-        return list(self._render_objects)
+        return list(self._objects)
 
     def get_main_camera(self):
         return self.get_scene().getMainCamera()

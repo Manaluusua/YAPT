@@ -1,19 +1,27 @@
 
 namespace YAPT
 {
+    
+
     inline Transform::Transform(TransformDirtyCallback dirtyCallback, void* usrData)
-        :m_dirtyCallback(dirtyCallback),
-        m_usrData(usrData),
+        :m_parent(nullptr),
+        m_childIndex(CHILD_INDEX_INVALID),
         m_translation(0, 0, 0),
         m_scale(1, 1, 1),
         m_orientation(1.f, 0.f, 0.f, 0.f),
         m_dirty(true)
     {
-        
+        setDirtyCallback(dirtyCallback, usrData);
     }
     inline Transform::~Transform()
     {
+        removeFromParentChain();
+    }
 
+    inline void Transform::setDirtyCallback(TransformDirtyCallback dirtyCallback, void* usrData)
+    {
+        m_dirtyCallback = dirtyCallback;
+        m_usrData = usrData;
     }
 
     inline void Transform::setDirty()
@@ -24,33 +32,44 @@ namespace YAPT
             {
                 m_dirtyCallback(m_usrData);
             }
+            for (size_t i = 0; i < m_children.size(); ++i)
+            {
+                m_children[i]->setDirty();
+            }
         }
         m_dirty = true;
     }
 
-    inline const mat4& Transform::getMatrix() const
+
+    inline const mat4& Transform::getMatrixWS() const
     {
         if (m_dirty)
         {
-            recalculateMatrix();
+            calculateMatrixOS(m_worldMatrix);
+
+            if (m_parent != nullptr)
+            {
+                m_worldMatrix = m_parent->getMatrixWS() * m_worldMatrix;
+            }
+
             m_dirty = false;
         }
-        return m_matrix;
+        return m_worldMatrix;
     }
 
-    inline void Transform::recalculateMatrix() const
+    inline void Transform::calculateMatrixOS(mat4& matOut) const
     {
-        m_matrix = mat4(1.f);
-        m_matrix[0][0] = m_scale.x;
-        m_matrix[1][1] = m_scale.y;
-        m_matrix[2][2] = m_scale.z;
+        matOut = mat4(1.f);
+        matOut[0][0] = m_scale.x;
+        matOut[1][1] = m_scale.y;
+        matOut[2][2] = m_scale.z;
 
         mat4 rotationMat = glm::mat4_cast(m_orientation);
 
-        m_matrix = rotationMat * m_matrix;
-        m_matrix[3][0] = m_translation.x;
-        m_matrix[3][1] = m_translation.y;
-        m_matrix[3][2] = m_translation.z;
+        matOut = rotationMat * matOut;
+        matOut[3][0] = m_translation.x;
+        matOut[3][1] = m_translation.y;
+        matOut[3][2] = m_translation.z;
     }
 
     inline void Transform::setTranslation(const vec3& v)
@@ -107,24 +126,82 @@ namespace YAPT
 
     inline vec3 Transform::right()
     {
-        return mat3(getMatrix()) * s_worldRight;
+        return mat3(getMatrixWS()) * s_worldRight;
     }
     inline vec3 Transform::up()
     {
-        return mat3(getMatrix()) * s_worldUp;
+        return mat3(getMatrixWS()) * s_worldUp;
     }
     inline vec3 Transform::forward()
     {
-        return mat3(getMatrix()) * s_worldForward;
+        return mat3(getMatrixWS()) * s_worldForward;
     }
 
     inline void Transform::lookAt(const vec3& position, const vec3& at, const vec3& up)
     {
-        m_matrix = glm::inverse(glm::lookAt(position, at, up));
+        mat4 m = glm::inverse(glm::lookAt(position, at, up));
         m_translation = position;
-        m_orientation = glm::quat_cast(m_matrix);
+        m_orientation = glm::quat_cast(m);
         m_scale = vec3(1.0f, 1.0f, 1.0f);
 
-        m_dirty = false;
+        setDirty();
+    }
+
+    inline void Transform::setParent(Transform* parent)
+    {
+        if (parent == this)
+        {
+            parent = nullptr;
+        }
+
+        if (m_parent != nullptr)
+        {
+            m_parent->removeChild(m_childIndex);
+        }
+
+        m_parent = parent;
+        if (m_parent)
+        {
+            m_parent->addChild(this);
+        }
+        
+
+        setDirty();
+    }
+
+    inline void Transform::setChildIndex(size_t index)
+    {
+        m_childIndex = index;
+    }
+    inline size_t Transform::addChild(Transform* c)
+    {
+        size_t ind = m_children.size();
+        m_children.push_back(c);
+        return ind;
+    }
+    inline void Transform::removeChild(size_t index)
+    {
+        if (m_children.size() > 1)
+        {
+            Transform* s = m_children.back();
+            std::swap(m_children[index], s);
+            s->setChildIndex(index);
+        }
+        m_children.pop_back();
+        
+    }
+
+    inline void Transform::removeFromParentChain()
+    {
+        if (m_parent != nullptr)
+        {
+            m_parent->removeChild(m_childIndex);
+        }
+
+        while (m_children.size() > 0)
+        {
+            m_children[0]->setParent(m_parent);
+        }
+        m_parent = nullptr;
     }
 }

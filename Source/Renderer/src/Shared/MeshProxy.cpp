@@ -29,7 +29,8 @@ namespace YAPT
 			for (uint32_t attInd = 0; attInd < layout.attributeCount; ++attInd)
 			{
 				m_data.vertexBufferConfigurations[i].attributes.push_back(layout.attributes[attInd]);
-				m_data.vertexBufferConfigurations[i].offsetFromVertexStart.push_back(totalSizeOfAttributes);
+				uint32_t attributeOffset = layout.attributes[attInd].offset == Attribute::INFER_OFFSET_FROM_LAYOUT ? totalSizeOfAttributes : layout.attributes[attInd].offset;
+				m_data.vertexBufferConfigurations[i].offsetFromVertexStart.push_back(attributeOffset);
 				if (layout.attributes[attInd].semantic == positionSemantic)
 				{
 					m_data.position0.bufferIndex = i;
@@ -50,8 +51,8 @@ namespace YAPT
 					m_data.uv0.bufferIndex = i;
 					m_data.uv0.attributeIndex = attInd;
 				}
-
-				totalSizeOfAttributes += getFormatSizeInBytes(layout.attributes[attInd].format);
+				int offsetDelta = attributeOffset - totalSizeOfAttributes;
+				totalSizeOfAttributes += offsetDelta + getFormatSizeInBytes(layout.attributes[attInd].format);
 			}
 
 			if (layout.vertexStrideInBytes == VERTEX_STRIDE_TIGHTLY_PACKED)

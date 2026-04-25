@@ -43,6 +43,7 @@ int main(int argc, char **argv)
 int main(int argc, char** argv) 
 {
 	bool enableGPUCapture = false;
+
 #if defined(_DEBUG)
 	for (int i = 0; i < argc; ++i)
 	{
@@ -57,9 +58,10 @@ int main(int argc, char** argv)
 		{
 			enableGPUCapture = true;
 		}
+
 	}
 #endif
-	const char* pythonEntryFile = "pythonScripts/default_bootstrap.py";
+	const char* pythonEntryFile =  "pythonScripts/default_bootstrap.py";
 	YAPT::Python* pythonModule = YAPT::createPythonModule();
 	pythonModule->executeFile(pythonEntryFile);
 	YAPT::destroyPythonModule(pythonModule);

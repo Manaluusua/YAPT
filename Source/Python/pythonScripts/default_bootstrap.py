@@ -1,5 +1,13 @@
 import os
 import sys
+#import debugpy
+
+#attach_debugger = True
+
+#if attach_debugger:
+#    debugpy.listen(("localhost", 5678))
+#    debugpy.wait_for_client()
+
 
 def append_from_path_to_syspath():
     
@@ -18,7 +26,7 @@ def print_dll_search_paths():
 
 append_from_path_to_syspath()
 #print_dll_search_paths()
-
+print("Python version:", sys.version)
 from yapt.app import Application
 
 

@@ -27,9 +27,11 @@ target_link_libraries(AssetLoader PUBLIC Common Renderer)
 target_sources(AssetLoader PRIVATE ${SOURCE} ${HEADERS})
 
 #ktx
-install_with_vcpkg(Ktx)
 find_package(Ktx CONFIG REQUIRED)
 target_link_libraries(AssetLoader PRIVATE KTX::ktx)
+add_custom_command(TARGET AssetLoader POST_BUILD
+			COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:KTX::ktx> "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$<CONFIG>/ktx.dll")
+		
 
 #tinyGLTF
 target_include_directories(AssetLoader PRIVATE "${YAPT_EXTERNALS_PATH}/tinygltf/")

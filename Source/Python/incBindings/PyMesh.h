@@ -13,7 +13,16 @@ namespace YAPT
 		PyMeshAttribute(ResourceFormat f, AttributeSemanticName s, uint32_t si)
 			:format(f),
 			semanticName(s),
-			semanticIndex(si)
+			semanticIndex(si),
+			offset(Attribute::INFER_OFFSET_FROM_LAYOUT)
+		{
+
+		}
+		PyMeshAttribute(ResourceFormat f, AttributeSemanticName s, uint32_t si, uint32_t offs)
+			:format(f),
+			semanticName(s),
+			semanticIndex(si),
+			offset(offs)
 		{
 
 		}
@@ -21,6 +30,7 @@ namespace YAPT
 		ResourceFormat format;
 		AttributeSemanticName semanticName;
 		uint32_t semanticIndex;
+		uint32_t offset;
 	};
 
 	struct PyVertexBufferLayout
