@@ -73,7 +73,7 @@ namespace YAPT
 					m_rendererObject = m_renderer->createRenderObject();
 					m_rendererObject->setMesh(m_mesh.get());
 					m_rendererObject->setMaterials(m_materials.data(), m_materials.size());
-					m_rendererObject->setTransform(m_transform.getMatrix());
+					m_rendererObject->setTransform(m_transform.getMatrixWS());
 					m_rendererObject->Release();
 				}
 				else
@@ -98,7 +98,7 @@ namespace YAPT
 		{
 			if (m_rendererObject)
 			{
-				m_rendererObject->setTransform(m_transform.getMatrix());
+				m_rendererObject->setTransform(m_transform.getMatrixWS());
 			}
 		}
 
