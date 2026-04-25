@@ -40,26 +40,27 @@ class Resources:
     def load_meshes_from_path(self, mesh_path, verbose = False):
         path = Path(mesh_path)
         path_str = str(path)
-
-        if path_str in self._meshes:
-            print(f"found mesh {path_str} from cache, reusing")
-            return self._meshes[path_str]
-
         file_name = path.stem
-
         gltf = GLTF2().load(path_str)
+        return self.load_meshes_from_gltf(gltf, path_str, verbose)
+
+    def load_meshes_from_gltf(self, gltf, cache_name, verbose = False):
+
+        if cache_name in self._meshes:
+            print(f"found mesh {cache_name} from cache, reusing")
+            return self._meshes[cache_name]
 
         # Extract individual meshes
         mesh_list = []
         mesh_index = 0
         for gltf_mesh in gltf.meshes:
-            name = f"{file_name}_mesh_{mesh_index}"
+            name = gltf_mesh.name #f"{file_name}_mesh_{mesh_index}"
             mesh = self._create_and_upload_from_gltf(gltf, name, gltf_mesh, verbose)
             if mesh is not None:
                 mesh_list.append(mesh)
                 ++mesh_index
 
-        self._meshes[path_str] = mesh_list
+        self._meshes[cache_name] = mesh_list
         return mesh_list
 
     ###TEXTURES INTERNAL###
