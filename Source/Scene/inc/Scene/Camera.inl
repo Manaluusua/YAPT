@@ -35,7 +35,7 @@ namespace YAPT
     inline const mat4& Camera::getViewMatrix() const
     {
 
-            m_viewMatrix = glm::inverse(m_transform.getMatrixWS());
+            m_viewMatrix = glm::inverse(getTransform().getMatrixWS());
         return m_viewMatrix;
     }
 

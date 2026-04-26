@@ -1,6 +1,6 @@
 #pragma once
 
-#include <Scene/Model.h>
+#include <Scene/RenderableObject.h>
 #include <Common/RCObjectPtr.h>
 #include <Renderer/Material.h>
 #include <Renderer/Mesh.h>
@@ -12,26 +12,23 @@ namespace YAPT
 	class CScene;
 	class Renderer;
 	class RenderObject;
-	class CModel : public Model
+	class CRenderableObject : public RenderableObject
 	{
 	public:
 
-		enum CModelDirtyFlag : uint32_t
+		enum CRenderableObjectDirtyFlag : uint32_t
 		{
-			CModelDirtyFlag_Transform = YAPTBIT(0),
-			CModelDirtyFlag_Mesh = YAPTBIT(1),
-			CModelDirtyFlag_Material = YAPTBIT(2)
+			CRenderableObjectDirtyFlag_Transform = YAPTBIT(0),
+			CRenderableObjectDirtyFlag_Mesh = YAPTBIT(1),
+			CRenderableObjectDirtyFlag_Material = YAPTBIT(2)
 		};
 
-		CModel(Renderer* renderer, CScene* scene);
-		~CModel();
+		CRenderableObject(Renderer* renderer, CScene* scene);
+		~CRenderableObject();
 
 		virtual void setMesh(Mesh* mesh) final;
 		virtual void setMaterials(Material** material, size_t materialCount) final;
 		virtual void setMaterial(Material* material, size_t materialIndex) final;
-
-		virtual const Transform& getTransform() const final { return m_transform; }
-		virtual Transform& getTransform() final { return m_transform; }
 
 		bool isDirty() const { return m_dirtyMask != 0; }
 
@@ -47,8 +44,6 @@ namespace YAPT
 		RCObjectPtr<RenderObject> m_rendererObject;
 		RCObjectPtr<Mesh> m_mesh;
 		std::vector<RCObjectPtr<Material>> m_materials;
-
-		Transform m_transform;
 		uint32_t m_dirtyMask;
 	};
 }

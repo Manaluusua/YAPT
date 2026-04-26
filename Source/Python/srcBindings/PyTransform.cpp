@@ -61,7 +61,7 @@ namespace YAPT
 
 	void PyTransform::setParent(PyTransform* transform)
 	{
-		m_transform->setParent(transform != nullptr ? transform->m_transform : nullptr)
+		m_transform->setParent(transform != nullptr ? transform->m_transform : nullptr);
 	}
 
 	vec3p PyTransform::right()

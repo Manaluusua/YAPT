@@ -13,15 +13,17 @@ set(HEADERS
 	inc/Scene/Scene.h
 	inc/Scene/Transform.h
 	inc/Scene/Transform.inl
-	inc/Scene/Model.h
+	inc/Scene/SceneObject.h
+	inc/Scene/SceneObject.inl
+	inc/Scene/RenderableObject.h
 	
-	inc/Scene/Impl/CModel.h
+	inc/Scene/Impl/CRenderableObject.h
 	inc/Scene/Impl/CScene.h
 )
 
 set(SOURCE
 	src/CScene.cpp
-	src/CModel.cpp
+	src/CRenderableObject.cpp
 )
 
 add_library(Scene SHARED)

@@ -4,20 +4,24 @@ namespace YAPT
     
 
     inline Transform::Transform(TransformDirtyCallback dirtyCallback, void* usrData)
-        :m_dirtyCallback(dirtyCallback),
-        m_usrData(usrData),
-        m_parent(nullptr),
+        :m_parent(nullptr),
         m_childIndex(CHILD_INDEX_INVALID),
         m_translation(0, 0, 0),
         m_scale(1, 1, 1),
         m_orientation(1.f, 0.f, 0.f, 0.f),
         m_dirty(true)
     {
-        
+        setDirtyCallback(dirtyCallback, usrData);
     }
     inline Transform::~Transform()
     {
 
+    }
+
+    inline void Transform::setDirtyCallback(TransformDirtyCallback dirtyCallback, void* usrData)
+    {
+        m_dirtyCallback = dirtyCallback;
+        m_usrData = usrData;
     }
 
     inline void Transform::setDirty()

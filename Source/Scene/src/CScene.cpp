@@ -1,6 +1,6 @@
 #include <Scene/Impl/CScene.h>
 #include <Scene/Camera.h>
-#include <Scene/Impl/CModel.h>
+#include <Scene/Impl/CRenderableObject.h>
 #include <Renderer/Renderer.h>
 
 namespace YAPT
@@ -17,7 +17,7 @@ namespace YAPT
 	CScene::CScene()
 		:m_defaultCamera(new Camera())
 	{
-		m_dirtyModels.reserve(256);
+		m_dirtyRenderables.reserve(256);
 	}
 	CScene::~CScene()
 	{
@@ -39,12 +39,12 @@ namespace YAPT
 		}
 
 
-		for (CModel* model : m_dirtyModels)
+		for (CRenderableObject* model : m_dirtyRenderables)
 		{
 			model->refresh();
 		}
 
-		m_dirtyModels.clear();
+		m_dirtyRenderables.clear();
 
 		Camera* cam = getMainCamera();
 		RenderParameters renderParams;
@@ -63,9 +63,9 @@ namespace YAPT
 		return m_defaultCamera.get();
 	}
 
-	Model* CScene::createModel()
+	RenderableObject* CScene::createRenderableObject()
 	{
-		return new CModel(m_renderer, this);
+		return new CRenderableObject(m_renderer, this);
 	}
 
 	void CScene::addSceneListener(SceneListener* l)
@@ -77,9 +77,9 @@ namespace YAPT
 		m_listeners.erase(l);
 	}
 
-	void CScene::needsRefresh(CModel* model)
+	void CScene::needsRefresh(CRenderableObject* model)
 	{
-		m_dirtyModels.push_back(model);
+		m_dirtyRenderables.push_back(model);
 	}
 
 }

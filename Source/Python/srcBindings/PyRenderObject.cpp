@@ -9,7 +9,7 @@ namespace YAPT
 
 	PyRenderObject::PyRenderObject(const char* name, Scene* scene)
 		:m_name(name),
-		m_obj(scene->createModel()),
+		m_obj(scene->createRenderableObject()),
 		m_transform(&m_obj->getTransform())
 	{
 		m_obj->Release();

@@ -1,10 +1,9 @@
 #pragma once
 
-#include <Common/RCObject.h>
-#include <Scene/Transform.h>
+#include "SceneObject.h"
 namespace YAPT
 {
-	class Camera : public RCObject
+	class Camera : public SceneObject
 	{
 
 	public:
@@ -37,17 +36,11 @@ namespace YAPT
 		float getFarPlance() const;
 		float getOrthographicSize() const;
 
-
 		ProjectionType getProjectionType() const;
-
-		const Transform& getTransform() const { return m_transform; }
-		Transform& getTransform() { return m_transform; }
 
 	protected:
 
 		void calculateProjection() const;
-
-		Transform m_transform;
 
 		mutable mat4 m_viewMatrix;
 		mutable mat4 m_projMatrix;

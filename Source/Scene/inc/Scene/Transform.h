@@ -39,6 +39,8 @@ namespace YAPT
 
 		void setParent(Transform* parent);
 		Transform* getParent() const { return m_parent; }
+
+		void setDirtyCallback(TransformDirtyCallback dirtyCallback, void* usrData);
 	private:
 		void setDirty();
 		void calculateMatrixOS(mat4& matOut) const;
@@ -50,7 +52,7 @@ namespace YAPT
 
 		mutable mat4 m_worldMatrix;
 
-		const TransformDirtyCallback m_dirtyCallback;
+		TransformDirtyCallback m_dirtyCallback;
 		void* m_usrData;
 
 		Transform* m_parent;

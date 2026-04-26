@@ -7,7 +7,7 @@ namespace YAPT
 	class Renderer;
 	class Scene;
 	class Camera;
-	class Model;
+	class RenderableObject;
 
 	SCENE_MODULE_INTERFACE Scene* createScene();
 	SCENE_MODULE_INTERFACE void destroyScene(Scene* scene);
@@ -31,7 +31,7 @@ namespace YAPT
 		virtual void update(const SceneUpdateParameters& update) = 0;
 		virtual Camera* getMainCamera() = 0;
 
-		virtual Model* createModel() = 0;
+		virtual RenderableObject* createRenderableObject() = 0;
 
 		virtual void addSceneListener(SceneListener* l) = 0;
 		virtual void removeSceneListener(SceneListener* l) = 0;

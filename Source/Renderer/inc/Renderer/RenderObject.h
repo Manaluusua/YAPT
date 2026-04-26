@@ -15,7 +15,7 @@ namespace YAPT
 		virtual void setTransform(const mat4& transform) = 0;
 
 		virtual void setMaterials(RCObjectPtr<Material>* materials, size_t materialCount) = 0;
-
+		virtual ~RenderObject(){}
 	};
 }
 

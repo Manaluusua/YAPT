@@ -1,7 +1,7 @@
 #pragma once
 #include <PyBindingsCommon.h>
 #include <Scene/Scene.h>
-#include <Scene/Model.h>
+#include <Scene/RenderableObject.h>
 #include <PyTransform.h>
 #include <PyMesh.h>
 #include <PyMaterial.h>
@@ -30,11 +30,11 @@ namespace YAPT
 		PyTransform* getTransform();
 
 		const char* getName() const;
-		Model* getModel() { return m_obj; }
+		RenderableObject* getRenderable() { return m_obj; }
 
 	private:
 		std::string m_name;
-		RCObjectPtr<Model> m_obj;
+		RCObjectPtr<RenderableObject> m_obj;
 		std::shared_ptr<PyMesh> m_mesh;
 		std::vector<std::shared_ptr<PyMaterial>> m_materials;
 		PyTransform m_transform;
