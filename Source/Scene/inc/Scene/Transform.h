@@ -48,7 +48,7 @@ namespace YAPT
 		void setChildIndex(size_t index);
 		size_t addChild(Transform* c);
 		void removeChild(size_t index);
-
+		void removeFromParentChain();
 
 		mutable mat4 m_worldMatrix;
 

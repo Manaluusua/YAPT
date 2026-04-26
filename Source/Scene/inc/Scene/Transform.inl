@@ -15,7 +15,7 @@ namespace YAPT
     }
     inline Transform::~Transform()
     {
-
+        removeFromParentChain();
     }
 
     inline void Transform::setDirtyCallback(TransformDirtyCallback dirtyCallback, void* usrData)
@@ -149,13 +149,22 @@ namespace YAPT
 
     inline void Transform::setParent(Transform* parent)
     {
+        if (parent == this)
+        {
+            parent = nullptr;
+        }
+
         if (m_parent != nullptr)
         {
             m_parent->removeChild(m_childIndex);
         }
 
         m_parent = parent;
-        m_parent->addChild(this);
+        if (m_parent)
+        {
+            m_parent->addChild(this);
+        }
+        
 
         setDirty();
     }
@@ -180,5 +189,19 @@ namespace YAPT
         }
         m_children.pop_back();
         
+    }
+
+    inline void Transform::removeFromParentChain()
+    {
+        if (m_parent != nullptr)
+        {
+            m_parent->removeChild(m_childIndex);
+        }
+
+        while (m_children.size() > 0)
+        {
+            m_children[0]->setParent(m_parent);
+        }
+        m_parent = nullptr;
     }
 }
