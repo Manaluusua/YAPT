@@ -67,6 +67,10 @@ namespace YAPT
 	{
 		return new CRenderableObject(m_renderer, this);
 	}
+	SceneObject* CScene::createSceneObject()
+	{
+		return new SceneObject();
+	}
 
 	void CScene::addSceneListener(SceneListener* l)
 	{

@@ -16,6 +16,7 @@ namespace YAPT
 		virtual void update(const SceneUpdateParameters& update) final;
 		virtual Camera* getMainCamera() final;
 		virtual RenderableObject* createRenderableObject() final;
+		virtual SceneObject* createSceneObject() final;
 
 		virtual void addSceneListener(SceneListener* l) final;
 		virtual void removeSceneListener(SceneListener* l) final;

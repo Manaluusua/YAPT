@@ -50,7 +50,18 @@ namespace YAPT
 
 	PyRenderObject* PyScene::createRenderObject(const char* name)
 	{
-		return new PyRenderObject(name, m_scene);
+		RenderableObject* obj = m_scene->createRenderableObject();
+		PyRenderObject* pyObj = new PyRenderObject(name, obj);
+		obj->Release();
+		return pyObj;
+	}
+
+	PySceneObject* PyScene::createSceneObject(const char* name)
+	{
+		SceneObject* obj = m_scene->createSceneObject();
+		PySceneObject* pyObj = new PySceneObject(name, obj);
+		obj->Release();
+		return pyObj;
 	}
 
 	PyCamera* PyScene::getMainCamera()
