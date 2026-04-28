@@ -5,7 +5,7 @@
 
 namespace YAPT
 {
-	DEFINE_BINDING_CLASS(PyRenderObject);
+	DEFINE_BINDING_CLASS_WITH_BASE(PyRenderObject, PySceneObject);
 
 	PyRenderObject::PyRenderObject(const char* name, RenderableObject* obj)
 		:PySceneObject(name, obj)

@@ -12,7 +12,6 @@ namespace YAPT
 		m_obj(scene),
 		m_transform(&m_obj->getTransform())
 	{
-		m_obj->Release();
 	}
 	PySceneObject::~PySceneObject()
 	{

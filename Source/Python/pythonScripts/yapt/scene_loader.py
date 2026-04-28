@@ -7,8 +7,9 @@ from pygltflib import GLTF2
 class SceneLoader:
     def __init__(self, resources):
         self._resources = resources
-        self._objects = {}
         self._res_paths = []
+        self_objects = {}
+        
 
     def add_resource_search_paths(self, paths):
         self._res_paths.append(paths)
@@ -20,9 +21,24 @@ class SceneLoader:
        
         meshes = self._resources.load_meshes_from_gltf(gltf, path_str, verbose)
 
+        loaded_objects = [None] * len(gltf_scene.nodes)
+
         gltf_scene = gltf.scenes[gltf.scene]
 
+        #create nodes
         for node_index in gltf_scene.nodes:
             node = gltf.nodes[node_index]
+            obj = self._createObject(node)
+            if(obj != None):
+                loaded_objects[node_index] = obj
 
+        #parenting
+        for node_index in gltf_scene.nodes:
+            node = gltf.nodes[node_index]
+            if(node.children != None):
+                parent = loaded_objects[node_index]
+                for child in node.children:
+                    loaded_objects[child].setParent(parent)
             
+    def _createObject(self, node):
+        pass
