@@ -52,13 +52,11 @@ class Resources:
 
         # Extract individual meshes
         mesh_list = []
-        mesh_index = 0
+
         for gltf_mesh in gltf.meshes:
             name = gltf_mesh.name #f"{file_name}_mesh_{mesh_index}"
             mesh = self._create_and_upload_from_gltf(gltf, name, gltf_mesh, verbose)
-            if mesh is not None:
-                mesh_list.append(mesh)
-                ++mesh_index
+            mesh_list.append(mesh)
 
         self._meshes[cache_name] = mesh_list
         return mesh_list

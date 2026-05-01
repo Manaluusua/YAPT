@@ -18,7 +18,7 @@ sphere_mesh = resources.load_meshes_from_path("D:/Random/3DSampleAssets/Sphere/s
 #enclosing light
 createEnclosingSphereLight = True
 if createEnclosingSphereLight == True:
-	light = scene.create_object("enclosingLightObject")
+	light = scene.create_render_object("enclosingLightObject")
 	mat = renderer.createMaterial("lightMaterial")
 	mat.setEmission(vec3([1, 1, 1]))
 	mat.setTwoSided(True)
@@ -38,7 +38,7 @@ offset = [-gap * numberOfColumns * 0.5, -gap * numberOfRows * 0.5]
 for i in range(numberOfColumns):
 	for j in range(numberOfRows):
 	
-		model = scene.create_object(f"object_{i}_{j}")
+		model = scene.create_render_object(f"object_{i}_{j}")
 
 		val1 = float(i) / max(1, (numberOfColumns - 1))
 		val2 = float(j) / max(1, (numberOfRows - 1))

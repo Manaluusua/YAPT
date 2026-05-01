@@ -3,6 +3,7 @@ from PySide6.QtGui import QAction, QPalette, QColor
 from yapt.renderer_vars_window import RendererVarsWindow
 from yapt.objects_dialog import ObjectsDialog
 import os
+import traceback
 from pathlib import Path
 
 class MainWindow(QMainWindow):
@@ -96,6 +97,7 @@ class MainWindow(QMainWindow):
                 print("The script file was not found.")
             except Exception as e:
                 print(f"An error occurred: {e}")
+                traceback.print_exc()
     
     def show_rvars(self):
         if self._rvars_window == None:

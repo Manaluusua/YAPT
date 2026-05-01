@@ -14,7 +14,7 @@ def createObject(name, meshPath, pos, scale):
     global scene
 
     mesh = resources.load_meshes_from_path(meshPath)[0]
-    obj = scene.create_object(f"{name}_obj")
+    obj = scene.create_render_object(f"{name}_obj")
     mat = renderer.createMaterial(f"{name}_mat")
     mat.setFromMaterialPreset(Material.MaterialPreset.PLASTIC)
     mat.setRoughness(0.2)

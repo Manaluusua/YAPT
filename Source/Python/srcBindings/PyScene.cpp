@@ -77,6 +77,7 @@ namespace YAPT
 			.def("shutdown", &PyScene::shutdown)
 			.def("update", &PyScene::update)
 			.def("createRenderObject", &PyScene::createRenderObject)
+			.def("createSceneObject", &PyScene::createSceneObject)
 			.def("getMainCamera", &PyScene::getMainCamera);
 	}
 }
