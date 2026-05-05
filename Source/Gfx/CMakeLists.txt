@@ -130,7 +130,7 @@ if(${BUILD_DX12_BACKEND})
 		src/Dx12/ShaderTableDx12.cpp
 		)
 	
-	set(WINDOWS10KIT_PATH "" CACHE PATH "Path to DirectX dependencies")
+	set(WINDOWS10KIT_PATH "C:/Program Files (x86)/Windows Kits/10" CACHE PATH "Path to DirectX dependencies")
 	set(WINDOWS10KIT_VERSION ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} CACHE PATH "Windowskit version")
 	find_package(Dx12 REQUIRED)
 	

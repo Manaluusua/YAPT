@@ -18,7 +18,7 @@ def print_dll_search_paths():
 
 append_from_path_to_syspath()
 #print_dll_search_paths()
-
+print("Python version:", sys.version)
 from yapt.app import Application
 
 

@@ -1,6 +1,7 @@
 from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName, Mesh
 from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility
+from yapt.texture_loader_ktx import TextureLoader
 from pathlib import Path
 
 import OpenImageIO as oiio
@@ -11,6 +12,7 @@ import numpy as np
 
 class Resources:
     def __init__(self, renderer):
+        self._tex_loader = TextureLoader()
         self._renderer = renderer
         self._textures = {}
         self._meshes = {}
@@ -19,23 +21,11 @@ class Resources:
         self._textures = None
         self._meshes = None
 
-    def load_texture_from_path(self, tex_path, verbose = False, assume_srgb = False):
-        path = Path(tex_path)
-        path_str = str(path)
+    def load_texture_2D(self, tex_path, verbose = False, assume_srgb = False):
+        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_2d)
 
-        if path_str in self._textures:
-            print(f"found texture {path_str} from cache, reusing")
-            return self._textures[path_str]
-
-        img_name = path.stem
-        if(verbose):
-            print(f"loading {path_str} as {img_name}")
-
-        tex = self.__load_tex_with_oiio(path_str, img_name, verbose, assume_srgb)
-        #tex = self.__load_tex_with_iio(path_str, img_name)
-        if(tex):
-            self._textures[path_str] = tex
-        return tex
+    def load_texture_cube(self, tex_path, verbose = False, assume_srgb = False):
+        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_cube)
 
     def load_meshes_from_path(self, mesh_path, verbose = False):
         path = Path(mesh_path)
@@ -61,61 +51,32 @@ class Resources:
         self._meshes[cache_name] = mesh_list
         return mesh_list
 
+
     ###TEXTURES INTERNAL###
-    def __load_tex_with_oiio(self, path_str, img_name, verbose = False, assume_srgb = False):
-        image = oiio.ImageInput.open(path_str)
+    def _load_texture_internal(self, tex_path, verbose, load_ktx_fn, *args, **kwargs):
+        path = Path(tex_path)
+        path_str = str(path)
 
-        if image == None:
-            print(f"Failed to open image {path_str}")
-            return;
+        if path_str in self._textures:
+            print(f"found texture {path_str} from cache, reusing")
+            return self._textures[path_str]
 
-        spec = image.spec()
-        tex = None
-        try:
-            width, height, depth = spec.width, spec.height, spec.depth
-            mips = 1 #TODO support
-            dim = ConvUtility.oiio_spec_to_dimension(spec, verbose)
-            form = ConvUtility.oiio_spec_to_format(spec, verbose, assume_srgb)
-            row_pitch = spec.scanline_bytes() 
-            
-            if(dim == ResourceDimension.TEXTURE_CUBEMAP):
-                side_w, side_h = width, int(height/6)
-                tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, side_w, side_h, mips, 6)
-                data = image.read_image(format=oiio.UNKNOWN)
-                bpp = spec.pixel_bytes()
-                slice_size = side_w * side_h * bpp
-                for i in range(6):
-                    ptr = data.ctypes.data
-                    tex.upload(0, i, mips, 1, row_pitch, ptr, int(slice_size * i))
-            else:
-                
-                tex =  self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, mips, depth)
-                data = image.read_image(format=oiio.UNKNOWN)
-                ptr = data.ctypes.data
-                tex.upload(0, 0, mips, depth, row_pitch, ptr, 0)
+        img_name = path.stem
+        if(verbose):
+            print(f"loading {path_str} as {img_name}")
 
-        except Exception as e:
-            print(f"failed to load {path_str}, {e}")
-            return None
-        finally:
-            image.close()
+        ktx_tex = load_ktx_fn(path, *args, **kwargs)
+        if(ktx_tex):
+            tex = self._create_and_upload_texture_ktx(ktx_tex)
+
+        if(tex):
+            self._textures[path_str] = tex
+
         return tex
 
-    def __load_tex_with_iio(self, path_str, img_name, verbose = False):
-        image = iio.imread(path_str)
-        props = iio.improps(path_str)
-        meta = iio.immeta(path_str)
-        print(props)
-        print(meta)
-        print(props.shape)
-        print(props.dtype)
 
-        width, height = image.shape[:2]
-        dim = ConvUtility.iio_image_props_to_dimension(props)
-        form = ConvUtility.iio_image_props_to_format(props)
-        
-
-        return self._renderer.createTexture(img_name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, 1, 1)
+    def _create_and_upload_texture_ktx(self, ktx_tex):
+        pass
 
     ###MESHES INTERNAL###
 
