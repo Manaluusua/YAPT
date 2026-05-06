@@ -21,11 +21,14 @@ class Resources:
         self._textures = None
         self._meshes = None
 
-    def load_texture_2D(self, tex_path, verbose = False, assume_srgb = False):
-        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_2d)
+    def load_texture_2D(self, tex_path, fmt, verbose = False):
+        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_2d, source=tex_path, vk_format=fmt)
 
-    def load_texture_cube(self, tex_path, verbose = False, assume_srgb = False):
-        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_cube)
+    def load_texture_cube(self, tex_path, fmt, faces, verbose = False):
+        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_cube,faces=faces, vk_format=fmt)
+
+    def load_texture_cube(self, tex_path, fmt, slices, verbose = False):
+        return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_3d, slices=slices, vk_format=fmt)
 
     def load_meshes_from_path(self, mesh_path, verbose = False):
         path = Path(mesh_path)
@@ -53,7 +56,7 @@ class Resources:
 
 
     ###TEXTURES INTERNAL###
-    def _load_texture_internal(self, tex_path, verbose, load_ktx_fn, *args, **kwargs):
+    def _load_texture_internal(self, tex_path, verbose, load_ktx_fn, **load_ktx_params):
         path = Path(tex_path)
         path_str = str(path)
 
@@ -68,7 +71,7 @@ class Resources:
         ktx_tex = None
 
         try:
-            ktx_tex = load_ktx_fn(path, *args, **kwargs)
+            ktx_tex = load_ktx_fn(**load_ktx_params)
         except KtxToolInvocationError as e:
                 print(f"retCode: {e.returncode}\nstderr: {e.stderr}cmd: {e.command}, ")
 

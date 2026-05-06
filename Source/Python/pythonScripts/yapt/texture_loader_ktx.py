@@ -67,7 +67,6 @@ class TextureLoader:
 
     cache_dir: Path | str = field(default_factory=lambda: Path(".ktx_cache"))
     ktx_executable: str = "ktx"
-    default_vk_format: str = "R8G8B8A8_SRGB"
     cache_stem_fn: CacheStemFn | None = None
 
     def __post_init__(self) -> None:
@@ -77,7 +76,6 @@ class TextureLoader:
     def load_ktx_texture(
         self,
         path: Path | str,
-        *,
         create_flags: int | None = None,
     ) -> Any:
         """Load an existing KTX file using pyktx."""
@@ -92,9 +90,9 @@ class TextureLoader:
 
     def load_texture_2d(
         self,
-        source: Path | str,
         *,
-        vk_format: str | None = None,
+        source: Path | str,
+        vk_format: str,
         extra_ktx_args: Sequence[str] = (),
         force_reconvert: bool = False,
         cache_stem_fn: CacheStemFn | None = None,
@@ -105,7 +103,7 @@ class TextureLoader:
         if not src.is_file():
             raise FileNotFoundError(f"Source texture not found: {src}")
 
-        fmt = vk_format or self.default_vk_format
+        fmt = vk_format
         extra = tuple(extra_ktx_args)
         out = self._cache_path(
             "2d",
@@ -128,9 +126,9 @@ class TextureLoader:
 
     def load_texture_cube(
         self,
-        faces: Sequence[Path | str],
         *,
-        vk_format: str | None = None,
+        faces: Sequence[Path | str],
+        vk_format: str,
         extra_ktx_args: Sequence[str] = (),
         force_reconvert: bool = False,
         cache_stem_fn: CacheStemFn | None = None,
@@ -149,7 +147,7 @@ class TextureLoader:
             if not p.is_file():
                 raise FileNotFoundError(f"Cubemap face not found: {p}")
 
-        fmt = vk_format or self.default_vk_format
+        fmt = vk_format
         extra = tuple(extra_ktx_args)
         out = self._cache_path(
             "cube",
@@ -175,9 +173,9 @@ class TextureLoader:
 
     def load_texture_3d(
         self,
-        slices: Sequence[Path | str],
         *,
-        vk_format: str | None = None,
+        slices: Sequence[Path | str],
+        vk_format: str,
         extra_ktx_args: Sequence[str] = (),
         force_reconvert: bool = False,
         cache_stem_fn: CacheStemFn | None = None,

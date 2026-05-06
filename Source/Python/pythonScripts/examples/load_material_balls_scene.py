@@ -49,8 +49,8 @@ def createSurrounding():
     wallDistance = 450
     wallScale = 1000 
     
-    albedo_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_diff_4k.png", True, True)
-    normal_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_nor_gl_4k.png", True)
+    albedo_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_diff_4k.png", "R8G8B8A8_SRGB", True)
+    normal_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_nor_gl_4k.png","R8G8B8A8_UNORM", True)
 
     obj, mesh, mat = createObject("groundPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", v3(0, -50, 0), 2000)
     tex_scale = 45
@@ -192,7 +192,7 @@ def loadSimpleBalls():
     
 
 #envmap
-env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.hdr")
+env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
 
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
