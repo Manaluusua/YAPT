@@ -82,8 +82,6 @@ class TextureLoader:
     ) -> Any:
         """Load an existing KTX file using pyktx."""
 
-        KtxTexture2 = _import_ktx_texture2()
-        KtxTextureCreateFlagBits = _import_ktx_create_flags()
         resolved = Path(path).expanduser().resolve()
         flags = (
             create_flags

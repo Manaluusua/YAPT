@@ -1,7 +1,7 @@
 from py_yapt import Renderer, ResourceUsageBits, ResourceDimension, VertexBufferLayout, MeshAttribute, ResourceFormat, AttributeSemanticName, Mesh
 from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility
-from yapt.texture_loader_ktx import TextureLoader
+from yapt.texture_loader_ktx import TextureLoader, KtxToolInvocationError
 from pathlib import Path
 
 import OpenImageIO as oiio
@@ -65,9 +65,17 @@ class Resources:
         if(verbose):
             print(f"loading {path_str} as {img_name}")
 
-        ktx_tex = load_ktx_fn(path, *args, **kwargs)
-        if(ktx_tex):
-            tex = self._create_and_upload_texture_ktx(ktx_tex)
+        ktx_tex = None
+
+        try:
+            ktx_tex = load_ktx_fn(path, *args, **kwargs)
+        except KtxToolInvocationError as e:
+                print(f"retCode: {e.returncode}\nstderr: {e.stderr}cmd: {e.command}, ")
+
+        if(ktx_tex == None):
+            return None
+
+        tex = self._create_and_upload_texture_ktx(ktx_tex)
 
         if(tex):
             self._textures[path_str] = tex
