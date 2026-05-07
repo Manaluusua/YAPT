@@ -1,12 +1,12 @@
 import os
 import sys
-import debugpy
+#import debugpy
 
-attach_debugger = False
+#attach_debugger = False
 
-if attach_debugger:
-    debugpy.listen(("localhost", 5678))
-    debugpy.wait_for_client()
+#if attach_debugger:
+#    debugpy.listen(("localhost", 5678))
+#    debugpy.wait_for_client()
 
 
 def append_from_path_to_syspath():

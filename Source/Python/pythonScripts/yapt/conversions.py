@@ -39,9 +39,8 @@ class ConvUtility:
                     precision = match.group()
                 if precision:
                     components = split_str[0].replace(precision, "")
-
                 if precision and components:
-                    format_str = components + precision + split_str[-1]
+                    format_str = components + precision + "_" + split_str[-1]
                     yapt_format = getattr(ResourceFormat, format_str, None)
                     if yapt_format == None:
                         if print_debug:

@@ -93,11 +93,14 @@ class Resources:
         if hasattr(ktx_tex, "num_layers"):
             layers = ktx_tex.num_layers
         levels = ktx_tex.num_levels
-        print(f"texture dimension: w: {width}, h: {height}, faces_slices: {faces_slices}, layers: {layers}, levels: {levels}")
+        
+        if verbose:
+            print(f"texture dimension: w: {width}, h: {height}, faces_slices: {faces_slices}, layers: {layers}, levels: {levels}")
+
         dim = ConvUtility.ktx_to_yapt_dimension(ktx_tex, verbose)
         form = ConvUtility.vk_to_yapt_format(ktx_tex.vk_format, verbose)
 
-        tex =  self._renderer.createTexture(name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, mips, depthOrSlices)
+        tex =  self._renderer.createTexture(name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, levels, layers * faces_slices)
         data = ktx_tex.data()
         for level in range(0, levels):
             for layer in range(0, layers):
