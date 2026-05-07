@@ -3,6 +3,8 @@ from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility
 from yapt.texture_loader_ktx import TextureLoader, KtxToolInvocationError
 from pathlib import Path
+from cffi import FFI
+ffi = FFI()
 
 import OpenImageIO as oiio
 import imageio.v3 as iio
@@ -101,13 +103,14 @@ class Resources:
         form = ConvUtility.vk_to_yapt_format(ktx_tex.vk_format, verbose)
 
         tex =  self._renderer.createTexture(name, dim, form, ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.SAMPLED_TEXTURE, width, height, levels, layers * faces_slices)
-        data = ktx_tex.data()
+        uint_ptr = int(ffi.cast("uintptr_t", ffi.from_buffer(ktx_tex.data()))) #should maybe just accept the cffi buffer?
+        
         for level in range(0, levels):
             for layer in range(0, layers):
                 for face_slice in range(0, faces_slices):
                     row_pitch = ktx_tex.row_pitch(level)
                     offset = ktx_tex.image_offset(level, layer, face_slice)
-                    tex.upload(level, layer * face_slice, 1, 1, row_pitch, data, int(offset))
+                    tex.upload(level, layer * face_slice, 1, 1, row_pitch, uint_ptr, int(offset))
 
         return tex
 
