@@ -2,10 +2,10 @@ import os
 import sys
 import debugpy
 
-attach_debugger = True
+attach_debugger = False
 
 if attach_debugger:
-    debugpy.listen(("0.0.0.0", 5678))
+    debugpy.listen(("localhost", 5678))
     debugpy.wait_for_client()
 
 
