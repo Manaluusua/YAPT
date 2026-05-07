@@ -1,5 +1,13 @@
 import os
 import sys
+import debugpy
+
+attach_debugger = True
+
+if attach_debugger:
+    debugpy.listen(("0.0.0.0", 5678))
+    debugpy.wait_for_client()
+
 
 def append_from_path_to_syspath():
     

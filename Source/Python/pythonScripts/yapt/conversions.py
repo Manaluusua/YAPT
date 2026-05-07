@@ -1,85 +1,71 @@
 from py_yapt import ResourceDimension, ResourceFormat, ResourceUsageBits
-import OpenImageIO as oiio
-import imageio.v3 as iio
-
+from pyktx.vk_format import VkFormat
+import re
 class ConvUtility:
 
-    def iio_image_props_to_dimension(props):
-        raise NotImplementedError
+    def vk_to_yapt_format(vk_format, print_debug = False):
 
-    def iio_image_props_to_format(props):
-        raise NotImplementedError
+        if vk_format == VkFormat.VK_FORMAT_D16_UNORM:
+            return ResourceFormat.D16_UNORM
+        elif vk_format == VkFormat.VK_FORMAT_D32_SFLOAT:
+            return ResourceFormat.D32_SFLOAT
+        elif vk_format == VkFormat.VK_FORMAT_D24_UNORM_S8_UINT:
+            return ResourceFormat.D24_UNORM_S8_UINT
 
-    def oiio_spec_to_format(spec, print_debug = False, assume_srgb = False):
-        channels = spec.nchannels
-        channel_format = spec.format
-        bytes_per_channel = spec.channel_bytes
-        channel_names = spec.channelnames
-        
-        components_str = ""
-        for v in channel_names:
-            components_str += v
+        elif vk_format == VkFormat.VK_FORMAT_BC4_UNORM_BLOCK:
+            return ResourceFormat.BC4_UNORM
+        elif vk_format == VkFormat.VK_FORMAT_BC4_SNORM_BLOCK:
+            return ResourceFormat.BC4_SNORM
 
-        #components_str = "R"
-        #if(channels > 1): components_str += "G"
-        #if(channels > 2): components_str += "B"
-        #if(channels > 3): components_str += "A"
-        
-        unorm_type = "SRGB" if assume_srgb is True else "UNORM"
+        elif vk_format == VkFormat.VK_FORMAT_BC6H_SFLOAT_BLOCK:
+            return ResourceFormat.BC6H_SFLOAT
+        elif vk_format == VkFormat.VK_FORMAT_BC6H_UFLOAT_BLOCK:
+            return ResourceFormat.BC6H_UFLOAT
 
-        use_norm = True
-        uint_types = [unorm_type, "UINT"]
-        int_types = ["SNORM", "INT"]
-        type_index = 0 if use_norm is True else 1
-
-        depth_and_type_str = None
-
-        if(channel_format == oiio.UINT8):
-            depth_and_type_str = f"8_{uint_types[type_index]}"
-        elif(channel_format == oiio.INT8):
-            depth_and_type_str = f"8_{int_types[type_index]}"
-
-        elif(channel_format == oiio.UINT16):
-            depth_and_type_str = f"16_{uint_types[type_index]}"
-        elif(channel_format == oiio.INT16):
-            depth_and_type_str = f"16_{int_types[type_index]}"
-        elif(channel_format == oiio.HALF):
-            depth_and_type_str = "16_SFLOAT"
-
-        elif(channel_format == oiio.UINT32):
-            depth_and_type_str = "32_UINT"
-        elif(channel_format == oiio.INT32):
-            depth_and_type_str = "32_SINT"
-        elif(channel_format == oiio.FLOAT):
-            depth_and_type_str = "32_SFLOAT"
-
-        if depth_and_type_str != None:
-            format_string = components_str + depth_and_type_str
-            if print_debug:
-                print(format_string)
-
-            return getattr(ResourceFormat, format_string, None)
-            
+        elif vk_format == VkFormat.VK_FORMAT_BC7_UNORM_BLOCK:
+            return ResourceFormat.BC7_UNORM
+        elif vk_format == VkFormat.VK_FORMAT_BC7_SRGB_BLOCK:
+            return ResourceFormat.BC7_UNORM_SRGB
         else:
-            raise Exception('unrecognized format')
-        
+            
+            split_str = str(vk_format.name).removeprefix("VK_FORMAT_").split("_")
+            yapt_format = None
+            if(len(split_str) == 2):
+                match = re.search(r"\d+", split_str[0])
+                precision = None
+                components = None
+
+                if match:
+                    precision = match.group()
+                if precision:
+                    components = split_str[0].replace(precision, "")
+
+                if precision and components:
+                    format_str = components + precision + split_str[-1]
+                    yapt_format = getattr(ResourceFormat, format_str, None)
+                    if yapt_format == None:
+                        if print_debug:
+                            print(f"Tried to convert format str {format_str} from {vk_format.name} but failed")
+
+            if yapt_format == None:
+                raise Exception(f"failed to convert vk format: {vk_format.name}")
+
+            return yapt_format
+            
          
         
 
-    def oiio_spec_to_dimension(spec, print_debug = False):
-        width, height, depth = spec.width, spec.height, spec.depth
-        dim = None
-        if depth > 1:
-            dim = ResourceDimension.TEXTURE_3D
+    def ktx_to_yapt_dimension(ktx_tex, print_debug = False):
+        if ktx_tex.is_cubemap:
+            dim = ResourceDimension.TEXTURE_CUBEMAP
         else:
-            if height == width*6:
-                dim = ResourceDimension.TEXTURE_CUBEMAP
-            elif height == 1:
+            if ktx_tex.num_dimensions == 1:
                 dim = ResourceDimension.TEXTURE_1D
-            else:
+            elif ktx_tex.num_dimensions == 2:
                 dim = ResourceDimension.TEXTURE_2D
-
-        if print_debug:
-            print(f"inferred texture dimension to {dim}, w: {width}, h: {height}, d:{depth}")
+            elif ktx_tex.num_dimensions == 3:
+                dim = ResourceDimension.TEXTURE_2D
+            else:
+                raise Exception('unrecognized dimensions')
 
         return dim
