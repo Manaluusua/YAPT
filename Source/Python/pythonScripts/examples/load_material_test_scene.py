@@ -7,7 +7,7 @@ renderer = yapt_instance.get_renderer()
 scene = yapt_instance.get_scene()
 
 #envmap
-env_map = resources.load_texture_from_path("D:/Random/3DSampleAssets/EnvMaps/env_room_studio_bgra8.dds")
+env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
 
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)

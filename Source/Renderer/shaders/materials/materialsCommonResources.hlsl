@@ -174,7 +174,8 @@ float4 getSkyBoxColor(float3 rayDir, uint envType, uint texIndex)
 
 	if (envType == ENVIRONMENT_TYPE_LONGLAT)
 	{
-		float2 uv = 0; //TODO: calculate from raydir
+        float2 sc = cartesianToSpherical(rayDir);
+        float2 uv = float2(sc.x * INVPI * 0.5f + 0.5f, sc.y * INVPI);
 		color = g_textures2D[NonUniformResourceIndex(texIndex)].SampleLevel(g_colorSampler, uv, 0);
 	}
 	else if (envType == ENVIRONMENT_TYPE_CUBE)
