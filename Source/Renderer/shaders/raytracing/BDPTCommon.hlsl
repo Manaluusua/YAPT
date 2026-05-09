@@ -49,9 +49,12 @@ struct LightPathNode
     uint nextIndex;
     float3 positionWS;
     uint instanceIndex;
-    float2 barycentrics;
+    float3 previousNodeDirWS;
     uint primitiveIndex;
+    float3 previousNodeNormalWS;
     float pdfForwardMIS;
+    float2 barycentrics;
+   
     float pdfBackwardMIS;
     float iorPrevious;
     float iorCurrent;
@@ -236,8 +239,10 @@ LightPathNode decompressLightPathNode(LightPathNodePacked p)
     node.barycentrics = asfloat(p.data3.xy);
     node.pdfForwardMIS = asfloat(p.data3.z);
     node.pdfBackwardMIS = asfloat(p.data3.w);
-    node.iorPrevious = asfloat(p.data4.y);
-    node.iorCurrent = asfloat(p.data4.z);
+    node.iorPrevious = f16tof32(p.data4.x & 0xFFFF);
+    node.iorCurrent = f16tof32(p.data4.x >> 16);
+    node.previousNodeDirWS = float3(f16tof32(p.data4.y & 0xFFFF), f16tof32(p.data4.y >> 16), f16tof32(p.data4.z & 0xFFFF));
+    node.previousNodeNormalWS = float3(f16tof32(p.data4.z >> 16), f16tof32(p.data4.w & 0xFFFF) ,f16tof32(p.data4.w >> 16));
     return node;
 }
 
@@ -255,7 +260,10 @@ LightPathNodePacked compressLightPathNode(LightPathNode node)
                     node.nextIndex, node.instanceIndex);
     p.data2 = uint4(asuint(node.positionWS.x), asuint(node.positionWS.y), asuint(node.positionWS.z), node.primitiveIndex);
     p.data3 = asuint(float4(node.barycentrics.x, node.barycentrics.y, node.pdfForwardMIS, node.pdfBackwardMIS));
-    p.data4 = asuint(float4(0, node.iorPrevious, node.iorCurrent, 0));
+    p.data4 = asuint(float4(f32tof16(node.iorPrevious) | f32tof16(node.iorCurrent) << 16,
+    f32tof16(node.previousNodeDirWS.x) | f32tof16(node.previousNodeDirWS.y) << 16,
+    f32tof16(node.previousNodeDirWS.z) | f32tof16(node.previousNodeNormalWS.x) << 16,
+    f32tof16(node.previousNodeNormalWS.y) | f32tof16(node.previousNodeNormalWS.z) << 16));
     
     return p;
 }

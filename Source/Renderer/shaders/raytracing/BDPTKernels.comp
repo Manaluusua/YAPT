@@ -28,7 +28,7 @@ RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u7, space3);
 #endif
 
 //#define LIGHT_RAYS_STAGE //DONT FORGET TO REMOVE/DISABLE
-#ifdef LIGHT_RAYS_STAGE
+//#ifdef LIGHT_RAYS_STAGE
 
 [numthreads(64, 1, 1)]
 void traceLightRays( uint3 groupId : SV_GroupID,
@@ -53,7 +53,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     RandomSampler rand;
     rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
-
+    float3 previousNormal = 0;
 	//sample light
 	{
 		float4 randomSamples0 = rand.getRandom4();
@@ -83,12 +83,15 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
 		nodes[0].iorPrevious = IOR_DEFAULT;
 		nodes[0].iorCurrent = IOR_DEFAULT;
+        nodes[0].previousNodeDirWS  = 0;
+        nodes[0].previousNodeNormalWS = previousNormal;
 		pdfForward = lightDirPDF;
 
 		rayDir = lightDir;
 		rayOrigin = lightPos + getRaySpawnOffsetUsingNormal(lightNormal, lightDir);
 
 		radiance = radiance * abs(dot(lightNormal, lightDir)) / (lightSamplePDF * lightPosPDF * lightDirPDF);
+        previousNormal = lightNormal;
 		
     }
 
@@ -181,6 +184,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
 			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
 			nodes[currentNodeIndex].flags = lightNodeFlags;
+            nodes[currentNodeIndex].previousNodeDirWS = -rayDir;
+            nodes[currentNodeIndex].previousNodeNormalWS = previousNormal;
+            previousNormal = normalWS;
 			
 			bool isDiffuseBounce;
 			bool sampledDeltaDir;
@@ -256,10 +262,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
 		header.sampledWavelength = g_spectralMainSampleWavelength;
 		storeLightPathHeader(headerOffset, header);
-	
 	}
-	
-
 }
 
 #endif
@@ -302,7 +305,7 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 
 
 
-#ifdef CAMERA_RAYS_STAGE
+//#ifdef CAMERA_RAYS_STAGE
 
 
 
@@ -403,7 +406,7 @@ struct CameraVertexContext
 
 struct LightVertexContext
 {
-    float3 prevNodePosWS;
+    float3 prevNodeDirWS;
     float previousPDFForwardMIS;
     float3 prevNodeNormalWS;
     uint originatingNodeFlags;
@@ -866,6 +869,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                     uint lightNodeIndex = lightVertexIndex;
                     LightPathNode lightNode = g_localNodes[lightNodeIndex].node;
 					bool lightNodeIsDelta = (lightNode.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
+					
+                    lightVertexContext.prevNodeNormalWS = lightNode.previousNodeNormalWS;
+                    lightVertexContext.prevNodeDirWS = lightNode.previousNodeDirWS;
 
 					//TODO: no point trying to connect if light is delta
                     if(!lightNodeIsDelta)
@@ -890,8 +896,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					
 					
 
-                    lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
-                    lightVertexContext.prevNodePosWS = lightNode.positionWS;
+                    
                     lightVertexContext.previousPDFForwardMIS = lightNode.pdfForwardMIS;
 					if(lightVertexIndex == 0)
                     {
