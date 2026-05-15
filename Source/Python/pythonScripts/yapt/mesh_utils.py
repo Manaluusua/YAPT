@@ -252,8 +252,6 @@ class MeshLoader:
         return buf, VertexBufferLayout(mesh_attrs, stride)
 
     def _create_and_upload_from_gltf_impl(self, gltf, mesh_name, gltf_mesh, verbose = False):
-        print(f"loading {mesh_name}")
-
         if not self._validate_mesh(mesh_name, gltf_mesh):
             return None
 
@@ -323,8 +321,8 @@ class MeshLoader:
 
         layout = []
         buffers = []
-
-        use16BitIndices = len(vertices) < 0xFFFF
+        ##TODO: should we change indices to 32 bit if we deem that they can't address all the vertices? for now use what is in gltf
+        use16BitIndices = faces.itemsize == 2  #len(vertices) < 0xFFFF
         vertex_count = len(vertices)
         usage = ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER | ResourceUsageBits.ACCELERATION_STRUCTURE_BUILD_INPUT
 
