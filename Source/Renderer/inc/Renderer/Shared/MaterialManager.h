@@ -4,7 +4,7 @@
 #include <Renderer/Material.h>
 #include <Common/BubbleArray.h>
 #include <Renderer/Shared/MaterialInternal.h>
-
+#include <Common/GrowingMultiProducerPendingList.h>
 namespace YAPT
 {
 	
@@ -63,7 +63,7 @@ namespace YAPT
 
 		BubbleArray<MaterialInternal> m_materials;
 
-		std::vector<MaterialProxy*> m_changedMaterials;
+		GrowingMultiProducerPendingList<MaterialProxy*> m_changedMaterials;
 
 	};
 }

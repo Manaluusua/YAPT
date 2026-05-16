@@ -44,6 +44,7 @@ namespace YAPT
 	void BindlessTextureManager::flush()
 	{
 		m_indexAllocator->flush();
+		m_resourceUtility.flush();
 	}
 
 	void BindlessTextureManager::textureToBeCreated(TextureDesc& d)

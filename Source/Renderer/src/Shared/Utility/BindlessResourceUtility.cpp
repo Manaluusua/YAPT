@@ -7,7 +7,8 @@ namespace YAPT
 		:m_gfxHandle(YAPT_NULL_HANDLE),
 		m_layout(YAPT_NULL_HANDLE),
 		m_pool(YAPT_NULL_HANDLE),
-		m_descriptorSet(YAPT_NULL_HANDLE)
+		m_descriptorSet(YAPT_NULL_HANDLE),
+		m_numberOfPendingUpdates(0)
 	{
 
 	}
@@ -24,7 +25,15 @@ namespace YAPT
 		m_layout = Gfx::createDescriptorSetLayout(m_gfxHandle, &m_bindingDef, 1, DESCRIPTORSETLAYOUTFLAG_BINDINGS_MAY_ALIAS);
 		m_pool = Gfx::createDescriptorSetPool(m_gfxHandle, m_layout, 1);
 		m_descriptorSet = Gfx::getDescriptorSet(m_pool, 0);
-		
+		m_numberOfPendingUpdates = 0;
+		m_pendingUpdates.resize(numberOfEntries);
+		m_handles.resize(numberOfEntries);
+	}
+
+	void BindlessResourceUtility::flush()
+	{
+		Gfx::updateDescriptorSet(m_gfxHandle, m_descriptorSet, m_pendingUpdates.data(), m_numberOfPendingUpdates);
+		m_numberOfPendingUpdates = 0;
 	}
 
 	void BindlessResourceUtility::deinit()
@@ -39,29 +48,4 @@ namespace YAPT
 			m_layout = YAPT_NULL_HANDLE;
 		}
 	}
-	
-	void BindlessResourceUtility::updateDescriptor(uint32_t index, TextureViewHandle handle)
-	{
-		TextureViewHandle h = handle;
-
-		DescriptorSetUpdate update;
-		update.descriptor = DescriptorPtr(&h);
-		update.descriptorCount = 1;
-		update.dstArrayElement = index;
-		update.dstBinding = m_bindingDef.bindingIndex;
-		Gfx::updateDescriptorSet(m_gfxHandle, m_descriptorSet, &update, 1);
-	}
-	void BindlessResourceUtility::updateDescriptor(uint32_t index, BufferViewHandle handle)
-	{
-		BufferViewHandle h = handle;
-
-		DescriptorSetUpdate update;
-		update.descriptor = DescriptorPtr(&h);
-		update.descriptorCount = 1;
-		update.dstArrayElement = index;
-		update.dstBinding = m_bindingDef.bindingIndex;
-		 
-		Gfx::updateDescriptorSet(m_gfxHandle, m_descriptorSet, &update, 1);
-	}
-	 
 }

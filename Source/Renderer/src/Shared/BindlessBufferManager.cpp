@@ -7,6 +7,7 @@ namespace YAPT
 	BindlessBufferManager::BindlessBufferManager(CRenderer* renderer)
 		:m_renderer(renderer),
 		m_indexAllocator(nullptr)
+
 	{
 
 	}
@@ -44,6 +45,7 @@ namespace YAPT
 	void BindlessBufferManager::flush()
 	{
 		m_indexAllocator->flush();
+		m_resourceUtility.flush();
 	}
 
 	void BindlessBufferManager::bufferToBeCreated(BufferDesc& d)

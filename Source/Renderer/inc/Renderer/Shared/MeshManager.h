@@ -2,6 +2,7 @@
 
 #include <Renderer/Mesh.h>
 #include <Common/BubbleArray.h>
+#include <Common/GrowingMultiProducerPendingList.h>
 #include <Renderer/Buffer.h>
 #include <Common/RCObjectPtr.h>
 #include <Renderer/Shared/MeshInternal.h>
@@ -74,7 +75,7 @@ namespace YAPT
 
 		BubbleArray<MeshInternal> m_meshes;
 
-		std::vector<MeshProxy*> m_changedMeshes;
+		GrowingMultiProducerPendingList<MeshProxy*> m_changedMeshes;
 
 		XXH64_state_t* m_hashState;
 		size_t m_totalSubmeshCount;

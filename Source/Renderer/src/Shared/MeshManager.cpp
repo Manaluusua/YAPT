@@ -5,7 +5,8 @@ namespace YAPT
 {
 	MeshManager::MeshManager(GfxApiHandle gfx)
 		:m_gfx(gfx),
-		m_totalSubmeshCount(0)
+		m_totalSubmeshCount(0),
+		m_changedMeshes(256)
 	{
 		m_hashState = XXH64_createState();
 	}
@@ -18,7 +19,6 @@ namespace YAPT
 	{
 		MeshProxy* mesh =  new MeshProxy(this, layouts, numberOfVertexBufferLayouts, vertexCount, submeshCount, use16BitIndices);
 		mesh->_meshState = MeshProxy::MESHSTATE_INCOMPLETE;
-		m_totalSubmeshCount += submeshCount;
 		return mesh;
 	}
 	void MeshManager::meshReleased(MeshProxy* obj)
@@ -34,9 +34,11 @@ namespace YAPT
 		m_modifiedEntries.clear();
 		m_destroyedEntries.clear();
 
-		for (size_t i = 0; i < m_changedMeshes.size(); ++i)
+		MeshProxy** proxies = m_changedMeshes.getAll();
+
+		for (size_t i = 0; i < m_changedMeshes.count(); ++i)
 		{
-			MeshProxy* meshImpl = m_changedMeshes[i];
+			MeshProxy* meshImpl = proxies[i];
 			size_t meshState = meshImpl->_meshState;
 			//check cornercase of being created and destroyed in the same frame
 			if (((meshState & MeshProxy::MESHSTATE_CREATED) != 0 || (meshState & MeshProxy::MESHSTATE_INCOMPLETE) != 0) && (meshState & MeshProxy::MESHSTATE_DESTROYED) != 0)
@@ -51,6 +53,7 @@ namespace YAPT
 				MeshInternal& mesh = m_meshes.getDataEntryWithId(meshImpl->_id);
 				replicateChanges(meshImpl, mesh);
 				m_createdEntries.push_back(meshImpl->_id);
+				m_totalSubmeshCount += meshImpl->getSubmeshCount();
 			}
 			else if ((meshState & MeshProxy::MESHSTATE_MODIFIED) != 0)
 			{
@@ -63,6 +66,7 @@ namespace YAPT
 			{
 				m_destroyedEntries.push_back(meshImpl->_id);
 				destroyMeshEntry(meshImpl);
+				m_totalSubmeshCount -= meshImpl->getSubmeshCount();
 				delete meshImpl;
 				meshImpl = nullptr;
 			}
@@ -89,7 +93,7 @@ namespace YAPT
 		{
 			if (obj->hasAllRequiredBuffers())
 			{
-				m_changedMeshes.push_back(obj);
+				*m_changedMeshes.add(1) = obj;
 				obj->_meshState = MeshProxy::MESHSTATE_CREATED;
 			}
 		}
@@ -106,7 +110,7 @@ namespace YAPT
 	{
 		if (obj->_meshState == MeshProxy::MESHSTATE_NOCHANGES)
 		{
-			m_changedMeshes.push_back(obj);
+			*m_changedMeshes.add(1) = obj;
 		}
 	}
 

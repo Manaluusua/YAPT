@@ -3,6 +3,7 @@
 namespace YAPT
 {
 	MaterialManager::MaterialManager()
+		:m_changedMaterials(256)
 	{
 
 	}
@@ -15,7 +16,7 @@ namespace YAPT
 	{
 		MaterialProxy* mat = new MaterialProxy(this);
 		mat->_materialState = MaterialProxy::MATERIALSTATE_CREATED;
-		m_changedMaterials.push_back(mat);
+		*m_changedMaterials.add(1) = mat;
 		return mat;
 	}
 	void MaterialManager::materialReleased(MaterialProxy* obj)
@@ -31,10 +32,10 @@ namespace YAPT
 		m_createdEntries.clear();
 		m_modifiedEntries.clear();
 		m_destroyedEntries.clear();
-
-		for (size_t i = 0; i < m_changedMaterials.size(); ++i)
+		MaterialProxy** proxies = m_changedMaterials.getAll();
+		for (size_t i = 0; i < m_changedMaterials.count(); ++i)
 		{
-			MaterialProxy* mat = m_changedMaterials[i];
+			MaterialProxy* mat = proxies[i];
 			size_t matState = mat->_materialState;
 			//check cornercase of being created and destroyed in the same frame
 			if ((matState & MaterialProxy::MATERIALSTATE_CREATED) != 0 && (matState & MaterialProxy::MATERIALSTATE_DESTROYED) != 0)
@@ -54,8 +55,6 @@ namespace YAPT
 				replicateChanges(mat, matEntry);
 				m_modifiedEntries.push_back(mat->_id);
 			}
-
-			
 
 			if ((matState & MaterialProxy::MATERIALSTATE_DESTROYED) != 0)
 			{
@@ -101,7 +100,7 @@ namespace YAPT
 	{
 		if (obj->_materialState == MaterialProxy::MATERIALSTATE_NOCHANGES)
 		{
-			m_changedMaterials.push_back(obj);
+			*m_changedMaterials.add(1) = obj;
 		}
 	}
 
