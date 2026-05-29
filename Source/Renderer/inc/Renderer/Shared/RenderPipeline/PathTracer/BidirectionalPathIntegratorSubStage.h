@@ -56,11 +56,14 @@ namespace YAPT
 
 		
 		
-		void executePrepareFrameDataNode(const RenderGraphNodeExecutionContext& exec);
+		void executeResetCounters(const RenderGraphNodeExecutionContext& exec);
 		void executeCameraPathPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathSortPass(const RenderGraphNodeExecutionContext& exec);
 		void executeLightPathPass(const RenderGraphNodeExecutionContext& exec);
-		
+
+		void executePreparePureLightPathResources(const RenderGraphNodeExecutionContext& exec);
+		void executeCalculatePureLightPaths(const RenderGraphNodeExecutionContext& exec);
+		void executeAccumulatePureLightPaths(const RenderGraphNodeExecutionContext& exec);
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
@@ -69,8 +72,8 @@ namespace YAPT
 		BindlessMaterialManager* m_materialMngr;
 		BindlessMeshManager* m_meshMngr;
 
-		ComputeNode* m_preparePerFrameDataNode;
-		PostProcessComputePassUtility m_prepareNodeUtility;
+		ComputeNode* m_resetCountersNode;
+		PostProcessComputePassUtility m_resetCountersNodeUtility;
 
 		ComputeNode* m_lightPathsNode;
 		PostProcessComputePassUtility m_lightPathHelperUtility;
@@ -81,14 +84,24 @@ namespace YAPT
 		ComputeNode* m_cameraPathsNode;
 		PostProcessComputePassUtility m_cameraPathHelperUtility;
 
+		ComputeNode* m_initPureLightPathResourcesNode;
+		PostProcessComputePassUtility m_initPureLightPathsUtility;
+
+		ComputeNode* m_calculatePureLightPathResourcesNode;
+		PostProcessComputePassUtility m_calculatePureLightPathsUtility;
+
+		ComputeNode* m_accumulatePureLightPathResourcesNode;
+		PostProcessComputePassUtility m_accumulatePathHelperUtility;
+
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
 		
 
 		DynamicSizeGpuBufferHelper<uint32_t> m_lightPathHeadersGPU;
 		DynamicSizeGpuBufferHelper<LightPathNodePacked> m_lightPathsGPU[2];
-		FixedSizeGpuBufferHelper<uvec3> m_countersGPU;
+		FixedSizeGpuBufferHelper<uvec4> m_countersGPU;
 
-		
+		DynamicSizeGpuBufferHelper<uvec2> m_pureLightPathHeadersGPU;
+		DynamicSizeGpuBufferHelper<uvec4> m_pureLightPathNodesGPU;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

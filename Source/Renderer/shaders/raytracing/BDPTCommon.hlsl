@@ -153,16 +153,21 @@ RaytracingAccelerationStructure g_accelerationStructure : register(t1, space3);
 #ifdef WRITABLE_LIGHT_DATA
 RWByteAddressBuffer g_lightPathHeaders : register(u2, space3);
 RWStructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(u3, space3);
-RWByteAddressBuffer g_counters : register(u4, space3);
 #else
 ByteAddressBuffer g_lightPathHeaders : register(t2, space3);
 StructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(t3, space3);
+#endif
+
+#ifdef WRITABLE_COUNTERS
+RWByteAddressBuffer g_counters : register(u4, space3);
+#else
 ByteAddressBuffer g_counters : register(t4, space3);
 #endif
 
 #define COUNTER_LIGHT_HEADERS_INDEX 0
 #define COUNTER_LIGHT_VERTICES_INDEX 1
 #define COUNTER_LIGHT_VERTICES_INDEX_SORT 2
+#define COUNTER_LIGHT_VERTICES_PURE_NODE_INDEX 3
 
 #define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 16
 

@@ -31,6 +31,8 @@ namespace YAPT
 		m_lightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_lightPathsGPU{ RESOURCE_USAGE_STORAGE_BUFFER, RESOURCE_USAGE_STORAGE_BUFFER },
 		m_countersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true),
+		m_pureLightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
+		m_pureLightPathNodesGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
 		m_maxVerticesPerCameraPath(MAX_VERTICES_PER_CAMERA_PATH),
 		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
@@ -51,150 +53,271 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
-		RenderGraphNodeSlotDefinition slotdefsPrepare[] =
+		//RESET COUNTERS
 		{
+			RenderGraphNodeSlotDefinition slotdefsResetCounters[] =
 			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-		};
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+			};
+			m_resetCountersNode = m_graph->createComputeNode(1, slotdefsResetCounters, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeResetCounters(execContext);
+				},
+				this, "InitCountersNode");
+		}
 
-		RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
+		//GENERATE LIGHT PATHS
 		{
+			RenderGraphNodeSlotDefinition slotdefsLightPaths[] =
 			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-		};
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+			};
+			m_lightPathsNode = m_graph->createComputeNode(countOf(slotdefsLightPaths), slotdefsLightPaths, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
+				},
+				this, "LightPathsNode");
+		}
 
-		RenderGraphNodeSlotDefinition slotdefsSortLightPaths[] =
+		//SORT LIGHT PATHS
 		{
+			RenderGraphNodeSlotDefinition slotdefsSortLightPaths[] =
 			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE)
-			},
-		};
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+			};
 
-		RenderGraphNodeSlotDefinition slotdefsCameraRaysNode[] =
-		{ 
-			{
-				ResourceDimension::TEXTURE_2D,
-				PathIntegratorSubStage::SampleImageFormat,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_READ_WRITE,
-				SHADERSTAGE_COMPUTE,
-				1,
-				1
-			},
-			{
-				ResourceDimension::TEXTURE_2D,
-				ResourceFormat::RGBA32_UINT,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE,
-				1,
-				1
-			},
-			{
-				ResourceDimension::TEXTURE_2D,
-				ResourceFormat::RGBA32_UINT,
-				RESOURCE_USAGE_STORAGE_TEXTURE,
-				ACCESS_FLAGS_WRITE,
-				SHADERSTAGE_COMPUTE,
-				1,
-				1
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ,
-				SHADERSTAGE_COMPUTE)
-			},
-			{
-				RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
-				ACCESS_FLAGS_READ,
-				SHADERSTAGE_COMPUTE)
-			}
-		};
+			m_lightPathsSortNode = m_graph->createComputeNode(countOf(slotdefsSortLightPaths), slotdefsSortLightPaths, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathSortPass(execContext);
+				},
+				this, "LightPathsSortNode");
+		}
 
-		m_preparePerFrameDataNode = m_graph->createComputeNode(1, slotdefsPrepare, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+		//GENERATE CAMERA PATHS & CONNECT
+		{
+			RenderGraphNodeSlotDefinition slotdefsCameraRaysNode[] =
 			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executePrepareFrameDataNode(execContext);
-			},
-			this, "InitCountersNode");
+				{
+					ResourceDimension::TEXTURE_2D,
+					PathIntegratorSubStage::SampleImageFormat,
+					RESOURCE_USAGE_STORAGE_TEXTURE,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE,
+					1,
+					1
+				},
+				{
+					ResourceDimension::TEXTURE_2D,
+					ResourceFormat::RGBA32_UINT,
+					RESOURCE_USAGE_STORAGE_TEXTURE,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE,
+					1,
+					1
+				},
+				{
+					ResourceDimension::TEXTURE_2D,
+					ResourceFormat::RGBA32_UINT,
+					RESOURCE_USAGE_STORAGE_TEXTURE,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE,
+					1,
+					1
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				}
+			};
+			m_cameraPathsNode = m_graph->createComputeNode(countOf(slotdefsCameraRaysNode), slotdefsCameraRaysNode, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
+				},
+				this, "CameraPathsNode");
+		}
 
-		m_lightPathsNode = m_graph->createComputeNode(countOf(slotdefsLightPaths), slotdefsLightPaths, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+		//"PURE" LIGHT PATHS, RESET RESOURCES
+		{
+			RenderGraphNodeSlotDefinition slotdefsPreparePureLightPaths[] =
 			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathPass(execContext);
-			},
-			this, "LightPathsNode");
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_WRITE,
+					SHADERSTAGE_COMPUTE)
+				}
+			};
 
-		m_lightPathsSortNode = m_graph->createComputeNode(countOf(slotdefsSortLightPaths), slotdefsSortLightPaths, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+			m_initPureLightPathResourcesNode = m_graph->createComputeNode(countOf(slotdefsPreparePureLightPaths), slotdefsPreparePureLightPaths, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executePreparePureLightPathResources(execContext);
+				},
+				this, "InitPureLightPathResources");
+		}
+
+		//"PURE" LIGHT PATHS CALCULATE
+		{
+			RenderGraphNodeSlotDefinition slotdefsCalculatePureLightPaths[] =
 			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeLightPathSortPass(execContext);
-			},
-			this, "LightPathsSortNode");
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+			};
 
-		m_cameraPathsNode = m_graph->createComputeNode(countOf(slotdefsCameraRaysNode), slotdefsCameraRaysNode, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
-			{
-				static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCameraPathPass(execContext);
-			},
-			this, "CameraPathsNode");
-
-		m_graph->createEdge(m_preparePerFrameDataNode, 0, m_lightPathsNode, 2);
+			m_calculatePureLightPathResourcesNode = m_graph->createComputeNode(countOf(slotdefsCalculatePureLightPaths), slotdefsCalculatePureLightPaths, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeCalculatePureLightPaths(execContext);
+				},
+				this, "CalculatePureLightPathResources");
+		}
 		
-		m_graph->createEdge(m_lightPathsNode, 0, m_lightPathsSortNode, 0);
-		m_graph->createEdge(m_lightPathsNode, 1, m_lightPathsSortNode, 1);
-		m_graph->createEdge(m_lightPathsNode, 2, m_lightPathsSortNode, 2);
+		//"PURE" LIGHT PATHS ACCUMULATE
+		{
+			RenderGraphNodeSlotDefinition slotdefsAccumulatePureLightPaths[] =
+			{
+				{
+					ResourceDimension::TEXTURE_2D,
+					PathIntegratorSubStage::SampleImageFormat,
+					RESOURCE_USAGE_STORAGE_TEXTURE,
+					ACCESS_FLAGS_READ_WRITE,
+					SHADERSTAGE_COMPUTE,
+					1,
+					1
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+				{
+					RenderGraphBufferSlotDefinition(RESOURCE_USAGE_STORAGE_BUFFER,
+					ACCESS_FLAGS_READ,
+					SHADERSTAGE_COMPUTE)
+				},
+			};
+			m_accumulatePureLightPathResourcesNode = m_graph->createComputeNode(countOf(slotdefsAccumulatePureLightPaths), slotdefsAccumulatePureLightPaths, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<BidirectionalPathIntegratorSubStage*>(usrData)->executeAccumulatePureLightPaths(execContext);
+				},
+				this, "AccumulatePureLightPathResources");
+		}
+		
 
-		m_graph->createEdge(m_lightPathsSortNode, 0, m_cameraPathsNode, 3);
-		m_graph->createEdge(m_lightPathsSortNode, 3, m_cameraPathsNode, 4);
-		m_graph->createEdge(m_lightPathsSortNode, 2, m_cameraPathsNode, 5);
+
+		m_graph->createEdge(m_resetCountersNode, 0, m_lightPathsNode, 2); //counters
+
+		m_graph->createEdge(m_initPureLightPathResourcesNode, 0, m_calculatePureLightPathResourcesNode, 0); //pure light path headers
+		
+		m_graph->createEdge(m_lightPathsNode, 0, m_lightPathsSortNode, 0); //light node headers
+		m_graph->createEdge(m_lightPathsNode, 1, m_lightPathsSortNode, 1); //light nodes, unsorted
+		m_graph->createEdge(m_lightPathsNode, 2, m_lightPathsSortNode, 2); //counters
+
+		m_graph->createEdge(m_lightPathsSortNode, 0, m_cameraPathsNode, 3); //light path headers
+		m_graph->createEdge(m_lightPathsSortNode, 3, m_cameraPathsNode, 4); //light nodes, sorted
+		m_graph->createEdge(m_lightPathsSortNode, 2, m_cameraPathsNode, 5); //counters
+
+		m_graph->createEdge(m_cameraPathsNode, 5, m_calculatePureLightPathResourcesNode, 1); // counters
+		m_graph->createEdge(m_cameraPathsNode, 3, m_calculatePureLightPathResourcesNode, 3); //light path headers
+		m_graph->createEdge(m_cameraPathsNode, 4, m_calculatePureLightPathResourcesNode, 4); //light path nodes, sorted
+
+		m_graph->createEdge(m_cameraPathsNode, 0, m_accumulatePureLightPathResourcesNode, 0); //sample target tex
+		m_graph->createEdge(m_calculatePureLightPathResourcesNode, 0, m_accumulatePureLightPathResourcesNode, 1); //pure light path headers
+		m_graph->createEdge(m_calculatePureLightPathResourcesNode, 2, m_accumulatePureLightPathResourcesNode, 2); //pure light path nodes
 	}
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
-		m_prepareNodeUtility.deinit();
+		m_resetCountersNodeUtility.deinit();
 		m_cameraPathHelperUtility.deinit();
 		m_lightPathHelperUtility.deinit();
 		m_lightPathSortHelperUtility.deinit();
+
+		m_initPureLightPathsUtility.deinit();
+		m_calculatePureLightPathsUtility.deinit();
+		m_accumulatePathHelperUtility.deinit();
+
 		m_lightPathHeadersGPU.free();
+		m_pureLightPathHeadersGPU.free();
+		m_pureLightPathNodesGPU.free();
+
+		
+
 		for (size_t i = 0; i < 2; ++i)
 		{
 			m_lightPathsGPU[i].free();
@@ -249,9 +372,9 @@ namespace YAPT
 		};
 
 		{
-			const ShaderLoader::ShaderPipelineInfo* shd = loader->getShaderPipeline("prepareResourcesBDPT");
-			m_prepareNodeUtility.init(m_renderer, shd, nullptr, 0, nullptr, 0);
-			m_prepareNodeUtility.createPipelineState();
+			const ShaderLoader::ShaderPipelineInfo* shd = loader->getShaderPipeline("resetCountersBDPT");
+			m_resetCountersNodeUtility.init(m_renderer, shd, nullptr, 0, nullptr, 0);
+			m_resetCountersNodeUtility.createPipelineState();
 			
 		}
 		
@@ -274,6 +397,24 @@ namespace YAPT
 			m_cameraPathHelperUtility.createPipelineState();
 		}
 
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath0 = loader->getShaderPipeline("initializePureLightPathsBDPT");
+			m_initPureLightPathsUtility.init(m_renderer, pureLightPath0, nullptr);
+			m_initPureLightPathsUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath1 = loader->getShaderPipeline("calculatePureLightPathsBDPT");
+			m_calculatePureLightPathsUtility.init(m_renderer, pureLightPath1, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_calculatePureLightPathsUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath2 = loader->getShaderPipeline("accumulatePureLightPathsBDPT");
+			m_accumulatePathHelperUtility.init(m_renderer, pureLightPath2, nullptr);
+			m_accumulatePathHelperUtility.createPipelineState();
+		}
+
 		m_constantsGPU.init(data.renderGraphLifetimeResources);
 
 		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
@@ -282,6 +423,9 @@ namespace YAPT
 			m_lightPathsGPU[i].init(m_renderer->getGfxHandle());
 		}
 		m_countersGPU.init(data.renderGraphLifetimeResources, "LightPathCountersBuffer");
+
+		m_pureLightPathHeadersGPU.init(m_renderer->getGfxHandle());
+		m_pureLightPathNodesGPU.init(m_renderer->getGfxHandle());
 
 		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 
@@ -323,6 +467,9 @@ namespace YAPT
 			RenderGraphResourceId lightPathsNodesId1 = m_lightPathsSortNode->getRenderGraphResourceIdForSlot(3);
 			RenderGraphResourceId countersBufferId = m_lightPathsNode->getRenderGraphResourceIdForSlot(2);
 
+			RenderGraphResourceId pureLightPathHeadersId = m_calculatePureLightPathResourcesNode->getRenderGraphResourceIdForSlot(0);
+			RenderGraphResourceId pureLightPathNodesId = m_calculatePureLightPathResourcesNode->getRenderGraphResourceIdForSlot(2);
+
 			uint32_t maxLightVertices = min(m_maxVerticesPerLightPath, MAX_LIGHT_PATH_VERTICES_HARD_LIMIT);
 
 			uvec2 lightPathCountPerDim = (m_renderResolution + m_pixelsPerLightPath - uvec2(1, 1)) / m_pixelsPerLightPath;
@@ -340,12 +487,16 @@ namespace YAPT
 				m_lightPathsGPU[i].allocate(allocatedVertices, "lightPathNodes");
 			}
 
-			
+			m_pureLightPathHeadersGPU.allocate(m_renderResolution.x * m_renderResolution.y, "pureLightPathHeaders");
+			m_pureLightPathNodesGPU.allocate(allocatedVertices, "pureLightPathNodes");
 
 			m_graph->setRenderGraphResourceBuffer(lightPathHeadersId, m_lightPathHeadersGPU.getBufferHandle());
 			m_graph->setRenderGraphResourceBuffer(lightPathsNodesId0, m_lightPathsGPU[0].getBufferHandle());
 			m_graph->setRenderGraphResourceBuffer(lightPathsNodesId1, m_lightPathsGPU[1].getBufferHandle());
 			m_graph->setRenderGraphResourceBuffer(countersBufferId, m_countersGPU.getBufferHandle());
+
+			m_graph->setRenderGraphResourceBuffer(pureLightPathHeadersId, m_pureLightPathHeadersGPU.getBufferHandle());
+			m_graph->setRenderGraphResourceBuffer(pureLightPathNodesId, m_pureLightPathNodesGPU.getBufferHandle());
 		}
 
 	}
@@ -389,7 +540,7 @@ namespace YAPT
 		switch (resource)
 		{
 		case OutputResource::COLOR:
-			node = m_cameraPathsNode;
+			node = m_accumulatePureLightPathResourcesNode;
 			slotOut = 0;
 			break;
 		case OutputResource::MATERIAL_PARAMS0:
@@ -407,23 +558,20 @@ namespace YAPT
 
 	void BidirectionalPathIntegratorSubStage::sceneChanged(const PathIntegratorSubStage::SceneData& sceneData)
 	{
-
 		m_raytraceCommon.sceneChanged(sceneData);
-
-		
 	}
 	
 	
 	
-	void BidirectionalPathIntegratorSubStage::executePrepareFrameDataNode(const RenderGraphNodeExecutionContext& exec)
+	void BidirectionalPathIntegratorSubStage::executeResetCounters(const RenderGraphNodeExecutionContext& exec)
 	{
 		BufferViewHandle counters = m_countersGPU.getView();
 		DescriptorSetUpdate updates[] = {
 			{0, 0, 1, DescriptorPtr(&counters)},
 		};
-		m_prepareNodeUtility.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
+		m_resetCountersNodeUtility.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 
-		m_prepareNodeUtility.dispatch(exec.cmdBuffer, 1, 1, 1);
+		m_resetCountersNodeUtility.dispatch(exec.cmdBuffer, 1, 1, 1);
 		
 	}
 
@@ -539,5 +687,17 @@ namespace YAPT
 
 	}
 
+	void BidirectionalPathIntegratorSubStage::executePreparePureLightPathResources(const RenderGraphNodeExecutionContext& exec)
+	{
+
+	}
+	void BidirectionalPathIntegratorSubStage::executeCalculatePureLightPaths(const RenderGraphNodeExecutionContext& exec)
+	{
+
+	}
+	void BidirectionalPathIntegratorSubStage::executeAccumulatePureLightPaths(const RenderGraphNodeExecutionContext& exec)
+	{
+
+	}
 
 }

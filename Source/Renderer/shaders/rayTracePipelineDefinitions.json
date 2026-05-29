@@ -37,13 +37,13 @@
 				}
 			]
 		},
-		"prepareResourcesBDPT": {
+		"resetCountersBDPT": {
 			"stages": [
 				{
 					"type": "compute",
 					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "prepareResources",
-					"defines": [ [ "PREPARE_RESOURCES", "1" ] ]
+					"entryPoint": "resetCounters",
+					"defines": [ [ "RESET_COUNTERS", "1" ] ]
 				}
 			]
 		},
@@ -74,6 +74,36 @@
 					"sourceFile": "raytracing/BDPTKernels.comp",
 					"entryPoint": "traceLightRays",
 					"defines": [ [ "LIGHT_RAYS_STAGE", "1" ] ]
+				}
+			]
+		},
+		"initializePureLightPathsBDPT": {
+			"stages": [
+				{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "initializePureLightPathResources",
+					"defines": [ [ "INITIALIZE_PURE_LIGHT_PATH_STRUCTURES", "1" ] ]
+				}
+			]
+		},
+		"calculatePureLightPathsBDPT": {
+			"stages": [
+				{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "calculatePureLightPaths",
+					"defines": [ [ "CALCULATE_PURE_LIGHT_PATHS", "1" ] ]
+				}
+			]
+		},
+		"accumulatePureLightPathsBDPT": {
+			"stages": [
+				{
+					"type": "compute",
+					"sourceFile": "raytracing/BDPTKernels.comp",
+					"entryPoint": "accumulatePureLightPaths",
+					"defines": [ [ "ACCUMULATE_PURE_LIGHT_PATHS", "1" ] ]
 				}
 			]
 		},

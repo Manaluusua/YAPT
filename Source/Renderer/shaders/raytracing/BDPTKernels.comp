@@ -1,13 +1,13 @@
 
-#ifdef PREPARE_RESOURCES //TODO: move these utilities to simpler setup
+#ifdef RESET_COUNTERS //TODO: move these utilities to simpler setup
 RWByteAddressBuffer counters : register(u0, space0);
 [numthreads(1, 1, 1)]
-void prepareResources( uint3 groupId : SV_GroupID,
+void resetCounters( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	counters.Store(0, uint3(0, 0, 0));
+	counters.Store(0, uint4(0, 0, 0, 0));
 }
 
 #else
@@ -19,8 +19,12 @@ RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u7, space3);
 
 #elif LIGHT_RAYS_STAGE
 #define WRITABLE_LIGHT_DATA
+#define WRITABLE_COUNTERS
 #elif SORT_LIGHT_VERTICES_STAGE
 #define WRITABLE_LIGHT_DATA
+#define WRITABLE_COUNTERS
+#elif CALCULATE_PURE_LIGHT_PATHS
+#define WRITABLE_COUNTERS
 #endif
 
 #include "BDPTCommon.hlsl"
@@ -300,36 +304,6 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 }
 #endif
 
-
-#ifdef CALCULATE_PURE_LIGHT_PATHS
-
-[numthreads(64, 1, 1)]
-void calculatePureLightPaths( uint3 groupId : SV_GroupID,
-    uint3 groupThreadId : SV_GroupThreadID,
-    uint3 dispatchThreadId : SV_DispatchThreadID,
-    uint groupIndex : SV_GroupIndex )
-{
-	
-
-}
-#endif
-
-
-
-#ifdef ACCUMULATE_PURE_LIGHT_PATHS
-
-[numthreads(8, 8, 1)]
-void sortLightVertices( uint3 groupId : SV_GroupID,
-    uint3 groupThreadId : SV_GroupThreadID,
-    uint3 dispatchThreadId : SV_DispatchThreadID,
-    uint groupIndex : SV_GroupIndex )
-{
-
-}
-#endif
-
-
-
 #ifdef CAMERA_RAYS_STAGE
 
 
@@ -343,9 +317,6 @@ SpectralSamples ToSpectralSamples(float3 color)
 	s.setFromRGBUnbounded(color);
 	return s;
 }
-
-
-
 
 #define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
 
@@ -680,3 +651,168 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 #endif
 
+
+#if defined(CALCULATE_PURE_LIGHT_PATHS) || defined(ACCUMULATE_PURE_LIGHT_PATHS) || defined(INITIALIZE_PURE_LIGHT_PATH_STRUCTURES)
+
+struct PureLightPathNodeHeader
+{
+	uint first;
+	uint latest;
+};
+
+uint calculatePureLightPathHeaderOffset(uint2 texel)
+{
+	uint offset = texel.y * g_targetTexDimensions.x + texel.x;
+	offset *= 2 << 2;
+	return offset;
+}
+
+uint getPureLightPathNodeSizeInBytes()
+{
+	return 4 << 2;
+}
+
+#define INVALID_PURE_LIGHT_NODE_INDEX (0xFFFFFFFFu)
+
+#ifdef INITIALIZE_PURE_LIGHT_PATH_STRUCTURES
+RWByteAddressBuffer g_perTexelPureLightPathHeader : register(u5, space3);
+
+[numthreads(8, 8, 1)]
+void initializePureLightPathResources( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if(dispatchThreadId.x >= g_targetTexDimensions.x || dispatchThreadId.y >= g_targetTexDimensions.y) return;
+	uint offset = calculatePureLightPathHeaderOffset(dispatchThreadId.xy);
+	g_perTexelPureLightPathHeader.Store(offset, uint2(INVALID_PURE_LIGHT_NODE_INDEX, INVALID_PURE_LIGHT_NODE_INDEX));
+
+}
+#endif
+
+#ifdef CALCULATE_PURE_LIGHT_PATHS
+
+RWByteAddressBuffer g_perTexelPureLightPathHeader : register(u5, space3);
+RWByteAddressBuffer g_pureLightPathNodes : register(u6, space3);
+
+void addContribution(uint2 texel, float3 v)
+{
+	uint nodeIndex;
+	g_counters.InterlockedAdd( COUNTER_LIGHT_VERTICES_PURE_NODE_INDEX << 2 , 1, nodeIndex);
+
+	uint4 val = uint4(asuint(v.x), asuint(v.y), asuint(v.z), INVALID_PURE_LIGHT_NODE_INDEX);
+	g_pureLightPathNodes.Store(nodeIndex * getPureLightPathNodeSizeInBytes(), val);
+	
+	uint offset = calculatePureLightPathHeaderOffset(texel);
+	uint offsetToLatest = offset + 4;	
+
+	uint prevVal;
+	g_perTexelPureLightPathHeader.InterlockedExchange(offsetToLatest, nodeIndex, prevVal);
+	
+	if(prevVal == INVALID_PURE_LIGHT_NODE_INDEX)
+	{
+		g_perTexelPureLightPathHeader.Store(offset, nodeIndex);
+	}
+	else
+	{
+		uint previousNodeNextMemberOffset = prevVal * getPureLightPathNodeSizeInBytes() + (3 << 2);
+		g_pureLightPathNodes.Store(previousNodeNextMemberOffset, nodeIndex);
+	}
+	
+}
+
+bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
+{
+	
+}
+
+void calculateRadianceTowardsCamera(in LightPathNode node, float3 camPos, float4 radianceOut, float pdfOut)
+{
+	
+}
+
+bool checkVisibility(float3 from, float3 to)
+{
+
+}
+
+[numthreads(64, 1, 1)]
+void calculatePureLightPaths( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	uint headerCount = getLightPathsCount();
+	if(dispatchThreadId.x >= headerCount) return;
+
+	LightPathHeader header = getLightPathHeader(dispatchThreadId.x);
+	uint vCount = header.offsetAndCount.y;
+	if(vCount == 0) return;
+
+	g_spectralMainSampleWavelength = header.sampledWavelength;
+	bool rayHasDispersed = false;
+
+    for(uint i = 0; i < vCount; ++i)
+    {
+        LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x + i));
+		uint2 targetTexel;
+        if(getProjectedPositionOnScreen(node, targetTexel))
+		{
+			float4 radiance;
+			float pdf;
+			calculateRadianceTowardsCamera(node, g_cameraPosition, radiance, pdf);
+			if(any(contrib) && pdf > 0)
+			{
+				if(checkVisibility(node.positionWS, g_cameraPosition))
+				{
+					//TODO: MIS weight
+					float misWeight = 1;
+
+					float4 contrib = (radiance / pdf) * misWeight; 
+					SpectralSamples s;
+					s.fromFloat4(contrib);
+					float3 color = s.ToXYZ(rayHasDispersed);
+					addContribution(targetTexel, color);
+				}
+			}
+		}
+    }
+
+
+}
+#endif
+
+
+
+#ifdef ACCUMULATE_PURE_LIGHT_PATHS
+
+ByteAddressBuffer g_perTexelPureLightPathHeader : register(t5, space3);
+ByteAddressBuffer g_pureLightPathNodes : register(t6, space3);
+RWTexture2D<float4> g_outputColor : register(u7, space3);
+
+[numthreads(8, 8, 1)]
+void accumulatePureLightPaths( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if(dispatchThreadId.x >= g_targetTexDimensions.x || dispatchThreadId.y >= g_targetTexDimensions.y) return;
+	
+	uint offset = calculatePureLightPathHeaderOffset(dispatchThreadId.xy);
+	
+	uint next = g_perTexelPureLightPathHeader.Load(offset);
+	float3 accumulatedLightPathRadiance = 0;
+	
+	while(next != INVALID_PURE_LIGHT_NODE_INDEX)
+	{
+		uint4 node = g_pureLightPathNodes.Load4(next * getPureLightPathNodeSizeInBytes());
+		accumulatedLightPathRadiance += asfloat(node.xyz);
+		next = node.w;
+	}
+
+	g_outputColor[dispatchThreadId.xy] += float4(accumulatedLightPathRadiance, 0);
+}
+#endif
+
+
+#endif
