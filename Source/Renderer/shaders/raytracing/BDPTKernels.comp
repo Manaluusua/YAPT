@@ -411,6 +411,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	float pdfForwardCamera = 1;
 	uint camVertexIndex = 0;
 	uint pathCount = 0;
+	float deferredRISumCamera = 0;
 
 	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
 	{
@@ -482,7 +483,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
             {
                 float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
-				if(shouldPathContribute(camVertexIndex, 0))
+				if(shouldPathContribute(camVertexIndex + 1, 0))
 				{
 					totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
 					++pathCount;
@@ -495,6 +496,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
                 LightVertexContext lightVertexContext;
 				lightVertexContext.riSum = 0;
+				float deferredRISumLight = 0;
                 for (uint lightVertexIndex = 0; lightVertexIndex < g_lightPathHeader.offsetAndCount.y; ++lightVertexIndex)
                 {
                     uint lightNodeIndex = lightVertexIndex;
@@ -512,7 +514,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					
 						SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, nodeData, lightVertexIndex, lightVertexContext, rayState);
                     
-						if(shouldPathContribute(camVertexIndex, lightVertexIndex + 1))
+						if(shouldPathContribute(camVertexIndex + 1, lightVertexIndex + 1))
 						{
 							totalLight = totalLight + lightConnectionRadiance;
 							++pathCount;
@@ -520,8 +522,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					}
                     
 					float pdfRatio = calculatePDFRatio(lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
-					lightVertexContext.riSum *= pdfRatio;
-					lightVertexContext.riSum += pdfRatio;
+					lightVertexContext.riSum = deferredRISumLight;
+					deferredRISumLight *= pdfRatio;
+					deferredRISumLight += pdfRatio;
 					
 					
 
@@ -565,8 +568,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             {
                 float pdfBackwardPrevNode = sampledDeltaDir ? 1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
                 float ratio = calculatePDFRatio(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
-				camVertexContext.pdfRatioSum *= ratio;
-				camVertexContext.pdfRatioSum += ratio;
+				camVertexContext.pdfRatioSum = deferredRISumCamera;
+				
+				deferredRISumCamera *= ratio;
+				deferredRISumCamera += ratio;
+				
             }
 			
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
@@ -593,7 +599,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
-			if(shouldPathContribute(camVertexIndex, 0))
+			if(shouldPathContribute(camVertexIndex + 1, 0))
 			{
 #ifdef WHITE_FURNACE_TEST
 				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
@@ -723,18 +729,47 @@ void addContribution(uint2 texel, float3 v)
 
 bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
 {
-	
+    float4 texelSpace = mul(g_worldToViewTransform, float4(node.positionWS, 1));	
+    texelSpace = mul(g_viewToUVTransform, texelSpace);
+	texelSpace.xyz /= texelSpace.w;	
+
+	bool isValid = (texelSpace.x >= 0 && texelSpace.x <= 1) && (texelSpace.y >= 0 && texelSpace.y <= 1) && (texelSpace.z >= 0 && texelSpace.z <= 1);
+	texel = (uint2)floor(min(texelSpace.xy * g_targetTexDimensions.xy, g_targetTexDimensions.xy - 1));
+	return isValid;
 }
 
-void calculateRadianceTowardsCamera(in LightPathNode node, float3 camPos, float4 radianceOut, float pdfOut)
+void calculateRadianceTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
 {
-	
-}
+	bool lightNodeIsDelta = (nodeData.node.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
+	if(lightNodeIsDelta)
+	{
+		radianceOut = 0;
+		pdfForwardOut = 0;
+		pdfBackwardOut = 0;
+		return;
+	}
 
+	SpectralSamples s;
+	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, pdfForwardOut, pdfBackwardOut, s))
+	{
+		radianceOut = 0;
+		pdfForwardOut = 0;
+		pdfBackwardOut = 0;
+		return;
+	}
+
+	radianceOut = s.toFloat4();
+}
+	
 bool checkVisibility(float3 from, float3 to)
 {
-
+//TODO
+	return true;
 }
+
+
+                    
+
 
 [numthreads(64, 1, 1)]
 void calculatePureLightPaths( uint3 groupId : SV_GroupID,
@@ -747,28 +782,54 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 
 	LightPathHeader header = getLightPathHeader(dispatchThreadId.x);
 	uint vCount = header.offsetAndCount.y;
-	if(vCount == 0) return;
+	if(vCount <= 1) return;
 
 	g_spectralMainSampleWavelength = header.sampledWavelength;
 	bool rayHasDispersed = false;
-
-    for(uint i = 0; i < vCount; ++i)
+	float riSum = 0;
+	float deferredRISum = 0;
+	float3 prevPos;
+	float3 prevNormal;
+	float3 prevPDFForwardMIS;
+	
+	uint originatingLightFlags;
+	{
+		LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x));
+		prevNormal = node.normalWS;
+		prevPos = node.positionWS;
+		prevPDFForwardMIS = node.pdfForwardMIS;
+		originatingLightFlags = node.flags;
+		float pdfRatio = calculatePDFRatio(node.pdfBackwardMIS, node.pdfForwardMIS);
+		deferredRISum *= pdfRatio;
+		deferredRISum += pdfRatio;
+	}
+	
+    for(uint i = 1; i < vCount; ++i)
     {
         LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x + i));
+		ExtractedLightPathNodeData nodeData = getExtractedLightPathNodeData(node);
 		uint2 targetTexel;
-        if(getProjectedPositionOnScreen(node, targetTexel))
+        if(getProjectedPositionOnScreen(nodeData.node, targetTexel))
 		{
 			float4 radiance;
-			float pdf;
-			calculateRadianceTowardsCamera(node, g_cameraPosition, radiance, pdf);
-			if(any(contrib) && pdf > 0)
-			{
-				if(checkVisibility(node.positionWS, g_cameraPosition))
-				{
-					//TODO: MIS weight
-					float misWeight = 1;
+			float pdfForward;
+			float pdfBackward;
 
-					float4 contrib = (radiance / pdf) * misWeight; 
+			calculateRadianceTowardsCamera(nodeData, i, g_cameraPosition, prevPos, radiance, pdfForward, pdfBackward);
+			if(any(radiance) && pdfForward > 0 && pdfBackward > 0)
+			{
+				if(checkVisibility(nodeData.node.positionWS, g_cameraPosition))
+				{
+					bool convertAreaDensityBackward = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
+					float pdfBackwardPrevNode = pdfBackward * (convertAreaDensityBackward ? solidAngleToAreaDensityMultiplier(prevPos - node.positionWS, prevNormal) : 1);
+					float ratioPrev = safeDiv(pdfBackwardPrevNode, prevPDFForwardMIS);
+					float riSumCurrent = ratioPrev;
+
+					float ratioCurrent = safeDiv(1, nodeData.node.pdfForwardMIS);
+					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
+
+					float misWeight = 1.f / (1 + riSum + riSumCurrent);
+					float4 contrib = (radiance / pdfForward) * misWeight; 
 					SpectralSamples s;
 					s.fromFloat4(contrib);
 					float3 color = s.ToXYZ(rayHasDispersed);
@@ -776,6 +837,13 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 				}
 			}
 		}
+		float pdfRatio = calculatePDFRatio(nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS);
+		riSum = deferredRISum;
+		deferredRISum *= pdfRatio;
+		deferredRISum += pdfRatio;
+		prevNormal = nodeData.node.normalWS;
+		prevPos = nodeData.node.positionWS;
+		prevPDFForwardMIS = nodeData.node.pdfForwardMIS;
     }
 
 

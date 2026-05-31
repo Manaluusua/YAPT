@@ -65,7 +65,8 @@ namespace YAPT
 		vec2p rayUVOffset(0.5 * targetPixelWidth, 0.5 * targetPixelHeight); //move to pixel center
 
 		vec4 camPos(0.f, 0.f, 0.f, 1.f);
-		mat4 viewToWorld = glm::inverse(m_renderer->getCurrentRenderView().getView());
+		mat4 worldToView = m_renderer->getCurrentRenderView().getView();
+		mat4 viewToWorld = glm::inverse(worldToView);
 		camPos = viewToWorld * camPos;
 
 		uint32_t flags = 0;
@@ -84,10 +85,14 @@ namespace YAPT
 		rtConstants->targetOffsetScaleBias = params.targetOffsetScaleBias;
 		rtConstants->flags = flags;
 
-		mat4 uvToViewTransform = glm::inverse(fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform());
+		mat4 viewToUVTransform = fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform();
+		mat4 uvToViewTransform = glm::inverse(viewToUVTransform);
+		
 
 		rtConstants->uvToView = uvToViewTransform;
 		rtConstants->viewToWorld = viewToWorld;
+		rtConstants->viewToUV = viewToUVTransform;
+		rtConstants->worldToView = worldToView;
 		rtConstants->lightCount = (uint32_t)m_renderer->getLightManager()->getLightReferenceCount();
 
 		//update samples

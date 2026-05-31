@@ -7,8 +7,10 @@
 
 struct RaytraceConstantData
 {
-	float4x4 uvToView;
-	float4x4 viewToWorld;
+    float4x4 uvToView;
+    float4x4 viewToUV;
+    float4x4 worldToView;
+    float4x4 viewToWorld;
     float4 worldBoundsMin;
     float4 worldBoundsMax;
 	float4 cameraPosition;
@@ -35,6 +37,8 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 //helper defines
 #define g_uvToViewTransform g_rayGenConstants.uvToView
 #define g_viewToWorldTransform g_rayGenConstants.viewToWorld
+#define g_viewToUVTransform g_rayGenConstants.viewToUV
+#define g_worldToViewTransform g_rayGenConstants.worldToView
 #define g_constantsFlags g_rayGenConstants.flags
 #define g_cameraPosition g_rayGenConstants.cameraPosition.xyz
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy

@@ -560,6 +560,7 @@ struct LightVertexContext
     float riSum;
 };
 
+
 float calculateMISWeight(uint cameraVertexIndex, in CameraVertexContext camVertex,
 uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode,
 float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
@@ -737,9 +738,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         }
 
     }
-
-
-                    
+    
     float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
     float toLightLenSqr = dot(toLightWS, toLightWS);
     float toLightLen = sqrt(toLightLenSqr);

@@ -22,6 +22,8 @@ namespace YAPT
 	struct RaytraceConstantData
 	{
 		mat4p uvToView;
+		mat4p viewToUV;
+		mat4p worldToView;
 		mat4p viewToWorld;
 		vec4p worldBoundsMin;
 		vec4p worldBoundsMax;
