@@ -12,6 +12,8 @@ void resetCounters( uint3 groupId : SV_GroupID,
 
 #else
 
+#define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
+
 #ifdef CAMERA_RAYS_STAGE
 RWTexture2D<float4> g_outputColor : register(u5, space3);
 RWTexture2D<uint4> g_MaterialParamsOutput0 : register(u6, space3);
@@ -318,7 +320,7 @@ SpectralSamples ToSpectralSamples(float3 color)
 	return s;
 }
 
-#define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
+
 
 uint2 calculateSourceTextureTexelCoordinates(uint2 groupThreadId, uint2 groupIndex)
 {
@@ -683,7 +685,7 @@ uint getPureLightPathNodeSizeInBytes()
 #ifdef INITIALIZE_PURE_LIGHT_PATH_STRUCTURES
 RWByteAddressBuffer g_perTexelPureLightPathHeader : register(u5, space3);
 
-[numthreads(8, 8, 1)]
+[numthreads(THREAD_GROUP_DIM_SIZE_CAM_RAY, THREAD_GROUP_DIM_SIZE_CAM_RAY, 1)]
 void initializePureLightPathResources( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
@@ -809,7 +811,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
         LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x + i));
 		ExtractedLightPathNodeData nodeData = getExtractedLightPathNodeData(node);
 		uint2 targetTexel;
-        if(getProjectedPositionOnScreen(nodeData.node, targetTexel))
+        if(getProjectedPositionOnScreen(nodeData.node, targetTexel) && shouldPathContribute(0, i + 1))
 		{
 			float4 radiance;
 			float pdfForward;
@@ -858,7 +860,7 @@ ByteAddressBuffer g_perTexelPureLightPathHeader : register(t5, space3);
 ByteAddressBuffer g_pureLightPathNodes : register(t6, space3);
 RWTexture2D<float4> g_outputColor : register(u7, space3);
 
-[numthreads(8, 8, 1)]
+[numthreads(THREAD_GROUP_DIM_SIZE_CAM_RAY, THREAD_GROUP_DIM_SIZE_CAM_RAY, 1)]
 void accumulatePureLightPaths( uint3 groupId : SV_GroupID,
     uint3 groupThreadId : SV_GroupThreadID,
     uint3 dispatchThreadId : SV_DispatchThreadID,

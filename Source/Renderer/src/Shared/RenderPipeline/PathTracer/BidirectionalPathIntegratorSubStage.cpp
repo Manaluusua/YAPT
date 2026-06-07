@@ -20,7 +20,6 @@ namespace YAPT
 {
 	constexpr glm::uvec3 WG_SIZE_CAM_STAGE = glm::uvec3(8, 8, 1);
 	constexpr glm::uvec3 WG_SIZE_LIGHT_STAGE = glm::uvec3(64, 1, 1);
-	constexpr glm::uvec3 WG_SIZE_LIGHT_SORT_STAGE = glm::uvec3(64, 1, 1);
 	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 8;
 	constexpr uint32_t MAX_VERTICES_PER_CAMERA_PATH = 16;
 	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
@@ -637,7 +636,7 @@ namespace YAPT
 		}
 		uvec2 lightPathsPerDim = m_constantsGPU.getData()->lightPathsPerDim;
 		size_t lightPathsCount = lightPathsPerDim.x * lightPathsPerDim.y;
-		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(lightPathsCount, 1, 1), WG_SIZE_LIGHT_SORT_STAGE);
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(lightPathsCount, 1, 1), WG_SIZE_LIGHT_STAGE);
 
 		m_lightPathSortHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);
 	}
@@ -689,15 +688,88 @@ namespace YAPT
 
 	void BidirectionalPathIntegratorSubStage::executePreparePureLightPathResources(const RenderGraphNodeExecutionContext& exec)
 	{
+		
+		m_initPureLightPathsUtility.reserveNewDescriptorSet(0);
+		DescriptorSetHandle descSetCommon = m_initPureLightPathsUtility.getDescriptorSet(0);
+		m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
 
+		BufferViewHandle headers = m_pureLightPathHeadersGPU.getBufferViewHandle();
+		DescriptorSetUpdate updates[] = {
+			{5, 0, 1, DescriptorPtr(&headers)},
+		};
+		m_initPureLightPathsUtility.reserveNewDescriptorSet(1); //empty
+		m_initPureLightPathsUtility.reserveNewDescriptorSet(2);  //empty
+		m_initPureLightPathsUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
+
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE_CAM_STAGE);
+
+		m_initPureLightPathsUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);
 	}
 	void BidirectionalPathIntegratorSubStage::executeCalculatePureLightPaths(const RenderGraphNodeExecutionContext& exec)
 	{
+		m_calculatePureLightPathsUtility.reserveNewDescriptorSet(0);
+		DescriptorSetHandle descSetCommon = m_calculatePureLightPathsUtility.getDescriptorSet(0);
+		m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
+		TopLevelAccelerationStructureHandle accStruct = m_accStructProvider->getAccelerationStructure();
+
+
+		BufferViewHandle pureLightPathHeaders = m_pureLightPathHeadersGPU.getBufferViewHandle();
+		BufferViewHandle pureLightPathVertices = m_pureLightPathNodesGPU.getBufferViewHandle();
+
+		BufferViewHandle lightPathHeaders = m_lightPathHeadersGPU.getBufferViewHandle();
+		BufferViewHandle lightPathVertices = m_lightPathsGPU[1].getBufferViewHandle();
+		BufferViewHandle counters = m_countersGPU.getView();
+
+		DescriptorSetUpdate updates[] = {
+			{0, 0, 1, DescriptorPtr(m_constantsGPU.getViewPtr())},
+			{1, 0, 1, DescriptorPtr(&accStruct)},
+			{2, 0, 1, DescriptorPtr(&lightPathHeaders)},
+			{3, 0, 1, DescriptorPtr(&lightPathVertices)},
+			{4, 0, 1, DescriptorPtr(&counters)},
+			{5, 0, 1, DescriptorPtr(&pureLightPathHeaders)},
+			{6, 0, 1, DescriptorPtr(&pureLightPathVertices)},
+
+		};
+
+		m_calculatePureLightPathsUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
+
+		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
+		BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
+
+		m_calculatePureLightPathsUtility.setExternallyOwnedDescriptorSet(1, texMngr->getTextureArrayDescSet());
+		m_calculatePureLightPathsUtility.setExternallyOwnedDescriptorSet(2, buffMngr->getBufferArrayDescSet());
+
+		uvec2 lightPathsPerDim = m_constantsGPU.getData()->lightPathsPerDim;
+		size_t lightPathsCount = lightPathsPerDim.x * lightPathsPerDim.y;
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(lightPathsCount, 1, 1), WG_SIZE_LIGHT_STAGE);
+
+		m_calculatePureLightPathsUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);
 
 	}
 	void BidirectionalPathIntegratorSubStage::executeAccumulatePureLightPaths(const RenderGraphNodeExecutionContext& exec)
 	{
+		m_accumulatePathHelperUtility.reserveNewDescriptorSet(0);
+		DescriptorSetHandle descSetCommon = m_accumulatePathHelperUtility.getDescriptorSet(0);
+		m_raytraceCommon.updateCommonResourcesToDescriptorSet(descSetCommon);
 
+		m_accumulatePathHelperUtility.reserveNewDescriptorSet(1); //empty
+		m_accumulatePathHelperUtility.reserveNewDescriptorSet(2);  //empty
+
+		BufferViewHandle pureLightPathHeaders = m_pureLightPathHeadersGPU.getBufferViewHandle();
+		BufferViewHandle pureLightPathVertices = m_pureLightPathNodesGPU.getBufferViewHandle();
+		TextureViewHandle rtOutputUav = m_graph->getTextureViewFromNodeSlot(m_accumulatePureLightPathResourcesNode->getSortedIndex(), 0);
+
+		DescriptorSetUpdate updates[] = {
+			{5, 0, 1, DescriptorPtr(&pureLightPathHeaders)},
+			{6, 0, 1, DescriptorPtr(&pureLightPathVertices)},
+			{7, 0, 1, DescriptorPtr(&rtOutputUav)},
+		};
+
+		m_accumulatePathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));
+
+		glm::uvec3 dispatchArgs = DivRoundUp(glm::uvec3(m_lastUpdateParams.raysPerFrame.x, m_lastUpdateParams.raysPerFrame.y, 1), WG_SIZE_CAM_STAGE);
+
+		m_accumulatePathHelperUtility.dispatch(exec.cmdBuffer, dispatchArgs.x, dispatchArgs.y, dispatchArgs.z);
 	}
 
 }
