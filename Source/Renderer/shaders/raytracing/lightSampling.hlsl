@@ -50,7 +50,7 @@ void sampleEnvironmentLighting(float4 randValues, out SpectralSamples radianceOu
         pdfPos = 1 / (PI * worldCenterRadSqr.w);
     }
 
-    radianceOut.setFromRGBUnbounded(getSkyBoxColor(-lightDir, g_envType, g_envTexIndex).xyz);
+    radianceOut.setFromRGBUnbounded(getSkyBoxColor(-lightDir, g_envType, g_envTexIndex).xyz * g_envIntensityScale);
     posOut = lightPos;
     dirOut = lightDir;
     pdfPosOut = pdfPos;

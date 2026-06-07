@@ -600,7 +600,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
 			
-			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex);
+			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex) * g_envIntensityScale;
 			if(shouldPathContribute(camVertexIndex + 1, 0))
 			{
 #ifdef WHITE_FURNACE_TEST
@@ -765,8 +765,36 @@ void calculateRadianceTowardsCamera(in ExtractedLightPathNodeData nodeData, in u
 	
 bool checkVisibility(float3 from, float3 to)
 {
-//TODO
-	return true;
+	uint rayFlags = RAY_FLAG_NONE;
+    uint InstanceInclusionMask = ~0;
+    RayQuery < RAY_FLAG_NONE > q;
+
+	float3 fromTo = to - from;
+	float fromToLen = sqrt(dot(fromTo, fromTo));
+
+	if(fromToLen < 0.0001) return true;
+
+    RayDesc ray;
+    ray.Origin = from;
+    ray.Direction = fromTo / fromToLen;
+    ray.TMin = DEFAULT_RAY_MIN_T;
+    ray.TMax = fromToLen;
+
+    q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags,
+		    InstanceInclusionMask,
+		    ray);
+
+    while (q.Proceed())
+    {
+    }
+
+    if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+    {
+		return false;
+    }
+    return true;
 }
 
 
@@ -824,14 +852,15 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 				{
 					bool convertAreaDensityBackward = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
 					float pdfBackwardPrevNode = pdfBackward * (convertAreaDensityBackward ? solidAngleToAreaDensityMultiplier(prevPos - node.positionWS, prevNormal) : 1);
-					float ratioPrev = safeDiv(pdfBackwardPrevNode, prevPDFForwardMIS);
+					float ratioPrev = calculatePDFRatio(pdfBackwardPrevNode, prevPDFForwardMIS);
 					float riSumCurrent = ratioPrev;
 
-					float ratioCurrent = safeDiv(1, nodeData.node.pdfForwardMIS);
+					float ratioCurrent = calculatePDFRatio(1, nodeData.node.pdfForwardMIS);
 					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
 
 					float misWeight = 1.f / (1 + riSum + riSumCurrent);
-					float4 contrib = (radiance / pdfForward) * misWeight; 
+					float4 contrib = nodeData.node.radiance * (radiance / pdfForward) * misWeight; 
+					
 					SpectralSamples s;
 					s.fromFloat4(contrib);
 					float3 color = s.ToXYZ(rayHasDispersed);

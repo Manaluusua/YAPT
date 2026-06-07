@@ -20,6 +20,7 @@ struct RaytraceConstantData
 	uint maxRayDepth;
     uint envTextureIndex;
     uint envType;
+    float envIntensityScale;
     uint lightCount;
     uint flags;
 };
@@ -50,6 +51,7 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_worldBoundsMax g_rayGenConstants.worldBoundsMax.xyz
 #define g_envType g_rayGenConstants.envType
 #define g_envTexIndex g_rayGenConstants.envTextureIndex
+#define g_envIntensityScale g_rayGenConstants.envIntensityScale
 
 #define g_randomSamples g_randomSampleLocations
 

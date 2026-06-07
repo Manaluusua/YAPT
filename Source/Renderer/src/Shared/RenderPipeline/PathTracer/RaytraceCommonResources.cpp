@@ -95,6 +95,8 @@ namespace YAPT
 		rtConstants->worldToView = worldToView;
 		rtConstants->lightCount = (uint32_t)m_renderer->getLightManager()->getLightReferenceCount();
 
+		rtConstants->envIntensityScale = 1;
+
 		//update samples
 		if ((params.sampleOffset % NUMBER_OF_RANDOM_SAMPLES) == 0)
 		{

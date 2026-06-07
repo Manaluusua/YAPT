@@ -34,6 +34,7 @@ namespace YAPT
 		uint32_t maxRayDepth;
 		uint32_t envTextureIndex;
 		uint32_t envType;
+		float envIntensityScale;
 		uint32_t lightCount;
 		uint32_t flags;
 	};

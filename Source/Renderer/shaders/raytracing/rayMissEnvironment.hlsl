@@ -21,7 +21,7 @@ void rayMissEnvironment(inout Payload payload)
 	
     g_spectralMainSampleWavelength = payload.sampledWavelength;
 	
-    float4 color = getSkyBoxColor(WorldRayDirection(), g_envType, g_envTexIndex);
+    float4 color = getSkyBoxColor(WorldRayDirection(), g_envType, g_envTexIndex) * g_envIntensityScale;
 #ifdef WHITE_FURNACE_TEST
 	payload.totalLight = payload.totalLight + payload.throughput * ToSpectralSamples(float3(1,1,1));
 #else
