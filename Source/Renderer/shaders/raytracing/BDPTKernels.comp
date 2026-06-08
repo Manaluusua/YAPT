@@ -7,7 +7,7 @@ void resetCounters( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	counters.Store(0, uint4(0, 0, 0, 0));
+	counters.Store4(0, uint4(0, 0, 0, 0));
 }
 
 #else
@@ -693,7 +693,7 @@ void initializePureLightPathResources( uint3 groupId : SV_GroupID,
 {
 	if(dispatchThreadId.x >= g_targetTexDimensions.x || dispatchThreadId.y >= g_targetTexDimensions.y) return;
 	uint offset = calculatePureLightPathHeaderOffset(dispatchThreadId.xy);
-	g_perTexelPureLightPathHeader.Store(offset, uint2(INVALID_PURE_LIGHT_NODE_INDEX, INVALID_PURE_LIGHT_NODE_INDEX));
+	g_perTexelPureLightPathHeader.Store2(offset, uint2(INVALID_PURE_LIGHT_NODE_INDEX, INVALID_PURE_LIGHT_NODE_INDEX));
 
 }
 #endif
@@ -709,7 +709,7 @@ void addContribution(uint2 texel, float3 v)
 	g_counters.InterlockedAdd( COUNTER_LIGHT_VERTICES_PURE_NODE_INDEX << 2 , 1, nodeIndex);
 
 	uint4 val = uint4(asuint(v.x), asuint(v.y), asuint(v.z), INVALID_PURE_LIGHT_NODE_INDEX);
-	g_pureLightPathNodes.Store(nodeIndex * getPureLightPathNodeSizeInBytes(), val);
+	g_pureLightPathNodes.Store4(nodeIndex * getPureLightPathNodeSizeInBytes(), val);
 	
 	uint offset = calculatePureLightPathHeaderOffset(texel);
 	uint offsetToLatest = offset + 4;	
@@ -901,13 +901,16 @@ void accumulatePureLightPaths( uint3 groupId : SV_GroupID,
 	
 	uint next = g_perTexelPureLightPathHeader.Load(offset);
 	float3 accumulatedLightPathRadiance = 0;
-	
+
 	while(next != INVALID_PURE_LIGHT_NODE_INDEX)
 	{
 		uint4 node = g_pureLightPathNodes.Load4(next * getPureLightPathNodeSizeInBytes());
 		accumulatedLightPathRadiance += asfloat(node.xyz);
 		next = node.w;
+
 	}
+
+	if(!any(accumulatedLightPathRadiance)) return;
 
 	g_outputColor[dispatchThreadId.xy] += float4(accumulatedLightPathRadiance, 0);
 }
