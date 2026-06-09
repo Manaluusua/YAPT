@@ -11,9 +11,6 @@
 #include <comdef.h>
 #include <unordered_map>
 
-#define PRESERVE_DEBUG_INFO
-
-
 namespace YAPT
 {
 	void dx12ShaderInputTypeToResourceTypeAndAccessFlags(D3D12_SHADER_INPUT_BIND_DESC resourceDesc, DescriptorType& typeOut, AccessFlags& accessFlagsOut)

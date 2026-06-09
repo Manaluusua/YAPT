@@ -5,6 +5,8 @@
 #include <unknwn.h>
 #include <dxcapi.h>
 
+#define PRESERVE_DEBUG_INFO
+
 namespace YAPT
 {
 	inline LPCWSTR shaderTypeToProfilePrefix(ShaderModuleType shdType)
