@@ -200,10 +200,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float pdfBackward;
             evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward);
 
-			if(pdfBackward == 0)
+			/*if(pdfBackward == 0)
 			{
 				break;
-			}
+			}*/
 
 			nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
@@ -560,10 +560,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             float pdfBackward;
             evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward);
 
-			if(pdfForward == 0)
+			/*if(pdfForward == 0)
 			{
 				break;
-			}
+			}*/
 
 
 			if(camVertexIndex > 0)
@@ -846,7 +846,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 			float pdfBackward;
 
 			calculateRadianceTowardsCamera(nodeData, i, g_cameraPosition, prevPos, radiance, pdfForward, pdfBackward);
-			if(any(radiance) && pdfForward > 0 && pdfBackward > 0)
+			if(any(radiance))
 			{
 				if(checkVisibility(nodeData.node.positionWS, g_cameraPosition))
 				{
@@ -859,7 +859,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
 
 					float misWeight = 1.f / (1 + riSum + riSumCurrent);
-					float4 contrib = nodeData.node.radiance * (radiance / pdfForward) * misWeight; 
+					float4 contrib = nodeData.node.radiance * safeDiv(radiance, pdfForward) * misWeight; 
 					
 					SpectralSamples s;
 					s.fromFloat4(contrib);
@@ -901,7 +901,7 @@ void accumulatePureLightPaths( uint3 groupId : SV_GroupID,
 	
 	uint next = g_perTexelPureLightPathHeader.Load(offset);
 	float3 accumulatedLightPathRadiance = 0;
-
+	
 	while(next != INVALID_PURE_LIGHT_NODE_INDEX)
 	{
 		uint4 node = g_pureLightPathNodes.Load4(next * getPureLightPathNodeSizeInBytes());
