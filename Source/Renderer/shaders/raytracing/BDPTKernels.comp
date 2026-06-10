@@ -740,7 +740,7 @@ bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
 	return isValid;
 }
 
-void calculateRadianceTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
+void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
 {
 	bool lightNodeIsDelta = (nodeData.node.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
 	if(lightNodeIsDelta)
@@ -820,7 +820,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 	float deferredRISum = 0;
 	float3 prevPos;
 	float3 prevNormal;
-	float3 prevPDFForwardMIS;
+	float prevPDFForwardMIS;
 	
 	uint originatingLightFlags;
 	{
@@ -841,12 +841,12 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 		uint2 targetTexel;
         if(getProjectedPositionOnScreen(nodeData.node, targetTexel) && shouldPathContribute(0, i + 1))
 		{
-			float4 radiance;
+			float4 w;
 			float pdfForward;
 			float pdfBackward;
 
-			calculateRadianceTowardsCamera(nodeData, i, g_cameraPosition, prevPos, radiance, pdfForward, pdfBackward);
-			if(any(radiance))
+			calculateWeightTowardsCamera(nodeData, i, g_cameraPosition, prevPos, w, pdfForward, pdfBackward);
+			if(any(w))
 			{
 				if(checkVisibility(nodeData.node.positionWS, g_cameraPosition))
 				{
@@ -859,7 +859,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
 
 					float misWeight = 1.f / (1 + riSum + riSumCurrent);
-					float4 contrib = nodeData.node.radiance * safeDiv(radiance, pdfForward) * misWeight; 
+					float4 contrib = nodeData.node.radiance * safeDiv(w, pdfForward) * misWeight; 
 					
 					SpectralSamples s;
 					s.fromFloat4(contrib);
