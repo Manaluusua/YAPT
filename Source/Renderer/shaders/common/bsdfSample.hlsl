@@ -359,7 +359,7 @@ float pdfDielectric(in float etaR, in float3 wo, in float3 wi, in float ax, in f
 /////////////////////////////////////////////////////////////////////////////////////////////////////
 float3 sampleDiffuseLambertian(in float ax ,in float ay, in float3 wo, in float2 s)
 {
-	float3 wi = sampleHemisphere(s.xy);
+    float3 wi = sampleCosineWeightedHemisphere(s.xy);
 	if(wi.y < 0.f)
 	{
 		return 0.f;
@@ -374,7 +374,7 @@ float pdfDiffuseLambertian(in float3 wo, in float3 wi, in float ax, in float ay)
 	{
 		return 0.f;
 	}
-	float pdf = pdfHemisphere(); //diff
+    float pdf = pdfCosineWeightedHemisphere(wi.y); //diff
 	return pdf;
 }
 template<typename T>

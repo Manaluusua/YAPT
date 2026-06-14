@@ -102,21 +102,19 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     float3 lightDir;
     if(twoSided)
     {
-        lightDir = sampleSphere(randValuesDir);
+        lightDir = sampleCosineWeightedSphere(randValuesDir);
     }
     else
     {
-        lightDir = sampleHemisphere(randValuesDir);
+        lightDir = sampleCosineWeightedHemisphere(randValuesDir);
     }
     float3x3 tanToWS = constructBasisTransform(geometryNormal, tangent);
 
-    lightDir = mul(tanToWS, lightDir);
-    
     output.radiance.setFromRGBUnbounded(surfaceDefRGB.emissive);
     output.pdfPos = 1.f / (primCount * area);
-    output.pdfDir = twoSided ? pdfSphere() : pdfHemisphere();
+    output.pdfDir = twoSided ? pdfCosineWeightedSphere(lightDir.y) : pdfCosineWeightedHemisphere(lightDir.y);
     output.positionWS = pos;
-    output.directionWS = lightDir;
+    output.directionWS = mul(tanToWS, lightDir);
     output.normalWS = geometryNormal;
     output.instanceIndex = lightEntry.instanceIndex;
     output.primitiveIndex = primitiveIndex;

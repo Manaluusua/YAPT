@@ -11,12 +11,48 @@ float3 sampleHemisphere(in float2 s)
     return float3(r * cos(phi), z,  r * sin(phi));
 }
 
+float3 sampleCosineWeightedHemisphere(in float2 s)
+{
+    float r = sqrt(s.x);
+    float phi = 2.0f * PI * s.y;
+
+    float x = r * cos(phi);
+    float z = r * sin(phi);
+    float y = sqrt(1.0f - s.x);
+    return float3(x, y, z);
+}
+
+float3 sampleCosineWeightedSphere(in float2 s)
+{
+	//TODO: should probably pick the hemisphere with 3rd uncorrelated rand value, rather than scaling it.
+	
+    bool flip = s.x < 0.5f;
+	
+    s.x = flip ? s.x * 2.f : (s.x - 0.5f) * 2.f;
+	
+    float3 dir = sampleCosineWeightedHemisphere(s);
+    return dir;
+}
+
+
 float3 sampleSphere(in float2 s)
 {
     float z = 1 - 2 * s.x;
     float r = sqrt(1.f - sqr(z));
     float phi = 2.f * PI * s.y;
     return float3(r * cos(phi), z,  r * sin(phi));
+}
+
+float pdfCosineWeightedHemisphere(in float dotIN)
+{
+    return saturate(dotIN) * INVPI;
+
+}
+
+float pdfCosineWeightedSphere(in float dotIN)
+{
+    return abs(dotIN) * INVPI * 0.5f;
+
 }
 
 float pdfHemisphere()
