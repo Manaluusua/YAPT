@@ -87,25 +87,16 @@ void rayGenPrimaryRays()
 #endif
 		
 		//russian roulette
-		/* {
-			float throughputScale = 100.f;
-			
-			float p = payload.throughput.getMaxSampleValue();
-
-			//p = saturate(p * throughputScale);
-
-			p = max(0.05, 1.f - p);
-			float randomSample = vanDerCorputSequence(g_currentRandomSampleIndex + payload.pathLength);
-			if (randomSample < p)
-			{
-				payload.rayState = RAY_STATE_TERMINATED;
-				break;
-			}
-			else
-			{
-				payload.throughput = payload.throughput * (1.f / max(0.00001f, 1.f - p));
-			}
-		}*/
+		{
+            RandomSampler r;
+            r.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
+            if (payload.throughput.applyRussianRoulette(r.getRandom1()))
+            {
+                payload.rayState = RAY_STATE_TERMINATED;
+                break;
+            }
+            payload.randomDimensionOffsetAndScramble = r.dimensionOffsetAndSeed;
+        }
 		
        
 	}

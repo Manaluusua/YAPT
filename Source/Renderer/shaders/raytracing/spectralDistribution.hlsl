@@ -120,6 +120,21 @@ struct SpectralSamples
 
 		return v;
 	}
+	
+    bool applyRussianRoulette(float rand, float normalization = 1.f)
+    {
+        float p = getMaxSampleValue() / normalization;
+		p = clamp(p, 0.05f, 0.95f);
+		if (rand > p)
+		{
+			return true;
+		}
+		else
+		{
+            samples = samples * (1.f / p);
+            return false;
+        }
+    }
 
 	void setFromRGBUnbounded(float3 values)
 	{

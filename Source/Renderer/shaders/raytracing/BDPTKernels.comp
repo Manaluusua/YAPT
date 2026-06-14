@@ -60,6 +60,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
+	float maxRadiance = 0;
+
 	//sample light
 	{
 		float4 randomSamples0 = rand.getRandom4();
@@ -75,8 +77,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
-
+	
 		radiance = radiance;
+
+		maxRadiance = radiance.getMaxSampleValue();
 
 		nodes[0].instanceIndex = InstanceID;
 		nodes[0].primitiveIndex = primitiveIndex;
@@ -223,7 +227,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext), which is included in material sample. So just divide with solid angle pdf
 			radiance = radiance * w * safeDiv(1.f, pdfForward);
 			
-            
+            if(radiance.applyRussianRoulette(rand.getRandom1(),maxRadiance))
+			{
+				 break;
+			}
 
 			if(radiance.allSamplesEqual(0))
 			{
@@ -564,6 +571,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			{
 				break;
 			}*/
+
+            if (camVertexContext.throughput.applyRussianRoulette(rand.getRandom1()))
+            {
+                break;
+            }
 
 
 			if(camVertexIndex > 0)
