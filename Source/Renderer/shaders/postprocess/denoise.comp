@@ -88,9 +88,38 @@ float3 calculateNeighbouringVariance(uint2 location, uint kernelHalfSize)
     return float3(minVariance, maxVariance, avgVariance);
 }
 
+float calculateVisualDifferenceAlbedo(float3 a, float3 b)
+{
+    float3 delta = saturate(abs(a - b));
+    return (delta.x + delta.y + delta.z) * 0.3333f;
+
+}
+
 float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b)
 {
-    return 1.f; // todo
+    float roughnessDelta = abs(a.roughness - b.roughness);
+    float albedoDelta = calculateVisualDifferenceAlbedo(a.albedo, b.albedo);
+    float anisoDiff = abs(a.anisotropy - b.anisotropy);
+    float depthDelta = abs(a.depth - b.depth);
+    float normalDot = saturate(dot(a.normal, b.normal));
+    float iorDelta = abs(a.ior - b.ior);
+    float metalnessDelta = abs(a.metalness - b.metalness);
+    float transparencyDelta = abs(a.transparency - b.transparency);
+    
+    //TODO: flags
+    
+    //TODO: figure out better weighting: rejecting first with geometry (depth & normal) and then surface params? 
+    float weight = 1.f;
+    weight *= 1.f - roughnessDelta;
+    weight *= 1.f - albedoDelta;
+    weight *= 1.f - anisoDiff;
+    weight *= 1.f - smoothstep(0.1, 1, depthDelta);
+    weight *= normalDot;
+    weight *= 0.5f + 0.5f * (1.f - saturate(iorDelta)); //lessen effect of ior
+    weight *= 1.f - metalnessDelta;
+    weight *= 1.f - transparencyDelta;
+    return weight;
+
 }
 
 float calculateKernelDistanceWeight(float2 deltaFromCenter, float sigma)
@@ -103,24 +132,34 @@ uint floatToUint(float v)
     return uint(floor(max(v, 0) + 0.5f));
 }
 
-float4 denoise(uint2 loc)
+float4 denoise(uint2 loc, bool kernelSizeDrivenByVariance)
 {
+    MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(loc.xy, g_materialParams0, g_materialParams1);
+    
     float denoiseKernelHalfSize;
+    float minKernelHalfSize = 0;
+    float maxKernelHalfSize = 4;
+    
+    if (kernelSizeDrivenByVariance)
     {
         float3 varMinMaxAvg = calculateNeighbouringVariance(loc.xy, g_denoiseKernelWidth);
-        float minKernelHalfSize = 0;
-        float maxKernelHalfSize = 4;
         float minKernelVar = 0.0001f;
         float maxKernelVar = 0.01;
-    
         float t = saturate((varMinMaxAvg.y - minKernelVar) / (maxKernelVar - minKernelVar));
         denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, t);
     }
+    else
+    {
+        denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, saturate(centerMatParams.roughness));
+    }
+
+    
+    
     float sigma = 0.3f * (denoiseKernelHalfSize - 1.5f) + 0.8f;
     float4 colorOut;
     {
         float4 centerSample = g_sourceTex.Load(uint3(loc.xy, 0));
-        MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(loc.xy, g_materialParams0, g_materialParams1);
+        
         float weight = 1;
         float4 sampleSum = centerSample;
         if(denoiseKernelHalfSize > 0)
@@ -209,7 +248,7 @@ void main( uint3 groupId : SV_GroupID,
         float4 col = 0;
         if (g_denoiseMode == DENOISE_MODE_ON)
         {
-            col = denoise(dispatchThreadId.xy);
+            col = denoise(dispatchThreadId.xy, false);
         }
         else if (g_denoiseMode == DENOISE_MODE_OFF)
         {
