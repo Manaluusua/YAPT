@@ -14,8 +14,8 @@ T safeDiv(T nom, U denom)
 {
 	if (isZero(denom))
 	{
-		return 0;
-	}
+        return (T) 0;
+    }
 
 	return nom / denom;
 }

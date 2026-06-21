@@ -389,7 +389,7 @@ T evaluateDiffuseLambertian(in T albedo, in float ax, in float ay, in float3 wo,
 float3 sampleSheen(in float r, in float3 wo, in float2 s)
 {
 	float3 wi;
-    wi = isDeltaSheen(r) ? reflect(-wo, float3(0, 1, 0)) : sampleHemisphere(s.xy);
+    wi = isDeltaSheen(r) ? reflect(-wo, float3(0, 1, 0)) : sampleCosineWeightedHemisphere(s.xy);
 	if(wi.y < 0.f)
 	{
 		return 0.f;
@@ -404,7 +404,7 @@ float pdfSheen(in float3 wo, in float3 wi, in float r)
 	{
 		return 0.f;
 	}
-    float pdf = isDeltaSheen(r) ? 1.f : pdfHemisphere();
+    float pdf = isDeltaSheen(r) ? 1.f : pdfCosineWeightedHemisphere(wi.y);
 	return pdf;
 }
 
@@ -425,11 +425,11 @@ T evaluateSheen(in T sheenColor, in float r, in float3 wo, in float3 wi)
 		T F = sheenColor;//fresnelDielectricDielectric2(1.5f, dot(wo, wm)) * sheenColor;
         if (isDeltaSheen(r))
         {
-            return F / abs(wi.y);
+            return safeDiv(F, abs(wi.y));
         }
 		float D = DSheen(wm, r);
 		float G = GSheen(wo, wi, r);
-		float DGDenom = D * G / max(4.f * wo.y * wi.y, 0.00001f);
+        float DGDenom = abs(safeDiv(D * G, 4.f * wo.y * wi.y));
 		colOut = F * DGDenom;
 	} 
 	return colOut;

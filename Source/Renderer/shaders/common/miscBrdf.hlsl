@@ -114,7 +114,7 @@ float GLambdaSheen(float roughness, float cosTheta)
 float DSheen( in float3 wm, in float r) 
 {
 	float rInv = 1.f/r;
-	float sinTheta2 = 1.f - wm.y * wm.y;
+    float sinTheta2 = max(1.f - wm.y * wm.y, 0.0001f);
 	float v = (2.f + rInv) * pow(sinTheta2, rInv * 0.5f);
 	return v / (2.f*PI);
 }
