@@ -82,9 +82,9 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     p1 = mul(lightEntry.transform, float4(p1, 1)).xyz;
     p2 = mul(lightEntry.transform, float4(p2, 1)).xyz;
     p3 = mul(lightEntry.transform, float4(p3, 1)).xyz;
-    float3 geometryNormal = cross(p2 - p1, p3 - p1);
-    float geomNormalLength = length(geometryNormal);
-    geometryNormal /= geomNormalLength;
+    float3 geometryNormalWS = cross(p2 - p1, p3 - p1);
+    float geomNormalLength = length(geometryNormalWS);
+    geometryNormalWS /= geomNormalLength;
     
     float area = geomNormalLength * 0.5f;
     float3 pos = barycentrics.x * p1 + barycentrics.y * p2 + barycentrics.z * p3;
@@ -94,10 +94,10 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
 
     MaterialEntryGPU matEntry = getMaterialEntry(lightEntry.matIndex);
     SurfaceDefinitionRGB surfaceDefRGB;
-    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, geometryNormal, geometryNormal, tangent);
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormalWS, geometryNormalWS, geometryNormalWS, tangent);
     modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
     
-    tangent = mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz;
+    tangent = normalize(mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz);
     bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
     float3 lightDir;
     if(twoSided)
@@ -108,14 +108,14 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     {
         lightDir = sampleCosineWeightedHemisphere(randValuesDir);
     }
-    float3x3 tanToWS = constructBasisTransform(geometryNormal, tangent);
+    float3x3 tanToWS = constructBasisTransform(geometryNormalWS, tangent);
 
     output.radiance.setFromRGBUnbounded(surfaceDefRGB.emissive);
     output.pdfPos = 1.f / (primCount * area);
     output.pdfDir = twoSided ? pdfCosineWeightedSphere(lightDir.y) : pdfCosineWeightedHemisphere(lightDir.y);
     output.positionWS = pos;
     output.directionWS = mul(tanToWS, lightDir);
-    output.normalWS = geometryNormal;
+    output.normalWS = geometryNormalWS;
     output.instanceIndex = lightEntry.instanceIndex;
     output.primitiveIndex = primitiveIndex;
     output.baryCentrics = barycentrics.yz;
