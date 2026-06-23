@@ -46,9 +46,12 @@ def createSurrounding():
     global renderer
     global scene
 
-    createWalls = False
+    createWalls = True
+    createRoof = True
     wallDistance = 450
+    roofDistance = 450
     wallScale = 1000 
+    roofScale = 1000
     
     albedo_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_diff_4k.png", "R8G8B8A8_SRGB", True)
     normal_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_nor_gl_4k.png","R8G8B8A8_UNORM", True)
@@ -62,7 +65,7 @@ def createSurrounding():
 
     if(createWalls):
         for i in range(4):
-            wall = scene.create_object(f"wallPlane_obj_{i}")
+            wall = scene.create_render_object(f"wallPlane_obj_{i}")
             wall.setMesh(mesh);
             wall.setMaterial(mat, 0);
 
@@ -84,6 +87,21 @@ def createSurrounding():
             wall.getTransform().setOrientation(quat);
             wall.getTransform().setTranslation(pos)
             wall.getTransform().setScale(vec3(wallScale));
+
+    if(createRoof):
+            roof = scene.create_render_object(f"roofPlane_obj_{i}")
+            roof.setMesh(mesh);
+            roof.setMaterial(mat, 0);
+
+            rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), 180)
+            quat = vec4([rot.x(), rot.y(), rot.z(), rot.scalar()])
+            
+            offset = roofDistance
+            pos = v3(0, offset, 0)
+
+            wall.getTransform().setOrientation(quat);
+            wall.getTransform().setTranslation(pos)
+            wall.getTransform().setScale(vec3(roofScale));
 
 def createLight():
 
