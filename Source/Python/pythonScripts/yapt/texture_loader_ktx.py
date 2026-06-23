@@ -65,7 +65,7 @@ class TextureLoader:
     Cubemap inputs must be ordered +X, -X, +Y, -Y, +Z, -Z (``ktx create --cubemap``).
     """
 
-    cache_dir: Path | str = field(default_factory=lambda: Path(".ktx_cache"))
+    cache_dir: Path | str = field(default_factory=lambda: Path(os.getcwd() + "/.ktx_cache"))
     ktx_executable: str = "ktx"
     cache_stem_fn: CacheStemFn | None = None
 

@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 #import debugpy
 
 #attach_debugger = True
@@ -12,10 +13,15 @@ import sys
 def append_from_path_to_syspath():
     
     path_set = set(sys.path)
-    for path in os.environ['PATH'].split(os.pathsep):
-        path_set.add(path)
+    #for path in os.environ['PATH'].split(os.pathsep):
+    #    path_set.add(path)
+
     path_set.add(os.getcwd())
-    path_set.add(os.getcwd() + "/pythonScripts")
+    path_set.add(os.getcwd() + "/Debug")
+    script_root = str(Path(__file__).resolve().parent)
+    path_set.add(script_root)
+    path_set.add(script_root + "/yapt")
+
     sys.path = list(path_set)
 
 def print_dll_search_paths():

@@ -92,7 +92,4 @@ set(PYTHON_SCRIPTS_FOLDER "pythonScripts")
 file(GLOB_RECURSE PYTHON_SOURCES ${PYTHON_SCRIPTS_FOLDER}/*.*)
 add_custom_target( PythonScripts SOURCES ${PYTHON_SOURCES})
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/${PYTHON_SCRIPTS_FOLDER}" FILES ${PYTHON_SOURCES})
-add_custom_target(CopyPythonScriptsToBin ALL
-    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/${PYTHON_SCRIPTS_FOLDER} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${PYTHON_SCRIPTS_FOLDER}
-	)
 #####################PYTHON SOURCES###################################

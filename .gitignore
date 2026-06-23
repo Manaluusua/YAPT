@@ -1,2 +1,3 @@
 build/
 /CMakeLists.txt.user
+Source/Python/pythonScripts/yapt/__pycache__

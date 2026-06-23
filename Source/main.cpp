@@ -8,6 +8,8 @@
 #include <Python/Python.h>
 #include <string>
 #include <windows.h>
+#include <array>
+#include <Common/Logger.h>
 #if defined(_DEBUG)
 #include <debugapi.h>
 #endif
@@ -61,10 +63,38 @@ int main(int argc, char** argv)
 
 	}
 #endif
-	const char* pythonEntryFile =  "pythonScripts/default_bootstrap.py";
-	YAPT::Python* pythonModule = YAPT::createPythonModule();
-	pythonModule->executeFile(pythonEntryFile);
-	YAPT::destroyPythonModule(pythonModule);
 
+	//should take from config? for now just hardcoded paths
+	std::array paths =
+	{
+		"../../Source/Python/pythonScripts/default_bootstrap.py",
+		"pythonScripts/default_bootstrap.py"
+	};
+	size_t validPathIndex = 0;
+	for (; validPathIndex < paths.size(); ++validPathIndex)
+	{
+		FILE* fileHandle;
+		fileHandle = fopen(paths[validPathIndex], "rb");
+		bool success = fileHandle != nullptr;
+		if (success)
+		{
+			fclose(fileHandle);
+			break;
+		}
+		
+	}
+	
+	if (validPathIndex < paths.size())
+	{
+		const char* pythonEntryFile = paths[validPathIndex];
+		YAPT::Python* pythonModule = YAPT::createPythonModule();
+		pythonModule->executeFile(pythonEntryFile);
+		YAPT::destroyPythonModule(pythonModule);
+	}
+	else
+	{
+		YAPT_LOG_FATAL_ERROR("Unable to find python scripts");
+	}
+	
 	return 0;
 }

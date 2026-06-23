@@ -99,9 +99,9 @@ def createSurrounding():
             offset = roofDistance
             pos = v3(0, offset, 0)
 
-            wall.getTransform().setOrientation(quat);
-            wall.getTransform().setTranslation(pos)
-            wall.getTransform().setScale(vec3(roofScale));
+            roof.getTransform().setOrientation(quat);
+            roof.getTransform().setTranslation(pos)
+            roof.getTransform().setScale(vec3(roofScale));
 
 def createLight():
 

@@ -88,10 +88,10 @@ class MeshLoader:
     def __init__(self, renderer):
         self._renderer = renderer
 
-    def create_and_upload_from_gltf(self, gltf, mesh_name, gltf_mesh, verbose = False):
+    def create_and_upload_from_gltf(self, gltf, mesh_name, gltf_mesh, cache, verbose, **kwargs):
         print(f"loading {mesh_name}")
 
-        results = self._create_and_upload_from_gltf_impl(gltf, mesh_name, gltf_mesh, verbose)
+        results = self._create_and_upload_from_gltf_impl(gltf, mesh_name, gltf_mesh, cache, verbose, **kwargs)
         if results == None:
             results = ([], ())
         return results
@@ -194,9 +194,12 @@ class MeshLoader:
         
 
    
-    def _validate_mesh(self, mesh_name, gltf_mesh):
+    def _validate_mesh(self, mesh_name, gltf_mesh, require_similar_layout):
         ##validate that mesh contains at least positions, normals and tangents
-        first_attributes = {k for k, v in vars(gltf_mesh.primitives[0].attributes).items() if v is not None}
+        first_attributes = None
+        if require_similar_layout:
+            first_attributes = {k for k, v in vars(gltf_mesh.primitives[0].attributes).items() if v is not None}
+
         for primitive in gltf_mesh.primitives:
             if primitive.indices is None:
                 print(f"could not load mesh {mesh_name}, no indices present")
@@ -210,14 +213,16 @@ class MeshLoader:
             if primitive.attributes.TANGENT is None:
                 print(f"could not load mesh {mesh_name}, no tangents present")
                 return False
-            comp_attributes = {k for k, v in vars(primitive.attributes).items() if v is not None}
-            same_attr_layout = first_attributes == comp_attributes
 
-            if not same_attr_layout:
-                print(f"could not load mesh {mesh_name}, primitives don't share same input layout'")
-                print(first_attributes)
-                print(comp_attributes)
-                return False
+            if require_similar_layout:
+                comp_attributes = {k for k, v in vars(primitive.attributes).items() if v is not None}
+                same_attr_layout = first_attributes == comp_attributes
+
+                if not same_attr_layout:
+                    print(f"could not load mesh {mesh_name}, primitives don't share same input layout'")
+                    print(first_attributes)
+                    print(comp_attributes)
+                    return False
 
         return True
 
@@ -251,10 +256,7 @@ class MeshLoader:
 
         return buf, VertexBufferLayout(mesh_attrs, stride)
 
-    def _create_and_upload_from_gltf_impl(self, gltf, mesh_name, gltf_mesh, verbose = False):
-        if not self._validate_mesh(mesh_name, gltf_mesh):
-            return None
-
+    def _create_and_upload_layout_optimized(self, gltf, mesh_name, gltf_mesh, verbose):
         first_attrs = gltf_mesh.primitives[0].attributes
         texcoord_names = self._collect_indexed_attribute_names(first_attrs, "TEXCOORD_")
         color_names = self._collect_indexed_attribute_names(first_attrs, "COLOR_")
@@ -381,6 +383,22 @@ class MeshLoader:
 
 
         return ([mesh], tuple((0, i) for i in range(0, submesh_count)))
+
+
+    def _create_and_upload_as_is(self, gltf, mesh_name, gltf_mesh, cache, verbose):
+        pass
+        
+    def _create_and_upload_from_gltf_impl(self, gltf, mesh_name, gltf_mesh, cache, verbose, **kwargs):
+
+        optimize_layout = kwargs.get("optimize_layout")
+
+        if not self._validate_mesh(mesh_name, gltf_mesh, optimize_layout):
+            return None
+
+        if optimize_layout:
+            return self._create_and_upload_layout_optimized(gltf, mesh_name, gltf_mesh, verbose)
+        else:
+            return self._create_and_upload_as_is(gltf, mesh_name, gltf_mesh, cache, verbose)
 
     def _create_and_upload_buffer(self, name, usage, data, forceType):
 

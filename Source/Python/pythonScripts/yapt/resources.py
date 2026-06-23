@@ -47,12 +47,14 @@ class Resources:
         # One entry per gltf mesh: (meshes, primitive_map) where primitive_map[i]
         # is (mesh_index, submesh_index) for gltf_mesh.primitives[i] or None.
         results = []
+        cache = {}
         for gltf_mesh in gltf.meshes:
             name = gltf_mesh.name
-            meshes, prim_map = self._mesh_loader.create_and_upload_from_gltf(gltf, name, gltf_mesh, verbose)
+            meshes, prim_map = self._mesh_loader.create_and_upload_from_gltf(gltf, name, gltf_mesh, cache, verbose, optimize_layout = True)
             results.append((meshes, prim_map))
 
         self._meshes[cache_name] = results
+
         return results
 
     ###TEXTURES INTERNAL###
