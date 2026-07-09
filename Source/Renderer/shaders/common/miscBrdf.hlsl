@@ -3,22 +3,26 @@
 #include "commonMath.hlsl"
 
 
-float3 sampleHemisphere(in float2 s)
+float3 sampleHemisphere(in float2 rand)
 {
-	float z = s.x;
-    float r = sqrt(1.f - sqr(z));
-    float phi = 2.f * PI * s.y;
-    return float3(r * cos(phi), z,  r * sin(phi));
+    float y = 1.f - rand.x;
+    float r = sqrt(1.f - sqr(y));
+    float phi = 2.f * PI * rand.y;
+    float s, c;
+    sincos(phi, s, c);
+    return float3(r * c, y,  r * s);
 }
 
-float3 sampleCosineWeightedHemisphere(in float2 s)
+float3 sampleCosineWeightedHemisphere(in float2 rand)
 {
-    float r = sqrt(s.x);
-    float phi = 2.0f * PI * s.y;
-
-    float x = r * cos(phi);
-    float z = r * sin(phi);
-    float y = sqrt(1.0f - s.x);
+    float y = sqrt(1.f - rand.x);
+    float r = sqrt(rand.x);
+    float phi = 2.0f * PI * rand.y;
+    float s, c;
+    sincos(phi, s, c);
+    
+    float x = r * c;
+    float z = r * s;
     return float3(x, y, z);
 }
 
@@ -35,12 +39,14 @@ float3 sampleCosineWeightedSphere(in float2 s)
 }
 
 
-float3 sampleSphere(in float2 s)
+float3 sampleSphere(in float2 rand)
 {
-    float z = 1 - 2 * s.x;
-    float r = sqrt(1.f - sqr(z));
-    float phi = 2.f * PI * s.y;
-    return float3(r * cos(phi), z,  r * sin(phi));
+    float y = 1 - 2 * rand.x;
+    float r = sqrt(1.f - sqr(y));
+    float phi = 2.f * PI * rand.y;
+    float s, c;
+    sincos(phi, s, c);
+    return float3(r * c, y,  r * s);
 }
 
 float pdfCosineWeightedHemisphere(in float dotIN)

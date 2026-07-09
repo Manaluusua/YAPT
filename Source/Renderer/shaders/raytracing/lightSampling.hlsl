@@ -97,7 +97,7 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormalWS, geometryNormalWS, geometryNormalWS, tangent);
     modifySurfaceEmissionWithTexture(matEntry, uv, surfaceDefRGB);
     
-    tangent = normalize(mul(lightEntry.transformInvTransp, float4(tangent, 0.f)).xyz);
+    tangent = normalize(mul((float3x3)lightEntry.transformInvTransp, tangent));
     bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
     float3 lightDir;
     if(twoSided)
@@ -114,7 +114,7 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     output.pdfPos = 1.f / (primCount * area);
     output.pdfDir = twoSided ? pdfCosineWeightedSphere(lightDir.y) : pdfCosineWeightedHemisphere(lightDir.y);
     output.positionWS = pos;
-    output.directionWS = mul(tanToWS, lightDir);
+    output.directionWS = mul(lightDir, tanToWS);
     output.normalWS = geometryNormalWS;
     output.instanceIndex = lightEntry.instanceIndex;
     output.primitiveIndex = primitiveIndex;
