@@ -33,6 +33,7 @@ namespace YAPT
 		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 
 	private:
+		void recreateTexelCoordinatePermutationTexture(const RenderStage::RenderResolutionDependantResourcesData& data);
 
 		struct BidirectionalPathTraceConstants
 		{
@@ -95,13 +96,15 @@ namespace YAPT
 
 		FixedSizeGpuBufferHelper<BidirectionalPathTraceConstants> m_constantsGPU;
 		
-
 		DynamicSizeGpuBufferHelper<uint32_t> m_lightPathHeadersGPU;
 		DynamicSizeGpuBufferHelper<LightPathNodePacked> m_lightPathsGPU[2];
 		FixedSizeGpuBufferHelper<uvec4> m_countersGPU;
 
 		DynamicSizeGpuBufferHelper<uvec2> m_pureLightPathHeadersGPU;
 		DynamicSizeGpuBufferHelper<uvec4> m_pureLightPathNodesGPU;
+
+		TextureHandle m_texelRemapTexture;
+		TextureViewHandle m_texelRemapTextureView;
 
 		uvec2 m_renderResolution;
 		UpdateParams m_lastUpdateParams;

@@ -13,6 +13,7 @@
 #include <Renderer/Shared/BindlessMaterialManager.h>
 #include <Renderer/Shared/BindlessMeshManager.h>
 #include <Renderer/Shared/LightManager.h>
+#include <cstdlib>
 
 #define MAX_LIGHT_PATH_VERTICES_HARD_LIMIT 16u //keep in sync with shader
 
@@ -458,6 +459,10 @@ namespace YAPT
 			m_graph->setRenderGraphResourceTexture(res, rtTargetTex);
 		}
 		
+		//remapping of camera path pixels
+		{
+			recreateTexelCoordinatePermutationTexture(data);
+		}
 
 		//dummy for now
 		{
@@ -532,6 +537,48 @@ namespace YAPT
 
 		m_constantsGPU.flush();
 			
+	}
+
+	void BidirectionalPathIntegratorSubStage::recreateTexelCoordinatePermutationTexture(const RenderStage::RenderResolutionDependantResourcesData& data)
+	{
+		TextureDesc texDesc(ResourceDimension::TEXTURE_2D, ResourceFormat::R32_UINT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_TEXTURE, m_renderResolution.x, m_renderResolution.y, 1, 1);
+		m_texelRemapTexture = data.resolutionDependantResourcesPool->requestTexture(texDesc);
+
+		TextureViewDesc texViewDesc;
+		texViewDesc.resourceUsage = RESOURCE_USAGE_STORAGE_TEXTURE;
+		texViewDesc.dimensions = ResourceDimension::TEXTURE_2D;
+		texViewDesc.format = ResourceFormat::R32_UINT;
+
+		m_texelRemapTextureView = Gfx::getTextureView(m_renderer->getGfxHandle(), m_texelRemapTexture, texViewDesc);
+		
+		std::vector<uint32_t> remapping;
+		remapping.resize(m_renderResolution.x * m_renderResolution.y);
+
+		//TODO: after proper job system make this threaded (can permutate rows and columns separately), for now done here (this is stupidly slow, could also look for another way to produce these permutations)
+		for (uint32_t y = 0; y < m_renderResolution.y; ++y)
+		{
+			for (uint32_t x = 0; x < m_renderResolution.x; ++x)
+			{
+				remapping[y * m_renderResolution.x + x] = y << 16 | x & 0xFFFF;
+			}
+		}
+
+		uint32_t indexMax = m_renderResolution.x * m_renderResolution.y;
+
+		for (uint32_t y = 0; y < m_renderResolution.y; ++y)
+		{
+			for (uint32_t x = 0; x < m_renderResolution.x; ++x)
+			{
+				uint32_t swapIndex = std::rand() % indexMax;
+				std::swap(remapping[y * m_renderResolution.x + x], remapping[swapIndex]);
+			}
+		}
+
+		TextureDataDefinition uploadDef;
+		uploadDef.data = remapping.data();
+		uploadDef.rowPitchInBytes = m_renderResolution.x * sizeof(uint32_t);
+
+		Gfx::uploadTexture(m_renderer->getGfxHandle(), m_texelRemapTexture, 0, 1, 0, 1, &uploadDef, GpuUploadStage::DURING_RENDER);
 	}
 
 	void BidirectionalPathIntegratorSubStage::getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut)
@@ -667,6 +714,7 @@ namespace YAPT
 				{5, 0, 1, DescriptorPtr(&rtOutputUav)},
 				{6, 0, 1, DescriptorPtr(&rtDenoiseUav0)},
 				{7, 0, 1, DescriptorPtr(&rtDenoiseUav1)},
+				{8, 0, 1, DescriptorPtr(&m_texelRemapTextureView)},
 			};
 
 			m_cameraPathHelperUtility.reserveAndUpdateDescriptorSet(3, updates, countOf(updates));

@@ -18,6 +18,7 @@ void resetCounters( uint3 groupId : SV_GroupID,
 RWTexture2D<float4> g_outputColor : register(u5, space3);
 RWTexture2D<uint4> g_MaterialParamsOutput0 : register(u6, space3);
 RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u7, space3);
+Texture2D<uint> g_texelPermutations : register(t8, space3);
 
 #elif LIGHT_RAYS_STAGE
 #define WRITABLE_LIGHT_DATA
@@ -315,8 +316,6 @@ void sortLightVertices( uint3 groupId : SV_GroupID,
 
 #ifdef CAMERA_RAYS_STAGE
 
-
-
 groupshared ExtractedLightPathNodeData g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
 groupshared LightPathHeader g_lightPathHeader;
 
@@ -355,7 +354,10 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     uint3 dispatchThreadId : SV_DispatchThreadID,
     uint groupIndex : SV_GroupIndex )
 {
-	uint2 sourceTextureIndices = calculateSourceTextureTexelCoordinates(groupThreadId.xy, groupId.xy);
+	//uint2 sourceTextureIndices = calculateSourceTextureTexelCoordinates(groupThreadId.xy, groupId.xy);
+	uint texelSwizzle = g_texelPermutations[dispatchThreadId.xy];
+	uint2 sourceTextureIndices = uint2(texelSwizzle & 0xFFFF, texelSwizzle >> 16);
+
 	uint2 rayIndices = dispatchIndicesToRayIndices(sourceTextureIndices);
 
 	if(rayIndices.x >= g_targetTexDimensions.x || rayIndices.y >= g_targetTexDimensions.y) return;
