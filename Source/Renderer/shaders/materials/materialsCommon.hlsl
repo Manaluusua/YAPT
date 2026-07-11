@@ -489,7 +489,11 @@ void setupSurfaceOrientation(inout SurfaceDefinitionRGB surfaceDef)
 
 float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
 {
+#ifdef DISABLE_SPECTRAL_SAMPLES
+    float waveLengthum = 589.f * 0.001f;
+#else
     float waveLengthum = waveLengthNM * 0.001f;
+#endif
     return cauchysCoeffs.x + (cauchysCoeffs.y / (waveLengthum * waveLengthum)); //assume cauchys coeffs are in micrometers
 }
 

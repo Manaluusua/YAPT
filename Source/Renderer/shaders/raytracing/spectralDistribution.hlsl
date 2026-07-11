@@ -138,6 +138,15 @@ struct SpectralSamples
 
 	void setFromRGBUnbounded(float3 values)
 	{
+#ifdef DISABLE_SPECTRAL_SAMPLES
+		values = mul(c_rec2020RGBToXYZ, values);
+		samples[0] = values.x;
+		samples[1] = values.y;
+		samples[2] = values.z;
+		samples[3] = 0;
+		return;
+#else
+		
 		float m = max(max(values.x, values.y), values.z);
 		float scale = 2.f * m;
 		setFromRGB(safeDiv(values, scale));
@@ -154,12 +163,20 @@ struct SpectralSamples
 				samples[i] *= getIlluminantCoeffForWavelength(waveLength) * CIE_D65_SUM_INV * 100.f; //multiplied by 100 because currently all values become so low. Either need to think of different way to define inputs (what are we even inserting, there is no real measure) or find some more sensible value to normalize the distributions
 			}
 		}
-
-	}
+#endif
+    }
 
 
 	void setFromRGB(float3 values)
 	{
+#ifdef DISABLE_SPECTRAL_SAMPLES
+		values = mul(c_rec2020RGBToXYZ, values);
+		samples[0] = values.x;
+		samples[1] = values.y;
+		samples[2] = values.z;
+		samples[3] = 0;
+		return;
+#else
 		float3 coeffs;
 		if ((values.x == values.y) && (values.x == values.z))
 		{
@@ -170,11 +187,7 @@ struct SpectralSamples
 			coeffs = getRGBToSPDCoeffs(values);
 		}
 		setWithPolynomialCoeffs(coeffs);
-
-		//TEST
-		//samples[0] = values.x;
-		//samples[1] = values.y;
-		//samples[2] = values.z;
+#endif
 
 	}
 
@@ -313,8 +326,11 @@ struct SpectralSamples
 	float3 ToXYZ(bool secondaryRaysTerminated = false)
 	{
 
+		
+#ifdef DISABLE_SPECTRAL_SAMPLES
+		return float3(samples[0], samples[1], samples[2]);
+#else
 		float3 xyz = 0;
-
 		if (secondaryRaysTerminated)
 		{
 			float waveLength = getHeroSpectralLambda();
@@ -337,11 +353,12 @@ struct SpectralSamples
 			return xyz / 4;
 		}
 
-		
-	}
+#endif
+}
 
 	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT, bool secondaryRaysTerminated = false)
 	{
+
 		float3 xyz = ToXYZ(secondaryRaysTerminated);
 		float3 rgb = 0;
 		if (colorSpaceIndex == COLORSPACE_RGB)
@@ -353,10 +370,8 @@ struct SpectralSamples
 			rgb = mul(c_rec2020XYZToRGB, xyz);
 		}
 
-    return rgb;
+		return rgb;
 
-		//TEST
-		//return float3(samples[0], samples[1], samples[2]);
 	}
 
 	bool hasNan()
