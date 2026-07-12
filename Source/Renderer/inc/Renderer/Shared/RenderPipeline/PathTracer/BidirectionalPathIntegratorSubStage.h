@@ -43,7 +43,6 @@ namespace YAPT
 			uint32_t cameraWorkGroupSwizzleOffset;
 			uint32_t maxVerticesPerLightPath;
 			uint32_t maxAllocatedVertices;
-			uint32_t maxCameraPathVertices;
 		};
 
 		struct LightPathNodePacked
@@ -110,7 +109,6 @@ namespace YAPT
 		UpdateParams m_lastUpdateParams;
 
 		uint32_t m_maxVerticesPerLightPath;
-		uint32_t m_maxVerticesPerCameraPath;
 		uvec2 m_pixelsPerLightPath;
 	};
 }

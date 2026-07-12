@@ -104,14 +104,15 @@ float getAvgFresnel(float etaR)
     return fAvg;
 }
 
-float getReflectionRatio(float etaR, float linearRoughness)
+float getReflRatioScaling(float etaR, float linearRoughness)
 {
     float a = getAvgFresnel(etaR);
-    float b = getAvgFresnel(1.f / etaR);
-    float c = getAverageAlbedoTranslucent(etaR, linearRoughness);
-    float d = getAverageAlbedoTranslucent(1.f / etaR, linearRoughness);
+    float b = getAverageAlbedoTranslucent(1.f / etaR, linearRoughness);
+    float c = getAvgFresnel(1.f / etaR);
+    float d = getAverageAlbedoTranslucent(etaR, linearRoughness);
     float e = etaR * etaR;
-    float x = (b - 1.f) * (d - 1.f) * e / SAFE_DIVISOR(a*(c-1) + e * (b * d - b - d + 1) - c + 1);
+    float h = safeDiv(1.f - d, 1.f - c) * (1.f / e);
+    float x = safeDiv(1.f - b, 1.f - a) * safeDiv(1.f, h) + 1.f;
     return x;
 }
 
@@ -188,7 +189,8 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
     float dirAlbedoWo;
     float dirAlbedoWi;
     float eAvg;
-    float ratio;
+    float ratioScaling = getReflRatioScaling(etaR, linearRoughness);
+    float ratio = getAvgFresnel(etaR);
 	
 	if(transmission)
     {
@@ -196,17 +198,20 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaInv, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaInv, linearRoughness);
-        ratio = getReflectionRatio(etaR, linearRoughness);
+        ratio = 1.f - ratio;
+        //ratioScaling = 1.f - ratioScaling;
+        
     } 
 	else
     {
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaR, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaR, linearRoughness);
-        ratio = getReflectionRatio(etaR, linearRoughness);
     }
+    
+    //TODO: need to apply ratioScaling factor to make sure the adjoint btdf if reciprocal. So need to pull in information about ray direction (ie. from light or from camera)
 	
-    float ems = safeDiv(ratio * (1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg) * PI);
+    float ems = ratio * safeDiv((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg) * PI);
 	return ems;
 }
 

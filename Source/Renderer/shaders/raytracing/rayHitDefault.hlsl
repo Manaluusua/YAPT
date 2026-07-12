@@ -42,11 +42,6 @@ void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 l
         emissionOut.set(0);
         pdfOut = 0;
     }
-    /*lightSamplePositionOut = sampleSphere(lightSampleRand.xy) * 1000.f;
-    emissionOut.setFromRGBUnbounded(float3(1, 1, 1));
-    pdfOut = pdfSphere();
-    instanceIndexOut = 0;
-    primitiveIndexOut = 0;*/
 }
 
 bool checkLightVisibility(in float3 rayPos, in float3 rayDir, float rayLen, uint lightInstanceID, uint lightPrimitiveIndex)

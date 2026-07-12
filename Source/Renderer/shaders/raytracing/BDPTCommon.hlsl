@@ -23,7 +23,6 @@ struct BidirectionalPathTraceConstants
     uint cameraWorkGroupSwizzleOffset;
 	uint maxVerticesPerLightPath;
 	uint maxAllocatedVertices;
-    uint maxCameraPathVertices;
 };
 
 
@@ -177,9 +176,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_maxVerticesPerLightPath g_bdptConstants.maxVerticesPerLightPath
 #define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
-#define g_maxCameraPathVertices g_bdptConstants.maxCameraPathVertices
 
-#define g_lightPathRandomDimensionOffset (g_maxCameraPathVertices * 4 + 4)
+#define g_cameraPathRandomDimensionOffset (g_maxVerticesPerLightPath * 4 + 4)
 #define g_cameraRayWorkGroupCount (g_bdptConstants.cameraRayWorkGroupCount)
 #define g_cameraWorkGroupOffset (g_bdptConstants.cameraWorkGroupSwizzleOffset)
 
@@ -489,11 +487,9 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
 
 		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
         float pdf = lightNode.pdfForwardMIS;
-        float dirPDF = twoSided ? pdfSphere() : pdfHemisphere();
         pdfForwardOut = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
-        weightOut.set(1);
-        weightOut = weightOut * abs(dot(normalize(fromLightWS), surfaceNormalWS)) * (1.f / pdfForwardOut); //Geometry term and solidAngle -> area density cancel, leaving only abs(dot(lightToSurfaceDir, surfaceNormal)
+        weightOut.set(abs(dot(normalize(fromLightWS), surfaceNormalWS)) * safeDiv(1.f, pdfForwardOut)); //Geometry term and solidAngle -> area density cancel, leaving only abs(dot(lightToSurfaceDir, surfaceNormal)
         pdfBackwardOut = 0;
     }
     else
@@ -525,8 +521,6 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         {
             return false;
         }
-
-        weightOut = weightOut;
     }
 	
     return true;
@@ -565,17 +559,18 @@ float calculateMISWeight(uint cameraVertexIndex, in CameraVertexContext camVerte
 uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode,
 float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
 {
+
     float riSumCam = camVertex.pdfRatioSum;
 	//TODO: the actual first node would be the origina of the ray from camera but its not considered (and can never be hit by path from light). Revisit if its correct to just ignore it here
     if (cameraVertexIndex > 1)
     {
         float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
-        float ratioPrevCam = safeDiv(pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
+        float ratioPrevCam = calculatePDFRatio(pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
         riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
     }
     if (cameraVertexIndex > 0)
     {
-        float ratioLastCamNode = safeDiv(pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
+        float ratioLastCamNode = calculatePDFRatio(pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
         riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
     }
 
@@ -604,7 +599,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
             misWeightToLight = pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
-        riSumLight = safeDiv(misWeightToLight, (lightPickPDF * lightPosPDF));
+        riSumLight = calculatePDFRatio(misWeightToLight, (lightPickPDF * lightPosPDF));
 		
     }
     else
@@ -620,10 +615,10 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         }
 		
          
-        float ratioPrevLightNode = safeDiv(pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
+        float ratioPrevLightNode = calculatePDFRatio(pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
         riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
 
-        float ratioLastLightNode = safeDiv(pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
+        float ratioLastLightNode = calculatePDFRatio(pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
         riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
     }
 	

@@ -363,7 +363,7 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 		float3 n = g_textures2D[matEntry.normalTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0).xyz; //TODO: pack normal to something better, octahedral?
         n = normalize(n * 2.f - 1.f);
         float3x3 tbase = constructBasisTransform(surfaceDef.baseLayerNormal, surfaceDef.tangent);
-        float3 newNormal = mul(tbase, n.xzy);
+        float3 newNormal = mul(n.xzy, tbase);
         surfaceDef.baseLayerNormal = newNormal;
     }
 	

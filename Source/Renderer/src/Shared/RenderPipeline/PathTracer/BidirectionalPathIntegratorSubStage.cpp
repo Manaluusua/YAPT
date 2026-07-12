@@ -21,8 +21,7 @@ namespace YAPT
 {
 	constexpr glm::uvec3 WG_SIZE_CAM_STAGE = glm::uvec3(8, 8, 1);
 	constexpr glm::uvec3 WG_SIZE_LIGHT_STAGE = glm::uvec3(64, 1, 1);
-	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 8;
-	constexpr uint32_t MAX_VERTICES_PER_CAMERA_PATH = 16;
+	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 12;
 	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
 	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
 
@@ -34,7 +33,6 @@ namespace YAPT
 		m_pureLightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_pureLightPathNodesGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
-		m_maxVerticesPerCameraPath(MAX_VERTICES_PER_CAMERA_PATH),
 		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
 
 	{
@@ -480,7 +478,6 @@ namespace YAPT
 			uint32_t allocatedVertices = lightPathCountPerDim.x * lightPathCountPerDim.y * (uint32_t)glm::round(maxLightVertices * ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO);
 
 			m_constantsGPU.getData()->maxVerticesPerLightPath = maxLightVertices;
-			m_constantsGPU.getData()->maxCameraPathVertices = m_maxVerticesPerCameraPath;
 			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
 			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
 

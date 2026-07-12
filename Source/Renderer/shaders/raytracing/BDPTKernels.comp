@@ -58,7 +58,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	
     RandomSampler rand;
-    rand.init(g_lightPathRandomDimensionOffset,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
+    rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	float maxRadiance = 0;
@@ -364,7 +364,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 	RandomSampler rand;
 	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
-    rand.init(0, lightPathScrambleOffset + rayIndices.y * g_targetTexDimensions.x + rayIndices.x); //TODO: init properly
+    rand.init(g_cameraPathRandomDimensionOffset, lightPathScrambleOffset + rayIndices.y * g_targetTexDimensions.x + rayIndices.x); //TODO: init properly
 
 
 	if(groupIndex == 0)
@@ -423,8 +423,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	uint camVertexIndex = 0;
 	uint pathCount = 0;
 	float deferredRISumCamera = 0;
-
-	for(; camVertexIndex < g_maxCameraPathVertices; ++camVertexIndex)
+	uint maxCameraVertices = g_maxRayDepth - g_lightPathHeader.offsetAndCount.y;
+	for(; camVertexIndex < maxCameraVertices; ++camVertexIndex)
 	{
 		uint rayFlags = RAY_FLAG_NONE;
 		uint InstanceInclusionMask = ~0;
