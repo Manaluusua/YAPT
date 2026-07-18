@@ -385,9 +385,266 @@ class MeshLoader:
         return ([mesh], tuple((0, i) for i in range(0, submesh_count)))
 
 
+    #(componentCount, accessor.componentType, normalized) -> ResourceFormat
+    _ACCESSOR_FORMAT_MAP = {
+        (1, 5121, True):  ResourceFormat.R8_UNORM,
+        (1, 5121, False): ResourceFormat.R8_UINT,
+        (1, 5120, True):  ResourceFormat.R8_SNORM,
+        (1, 5120, False): ResourceFormat.R8_SINT,
+        (1, 5123, True):  ResourceFormat.R16_UNORM,
+        (1, 5123, False): ResourceFormat.R16_UINT,
+        (1, 5122, True):  ResourceFormat.R16_SNORM,
+        (1, 5122, False): ResourceFormat.R16_SINT,
+        (1, 5125, False): ResourceFormat.R32_UINT,
+        (1, 5126, False): ResourceFormat.R32_SFLOAT,
+
+        (2, 5121, True):  ResourceFormat.RG8_UNORM,
+        (2, 5121, False): ResourceFormat.RG8_UINT,
+        (2, 5120, True):  ResourceFormat.RG8_SNORM,
+        (2, 5120, False): ResourceFormat.RG8_SINT,
+        (2, 5123, True):  ResourceFormat.RG16_UNORM,
+        (2, 5123, False): ResourceFormat.RG16_UINT,
+        (2, 5122, True):  ResourceFormat.RG16_SNORM,
+        (2, 5122, False): ResourceFormat.RG16_SINT,
+        (2, 5125, False): ResourceFormat.RG32_UINT,
+        (2, 5126, False): ResourceFormat.RG32_SFLOAT,
+
+        (3, 5121, True):  ResourceFormat.RGB8_UNORM,
+        (3, 5121, False): ResourceFormat.RGB8_UINT,
+        (3, 5120, True):  ResourceFormat.RGB8_SNORM,
+        (3, 5120, False): ResourceFormat.RGB8_SINT,
+        (3, 5125, False): ResourceFormat.RGB32_UINT,
+        (3, 5126, False): ResourceFormat.RGB32_SFLOAT,
+
+        (4, 5121, True):  ResourceFormat.RGBA8_UNORM,
+        (4, 5121, False): ResourceFormat.RGBA8_UINT,
+        (4, 5120, True):  ResourceFormat.RGBA8_SNORM,
+        (4, 5120, False): ResourceFormat.RGBA8_SINT,
+        (4, 5123, True):  ResourceFormat.RGBA16_UNORM,
+        (4, 5123, False): ResourceFormat.RGBA16_UINT,
+        (4, 5122, True):  ResourceFormat.RGBA16_SNORM,
+        (4, 5122, False): ResourceFormat.RGBA16_SINT,
+        (4, 5125, False): ResourceFormat.RGBA32_UINT,
+        (4, 5126, False): ResourceFormat.RGBA32_SFLOAT,
+    }
+
+    def _get_resource_format(self, accessor):
+        component_count = self._get_component_count(accessor)
+        normalized = bool(getattr(accessor, "normalized", False))
+        return self._ACCESSOR_FORMAT_MAP.get((component_count, accessor.componentType, normalized))
+
+    def _get_raw_buffer_data(self, gltf, cache, buffer_index):
+        raw_key = ("rawbuffer", buffer_index)
+        cached = cache.get(raw_key)
+        if cached is not None:
+            return cached
+
+        buff = gltf.buffers[buffer_index]
+        data = gltf.get_data_from_buffer_uri(buff.uri)
+        np_data = np.frombuffer(data, dtype=np.uint8)
+
+        cache[raw_key] = np_data
+        return np_data
+
+    def _get_accessor_data_ptr(self, gltf, cache, accessor):
+        buffer_view = gltf.bufferViews[accessor.bufferView]
+        raw = self._get_raw_buffer_data(gltf, cache, buffer_view.buffer)
+        offset = (buffer_view.byteOffset or 0) + (accessor.byteOffset or 0)
+        return raw.ctypes.data + offset
+
+    def _get_or_upload_buffer_view(self, gltf, cache, buffer_view_index, usage):
+        cached = cache.get(buffer_view_index)
+        if cached is not None:
+            return cached
+
+        buffer_view = gltf.bufferViews[buffer_view_index]
+        raw = self._get_raw_buffer_data(gltf, cache, buffer_view.buffer)
+
+        start = buffer_view.byteOffset or 0
+        length = buffer_view.byteLength
+        view_bytes = raw[start:start + length]
+
+        gpu_buffer = self._create_and_upload_buffer(f"bufferview_{buffer_view_index}", usage, view_bytes, None)
+        cache[buffer_view_index] = gpu_buffer
+        return gpu_buffer
+
+    def _collect_primitive_attribute_entries(self, attrs):
+        texcoord_names = self._collect_indexed_attribute_names(attrs, "TEXCOORD_")
+        color_names = self._collect_indexed_attribute_names(attrs, "COLOR_")
+
+        entries = [
+            (AttributeSemanticName.POSITION, 0, attrs.POSITION),
+            (AttributeSemanticName.NORMAL, 0, attrs.NORMAL),
+            (AttributeSemanticName.TANGENT, 0, attrs.TANGENT),
+        ]
+        for n in texcoord_names:
+            entries.append((AttributeSemanticName.TEXCOORD, int(n.split("_")[1]), getattr(attrs, n)))
+        for n in color_names:
+            entries.append((AttributeSemanticName.COLOR, int(n.split("_")[1]), getattr(attrs, n)))
+        return entries
+
+    def _try_match_group(self, gltf, group, entries, indices_accessor, index_comp_size):
+        if index_comp_size != group["ref_index_comp_size"]:
+            return False, None
+        if indices_accessor.bufferView != group["ref_index_bufferview"]:
+            return False, None
+
+        ref_info_map = group["attr_ref_info"]
+        if set(ref_info_map.keys()) != {(semantic, sem_index) for semantic, sem_index, _ in entries}:
+            return False, None
+
+        vertex_offset = None
+        for semantic, sem_index, accessor_index in entries:
+            accessor = gltf.accessors[accessor_index]
+            ref_info = ref_info_map[(semantic, sem_index)]
+
+            if accessor.bufferView != ref_info["bufferView"]:
+                return False, None
+            if self._get_resource_format(accessor) != ref_info["format"]:
+                return False, None
+
+            stride = group["group_stride"][ref_info["bufferView"]]
+            delta = (accessor.byteOffset or 0) - ref_info["base_offset"]
+            if stride == 0 or delta % stride != 0:
+                return False, None
+
+            candidate_offset = delta // stride
+            if vertex_offset is None:
+                vertex_offset = candidate_offset
+            elif vertex_offset != candidate_offset:
+                return False, None
+
+        return True, vertex_offset
+
+    def _build_new_group(self, gltf, cache, usage, entries, indices_accessor, index_comp_size):
+        buffer_view_groups = {}
+        group_order = []
+        for semantic, sem_index, accessor_index in entries:
+            accessor = gltf.accessors[accessor_index]
+            if accessor.bufferView not in buffer_view_groups:
+                buffer_view_groups[accessor.bufferView] = []
+                group_order.append(accessor.bufferView)
+            buffer_view_groups[accessor.bufferView].append((semantic, sem_index, accessor))
+
+        layout = []
+        buffers = []
+        group_stride = {}
+        attr_ref_info = {}
+        for buffer_view_index in group_order:
+            view_entries = buffer_view_groups[buffer_view_index]
+            buffer_view = gltf.bufferViews[buffer_view_index]
+
+            mesh_attrs = []
+            for semantic, sem_index, accessor in view_entries:
+                fmt = self._get_resource_format(accessor)
+                if fmt is None:
+                    print(f"unsupported accessor format (componentType={accessor.componentType}, type={accessor.type}, normalized={getattr(accessor, 'normalized', False)})")
+                    return None
+                mesh_attrs.append(MeshAttribute(fmt, semantic, sem_index, accessor.byteOffset or 0))
+                attr_ref_info[(semantic, sem_index)] = {
+                    "bufferView": buffer_view_index,
+                    "base_offset": accessor.byteOffset or 0,
+                    "format": fmt,
+                }
+
+            stride = buffer_view.byteStride if getattr(buffer_view, "byteStride", None) else sum(
+                self._get_component_count(a) * self._get_component_size_in_bytes(a) for (_, _, a) in view_entries)
+            group_stride[buffer_view_index] = stride
+
+            layout.append(VertexBufferLayout(mesh_attrs, stride))
+            buffers.append(self._get_or_upload_buffer_view(gltf, cache, buffer_view_index, usage))
+
+        index_buffer = self._get_or_upload_buffer_view(gltf, cache, indices_accessor.bufferView, usage)
+
+        return {
+            "attr_ref_info": attr_ref_info,
+            "group_stride": group_stride,
+            "layout": layout,
+            "buffers": buffers,
+            "ref_index_bufferview": indices_accessor.bufferView,
+            "ref_index_comp_size": index_comp_size,
+            "use16BitIndices": index_comp_size == 2,
+            "index_buffer": index_buffer,
+            "submeshes": [],
+            "prim_indices": [],
+            "max_vertex_extent": 0,
+        }
+
     def _create_and_upload_as_is(self, gltf, mesh_name, gltf_mesh, cache, verbose):
-        pass
-        
+        #primitives that share the same underlying bufferViews (vertex + index, same formats/strides)
+        #become submeshes of one Mesh - addressed via setSubmesh's vertexOffset/indexOffset - matching
+        #the optimized version's contract without repacking any data. Primitives with an incompatible
+        #layout (different buffers, formats, or attribute set) start a new Mesh/group instead.
+        usage = (ResourceUsageBits.COPY_DESTINATION | ResourceUsageBits.VERTEX_BUFFER |
+                  ResourceUsageBits.INDEX_BUFFER | ResourceUsageBits.ACCELERATION_STRUCTURE_BUILD_INPUT)
+
+        groups = []
+
+        for prim_index, primitive in enumerate(gltf_mesh.primitives):
+            attrs = primitive.attributes
+            entries = self._collect_primitive_attribute_entries(attrs)
+
+            indices_accessor = gltf.accessors[primitive.indices]
+            index_comp_size = self._get_component_size_in_bytes(indices_accessor)
+            if index_comp_size not in (2, 4):
+                print(f"could not load mesh {mesh_name}, unsupported index component size {index_comp_size}")
+                return None
+
+            matched_group = None
+            vertex_offset = 0
+            for group in groups:
+                matched, candidate_offset = self._try_match_group(gltf, group, entries, indices_accessor, index_comp_size)
+                if matched:
+                    matched_group = group
+                    vertex_offset = candidate_offset
+                    break
+
+            if matched_group is None:
+                matched_group = self._build_new_group(gltf, cache, usage, entries, indices_accessor, index_comp_size)
+                if matched_group is None:
+                    print(f"could not load mesh {mesh_name}, primitive {prim_index} has an unsupported layout")
+                    return None
+                groups.append(matched_group)
+                vertex_offset = 0
+
+            index_offset = (indices_accessor.byteOffset or 0) // index_comp_size
+            index_count = indices_accessor.count
+
+            pos_accessor = gltf.accessors[attrs.POSITION]
+            matched_group["max_vertex_extent"] = max(matched_group["max_vertex_extent"], vertex_offset + pos_accessor.count)
+
+            pos_ref_info = matched_group["attr_ref_info"][(AttributeSemanticName.POSITION, 0)]
+            position_stride = matched_group["group_stride"][pos_ref_info["bufferView"]]
+
+            position_ptr = self._get_accessor_data_ptr(gltf, cache, pos_accessor)
+            index_ptr = self._get_accessor_data_ptr(gltf, cache, indices_accessor)
+
+            boundsMin, boundsMax = Mesh.calculateBoundsFromVertexBuffer(
+                position_ptr, index_ptr, 0, index_count, 0, position_stride, matched_group["use16BitIndices"])
+
+            matched_group["submeshes"].append((index_offset, index_count, vertex_offset, boundsMin, boundsMax))
+            matched_group["prim_indices"].append(prim_index)
+
+        meshes = []
+        prim_map = [None] * len(gltf_mesh.primitives)
+        single_group = len(groups) == 1
+        for mesh_index, group in enumerate(groups):
+            submesh_count = len(group["submeshes"])
+            name = mesh_name if single_group else f"{mesh_name}_layout{mesh_index}"
+            mesh = self._renderer.createMesh(name, group["layout"], group["max_vertex_extent"], submesh_count, group["use16BitIndices"])
+
+            for i, buf in enumerate(group["buffers"]):
+                mesh.setVertexBuffer(i, buf, 0)
+            mesh.setIndexBuffer(group["index_buffer"], 0)
+
+            for submesh_index, (index_offset, index_count, vertex_offset, boundsMin, boundsMax) in enumerate(group["submeshes"]):
+                mesh.setSubmesh(submesh_index, index_offset, index_count, vertex_offset, boundsMin, boundsMax)
+                prim_map[group["prim_indices"][submesh_index]] = (mesh_index, submesh_index)
+
+            meshes.append(mesh)
+
+        return (meshes, tuple(prim_map))
+
     def _create_and_upload_from_gltf_impl(self, gltf, mesh_name, gltf_mesh, cache, verbose, **kwargs):
 
         optimize_layout = kwargs.get("optimize_layout")
