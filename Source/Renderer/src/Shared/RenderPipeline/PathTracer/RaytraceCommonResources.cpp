@@ -50,12 +50,14 @@ namespace YAPT
 		m_lightDataGPU.free();
 	}
 
-	void RaytraceCommonResources::prepare(const RaytraceCommonResources::PrepareParams& params)
+	JobHandle RaytraceCommonResources::prepare(const RaytraceCommonResources::PrepareParams& params)
 	{
-		setupWorldBoundsJob(params.prepareTasksPool);
+		JobHandle jobsToWait[1];
+		jobsToWait[0] = setupWorldBoundsJob(params.prepareTasksPool);
+		return params.prepareTasksPool->combineDependencies(jobsToWait, countOf(jobsToWait));
 	}
 
-	void RaytraceCommonResources::update(const RaytraceCommonResources::UpdateParams& params)
+	JobHandle RaytraceCommonResources::update(const RaytraceCommonResources::UpdateParams& params)
 	{
 		RaytraceConstantData* rtConstants = m_rayTraceConstants.getData();
 		float targetPixelWidth = 1.f / params.renderResolution.x;
@@ -103,22 +105,18 @@ namespace YAPT
 			updateSamples(params.sampleOffset);
 		}
 
-		setupLightDataJob(params.updateTasksPool);
-
 
 		{
-			AABB worldBounds = AABB::createEmpty();
-			for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
-			{
-				worldBounds.encapsulate(m_combineBoundsJobs[i].combinedBounds);
-			}
-			rtConstants->worldBoundsMax = vec4p(worldBounds.max, 0.f);
-			rtConstants->worldBoundsMin = vec4p(worldBounds.min, 0.f);
+			
+			rtConstants->worldBoundsMax = vec4p(m_worldBounds.max, 0.f);
+			rtConstants->worldBoundsMin = vec4p(m_worldBounds.min, 0.f);
 		}
 
 		m_rayTraceConstants.flush();
 
-		
+		JobHandle jobsToWait[1];
+		jobsToWait[0] = setupLightDataJob(params.updateTasksPool); //need to schedule this in update for now since bindlessmaterialmanager gets updated in update: once its jobified can move this earlier
+		return params.updateTasksPool->combineDependencies(jobsToWait, countOf(jobsToWait));
 	}
 
 	void RaytraceCommonResources::setupCommonSamplers(CRenderer* rend, PipelineLayoutHelper& helper, const ShaderPipelineReflection& refl, ShaderModuleType mod)
@@ -294,7 +292,7 @@ namespace YAPT
 
 	}
 
-	void RaytraceCommonResources::setupLightDataJob(ThreadPool* threadPool)
+	JobHandle RaytraceCommonResources::setupLightDataJob(JobSystem* threadPool)
 	{
 
 		auto uploadLightDataJob = [](void* usrData)
@@ -352,11 +350,11 @@ namespace YAPT
 		};
 
 
-		threadPool->addTask(uploadLightDataJob, this);
+		return threadPool->submit(uploadLightDataJob, this);
 	}
 
 
-	void RaytraceCommonResources::setupWorldBoundsJob(ThreadPool* threadPool)
+	JobHandle RaytraceCommonResources::setupWorldBoundsJob(JobSystem* threadPool)
 	{
 		constexpr size_t MIN_ITEMS_PER_JOB = 100;
 		const AABB* objectBounds = m_renderer->getRenderObjectManager().getAllBounds();
@@ -364,9 +362,11 @@ namespace YAPT
 		size_t numberOfJobs = max(size_t(1), min(size_t(m_combineBoundsJobs.size()), count / MIN_ITEMS_PER_JOB));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
 
+		std::array<JobHandle, COMBINE_BOUNDS_MAX_JOBS> deps;
+
 		if (count == 0)
 		{
-			return;
+			return {};
 		}
 
 		auto combineBoundsJob = [](void* usrData)
@@ -385,6 +385,17 @@ namespace YAPT
 
 			};
 
+		auto combineBoundsFinalJob = [](void* usrData)
+		{
+			RaytraceCommonResources* res = static_cast<RaytraceCommonResources*>(usrData);
+			AABB worldBounds = AABB::createEmpty();
+			for (size_t i = 0; i < res->m_combineBoundsJobs.size(); ++i)
+			{
+				worldBounds.encapsulate(res->m_combineBoundsJobs[i].combinedBounds);
+			}
+			res->m_worldBounds = worldBounds;
+		};
+
 		size_t offset = 0;
 		for (size_t i = 0; i < m_combineBoundsJobs.size(); ++i)
 		{
@@ -400,8 +411,10 @@ namespace YAPT
 
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
-			threadPool->addTask(combineBoundsJob, &m_combineBoundsJobs[i]);
+			deps[i] = threadPool->submit(combineBoundsJob, &m_combineBoundsJobs[i]);
 		}
+
+		return threadPool->submit(combineBoundsFinalJob, this, deps.data(), numberOfJobs);
 	}
 
 	void RaytraceCommonResources::updateSamples(size_t sampleOffset)

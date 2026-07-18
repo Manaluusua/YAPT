@@ -87,6 +87,7 @@ namespace YAPT
 
 			std::array< WorkItems, WORKITEMSCOUNT> items;
 			size_t steps = (SS_ALBEDO_LUT_DIM + WORKITEMSCOUNT - 1) / WORKITEMSCOUNT;
+			std::array<JobHandle, WORKITEMSCOUNT> deps;
 
 			for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
 			{
@@ -136,11 +137,11 @@ namespace YAPT
 
 			for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
 			{
-				m_renderer->getThreadPool().addTask(integrateSingleScatterLookups, &items[i]);
+				deps[i] = m_renderer->getJobSystem().submit(integrateSingleScatterLookups, &items[i]);
 			}
 
 
-			m_renderer->getThreadPool().waitForAllTasksCompleted();
+			m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), WORKITEMSCOUNT));
 		
 	}
 
@@ -158,7 +159,8 @@ namespace YAPT
 		};
 
 		constexpr size_t WORKITEMSCOUNT = 8;
-		std::array< WorkItems, WORKITEMSCOUNT> items;
+		std::array<WorkItems, WORKITEMSCOUNT> items;
+		std::array<JobHandle, WORKITEMSCOUNT> deps;
 		size_t steps = (SSMS_ALBEDO_LUT_DIM + WORKITEMSCOUNT - 1) / WORKITEMSCOUNT;
 
 		for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
@@ -228,11 +230,11 @@ namespace YAPT
 		              
 		for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
 		{
-			m_renderer->getThreadPool().addTask(integrateFullScatteringLookups, &items[i]);
+			deps[i] = m_renderer->getJobSystem().submit(integrateFullScatteringLookups, &items[i]);
 		}
 
 
-		m_renderer->getThreadPool().waitForAllTasksCompleted();
+		m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), WORKITEMSCOUNT));
 	}
 
 	void MultiScatteringLUTs::generateDirectionalAlbedoSheenLUT(float* directionalAlbedoOUT)
@@ -247,6 +249,7 @@ namespace YAPT
 		};
 
 		std::array< WorkItems, WORKITEMSCOUNT> items;
+		std::array<JobHandle, WORKITEMSCOUNT> deps;
 		size_t steps = (SS_ALBEDO_SHEEN_LUT_DIM + WORKITEMSCOUNT - 1) / WORKITEMSCOUNT;
 
 		for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
@@ -275,17 +278,14 @@ namespace YAPT
 					singleScatterAlbedo[y * SS_ALBEDO_SHEEN_LUT_DIM + x] = albedo;
 				}
 			}
-
-			
-
 		};
 
 		for (size_t i = 0; i < WORKITEMSCOUNT; ++i)
 		{
-			m_renderer->getThreadPool().addTask(integrateSingleScatterLookups, &items[i]);
+			deps[i] = m_renderer->getJobSystem().submit(integrateSingleScatterLookups, &items[i]);
 		}
 
-		m_renderer->getThreadPool().waitForAllTasksCompleted();
+		m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), deps.size()));
 
 	}
 
@@ -305,6 +305,7 @@ namespace YAPT
 		};
 
 		constexpr size_t BATCHES_COUNT = 8;
+		std::array<JobHandle, BATCHES_COUNT * 2> deps;
 		size_t steps = (SS_ALBEDO_TRANSLUCENT_LUT_DIM + BATCHES_COUNT - 1) / BATCHES_COUNT;
 
 		std::array< Batch, BATCHES_COUNT> batchesDense;
@@ -375,7 +376,7 @@ namespace YAPT
 
 		for (size_t i = 0; i < BATCHES_COUNT; ++i)
 		{
-			m_renderer->getThreadPool().addTask(integrateTranslucentScattering, &batchesDense[i]);
+			deps[i] = m_renderer->getJobSystem().submit(integrateTranslucentScattering, &batchesDense[i]);
 		}
 
 
@@ -398,10 +399,10 @@ namespace YAPT
 		    
 		for (size_t i = 0; i < BATCHES_COUNT; ++i)
 		{
-			m_renderer->getThreadPool().addTask(integrateTranslucentScattering, &batchesLight[i]);
+			deps[BATCHES_COUNT + i] = m_renderer->getJobSystem().submit(integrateTranslucentScattering, &batchesLight[i]);
 		}
 
-		m_renderer->getThreadPool().waitForAllTasksCompleted();
+		m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), deps.size()));
 	}
         
 	void MultiScatteringLUTs::initializeLUTContents()

@@ -1,6 +1,7 @@
 #pragma once
 #include <Common/RCObjectPtr.h>
-#include <Common/ThreadPool.h>
+#include <Common/JobSystem.h>
+#include <Common/ArenaAllocator.h>
 #include <Renderer/Renderer.h>
 #include <Renderer/Shared/MeshManager.h>
 #include <Renderer/Shared/MaterialManager.h>
@@ -42,9 +43,12 @@ namespace YAPT
 	class BindlessBufferManager;
 	class LightManager;
 
+	using RendererFrameAllocator = ArenaAllocator;
+
 	class CRenderer : public Renderer
 	{
 	public:
+
 		CRenderer();
 		virtual ~CRenderer() override;
 
@@ -92,7 +96,8 @@ namespace YAPT
 
 		bool hasViewMoved() const { return m_hasViewMoved; }
 
-		ThreadPool& getThreadPool() { return m_threadPool; }
+		JobSystem& getJobSystem() { return m_jobSystem; }
+		RendererFrameAllocator& getRenderFrameAllocator() { return m_perFrameAllocator; }
 
 		RendererCacheProvider* getCacheProvider() const { return m_cacheProvider; }
 
@@ -132,7 +137,9 @@ namespace YAPT
 
 		CRendererConfiguration m_rendererConfig;
 
-		ThreadPool m_threadPool;
+		JobSystem m_jobSystem;
+		RendererFrameAllocator m_perFrameAllocator;
+
 		std::thread m_renderWorkerThread;
 		std::condition_variable m_renderWorkerCondition;
 		std::mutex m_renderWorkerMutex;

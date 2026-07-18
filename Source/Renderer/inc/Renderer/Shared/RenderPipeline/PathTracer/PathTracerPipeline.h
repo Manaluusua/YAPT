@@ -17,7 +17,7 @@ namespace YAPT
 		virtual ~PathTracerPipeline();
 		virtual void initialize(const InitializeContext& cntx) final;
 		virtual void shutdown() final;
-		virtual void update(const UpdateContext& cntx) final;
+		virtual JobHandle update(const UpdateContext& cntx) final;
 	protected:
 		virtual void setupRenderPipeline() override;
 

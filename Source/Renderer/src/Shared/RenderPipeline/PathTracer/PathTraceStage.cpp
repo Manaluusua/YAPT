@@ -122,14 +122,11 @@ namespace YAPT
 
 
 
-	void PathTraceStage::prepare(const PrepareData& cntx)
+	JobHandle PathTraceStage::prepare(const PrepareData& cntx)
 	{
-		
-		m_rtStage->prepare(cntx);
-		
-
+		return m_rtStage->prepare(cntx);
 	}
-	void PathTraceStage::update(const UpdateData& cntx)
+	JobHandle PathTraceStage::update(const UpdateData& cntx)
 	{
 
 		if (m_accelerationStructureNeedsRebuild || hasCameraMoved())
@@ -181,10 +178,12 @@ namespace YAPT
 		integratorUpdate.sampleOffset = getCurrentNumberOfSamplesPerPixel();
 		integratorUpdate.targetOffsetScaleBias = getCurrentResolveTargetTexelOffsetParams();
 		integratorUpdate.raysPerFrame = uvec2p(m_raysPerFrameWidth, m_raysPerFrameHeight);
-		m_rtStage->update(integratorUpdate);
+		JobHandle h = m_rtStage->update(integratorUpdate);
 
 
 		updateAccumulatedFrames();
+
+		return h;
 	}
 
 	void PathTraceStage::beforeExecute()

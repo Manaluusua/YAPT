@@ -50,11 +50,11 @@ namespace YAPT
 		getRenderGraph()->setupScheduling(2);
 	}
 
-	void PathTracerPipeline::update(const UpdateContext& cntx)
+	JobHandle PathTracerPipeline::update(const UpdateContext& cntx)
 	{
 		m_matManager.update();
 		m_meshManager.update();
-		RenderPipelineBase::update(cntx);
+		return RenderPipelineBase::update(cntx);
 	}
 
 

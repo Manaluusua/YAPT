@@ -10,8 +10,8 @@ namespace YAPT
 	public:
 		void initialize(const RenderPipeline::InitializeContext& cntx);
 		void shutdown();
-		void prepare(const RenderPipeline::PrepareContext& cntx);
-		void update(const RenderPipeline::UpdateContext& cntx);
+		JobHandle prepare(const RenderPipeline::PrepareContext& cntx);
+		JobHandle update(const RenderPipeline::UpdateContext& cntx);
 		void execute(const RenderPipeline::ExecuteContext& cntx);
 
 	private:

@@ -5,7 +5,8 @@
 #include <unordered_map>
 #include <bitset>
 
-#include <Common/ThreadPool.h>
+#include <Common/JobSystem.h>
+#include <array>
 
 #if defined(DEBUG) || defined(_DEBUG) 
 	#define ENABLE_GRAPH_SANITY_CHECKS
@@ -466,7 +467,7 @@ namespace YAPT
 
 	}
 
-	void RenderGraph::execute(ThreadPool* threadPool)
+	void RenderGraph::execute(JobSystem* threadPool)
 	{
 		//sync barriers and resource states
 		{
@@ -497,12 +498,15 @@ namespace YAPT
 				}
 			};
 
-			uint32_t NUM_TASKS = 16;
+			constexpr uint32_t NUM_TASKS = 8;
+			std::array<JobHandle, NUM_TASKS> deps;
+
 			for (uint32_t i = 0; i < NUM_TASKS; ++i)
 			{
-				threadPool->addTask(barriersJob, &m_barriersJob);
+				deps[i] = threadPool->submit(barriersJob, &m_barriersJob);
 			}
-			threadPool->waitForAllTasksCompleted();
+
+			threadPool->wait(threadPool->combineDependencies(deps.data(), deps.size()));
 		}
 
 		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);

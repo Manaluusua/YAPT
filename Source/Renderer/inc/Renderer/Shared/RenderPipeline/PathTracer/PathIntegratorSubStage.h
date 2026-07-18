@@ -5,6 +5,7 @@
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <spectralConstants.h>
 #include <Gfx/GfxTypes.h>
+#include <Common/JobSystem.h>
 
 namespace YAPT
 {
@@ -59,8 +60,8 @@ namespace YAPT
 		virtual void shutdown() = 0;
 		virtual void onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data) = 0;
 		virtual void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution) = 0;
-		virtual void prepare(const RenderStage::PrepareData& params) = 0;
-		virtual void update(const UpdateParams& params) = 0;
+		virtual JobHandle prepare(const RenderStage::PrepareData& params) = 0;
+		virtual JobHandle update(const UpdateParams& params) = 0;
 		
 
 		virtual void getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut) = 0;

@@ -502,17 +502,17 @@ namespace YAPT
 
 	}
 
-	void BidirectionalPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
+	JobHandle BidirectionalPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
 	{
 		m_accStructProvider->prepareAccelerationStructure();
 		
 
 		RaytraceCommonResources::PrepareParams prepareParams;
 		prepareParams.prepareTasksPool = params.prepareTasksPool;
-		m_raytraceCommon.prepare(prepareParams);
+		return m_raytraceCommon.prepare(prepareParams);
 	}
 
-	void BidirectionalPathIntegratorSubStage::update(const BidirectionalPathIntegratorSubStage::UpdateParams& params)
+	JobHandle BidirectionalPathIntegratorSubStage::update(const BidirectionalPathIntegratorSubStage::UpdateParams& params)
 	{
 		RaytraceCommonResources::UpdateParams p;
 		p.targetOffsetScaleBias = params.targetOffsetScaleBias;
@@ -521,7 +521,7 @@ namespace YAPT
 		p.sampleOffset = params.sampleOffset;
 		p.spectralSampleOffset = params.sampleOffset; //TODO: should make sure that light paths and camera paths share the same wavelength sampleset and maybe try reuse some (?)
 		p.updateTasksPool = params.stageUpdateContext->updateTasksPool;
-		m_raytraceCommon.update(p);
+		JobHandle h = m_raytraceCommon.update(p);
 
 		m_lastUpdateParams = params;
 
@@ -533,7 +533,7 @@ namespace YAPT
 		m_constantsGPU.getData()->cameraWorkGroupSwizzleOffset = (uint32_t)params.sampleOffset;
 
 		m_constantsGPU.flush();
-			
+		return h;
 	}
 
 	void BidirectionalPathIntegratorSubStage::recreateTexelCoordinatePermutationTexture(const RenderStage::RenderResolutionDependantResourcesData& data)

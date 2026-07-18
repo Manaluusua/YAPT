@@ -3,6 +3,7 @@
 
 #include <Gfx/GfxApi.h>
 #include <Gfx/RenderGraph/RenderGraphCommon.h>
+#include <Common/JobSystem.h>
 
 namespace YAPT
 {
@@ -10,7 +11,6 @@ namespace YAPT
 	class RenderGraph;
 	class RenderGraphNode;
 	class RenderResourcesPool;
-	class ThreadPool;
 
 	struct RenderStageConnection
 	{
@@ -36,13 +36,13 @@ namespace YAPT
 
 		struct PrepareData
 		{
-			ThreadPool* prepareTasksPool;
+			JobSystem* prepareTasksPool;
 			SwapChainHandle swapChain;
 		};
 
 		struct UpdateData
 		{
-			ThreadPool* updateTasksPool;
+			JobSystem* updateTasksPool;
 		};
 
 		void setup(CRenderer* renderer, RenderGraph* renderGraph)
@@ -59,8 +59,8 @@ namespace YAPT
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) {};
 		virtual void shutdown() = 0;
 
-		virtual void prepare(const PrepareData& data) = 0;
-		virtual void update(const UpdateData& data) = 0;
+		virtual JobHandle prepare(const PrepareData& data) = 0;
+		virtual JobHandle update(const UpdateData& data) = 0;
 		virtual void beforeExecute() = 0;
 
 		CRenderer* getRenderer() { return m_renderer; }

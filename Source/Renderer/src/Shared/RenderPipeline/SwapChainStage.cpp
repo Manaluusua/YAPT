@@ -24,7 +24,7 @@ namespace YAPT
 	{
 
 	}
-	void SwapChainStage::prepare(const PrepareData& data)
+	JobHandle SwapChainStage::prepare(const PrepareData& data)
 	{
 		m_swapChainNode->setSwapChain(data.swapChain);
 
@@ -32,10 +32,11 @@ namespace YAPT
 
 		TextureHandle tex = Gfx::getTextureHandleToNextBackbuffer(data.swapChain);
 		m_swapChainNode->getGraph()->setRenderGraphResourceTexture(swapChainResourceId, tex);
+		return {};
 	}
-	void SwapChainStage::update(const UpdateData& data)
+	JobHandle SwapChainStage::update(const UpdateData& data)
 	{
-
+		return {};
 	}
 
 	RenderStageConnection SwapChainStage::getOutputConnection(size_t id)

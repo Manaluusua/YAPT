@@ -2,12 +2,12 @@
 #define YAPT_SHARED_RENDERPIPELINE_H
 
 #include <Gfx/GfxApi.h>
+#include <Common/JobSystem.h>
 
 namespace YAPT
 {
 	class RenderStage;
 	class CRenderer;
-	class ThreadPool;
 	class RenderPipeline
 	{
 	public:
@@ -19,7 +19,7 @@ namespace YAPT
 
 		struct PrepareContext
 		{
-			ThreadPool* prepareTasksPool;
+			JobSystem* prepareTasksPool;
 			SwapChainHandle swapChain;
 			size_t renderWidth;
 			size_t renderHeight;
@@ -27,20 +27,20 @@ namespace YAPT
 
 		struct UpdateContext
 		{
-			ThreadPool* updateTasksPool;
+			JobSystem* updateTasksPool;
 		};
 
 		struct ExecuteContext
 		{
-			ThreadPool* executeTasksPool;
+			JobSystem* executeTasksPool;
 		};
 
 		virtual ~RenderPipeline() {}
 
 		virtual void initialize(const InitializeContext& cntx) = 0;
 		virtual void shutdown() = 0;
-		virtual void prepare(const PrepareContext& cntx) = 0;
-		virtual void update(const UpdateContext& cntx) = 0;
+		virtual JobHandle prepare(const PrepareContext& cntx) = 0;
+		virtual JobHandle update(const UpdateContext& cntx) = 0;
 		virtual void execute(const ExecuteContext& cntx) = 0;
 		
 		

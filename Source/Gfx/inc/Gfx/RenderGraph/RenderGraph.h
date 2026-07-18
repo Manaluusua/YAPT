@@ -15,7 +15,7 @@
 
 namespace YAPT
 {
-	class ThreadPool;
+	class JobSystem;
 	class RenderGraph
 	{
 	public:
@@ -75,7 +75,7 @@ namespace YAPT
 		size_t getNodeCount() const { return m_nodes.size(); }
 		RenderGraphNode** getNodes() { return m_nodes.data(); }
 
-		void execute(ThreadPool* threadpool);
+		void execute(JobSystem* threadpool);
 		
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }
 

@@ -1,14 +1,15 @@
 #pragma once
-
-
 #include <Common/TightlyPackedArray.h>
 #include <Math/Math.h>
 #include <Math/AABB.h>
 #include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 #include <Common/RCObjectPtr.h>
+#include <Common/JobSystem.h>
 #include <Renderer/Shared/MaterialInternal.h>
 #include <Renderer/Shared/MeshInternal.h>
+
+
 namespace YAPT
 {
 	typedef TPAID RenderObjectId;
@@ -20,7 +21,7 @@ namespace YAPT
 
 	class CRenderer;
 	class Material;
-	class ThreadPool;
+
 	class MeshManager;
 	class MaterialManager;
 
@@ -115,7 +116,7 @@ namespace YAPT
 		void freeRenderDataIndex(size_t index);
 		constexpr bool isValidRenderDataIndex(size_t index) { return index != INVALID_RENDERDATA_INDEX && index < RENDEROBJECT_RENDERDATA_BUCKETS_COUNT; }
 
-		void issueTransformAndBoundsUpdateJobs(ThreadPool& pool);
+		JobHandle issueTransformAndBoundsUpdateJobs(JobSystem& pool);
 		
 
 	private:

@@ -73,7 +73,7 @@ namespace YAPT
 		Gfx::destroyRenderGraph(m_gfxHandle, m_graph);
 
 	}
-	void RenderPipelineBase::prepare(const PrepareContext& cntx)
+	JobHandle RenderPipelineBase::prepare(const PrepareContext& cntx)
 	{
 		size_t renderResWidth = cntx.renderWidth;
 		size_t renderResHeight = cntx.renderHeight;
@@ -98,28 +98,57 @@ namespace YAPT
 				m_stages[i]->onRenderResolutionChanged(resolutionChangedData);
 			}
 		}
-
-
+		m_jobsToWait.clear();
+		m_jobsToWait.reserve(m_stages.size());
 		RenderStage::PrepareData stagePrepareContext;
 		stagePrepareContext.swapChain = cntx.swapChain;
 		stagePrepareContext.prepareTasksPool = cntx.prepareTasksPool;
 		for (size_t i = 0; i < m_stages.size(); ++i)
 		{
-			m_stages[i]->prepare(stagePrepareContext);
+			JobHandle h = m_stages[i]->prepare(stagePrepareContext);
+			if (h.isValid())
+			{
+				m_jobsToWait.push_back(h);
+			}
 		}
 
 		m_firstPrepareAfterInit = false;
+		if (m_jobsToWait.size() > 0)
+		{
+			return cntx.prepareTasksPool->combineDependencies(m_jobsToWait.data(), m_jobsToWait.size());
+		}
+		else
+		{
+			return {};
+		}
 	}
 
-	void RenderPipelineBase::update(const UpdateContext& cntx)
+	JobHandle RenderPipelineBase::update(const UpdateContext& cntx)
 	{
 		RenderStage::UpdateData stageUpdateContext;
 		stageUpdateContext.updateTasksPool = cntx.updateTasksPool;
 
+		m_jobsToWait.clear();
+		m_jobsToWait.reserve(m_stages.size());
+
 		//execute nodes (TODO: multithreaded)
 		for (size_t i = 0; i < m_stages.size(); ++i)
 		{
-			m_stages[i]->update(stageUpdateContext);
+			JobHandle h = m_stages[i]->update(stageUpdateContext);
+			if (h.isValid())
+			{
+				m_jobsToWait.push_back(h);
+			}
+		}
+
+		m_firstPrepareAfterInit = false;
+		if (m_jobsToWait.size() > 0)
+		{
+			return cntx.updateTasksPool->combineDependencies(m_jobsToWait.data(), m_jobsToWait.size());
+		}
+		else
+		{
+			return {};
 		}
 	}
 	void RenderPipelineBase::execute(const ExecuteContext& cntx)

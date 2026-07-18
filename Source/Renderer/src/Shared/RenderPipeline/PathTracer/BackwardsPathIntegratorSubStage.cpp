@@ -198,16 +198,17 @@ namespace YAPT
 		}
 	}
 
-	void BackwardsPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
+	JobHandle BackwardsPathIntegratorSubStage::prepare(const RenderStage::PrepareData& params)
 	{
 		m_accStructProvider->prepareAccelerationStructure();
 
 		RaytraceCommonResources::PrepareParams p;
 		p.prepareTasksPool = params.prepareTasksPool;
-		m_raytraceCommon.prepare(p);
+		return m_raytraceCommon.prepare(p);
+
 	}
 
-	void BackwardsPathIntegratorSubStage::update(const BackwardsPathIntegratorSubStage::UpdateParams& params)
+	JobHandle BackwardsPathIntegratorSubStage::update(const BackwardsPathIntegratorSubStage::UpdateParams& params)
 	{
 		RaytraceCommonResources::UpdateParams p;
 		p.targetOffsetScaleBias = params.targetOffsetScaleBias;
@@ -216,10 +217,9 @@ namespace YAPT
 		p.sampleOffset = params.sampleOffset;
 		p.spectralSampleOffset = params.sampleOffset;
 		p.updateTasksPool = params.stageUpdateContext->updateTasksPool;
-		m_raytraceCommon.update(p);
-		
-		m_lastUpdateParams = params;
 
+		m_lastUpdateParams = params;
+		return m_raytraceCommon.update(p);
 	}
 
 	void BackwardsPathIntegratorSubStage::getOutput(OutputResource resource, RenderGraphNode*& node, size_t& slotOut)

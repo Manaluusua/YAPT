@@ -6,7 +6,8 @@
 #include <Renderer/Shared/MaterialInternal.h>
 #include <Renderer/Shared/MeshManager.h>
 #include <Common/CommonUtilities.h>
-#include <Common/ThreadPool.h>
+#include <Common/JobSystem.h>
+#include <array>
 
 namespace YAPT
 {
@@ -291,7 +292,7 @@ namespace YAPT
 		m_freeRenderDataIndices[index] = true;
 	}
 
-	void RenderObjectManager::issueTransformAndBoundsUpdateJobs(ThreadPool& pool)
+	JobHandle RenderObjectManager::issueTransformAndBoundsUpdateJobs(JobSystem& pool)
 	{
 		constexpr size_t MAX_JOBS = 16;
 		constexpr size_t MIN_ITEMS_PER_JOB = 100;
@@ -303,9 +304,11 @@ namespace YAPT
 		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / MIN_ITEMS_PER_JOB));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
 
+		std::array<JobHandle, MAX_JOBS> deps;
+
 		if (count == 0)
 		{
-			return;
+			return JobHandle{};
 		}
 
 		m_updateBoundsJobItems.resize(numberOfJobs);
@@ -343,8 +346,6 @@ namespace YAPT
 				item->transformsInv[index] = glm::inverse(t);
 			}
 
-
-
 		};
 
 		size_t offset = 0;
@@ -364,8 +365,11 @@ namespace YAPT
 
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
-			pool.addTask(updateBoundsFunc, &m_updateBoundsJobItems[i]);
+			JobHandle h = pool.submit(updateBoundsFunc, &m_updateBoundsJobItems[i]);
+			deps[i] = h;
 		}
+
+		return pool.combineDependencies(deps.data(), numberOfJobs);
 	}
 
 

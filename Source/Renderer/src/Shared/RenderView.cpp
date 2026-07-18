@@ -1,8 +1,9 @@
 #include <Renderer/Shared/RenderView.h>
-#include <Common/ThreadPool.h>
+#include <Common/JobSystem.h>
 #include <Renderer/Shared/RenderObjectManager.h>
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Common/CommonUtilities.h>
+#include <array>
 
 namespace YAPT
 {
@@ -66,17 +67,19 @@ namespace YAPT
 
 	}
 
-	void RenderView::issueViewDependantRenderObjectJobs(ThreadPool& pool, RenderObjectManager& renderObjectManager)
+	JobHandle RenderView::issueViewDependantRenderObjectJobs(JobSystem& jobSystem, JobHandle dep, RenderObjectManager& renderObjectManager)
 	{
-		constexpr size_t MAX_JOBS = 4;
+		constexpr size_t MAX_JOBS = 8;
 		YAPT::mat4* wMat = renderObjectManager.getAllWorldMatrices();
 		size_t count = renderObjectManager.getNumberOfObjects();
 		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_JOBS), count / 10u));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
 
+		std::array<JobHandle, MAX_JOBS> jobs;
+
 		if (count == 0)
 		{
-			return;
+			return {};
 		}
 
 		m_calculateMVPWorkItems.resize(numberOfJobs);
@@ -90,9 +93,6 @@ namespace YAPT
 			{
 				item->mvpArray[i] = item->viewProj * item->worldMatrixArray[i];
 			}
-
-
-
 		};
 
 		size_t offset = 0;
@@ -107,12 +107,12 @@ namespace YAPT
 
 		}
 
-		
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
-			pool.addTask(calculateMvpFunc, &m_calculateMVPWorkItems[i]);
+			jobs[i] = jobSystem.submit(calculateMvpFunc, &m_calculateMVPWorkItems[i], &dep, 1);
 		}
 		
+		return jobSystem.combineDependencies(jobs.data(), numberOfJobs);
 	}
 
 

@@ -271,6 +271,8 @@ namespace YAPT
 			constexpr size_t BATCHES_COUNT = 8;
 			std::array<Batch, BATCHES_COUNT> batches;
 
+			std::array <JobHandle, BATCHES_COUNT> deps;
+
 			uint32_t chunkSize = (CIE_LUT_RESOLUTION + BATCHES_COUNT - 1) / BATCHES_COUNT;
 			const double* rgbSpace = s == ColorSpace::REC2020 ? c_rec2020XYZToRGB : c_srgbXYZToRGB;
 
@@ -309,9 +311,9 @@ namespace YAPT
 
 			for (size_t i = 0; i < BATCHES_COUNT; ++i)
 			{
-				m_renderer->getThreadPool().addTask(calculateToRGBMapping, &batches[i]);
+				deps[i] = m_renderer->getJobSystem().submit(calculateToRGBMapping, &batches[i]);
 			}
-			m_renderer->getThreadPool().waitForAllTasksCompleted();
+			m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), BATCHES_COUNT));
 		}
 
 		//Generate LUT Data
@@ -332,6 +334,7 @@ namespace YAPT
 
 			constexpr size_t BATCHES_COUNT = 8;
 			std::array<Batch, BATCHES_COUNT> batches;
+			std::array <JobHandle, BATCHES_COUNT> deps;
 
 			uint32_t chunkSize = (rgbTableRes + BATCHES_COUNT - 1) / BATCHES_COUNT;
 
@@ -390,9 +393,9 @@ namespace YAPT
 
 			for (size_t i = 0; i < BATCHES_COUNT; ++i)
 			{
-				m_renderer->getThreadPool().addTask(calculateRGBToSPDLUT, &batches[i]);
+				deps[i] = m_renderer->getJobSystem().submit(calculateRGBToSPDLUT, &batches[i]);
 			}
-			m_renderer->getThreadPool().waitForAllTasksCompleted();
+			m_renderer->getJobSystem().wait(m_renderer->getJobSystem().combineDependencies(deps.data(), BATCHES_COUNT));
 
 			if (printError)
 			{

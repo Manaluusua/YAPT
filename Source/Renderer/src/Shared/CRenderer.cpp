@@ -12,11 +12,13 @@
 #include <Renderer/Shared/BindlessBufferManager.h>
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/RendererVarsList.h>
-#include <Common/ThreadPool.h>
+
 #define MAX_BINDLESS_TEXTURES_COUNT 16384
 #define MAX_BINDLESS_BUFFERS_COUNT 16384
 
-
+constexpr static uint32_t MAX_NUMBER_RENDERJOBS_PER_FRAME = 2048;
+constexpr static uint32_t RESERVED_NUMBER_OF_DEPS_PER_JOB = 8;
+constexpr static size_t PER_FRAME_ALLOCATOR_CAPACITY_IN_BYTES = 0xFFFFFF;
 
 namespace YAPT
 {
@@ -39,6 +41,7 @@ namespace YAPT
 		m_renderWorkPending(false),
 		m_shutDownRequested(false),
 		m_currentRenderView(nullptr),
+		m_perFrameAllocator(PER_FRAME_ALLOCATOR_CAPACITY_IN_BYTES),
 		m_frameDeltaInSeconds(0.f)
 	{
 
@@ -120,7 +123,7 @@ namespace YAPT
 		}
 		
 		initVariables();
-		m_threadPool.init(8);
+		m_jobSystem.init(MAX_NUMBER_RENDERJOBS_PER_FRAME, RESERVED_NUMBER_OF_DEPS_PER_JOB, 8);
 		//start render thread
 		m_renderWorkerThread = std::thread(CRenderer::renderLoopEntry, this);
 
@@ -155,7 +158,7 @@ namespace YAPT
 	{
 		if (m_gfxHandle == YAPT_NULL_HANDLE) return;
 
-		m_threadPool.deinit();
+		m_jobSystem.deinit();
 		//First shutdown the (highlevel) renderthread
 		{
 			std::unique_lock<std::mutex> lock(m_renderWorkerMutex);
@@ -196,9 +199,6 @@ namespace YAPT
 		delete m_shaderLoader;
 		m_shaderLoader = nullptr;
 		
-
-		
-
 		if (m_coreResourcesUtility)
 		{
 			delete m_coreResourcesUtility;
@@ -350,39 +350,50 @@ namespace YAPT
 	void CRenderer::executeFrame()
 	{
 
-		m_renderObjectManager->issueTransformAndBoundsUpdateJobs(getThreadPool());
-		m_lightManager->update(getThreadPool());
+		m_perFrameAllocator.reset();
+		m_jobSystem.reset(); //should force flush all jobs?
+
+		JobHandle transformsAndBoundsJobs = m_renderObjectManager->issueTransformAndBoundsUpdateJobs(getJobSystem());
+		JobHandle lightManagerJobs = m_lightManager->update(getJobSystem(), transformsAndBoundsJobs);
 
 		if (m_renderPipelineMngr)
 		{
 			glm::ivec2 res = m_rendererConfig.getRendererVarValueInternal<ivec2p>(RVARNAME_RENDER_RESOLUTION);
 
 			//calculate mvp for main view
-			m_currentRenderView->issueViewDependantRenderObjectJobs(getThreadPool(), *m_renderObjectManager);
+			JobHandle viewDependantJobs = m_currentRenderView->issueViewDependantRenderObjectJobs(getJobSystem(), transformsAndBoundsJobs, *m_renderObjectManager);
+
+			m_jobSystem.wait(viewDependantJobs);
+			m_jobSystem.wait(lightManagerJobs);
 
 			RenderPipeline::PrepareContext prepareContext;
-			prepareContext.prepareTasksPool = &getThreadPool();
+			prepareContext.prepareTasksPool = &getJobSystem();
 			prepareContext.swapChain = m_swapChain;
 			prepareContext.renderWidth = res.x;
 			prepareContext.renderHeight = res.y;
-			m_renderPipelineMngr->prepare(prepareContext);
+
+			JobHandle jobsToWait = m_renderPipelineMngr->prepare(prepareContext);
+			getJobSystem().wait(jobsToWait);
 
 			//mvp needs to be ready before update calls
-			getThreadPool().waitForAllTasksCompleted();
 			m_currentRenderView->updatePerPerViewObjectGPUData();
 
 			RenderPipeline::UpdateContext updateContext;
-			updateContext.updateTasksPool = &getThreadPool();
-			m_renderPipelineMngr->update(updateContext);
+			updateContext.updateTasksPool = &getJobSystem();
+			jobsToWait = m_renderPipelineMngr->update(updateContext);
+			getJobSystem().wait(jobsToWait);
 		}
+		else
 
-		getThreadPool().waitForAllTasksCompleted();
+		{
+			m_jobSystem.wait(lightManagerJobs);
+		}
 
 		Gfx::executeBegin(m_gfxHandle);
 		if (m_renderPipelineMngr)
 		{
 			RenderPipeline::ExecuteContext execContext;
-			execContext.executeTasksPool = &getThreadPool();
+			execContext.executeTasksPool = &getJobSystem();
 			m_renderPipelineMngr->execute(execContext);
 		}
 		Gfx::executeEnd(m_gfxHandle);

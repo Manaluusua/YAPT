@@ -291,11 +291,11 @@ namespace YAPT
 	}
 
 
-	void TonemapStage::prepare(const PrepareData& cntx)
+	JobHandle TonemapStage::prepare(const PrepareData& cntx)
 	{
-
+		return {};
 	}
-	void TonemapStage::update(const UpdateData& cntx)
+	JobHandle TonemapStage::update(const UpdateData& cntx)
 	{
 		replicateRenderVars();
 
@@ -400,6 +400,7 @@ namespace YAPT
 		
 
 		m_tonemapConstants.flush();
+		return {};
 	}
 
 	void TonemapStage::executeClearHistogram(const RenderGraphNodeExecutionContext& execContext)

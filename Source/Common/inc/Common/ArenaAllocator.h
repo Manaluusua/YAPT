@@ -6,8 +6,6 @@
 
 namespace YAPT
 {
-	//Thread-safe linear (bump-pointer) allocator over a fixed-size block of memory. Individual allocations cannot be freed;
-	//the whole arena is reclaimed at once via reset().
 	class ArenaAllocator
 	{
 	public:

@@ -42,8 +42,8 @@ namespace YAPT
 		virtual void shutdown() override;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) override;
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
-		virtual void prepare(const PrepareData& data) override;
-		virtual void update(const UpdateData& data) override;
+		virtual JobHandle prepare(const PrepareData& data) override;
+		virtual JobHandle update(const UpdateData& data) override;
 		virtual void beforeExecute() override;
 
 		virtual RenderStageConnection getOutputConnection(size_t id) override;

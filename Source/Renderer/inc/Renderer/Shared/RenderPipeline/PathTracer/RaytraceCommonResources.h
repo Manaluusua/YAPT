@@ -75,13 +75,13 @@ namespace YAPT
 
 		struct PrepareParams
 		{
-			ThreadPool* prepareTasksPool;
+			JobSystem* prepareTasksPool;
 
 		};
 
 		struct  UpdateParams
 		{
-			ThreadPool* updateTasksPool;
+			JobSystem* updateTasksPool;
 			size_t sampleOffset;
 			size_t spectralSampleOffset;
 			uvec4p targetOffsetScaleBias;
@@ -98,12 +98,13 @@ namespace YAPT
 		void initialize(CRenderer* rend, RenderResourcesPool* resourcesPool, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr);
 		void shutdown();
 		void updateCommonResourcesToDescriptorSet(DescriptorSetHandle handle);
-		void prepare(const RaytraceCommonResources::PrepareParams& params);
-		void update(const RaytraceCommonResources::UpdateParams& params);
+		JobHandle prepare(const RaytraceCommonResources::PrepareParams& params);
+		JobHandle update(const RaytraceCommonResources::UpdateParams& params);
 
 		virtual void sceneChanged(const PathIntegratorSubStage::SceneData& sceneData) final;
 
 	private:
+		constexpr static uint32_t COMBINE_BOUNDS_MAX_JOBS = 8;
 
 		struct CombineBoundsJobItem
 		{
@@ -114,8 +115,8 @@ namespace YAPT
 		};
 
 		void updateSamples(size_t sampleOffset);
-		void setupLightDataJob(ThreadPool* threadPool);
-		void setupWorldBoundsJob(ThreadPool* threadPool);
+		JobHandle setupLightDataJob(JobSystem* threadPool);
+		JobHandle setupWorldBoundsJob(JobSystem* threadPool);
 
 
 		CRenderer* m_renderer;
@@ -128,7 +129,8 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
 
-		std::array<CombineBoundsJobItem, 8> m_combineBoundsJobs;
+		std::array<CombineBoundsJobItem, COMBINE_BOUNDS_MAX_JOBS> m_combineBoundsJobs;
+		AABB m_worldBounds;
 	};
 
 }

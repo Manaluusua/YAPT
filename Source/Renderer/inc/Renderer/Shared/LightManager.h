@@ -28,14 +28,14 @@ namespace YAPT
 		LightManager(CRenderer* renderer);
 		~LightManager();
 
-		void update(ThreadPool& pool);
+		JobHandle update(JobSystem& pool, JobHandle deps);
 
 		const LightReference* getAllLightReferences() const { checkLightCacheValid();  return m_lightReferencesCache.data(); }
 		size_t getLightReferenceCount() const { checkLightCacheValid(); return m_lightReferencesCache.size(); }
 
 	private:
 
-		static constexpr size_t MAX_GATHER_JOBS = 4;
+		static constexpr size_t MAX_GATHER_JOBS = 8;
 
 		struct GatherLightsJob
 		{

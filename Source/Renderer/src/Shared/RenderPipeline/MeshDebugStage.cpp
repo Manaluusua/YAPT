@@ -159,12 +159,11 @@ namespace YAPT
 	}
 
 
-	void MeshDebugStage::prepare(const PrepareData& cntx)
+	JobHandle MeshDebugStage::prepare(const PrepareData& cntx)
 	{
-
-
+		return {};
 	}
-	void MeshDebugStage::update(const UpdateData& cntx)
+	JobHandle MeshDebugStage::update(const UpdateData& cntx)
 	{
 		replicateRenderVars();
 		
@@ -178,7 +177,7 @@ namespace YAPT
 
 		BufferViewHandle viewHandle = getRenderer()->getCurrentRenderView().getMVPBufferView();
 
-		if (viewHandle == YAPT_NULL_HANDLE) return;
+		if (viewHandle == YAPT_NULL_HANDLE) return {};
 
 		DescriptorSetUpdate update;
 		update.descriptor = DescriptorPtr(&viewHandle);
@@ -187,7 +186,7 @@ namespace YAPT
 		update.dstBinding = 0;
 
 		Gfx::updateDescriptorSet(getRenderer()->getGfxHandle(), m_descSet, &update, 1);
-
+		return {};
 	}
 
 	void MeshDebugStage::execute(const RenderGraphNodeExecutionContext& execContext)

@@ -1,7 +1,7 @@
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/MaterialManager.h>
-#include <Common/ThreadPool.h>
+#include <Common/JobSystem.h>
 namespace YAPT
 {
 	LightManager::LightManager(CRenderer* renderer)
@@ -15,14 +15,14 @@ namespace YAPT
 
 	}
 
-	void LightManager::update(ThreadPool& pool)
+	JobHandle LightManager::update(JobSystem& pool, JobHandle deps)
 	{
 		RenderObjectManager& roMngr = m_renderer->getRenderObjectManager();
 		MaterialManager& matMngr = m_renderer->getMaterialManager();
 
 		if (!roMngr.hasChanges() && !matMngr.hasChanges())
 		{
-			return;
+			return {};
 		}
 
 		
@@ -30,6 +30,8 @@ namespace YAPT
 		size_t count = roMngr.getNumberOfObjects();
 		size_t numberOfJobs = max(size_t(1), min(size_t(MAX_GATHER_JOBS), count / MIN_ITEMS_PER_JOB));
 		size_t operationsPerJob = (count + numberOfJobs - 1) / numberOfJobs;
+
+		std::array<JobHandle, MAX_GATHER_JOBS> lightJobs;
 
 		m_lightReferencesCache.clear();
 		m_lightReferencesCacheValid = false;
@@ -83,8 +85,10 @@ namespace YAPT
 
 		for (size_t i = 0; i < numberOfJobs; ++i)
 		{
-			pool.addTask(gatherLightsFunc, &m_gatherLightsJobs[i]);
+			lightJobs[i] = pool.submit(gatherLightsFunc, &m_gatherLightsJobs[i], &deps, 1);
 		}
+
+		return pool.combineDependencies(lightJobs.data(), numberOfJobs);
 	}
 
 	void LightManager::checkLightCacheValid() const

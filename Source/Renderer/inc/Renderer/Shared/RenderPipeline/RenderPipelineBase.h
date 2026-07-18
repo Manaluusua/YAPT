@@ -16,8 +16,8 @@ namespace YAPT
 
 		virtual void initialize(const InitializeContext& cntx) override;
 		virtual void shutdown() override;
-		virtual void prepare(const PrepareContext& cntx) override;
-		virtual void update(const UpdateContext& cntx) override;
+		virtual JobHandle prepare(const PrepareContext& cntx) override;
+		virtual JobHandle update(const UpdateContext& cntx) override;
 		virtual void execute(const ExecuteContext& cntx) override;
 
 		RenderGraph* getRenderGraph() { return m_graph; }
@@ -43,7 +43,7 @@ namespace YAPT
 		RenderResourcesPool* m_renderGraphLifetimeResources;
 
 		std::vector<RenderStage*> m_stages;
-		
+		std::vector<JobHandle> m_jobsToWait;
 
 		bool m_firstPrepareAfterInit;
 

@@ -98,28 +98,31 @@ namespace YAPT
 		m_lastSelectedRenderPipelineIndex = currentPipeline;
 	}
 
-	void RenderPipelineManager::prepare(const RenderPipeline::PrepareContext& cntx)
+	JobHandle RenderPipelineManager::prepare(const RenderPipeline::PrepareContext& cntx)
 	{
 		checkPipelineChange();
+		JobHandle handle{};
 		if (m_activePipeline)
 		{
-			m_activePipeline->prepare(cntx);
+			handle = m_activePipeline->prepare(cntx);
 		}
+		return handle;
 	}
 
-	void RenderPipelineManager::update(const RenderPipeline::UpdateContext& cntx)
+	JobHandle RenderPipelineManager::update(const RenderPipeline::UpdateContext& cntx)
 	{
+		JobHandle handle{};
 		if (m_activePipeline)
 		{
-			m_activePipeline->update(cntx);
+			handle = m_activePipeline->update(cntx);
 		}
+		return handle;
 	}
 
 	void RenderPipelineManager::execute(const RenderPipeline::ExecuteContext& cntx)
 	{
 		if (m_activePipeline)
 		{
-
 			m_activePipeline->execute(cntx);
 		}
 	}

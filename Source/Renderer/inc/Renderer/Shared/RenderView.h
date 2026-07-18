@@ -3,13 +3,12 @@
 #include <Gfx/GfxApi.h>
 #include <Renderer/Shared/Utility/GpuBufferHelper.h>
 #include <Math/Math.h>
-
+#include <Common/JobSystem.h>
 #include <vector>
 
 namespace YAPT
 {
 	class RenderObjectManager;
-	class ThreadPool;
 	class RenderView
 	{
 	public:
@@ -29,7 +28,7 @@ namespace YAPT
 		void setNearFar(const vec2& nearFar);
 		const vec2& getNearFar() const;
 
-		void issueViewDependantRenderObjectJobs(ThreadPool& pool, RenderObjectManager& renderObjectManager);
+		JobHandle issueViewDependantRenderObjectJobs(JobSystem& jobSystem, JobHandle dep, RenderObjectManager& renderObjectManager);
 
 		void updatePerPerViewObjectGPUData();
 
