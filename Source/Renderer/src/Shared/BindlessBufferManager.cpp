@@ -28,7 +28,7 @@ namespace YAPT
 		b.descriptorCount = maxNumberOfBuffers;
 		b.shaderStages = ALL_SHADER_STAGES;
 		b.staticSamplers = nullptr;
-		b.type = DescriptorType::UNIFORM_TEXEL_BUFFER; //Buffer<> type in hlsl parlance
+		b.type = DescriptorType::STORAGE_BUFFER;
 		m_resourceUtility.init(m_renderer->getGfxHandle(), maxNumberOfBuffers, b);
 	}
 
@@ -59,7 +59,7 @@ namespace YAPT
 		buff->setBindlessResourceArrayIndex(index);
 		 
 		BufferViewDesc desc;
-		desc.nonStructuredFormat = ResourceFormat::R32_UINT; 
+		desc.flags = BufferViewFlagBits::BUFFERVIEWFLAGS_RAW;
 		BufferViewHandle handle = Gfx::getBufferView(m_renderer->getGfxHandle(), buff->getResourceHandle(), desc);
 
 		m_resourceUtility.updateDescriptor(index, handle);

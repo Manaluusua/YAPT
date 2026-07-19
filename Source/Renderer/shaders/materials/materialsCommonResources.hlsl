@@ -108,9 +108,7 @@ TextureCube g_texturesCube[] : register(t0, space10001);
 
 //bindless buffer aliases
 [[vk::binding(0, 2)]]
-Buffer<uint> g_buffersUint[] : register(t0, space2);
-[[vk::binding(0, 2)]]
-Buffer<float> g_buffersFloat[] : register(t0, space10002);
+ByteAddressBuffer g_buffersRaw[] : register(t0, space2);
 
 
 

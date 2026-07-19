@@ -1060,14 +1060,21 @@ namespace YAPT
 			{
 				assert(!"not sure what kind of view to create");
 			}
+
+			if ((bufViewDesc.offsetInBytes % sizeInBytes) != 0)
+			{
+				YAPT_LOG_WARNING("Creating a resource view where buffer view offset does not align to entry size in bytes: offset %d, sizeInBytes %d", bufViewDesc.offsetInBytes, sizeInBytes);
+			}
+			if ((bufViewDesc.sizeInBytes % sizeInBytes) != 0)
+			{
+				YAPT_LOG_WARNING("Creating a resource view where buffer view size does not align to entry size in bytes: offset %d, sizeInBytes %d", bufViewDesc.sizeInBytes, sizeInBytes);
+			}
 			
 			srvOut.Buffer.Flags = flags;
 			srvOut.Buffer.FirstElement = (UINT64)bufViewDesc.offsetInBytes / sizeInBytes;
 			srvOut.Buffer.NumElements = (UINT)bufViewDesc.sizeInBytes / sizeInBytes;
 			srvOut.Buffer.StructureByteStride = isRawView ? 0 : (UINT)bufViewDesc.structureStrideInBytes;
 
-			assert((bufViewDesc.offsetInBytes % sizeInBytes) == 0);
-			assert((bufViewDesc.sizeInBytes % sizeInBytes) == 0);
 		}
 		
 	}

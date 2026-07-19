@@ -43,11 +43,10 @@ namespace YAPT
 		assert(currentIndex < m_pendingUpdates.size());
 		m_handles[currentIndex] = handle;
 
-		DescriptorSetUpdate update;
+		DescriptorSetUpdate& update = m_pendingUpdates[currentIndex];
 		update.descriptor = DescriptorPtr((ViewHandle*)& m_handles[currentIndex]);
 		update.descriptorCount = 1;
 		update.dstArrayElement = index;
 		update.dstBinding = m_bindingDef.bindingIndex;
-		m_pendingUpdates[currentIndex] = std::move(update);
 	}
 } 

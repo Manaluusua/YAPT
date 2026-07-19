@@ -28,7 +28,7 @@ namespace YAPT
 			{
 				if (m_totalNumberOfElements < (m_currentHead + numberOfElements))
 				{
-					YAPT_LOG_ERROR("Failed to allocate Range!");
+					YAPT_LOG_FATAL_ERROR("Failed to allocate Range!");
 					return retVal;
 				}
 

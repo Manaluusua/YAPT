@@ -71,31 +71,22 @@ bool isDeltaDistribution(in float2 a2, in Surface surface)
 
 float bbLoadFloat(in uint bufferIndex, in uint bufferOffset)
 {
-	return asfloat(g_buffersUint[NonUniformResourceIndex(bufferIndex)][bufferOffset]);
+    return asfloat(g_buffersRaw[NonUniformResourceIndex(bufferIndex)].Load(bufferOffset << 2));
 }
 
 float2 bbLoadFloat2(in uint bufferIndex, in uint bufferOffset)
 {
-	float2 retVal;
-	retVal.x = bbLoadFloat(bufferIndex, bufferOffset);
-	retVal.y = bbLoadFloat(bufferIndex, bufferOffset + 1);
-	return retVal;
+    return asfloat(g_buffersRaw[NonUniformResourceIndex(bufferIndex)].Load2(bufferOffset << 2));
 }
 
 float3 bbLoadFloat3(in uint bufferIndex, in uint bufferOffset)
 {
-	float3 retVal;
-	retVal.xy = bbLoadFloat2(bufferIndex, bufferOffset);
-	retVal.z = bbLoadFloat(bufferIndex, bufferOffset + 2);
-	return retVal;
+    return asfloat(g_buffersRaw[NonUniformResourceIndex(bufferIndex)].Load3(bufferOffset << 2));
 }
 
 float4 bbLoadFloat4(in uint bufferIndex, in uint bufferOffset)
 {
-	float4 retVal;
-	retVal.xy = bbLoadFloat2(bufferIndex, bufferOffset);
-	retVal.zw = bbLoadFloat2(bufferIndex, bufferOffset + 2);
-	return retVal;
+    return asfloat(g_buffersRaw[NonUniformResourceIndex(bufferIndex)].Load4(bufferOffset << 2));
 }
 
 //stride and offset are sizes in dwords (uint32/float32)
@@ -150,8 +141,8 @@ uint3 fetchIndices(uint2 indexBuffer, uint primIndex)
 
 		if (odd != 0)
 		{
-			uint val0 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 1];
-			uint val1 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 2];
+            uint val0 = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((ind + indexBufferOffset + 1) << 2);
+            uint val1 = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((ind + indexBufferOffset + 2) << 2);
 
 			indices.x = val0 >> 16;
 			indices.y = val1 & 0xFFFF;
@@ -159,8 +150,8 @@ uint3 fetchIndices(uint2 indexBuffer, uint primIndex)
 		}
 		else
 		{
-			uint val0 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset];
-			uint val1 = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][ind + indexBufferOffset + 1];
+            uint val0 = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((ind + indexBufferOffset) << 2);
+            uint val1 = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((ind + indexBufferOffset + 1) << 2);
 
 			indices.x = val0 & 0xFFFF;
 			indices.y = val0 >> 16;
@@ -172,10 +163,10 @@ uint3 fetchIndices(uint2 indexBuffer, uint primIndex)
 	}
 	else
 	{
-		indices.x = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset];
-		indices.y = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 1];
-		indices.z = g_buffersUint[NonUniformResourceIndex(indexBufferIndex)][primIndex * indexBufferStride + indexBufferOffset + 2];
-	}
+        indices.x = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((primIndex * indexBufferStride + indexBufferOffset) << 2);
+        indices.y = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((primIndex * indexBufferStride + indexBufferOffset + 1) << 2);
+        indices.z = g_buffersRaw[NonUniformResourceIndex(indexBufferIndex)].Load((primIndex * indexBufferStride + indexBufferOffset + 2) << 2);
+    }
 
 	return indices;
 }

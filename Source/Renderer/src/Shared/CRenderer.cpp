@@ -13,8 +13,8 @@
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/RendererVarsList.h>
 
-#define MAX_BINDLESS_TEXTURES_COUNT 16384
-#define MAX_BINDLESS_BUFFERS_COUNT 16384
+#define MAX_BINDLESS_TEXTURES_COUNT 0xFFFF
+#define MAX_BINDLESS_BUFFERS_COUNT 0xFFFF
 
 constexpr static uint32_t MAX_NUMBER_RENDERJOBS_PER_FRAME = 2048;
 constexpr static uint32_t RESERVED_NUMBER_OF_DEPS_PER_JOB = 8;
