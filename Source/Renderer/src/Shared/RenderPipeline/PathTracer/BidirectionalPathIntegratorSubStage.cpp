@@ -538,11 +538,11 @@ namespace YAPT
 
 	void BidirectionalPathIntegratorSubStage::recreateTexelCoordinatePermutationTexture(const RenderStage::RenderResolutionDependantResourcesData& data)
 	{
-		TextureDesc texDesc(ResourceDimension::TEXTURE_2D, ResourceFormat::R32_UINT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_TEXTURE, m_renderResolution.x, m_renderResolution.y, 1, 1);
+		TextureDesc texDesc(ResourceDimension::TEXTURE_2D, ResourceFormat::R32_UINT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_TEXTURE | RESOURCE_USAGE_SAMPLED_TEXTURE, m_renderResolution.x, m_renderResolution.y, 1, 1);
 		m_texelRemapTexture = data.resolutionDependantResourcesPool->requestTexture(texDesc);
 
 		TextureViewDesc texViewDesc;
-		texViewDesc.resourceUsage = RESOURCE_USAGE_STORAGE_TEXTURE;
+		texViewDesc.resourceUsage = RESOURCE_USAGE_SAMPLED_TEXTURE;
 		texViewDesc.dimensions = ResourceDimension::TEXTURE_2D;
 		texViewDesc.format = ResourceFormat::R32_UINT;
 

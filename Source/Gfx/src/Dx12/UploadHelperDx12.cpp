@@ -72,12 +72,14 @@ namespace YAPT
 	}
 
 	void UploadHelperDx12::uploadDataForTexture(ID3D12Resource* texture, const D3D12_RESOURCE_DESC& resourceDesc,
-		size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions)
+		size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, const ResourceStateDescription& afterUploadUsage)
 	{
 		auto allocCallback = [this](size_t size, UploadUtility::UploadHeapAllocationInfo& allocInfo) { return getHeapMemory(size, allocInfo); };
 
 		UploadUtility::TextureDataInfo* info = m_pendingTextureUploads.add(arraySliceCount * mipCount);
 		UploadUtility::uploadDataForTexture(m_resMngr.getDevice(), texture, resourceDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount,textureDataDefinitions, allocCallback, info);
+
+		//TODO: implement transition barrier if afterUploadUsage requires it
 	}
 
 	bool UploadHelperDx12::getHeapMemory(size_t sizeRequested, UploadUtility::UploadHeapAllocationInfo& info)

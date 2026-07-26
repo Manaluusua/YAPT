@@ -125,9 +125,9 @@ namespace YAPT
 			h->getResourceManager()->unmap(handle);
 		}
 
-		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
+		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 		{
-			h->getResourceManager()->upload(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType);
+			h->getResourceManager()->upload(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
 
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)

@@ -1,6 +1,7 @@
 #include <Gfx/Vk/UploadHelperVk.h>
 #include <Gfx/Vk/ResourceManagerVk.h>
 #include <Gfx/Vk/ResourceHandlesVk.h>
+#include <Gfx/Vk/YaptToVkConversions.h>
 
 #define INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE 1024  
 
@@ -72,7 +73,7 @@ namespace YAPT
 		uploadDataForBuffer(buffer->buffer, buffer->owningQueueFamily, offsetInBytes, sizeInBytes, data);
 	}
 	
-	void UploadHelperVk::uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions)
+	void UploadHelperVk::uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, const ResourceStateDescription& afterUploadUsage)
 	{
 		//calculate required memory
 		size_t memoryRequiredInBytes = 0;
@@ -117,6 +118,7 @@ namespace YAPT
 		info->dstImage = image;
 		info->srcBuffer = uploadInfo.uploadBuffer;
 		info->copyDescs.resize(arraySliceCount * mipCount);
+		info->layoutAfterCopy = yaptUsageToVkImageLayout(afterUploadUsage.resourceUsage, afterUploadUsage.accessFlags);
 		size_t currentUploadBufferOffset = align(uploadInfo.offsetToHeap, texelBlockSize);
 		size_t mappedBufferOffset = currentUploadBufferOffset - uploadInfo.offsetToHeap;
 
@@ -215,7 +217,6 @@ namespace YAPT
 	{
 
 		VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		VkImageLayout afterCopyLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 		auto addBufferBarrier = [this](VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t srcQueueFamily, uint32_t dstQueueFamily)
 		{
@@ -233,7 +234,7 @@ namespace YAPT
 
 		};
 
-		auto addImageBarrier = [this](VkImageLayout oldLayout, VkImageLayout newLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
+		auto addImageBarrier = [this](VkImageLayout oldLayout, VkImageLayout newLayout, VkImageLayout afterCopyLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
 		{
 			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
 			barrier.srcAccessMask = 0;
@@ -250,7 +251,7 @@ namespace YAPT
 			barrier.subresourceRange.levelCount = mipCount;
 
 			m_allImageBarriers.push_back(barrier);
-
+			m_afterCopyLayout.push_back(afterCopyLayout);
 		};
 
 
@@ -295,8 +296,8 @@ namespace YAPT
 						}
 						if (currentLayout != copyLayout || info.dstImage->owningQueueFamily != m_resMngr.getCopyQueue().queueFamilyIndex)
 						{
-							addImageBarrier(currentLayout, copyLayout, info.dstImage->image, arraySlice, arraySliceCount, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
-							layouts.setStateForSubResource(subresourceIndex, copyLayout);
+							addImageBarrier(currentLayout, copyLayout, info.layoutAfterCopy, info.dstImage->image, arraySlice, arraySliceCount, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
+							layouts.setStateForSubResource(subresourceIndex, info.layoutAfterCopy);
 						}
 					}
 
@@ -368,7 +369,7 @@ namespace YAPT
 		{
 			std::swap(m_allImageBarriers[i].dstQueueFamilyIndex, m_allImageBarriers[i].srcQueueFamilyIndex);
 			m_allImageBarriers[i].oldLayout = m_allImageBarriers[i].newLayout;
-			m_allImageBarriers[i].newLayout = afterCopyLayout;
+			m_allImageBarriers[i].newLayout = m_afterCopyLayout[i];
 		}
 
 		

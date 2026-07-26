@@ -52,7 +52,7 @@ namespace YAPT
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 		void unmap(BufferHandleVk* handle);
-		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
+		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
@@ -116,7 +116,7 @@ namespace YAPT
 		void copyViaUploadHeap(VkBuffer handle, uint32_t owningFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount,
-			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
+			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 		void* mapCopyRangeFromUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 
 		

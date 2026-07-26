@@ -58,7 +58,7 @@ namespace YAPT
 		void upload(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void* map(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 		void unmap(BufferHandleDx12* handle);
-		void upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
+		void upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 		
 		DescriptorSetPoolDx12* createDescriptorSetPool(const DescriptorSetLayoutDx12* layout, size_t numberOfDescriptorSets);
 		void destroyDescriptorSetPool(DescriptorSetPoolDx12* pool);
@@ -90,7 +90,7 @@ namespace YAPT
 
 		void copyViaUploadHeap(ID3D12Resource* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(ID3D12Resource* texture, const D3D12_RESOURCE_DESC& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount,
-			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType);
+			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 		void* mapCopyRangeFromUploadHeap(ID3D12Resource* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 
 		void prepare();

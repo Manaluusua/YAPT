@@ -81,10 +81,11 @@ class SceneLoader:
         return self._default_mat
 
     def _set_texture(self, tex_def, setter_fn):
-        if len(self._textures) <= tex_def.index:
-            print(f"couldn't set texture {tex_def}, texture array doesn't have that index. index {tex_def.index}, array size {len(self._textures)}")
+        tex_entry = self._gltf.textures[tex_def.index]
+        if len(self._textures) <= tex_entry.source:
+            print(f"couldn't set texture {tex_def}, texture array doesn't have that index. index {tex_entry.source}, array size {len(self._textures)}")
             return None
-        tex = self._textures[tex_def.index]
+        tex = self._textures[tex_entry.source]
         if tex == None:
             print(f"couldn't set texture {tex_def}, texture was not succesfully loaded")
             return None

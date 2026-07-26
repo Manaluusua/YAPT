@@ -75,7 +75,8 @@ namespace YAPT
 		AccessFlags accessFlags;
 		ShaderStages shaderStagesUsedIn;
 
-		static ResourceStateDescription default() { return { RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE }; }
+		static constexpr ResourceStateDescription defaultInitialResourceState() { return { RESOURCE_USAGE_UNKNOWN, ACCESS_FLAGS_READ, SHADERSTAGE_NONE }; }
+		static constexpr ResourceStateDescription defaultAfterCopyTextureState() { return { RESOURCE_USAGE_SAMPLED_TEXTURE, ACCESS_FLAGS_READ, ALL_SHADER_STAGES }; }
 	};
 
 	struct ShaderModuleDefine

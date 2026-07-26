@@ -50,7 +50,7 @@ namespace YAPT
 
 	void BindlessBufferManager::bufferToBeCreated(BufferDesc& d)
 	{
-		d.resourceUsage |= RESOURCE_USAGE_UNIFORM_TEXEL_BUFFER;
+		d.resourceUsage |= RESOURCE_USAGE_STORAGE_BUFFER;
 	}
 
 	void BindlessBufferManager::bufferCreated(BufferImpl* buff)

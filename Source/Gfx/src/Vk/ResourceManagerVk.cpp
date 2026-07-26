@@ -187,12 +187,12 @@ namespace YAPT
 		//for now we do nothing. TODO: invalidate caches if the memory is not host coherent 
 	}
 
-	void ResourceManagerVk::upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
+	void ResourceManagerVk::upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 	{
 
 		if ((image->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
 		{
-			copyViaUploadHeap(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType);
+			copyViaUploadHeap(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
 		else
 		{
@@ -262,19 +262,19 @@ namespace YAPT
 	}
 
 
-	void ResourceManagerVk::copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
+	void ResourceManagerVk::copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 	{
 
 		switch (heapType)
 		{
 		case YAPT::GpuUploadStage::BEFORE_RENDER:
 		{
-			m_preFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
+			m_preFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, afterUploadUsage);
 			break;
 		}
 		case YAPT::GpuUploadStage::DURING_RENDER:
 		{
-			m_duringFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
+			m_duringFrameUploads->uploadDataForTexture(image, image->createInfo, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, afterUploadUsage);
 			break;
 		}
 		default:

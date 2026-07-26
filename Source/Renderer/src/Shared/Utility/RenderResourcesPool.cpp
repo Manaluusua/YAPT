@@ -14,11 +14,11 @@ namespace YAPT
 
 	TextureHandle RenderResourcesPool::requestTexture(const YAPT::TextureDesc& desc, const char* name)
 	{
-		return requestTexture(desc, ResourceStateDescription::default(), name);
+		return requestTexture(desc, ResourceStateDescription::defaultInitialResourceState(), name);
 	}
 	BufferHandle RenderResourcesPool::requestBuffer(const YAPT::BufferDesc& desc, const char* name)
 	{
-		return requestBuffer(desc, ResourceStateDescription::default(), name);
+		return requestBuffer(desc, ResourceStateDescription::defaultInitialResourceState(), name);
 	}
 
 	TextureHandle RenderResourcesPool::requestTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)

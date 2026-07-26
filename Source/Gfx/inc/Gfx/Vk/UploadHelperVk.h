@@ -24,7 +24,7 @@ namespace YAPT
 		void uploadDataForBuffer(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data);
 		void uploadDataForBuffer(VkBuffer buffer, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data);
 
-		void uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions);
+		void uploadDataForTexture(TextureHandleVk* image, const VkImageCreateInfo& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, const ResourceStateDescription& afterUploadUsage);
 
 		void prepareNextUploadBatch();
 		bool flushUploadBatch(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore);
@@ -44,6 +44,7 @@ namespace YAPT
 			std::vector<VkBufferImageCopy> copyDescs;
 			VkBuffer srcBuffer;
 			TextureHandleVk* dstImage;
+			VkImageLayout layoutAfterCopy;
 		};
 
 		struct BufferUpload
@@ -85,7 +86,7 @@ namespace YAPT
 		
 		std::vector<VkBufferMemoryBarrier> m_allBufferBarriers;
 		std::vector<VkImageMemoryBarrier> m_allImageBarriers;;
-
+		std::vector<VkImageLayout> m_afterCopyLayout;;
 	};
 
 }

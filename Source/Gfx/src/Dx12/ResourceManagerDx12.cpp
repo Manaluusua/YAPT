@@ -189,11 +189,11 @@ namespace YAPT
 		}
 	}
 
-	void ResourceManagerDx12::upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
+	void ResourceManagerDx12::upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 	{
 		if (image->heapType == D3D12_HEAP_TYPE_DEFAULT)
 		{
-			copyViaUploadHeap(image->resource, image->textureDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType);
+			copyViaUploadHeap(image->resource, image->textureDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
 		else
 		{
@@ -244,18 +244,18 @@ namespace YAPT
 	}
 
 
-	void ResourceManagerDx12::copyViaUploadHeap(ID3D12Resource* texture, const D3D12_RESOURCE_DESC& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType)
+	void ResourceManagerDx12::copyViaUploadHeap(ID3D12Resource* texture, const D3D12_RESOURCE_DESC& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 	{
 		switch (heapType)
 		{
 		case YAPT::GpuUploadStage::BEFORE_RENDER:
 		{
-			m_preFrameUploads->uploadDataForTexture(texture, resourceDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions);
+			m_preFrameUploads->uploadDataForTexture(texture, resourceDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, afterUploadUsage);
 			break;
 		}
 		case YAPT::GpuUploadStage::DURING_RENDER:
 		{
-			m_duringFrameUploads->uploadDataForTexture(texture, resourceDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount,  textureDataDefinitions);
+			m_duringFrameUploads->uploadDataForTexture(texture, resourceDesc, arraySliceOffset, arraySliceCount, mipOffset, mipCount,  textureDataDefinitions, afterUploadUsage);
 			break;
 		}
 		default:
