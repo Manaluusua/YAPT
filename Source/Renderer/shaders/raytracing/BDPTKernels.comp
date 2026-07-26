@@ -425,7 +425,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	uint camVertexIndex = 0;
 	uint pathCount = 0;
 	float deferredRISumCamera = 0;
-	uint maxCameraVertices = g_maxRayDepth - g_lightPathHeader.offsetAndCount.y;
+
+	uint maxCameraVertices = g_maxRayDepth;
 	for(; camVertexIndex < maxCameraVertices; ++camVertexIndex)
 	{
 		uint rayFlags = RAY_FLAG_NONE;
@@ -505,9 +506,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					}
 					++pathCount;
 				}
-                
-                break; 
-            } 
+
+                break;
+            }
 			else if(!deltaDistr)
 			//try to connect path to light nodes
 			{
@@ -528,9 +529,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
 						float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
 						camVertexContext.wiOS = normalize(lightPosOS - posOS);
-					
+
 						SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, nodeData, lightVertexIndex, lightVertexContext, rayState);
-                    
+
 						if(shouldPathContribute(camVertexIndex + 1, lightVertexIndex + 1))
 						{
 							totalLight = totalLight + lightConnectionRadiance;
@@ -619,7 +620,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
             float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
-			
+
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex) * g_envIntensityScale;
 			if(shouldPathContribute(camVertexIndex + 1, 0))
 			{
@@ -638,7 +639,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     float3 color = totalLight.ToXYZ(rayDispersed);
 
 	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1);
-    
+
 	/*
 	if(camVertexIndex == 0)
 	{
@@ -772,7 +773,8 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 	}
 
 	SpectralSamples s;
-	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, pdfForwardOut, pdfBackwardOut, s))
+	float pdfForwardMISUnused;
+	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, pdfForwardOut, pdfBackwardOut, s, pdfForwardMISUnused))
 	{
 		radianceOut = 0;
 		pdfForwardOut = 0;
@@ -859,6 +861,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
         LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x + i));
 		ExtractedLightPathNodeData nodeData = getExtractedLightPathNodeData(node);
 		uint2 targetTexel;
+
         if(getProjectedPositionOnScreen(nodeData.node, targetTexel) && shouldPathContribute(0, i + 1))
 		{
 			float4 w;
@@ -879,8 +882,8 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
 
 					float misWeight = 1.f / (1 + riSum + riSumCurrent);
-					float4 contrib = nodeData.node.radiance * safeDiv(w, pdfForward) * misWeight; 
-					
+					float4 contrib = nodeData.node.radiance * safeDiv(w, pdfForward) * misWeight;
+
 					SpectralSamples s;
 					s.fromFloat4(contrib);
 					float3 color = s.ToXYZ(rayHasDispersed);
@@ -888,6 +891,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 				}
 			}
 		}
+
 		float pdfRatio = calculatePDFRatio(nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS);
 		riSum = deferredRISum;
 		deferredRISum *= pdfRatio;

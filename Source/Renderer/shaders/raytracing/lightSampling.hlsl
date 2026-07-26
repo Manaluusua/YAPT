@@ -157,14 +157,15 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     float area = length(cross(p2 - p1, p3 - p1)) * 0.5f;
     
     posPDF = 1.f / (primCount * area);
-    
+
+    float cosTheta = dot(lightSurfaceNormal, towardsDir);
     if (twoSided)
     {
-        dirPDF = pdfSphere();
-    } 
+        dirPDF = pdfCosineWeightedSphere(cosTheta);
+    }
     else
     {
-        dirPDF = dot(lightSurfaceNormal, towardsDir) >= 0 ? pdfHemisphere() : 0;
+        dirPDF = cosTheta >= 0 ? pdfCosineWeightedHemisphere(cosTheta) : 0;
     }
 
 }

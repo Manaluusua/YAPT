@@ -462,9 +462,9 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
 }
 
 
-bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut)
+bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut, out float pdfForwardMISOut)
 {
-    
+
     SurfaceDefinitionRGB surfaceDefRGB = lightNodeData.surfaceDefRGB;
     float3x4 toLocalFrame = lightNodeData.worldToObjSpace;
     LightPathNode lightNode = lightNodeData.node;
@@ -478,34 +478,37 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         {
             pdfForwardOut = 0;
             pdfBackwardOut = 0;
+            pdfForwardMISOut = 0;
             weightOut.fromFloat4(float4(0, 0, 0, 0));
             return false;
         }
-
-        float3x3 toWorldDir = transpose((float3x3) toLocalFrame);
-        float3 surfaceNormalWS = normalize(mul(toWorldDir, surfaceDefRGB.geometryNormal));
 
 		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
         float pdf = lightNode.pdfForwardMIS;
         pdfForwardOut = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
-        weightOut.set(abs(dot(normalize(fromLightWS), surfaceNormalWS)) * safeDiv(1.f, pdfForwardOut)); //Geometry term and solidAngle -> area density cancel, leaving only abs(dot(lightToSurfaceDir, surfaceNormal)
+        weightOut.set(safeDiv(1.f, pdfForwardOut));
         pdfBackwardOut = 0;
+
+        float cosLightEmit = dot(lightNode.normalWS, normalize(fromLightWS));
+        pdfForwardMISOut = twoSided ? pdfCosineWeightedSphere(cosLightEmit) : (cosLightEmit >= 0 ? pdfCosineWeightedHemisphere(cosLightEmit) : 0);
+
+
     }
     else
     {
-        
+
         float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
         float3 prevLightPosOS = mul(toLocalFrame, float4(prevVertexPos, 1)).xyz;
         float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
         float3 wiOS = normalize(camNodePosOS - lightPosOS);
         float3 woOSLightConnection = normalize(prevLightPosOS - lightPosOS);
-        
-	    
+
+
         SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
         PrecalculatedSurfaceData precalculatedSurfaceData;
         float samplingProbabilities[LAYER_COUNT];
-		
+
 		//for now just initialize with node data. maybe needs a better way (update during light node traversal?)
         BDPTRayState rayState;
         rayState.ior[0] = lightNode.iorPrevious;
@@ -516,13 +519,15 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
         evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut);
-					
+
+        pdfForwardMISOut = pdfForwardOut;
+
         if (pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
         {
             return false;
         }
     }
-	
+
     return true;
 }
 
@@ -623,7 +628,7 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     }
 	
     float misWeight = 1.f / (1 + riSumCam + riSumLight);
-	
+
     return misWeight;
 }
 
@@ -688,7 +693,7 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
 
     float misWeight = 1.f / (1 + riSumCam);
     return misWeight;
-	
+
 }
 
 
@@ -697,7 +702,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 {
     SpectralSamples retVal;
     retVal.set(0);
-	
+
     uint lightNodeIndex = lightVertexIndex;
     LightPathNode lightNode = lightNodeData.node;
                     
@@ -724,9 +729,10 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
     SpectralSamples weightLastLightNode = (SpectralSamples) 0;
     float pdfForwardLastLightNode;
     float pdfBackwardLastLightNode;
+    float pdfForwardLastLightNodeMIS;
 	//evaluate weight PDFs for connecting light node
 	{
-        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode);
+        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode, pdfForwardLastLightNodeMIS);
         if (!connectionValid)
         {
             return retVal;
@@ -788,7 +794,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 					
 	//can connect, evaluate connection and accumulate total light
 	{
-        float misWeight = calculateMISWeight(cameraVertexIndex, camVertex, lightVertexIndex, lightVertex, lightNode, pdfBackwardLastCameraNode, pdfForwardLastCameraNode, pdfBackwardLastLightNode, pdfForwardLastLightNode);
+        float misWeight = calculateMISWeight(cameraVertexIndex, camVertex, lightVertexIndex, lightVertex, lightNode, pdfBackwardLastCameraNode, pdfForwardLastCameraNode, pdfBackwardLastLightNode, pdfForwardLastLightNodeMIS);
 
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);
