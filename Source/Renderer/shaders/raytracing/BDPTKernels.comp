@@ -62,6 +62,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	float maxRadiance = 0;
+	bool previousWasDeltaDistr = false;
 
 	//sample light
 	{
@@ -188,7 +189,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].normalWS = normalWS;
 			nodes[currentNodeIndex].radiance = radiance.toFloat4();
 			nodes[currentNodeIndex].positionWS = posWS;
-			nodes[currentNodeIndex].pdfForwardMIS = deltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+			nodes[currentNodeIndex].pdfForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
 			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
 			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
 			nodes[currentNodeIndex].flags = lightNodeFlags;
@@ -240,6 +241,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			rayDir = normalize(mul(transformNormal, wiOS));
 			rayOrigin = posWS + getRaySpawnOffsetUsingNormal(normalWS, rayDir);
+			previousWasDeltaDistr = sampledDeltaDir;
         }
 		else 
 		{
