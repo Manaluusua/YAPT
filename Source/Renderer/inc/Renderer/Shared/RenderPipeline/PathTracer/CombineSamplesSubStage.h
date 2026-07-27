@@ -61,6 +61,9 @@ namespace YAPT
 
 		struct DenoiseParams
 		{
+			mat4p uvToView;
+			mat4p viewToWorld;
+			vec4p cameraPositionWS;
 			vec4p textureDimensions;
 			uvec4p denoiseMode;
 		};

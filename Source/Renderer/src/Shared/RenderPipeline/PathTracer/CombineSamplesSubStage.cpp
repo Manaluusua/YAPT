@@ -3,6 +3,7 @@
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
+#include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
 #include <Math/RandUtility.h>
 #define MERGE_SAMPLES_WG_SIZE 8
 #define DENOISE_WG_SIZE 8
@@ -395,6 +396,18 @@ namespace YAPT
 				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
 				denoiseParams->denoiseMode = uvec4p(denoiseMode, denoiseKernelHalfWidth, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
+
+				vec4 camPos(0.f, 0.f, 0.f, 1.f);
+				mat4 worldToView = m_renderer->getCurrentRenderView().getView();
+				mat4 viewToWorld = glm::inverse(worldToView);
+				camPos = viewToWorld * camPos;
+
+				mat4 viewToUVTransform = fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform();
+				mat4 uvToViewTransform = glm::inverse(viewToUVTransform);
+
+				denoiseParams->uvToView = uvToViewTransform;
+				denoiseParams->viewToWorld = viewToWorld;
+				denoiseParams->cameraPositionWS = camPos;
 				m_denoiseConstants.flush();
 			}
 		}

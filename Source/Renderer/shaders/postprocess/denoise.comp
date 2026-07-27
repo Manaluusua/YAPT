@@ -5,6 +5,9 @@
 
 struct DenoiseParams
 {
+    float4x4 uvToView;
+    float4x4 viewToWorld;
+    float4 cameraPosition;
     float4 textureDimensions;
     uint4 denoiseParams;
 };
@@ -16,6 +19,8 @@ struct DenoiseParams
 #define DENOISE_MODE_MAT_PARAMS_DEBUG 2
 #define DENOISE_MODE_VARIANCE_DEBUG 3
 #define DENOISE_SHOW_SAMPLE_SOURCES 4
+
+#define DENOISE_PLANE_DIST_SIGMA_SCALE 0.02f
 
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
@@ -100,26 +105,41 @@ float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialPa
     float roughnessDelta = abs(a.roughness - b.roughness);
     float albedoDelta = calculateVisualDifferenceAlbedo(a.albedo, b.albedo);
     float anisoDiff = abs(a.anisotropy - b.anisotropy);
-    float depthDelta = abs(a.depth - b.depth);
     float normalDot = saturate(dot(a.normal, b.normal));
     float iorDelta = abs(a.ior - b.ior);
     float metalnessDelta = abs(a.metalness - b.metalness);
     float transparencyDelta = abs(a.transparency - b.transparency);
-    
+
     //TODO: flags
-    
-    //TODO: figure out better weighting: rejecting first with geometry (depth & normal) and then surface params? 
     float weight = 1.f;
     weight *= 1.f - roughnessDelta;
     weight *= 1.f - albedoDelta;
     weight *= 1.f - anisoDiff;
-    weight *= 1.f - smoothstep(0.1, 1, depthDelta);
     weight *= normalDot;
     weight *= 0.5f + 0.5f * (1.f - saturate(iorDelta)); //lessen effect of ior
     weight *= 1.f - metalnessDelta;
     weight *= 1.f - transparencyDelta;
     return weight;
 
+}
+
+float3 reconstructWorldPosition(uint2 loc, float depth)
+{
+    float2 uv = (float2(loc) + 0.5f) * g_denoiseParams.textureDimensions.zw;
+
+    float4 pointOnNearPlane = float4(uv, 0.0f, 1.0f);
+    pointOnNearPlane = mul(g_denoiseParams.uvToView, pointOnNearPlane);
+    pointOnNearPlane /= pointOnNearPlane.w;
+    pointOnNearPlane.w = 0;
+
+    float3 rayDir = normalize(mul(g_denoiseParams.viewToWorld, pointOnNearPlane).xyz);
+    return g_denoiseParams.cameraPosition.xyz + rayDir * depth;
+}
+
+float calculatePlaneDistanceWeight(float3 centerPos, float3 centerNormal, float3 samplePos, float sigma)
+{
+    float planeDist = abs(dot(centerNormal, samplePos - centerPos));
+    return exp(-planeDist / max(sigma, 1e-4f));
 }
 
 float calculateKernelDistanceWeight(float2 deltaFromCenter, float sigma)
@@ -159,11 +179,14 @@ float4 denoise(uint2 loc, bool kernelSizeDrivenByVariance)
     float4 colorOut;
     {
         float4 centerSample = g_sourceTex.Load(uint3(loc.xy, 0));
-        
+
         float weight = 1;
         float4 sampleSum = centerSample;
         if(denoiseKernelHalfSize > 0)
         {
+            float3 centerPos = reconstructWorldPosition(loc.xy, centerMatParams.depth);
+            float planeDistSigma = max(centerMatParams.depth * DENOISE_PLANE_DIST_SIGMA_SCALE, 0.001f);
+
             float2 locf = loc;
             for (float x = max(locf.x - denoiseKernelHalfSize, 0); x < min(locf.x + denoiseKernelHalfSize, g_denoiseTextureSize.x - 1); x++)
             {
@@ -173,7 +196,9 @@ float4 denoise(uint2 loc, bool kernelSizeDrivenByVariance)
                     if (sampleLoc.x != loc.x || sampleLoc.y != loc.y)
                     {
                         MaterialParameters2Texture matParams = readMaterialParametersFromTextures(sampleLoc, g_materialParams0, g_materialParams1);
-                        float matWeight = calculateMaterialParamsDiffWeight(centerMatParams, matParams);
+                        float3 samplePos = reconstructWorldPosition(sampleLoc, matParams.depth);
+                        float planeDistWeight = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, planeDistSigma);
+                        float matWeight = calculateMaterialParamsDiffWeight(centerMatParams, matParams) * planeDistWeight;
                         float distWeight = calculateKernelDistanceWeight(float2(x, y) - locf.xy, sigma);
                         float sampleWeight = matWeight * distWeight;
                         float4 colorSample = g_sourceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
@@ -182,7 +207,7 @@ float4 denoise(uint2 loc, bool kernelSizeDrivenByVariance)
                     }
                 }
             }
-            
+
             sampleSum /=  weight;
             colorOut = sampleSum;
 
