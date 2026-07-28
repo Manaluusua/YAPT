@@ -484,7 +484,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
 			bool deltaDistr = isDeltaDistribution(camVertexContext.precalculatedSurfaceData.a2, camVertexContext.surfaceDef);
-            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? 1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? -1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -539,12 +539,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 						}
 					}
                     
-					float pdfRatio = calculatePDFRatio(lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
 					lightVertexContext.riSum = deferredRISumLight;
-					deferredRISumLight *= pdfRatio;
-					deferredRISumLight += pdfRatio;
-					
-					
+
+					deferredRISumLight = accumulateRISum(deferredRISumLight, lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
 
                     lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
                     lightVertexContext.prevNodePosWS = lightNode.positionWS;
@@ -589,13 +586,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = sampledDeltaDir ? 1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
-                float ratio = calculatePDFRatio(pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
+                float pdfBackwardPrevNode = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+				
 				camVertexContext.pdfRatioSum = deferredRISumCamera;
-				
-				deferredRISumCamera *= ratio;
-				deferredRISumCamera += ratio;
-				
+
+				deferredRISumCamera = accumulateRISum(deferredRISumCamera, pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
             }
 			
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
@@ -851,9 +846,8 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 		prevPos = node.positionWS;
 		prevPDFForwardMIS = node.pdfForwardMIS;
 		originatingLightFlags = node.flags;
-		float pdfRatio = calculatePDFRatio(node.pdfBackwardMIS, node.pdfForwardMIS);
-		deferredRISum *= pdfRatio;
-		deferredRISum += pdfRatio;
+
+		deferredRISum = accumulateRISum(deferredRISum, node.pdfBackwardMIS, node.pdfForwardMIS);
 	}
 	
     for(uint i = 1; i < vCount; ++i)
@@ -875,11 +869,11 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 				{
 					bool convertAreaDensityBackward = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
 					float pdfBackwardPrevNode = pdfBackward * (convertAreaDensityBackward ? solidAngleToAreaDensityMultiplier(prevPos - node.positionWS, prevNormal) : 1);
-					float ratioPrev = calculatePDFRatio(pdfBackwardPrevNode, prevPDFForwardMIS);
-					float riSumCurrent = ratioPrev;
 
-					float ratioCurrent = calculatePDFRatio(1, nodeData.node.pdfForwardMIS);
-					riSumCurrent = ratioCurrent * riSumCurrent + ratioCurrent;
+					float riSumCurrent = 0;
+					
+					riSumCurrent = accumulateRISum(riSumCurrent, pdfBackwardPrevNode, prevPDFForwardMIS);
+					riSumCurrent = accumulateRISum(riSumCurrent, 1, nodeData.node.pdfForwardMIS);
 
 					float misWeight = 1.f / (1 + riSum + riSumCurrent);
 					float4 contrib = nodeData.node.radiance * safeDiv(w, pdfForward) * misWeight;
@@ -892,10 +886,9 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 			}
 		}
 
-		float pdfRatio = calculatePDFRatio(nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS);
 		riSum = deferredRISum;
-		deferredRISum *= pdfRatio;
-		deferredRISum += pdfRatio;
+
+		deferredRISum = accumulateRISum(deferredRISum, nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS);
 		prevNormal = nodeData.node.normalWS;
 		prevPos = nodeData.node.positionWS;
 		prevPDFForwardMIS = nodeData.node.pdfForwardMIS;

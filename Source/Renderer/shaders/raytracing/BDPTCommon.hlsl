@@ -346,6 +346,18 @@ float calculatePDFRatio(float nom, float denom)
     return safeDiv(nom, denom);
 }
 
+float accumulateRISum(float riSum, float nom, float denom)
+{
+    float ri = calculatePDFRatio(nom, denom);
+    bool accumulateRI = nom > 0 && denom > 0;
+    riSum = ri * riSum;
+    if(accumulateRI)
+    {
+        riSum += ri;
+    }
+    return riSum;
+}
+
 void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
 {
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
@@ -570,13 +582,11 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     if (cameraVertexIndex > 1)
     {
         float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
-        float ratioPrevCam = calculatePDFRatio(pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
-        riSumCam = ratioPrevCam * riSumCam + ratioPrevCam;
+        riSumCam = accumulateRISum(riSumCam, pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
     }
     if (cameraVertexIndex > 0)
     {
-        float ratioLastCamNode = calculatePDFRatio(pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
-        riSumCam = ratioLastCamNode * riSumCam + ratioLastCamNode;
+        riSumCam = accumulateRISum(riSumCam, pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
     }
 
 	
@@ -610,21 +620,15 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     else
     {
         float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode;
-        if (lightVertexIndex == 1)
+
+        bool prevNodeIsEnvLight = (lightVertexIndex == 1) && ((lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
+        if (!prevNodeIsEnvLight)
         {
-            bool isEnvLight = (lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
-            if (!isEnvLight)
-            {
-                pdfBackwardPrevNodeLight *= solidAngleToAreaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
-            }
+            pdfBackwardPrevNodeLight *= solidAngleToAreaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
         }
 		
-         
-        float ratioPrevLightNode = calculatePDFRatio(pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
-        riSumLight = ratioPrevLightNode * riSumLight + ratioPrevLightNode;
-
-        float ratioLastLightNode = calculatePDFRatio(pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
-        riSumLight = ratioLastLightNode * riSumLight + ratioLastLightNode;
+        riSumLight = accumulateRISum(riSumLight, pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
+        riSumLight = accumulateRISum(riSumLight, pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
     }
 	
     float misWeight = 1.f / (1 + riSumCam + riSumLight);
@@ -652,12 +656,10 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
    
     if (cameraVertexIndex > 1)
     {
-        float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
-        riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
     }
 
-    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
-    riSumCam = ratioAtLight * riSumCam + ratioAtLight;
+    riSumCam = accumulateRISum(riSumCam, lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
 
     float misWeight = 1.f / (1 + riSumCam);
     return misWeight;
@@ -684,12 +686,10 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
    
     if (cameraVertexIndex > 1)
     {
-        float ratioBeforeLight = calculatePDFRatio(lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS);
-        riSumCam = ratioBeforeLight * riSumCam + ratioBeforeLight;
+        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS);
     }
 
-    float ratioAtLight = calculatePDFRatio(lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
-    riSumCam = ratioAtLight * riSumCam + ratioAtLight;
+    riSumCam = accumulateRISum(riSumCam, lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
 
     float misWeight = 1.f / (1 + riSumCam);
     return misWeight;
@@ -715,12 +715,11 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         float pdfForward;
         float pdfBackward;
         evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward);
-					
+
         if (pdfForward == 0 || weightLastCameraNode.allSamplesEqual(0))
         {
             return retVal;
         }
-        
 
         pdfForwardLastCameraNode = pdfForward;
         pdfBackwardLastCameraNode = pdfBackward;
