@@ -1,4 +1,4 @@
-#include "../globalDefinitions.hlsl"
+﻿#include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
 #include "../common/commonMath.hlsl"
 #include "materialParameterTextures.hlsl"
@@ -33,6 +33,7 @@ RWTexture2D<float4> g_targetTex : register(u6, space0);
 #define g_denoiseMode (g_denoiseParams.denoiseParams.x)
 #define g_denoiseKernelWidth (g_denoiseParams.denoiseParams.y)
 #define g_denoiseTextureSize (g_denoiseParams.textureDimensions.xy)
+#define g_denoiseTextureSizeInv (g_denoiseParams.textureDimensions.zw)
 
 float4 calculateDebugMaterialParams(uint2 loc)
 {
@@ -65,33 +66,6 @@ float4 calculateDebugMaterialParams(uint2 loc)
     }
 }
 
-float3 calculateNeighbouringVariance(uint2 location, uint kernelHalfSize)
-{
-    float minVariance = 999.f;
-    float maxVariance = 0.f;
-    float avgVariance = 0;
-    float samples = 0;
-    for (float x = max(location.x - kernelHalfSize, 0); x < min(location.x + kernelHalfSize, g_denoiseTextureSize.x - 1); x++)
-    {
-        for (float y = max(location.y - kernelHalfSize, 0); y < min(location.y + kernelHalfSize, g_denoiseTextureSize.y - 1); y++)
-        {
-            float var = g_varianceTex[uint2(x, y)];
-            avgVariance += var;
-            if(var > maxVariance)
-            {
-                maxVariance = var;
-            }
-            if(var < minVariance)
-            {
-                minVariance = var;
-            }
-            ++samples;
-
-        }
-    }
-    avgVariance =  avgVariance / samples;
-    return float3(minVariance, maxVariance, avgVariance);
-}
 
 float calculateVisualDifferenceAlbedo(float3 a, float3 b)
 {
@@ -100,7 +74,12 @@ float calculateVisualDifferenceAlbedo(float3 a, float3 b)
 
 }
 
-float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b)
+float calculatePerceptualLuminance(float3 c)
+{
+    return dot(c, float3(0.2126, 0.7152, 0.0722));
+}
+
+float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b, float normalDeltaWeight, float normalDeltaPow, float matDeltaWeight, float matDeltaPow)
 {
     float roughnessDelta = abs(a.roughness - b.roughness);
     float albedoDelta = calculateVisualDifferenceAlbedo(a.albedo, b.albedo);
@@ -110,18 +89,25 @@ float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialPa
     float metalnessDelta = abs(a.metalness - b.metalness);
     float transparencyDelta = abs(a.transparency - b.transparency);
 
-    //TODO: flags
-    float weight = 1.f;
-    weight *= 1.f - roughnessDelta;
-    weight *= 1.f - albedoDelta;
-    weight *= 1.f - anisoDiff;
-    weight *= normalDot;
-    weight *= 0.5f + 0.5f * (1.f - saturate(iorDelta)); //lessen effect of ior
-    weight *= 1.f - metalnessDelta;
-    weight *= 1.f - transparencyDelta;
-    return weight;
-
+    //TODO: flags and better weight calculation: this multiplicative weight is likely too aggressive
+    float wMat = 1.f;
+    wMat *= 1.f - roughnessDelta;
+    wMat *= 1.f - albedoDelta;
+    wMat *= 1.f - anisoDiff;
+    wMat *= 0.5f + 0.5f * (1.f - saturate(iorDelta)); //lessen effect of ior
+    wMat *= 1.f - metalnessDelta;
+    wMat *= 1.f - transparencyDelta;
+    
+    float wNormal = normalDot;
+    
+    
+    wMat = matDeltaWeight * pow(wMat, matDeltaPow);
+    wNormal = normalDeltaWeight * pow(wNormal, normalDeltaPow);
+    
+    return wMat + wNormal;
 }
+
+
 
 float3 reconstructWorldPosition(uint2 loc, float depth)
 {
@@ -152,115 +138,104 @@ uint floatToUint(float v)
     return uint(floor(max(v, 0) + 0.5f));
 }
 
-float4 denoise(uint2 loc, bool kernelSizeDrivenByVariance)
+struct AtrousPassOutput
 {
-    MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(loc.xy, g_materialParams0, g_materialParams1);
-    
-    float denoiseKernelHalfSize;
-    float minKernelHalfSize = 0;
-    float maxKernelHalfSize = 4;
-    
-    if (kernelSizeDrivenByVariance)
-    {
-        float3 varMinMaxAvg = calculateNeighbouringVariance(loc.xy, g_denoiseKernelWidth);
-        float minKernelVar = 0.0001f;
-        float maxKernelVar = 0.01;
-        float t = saturate((varMinMaxAvg.y - minKernelVar) / (maxKernelVar - minKernelVar));
-        denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, t);
-    }
-    else
-    {
-        denoiseKernelHalfSize = lerp(minKernelHalfSize, maxKernelHalfSize, saturate(centerMatParams.roughness));
-    }
+    float4 color;
+    float variance;
+};
 
+AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
+{
     
-    
-    float sigma = 0.3f * (denoiseKernelHalfSize - 1.5f) + 0.8f;
-    float4 colorOut;
-    {
-        float4 centerSample = g_sourceTex.Load(uint3(loc.xy, 0));
+    const float precalculatedGaussian3tap[3] = { 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16.0 };
 
-        float weight = 1;
-        float4 sampleSum = centerSample;
-        if(denoiseKernelHalfSize > 0)
+    const float precalculatedGaussian3x3tap[3][3] =
+    {
+        { 1.0 / 16, 1.0 / 8, 1.0 / 16 },
+        { 1.0 / 8, 1.0 / 4, 1.0 / 8 },
+        { 1.0 / 16, 1.0 / 8, 1.0 / 16 }
+    };
+
+    const float EPS_MIN = 1e-6;
+    
+    float filteredVarSum = 0.0;
+    float filteredVarWeight = 0.0;
+
+    for (int y = -1; y <= 1; y++)
+    {
+        for (int x = -1; x <= 1; x++)
         {
-            float3 centerPos = reconstructWorldPosition(loc.xy, centerMatParams.depth);
-            float planeDistSigma = max(centerMatParams.depth * DENOISE_PLANE_DIST_SIGMA_SCALE, 0.001f);
-
-            float2 locf = loc;
-            for (float x = max(locf.x - denoiseKernelHalfSize, 0); x < min(locf.x + denoiseKernelHalfSize, g_denoiseTextureSize.x - 1); x++)
-            {
-                for (float y = max(locf.y - denoiseKernelHalfSize, 0); y < min(locf.y + denoiseKernelHalfSize, g_denoiseTextureSize.y - 1); y++)
-                {
-                    uint2 sampleLoc = uint2(floatToUint(x), floatToUint(y));
-                    if (sampleLoc.x != loc.x || sampleLoc.y != loc.y)
-                    {
-                        MaterialParameters2Texture matParams = readMaterialParametersFromTextures(sampleLoc, g_materialParams0, g_materialParams1);
-                        float3 samplePos = reconstructWorldPosition(sampleLoc, matParams.depth);
-                        float planeDistWeight = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, planeDistSigma);
-                        float matWeight = calculateMaterialParamsDiffWeight(centerMatParams, matParams) * planeDistWeight;
-                        float distWeight = calculateKernelDistanceWeight(float2(x, y) - locf.xy, sigma);
-                        float sampleWeight = matWeight * distWeight;
-                        float4 colorSample = g_sourceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
-                        sampleSum += sampleWeight * colorSample;
-                        weight += sampleWeight;
-                    }
-                }
-            }
-
-            sampleSum /=  weight;
-            colorOut = sampleSum;
-
+            int2 sampleLoc = int2(texCoord) + int2(x, y);
+            
+            if (sampleLoc.x < 0 || sampleLoc.x > (g_denoiseTextureSize.x - 1) || sampleLoc.y < 0 || sampleLoc.y > (g_denoiseTextureSize.y - 1))
+                continue;
+            
+            float v = g_varianceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
+            float w = precalculatedGaussian3x3tap[x + 1][y + 1];
+            filteredVarSum    += v * w;
+            filteredVarWeight += w;
         }
-        else
-        {
-            colorOut = centerSample;
-        }
-
     }
+    float centerVarFiltered = filteredVarSum / max(filteredVarWeight, EPS_MIN);
+    float centerStdDev = sqrt(max(centerVarFiltered, EPS_MIN));
+
+    MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(texCoord.xy, g_materialParams0, g_materialParams1);
+    float4 centercolor = g_sourceTex.Load(uint3(texCoord.xy, 0));
+    float3 centerPos = reconstructWorldPosition(texCoord.xy, centerMatParams.depth);
     
+    float4 sumColor = float4(0, 0, 0, 0);
+    float  sumVarSq = 0.0;
+    float  sumWeight = 0.0;
+
+    float depthDistanceSigma = max(centerMatParams.depth * DENOISE_PLANE_DIST_SIGMA_SCALE, 0.001f);
+    float normalDeltaWeight = 1.f;
+    float normalDeltaPow = 1.f;
+    float materialDeltaWeight = 0.f;
+    float materialDeltaPow = 1.f;
+    float luminanceDeltaPow = 1.f;
     
-     
-    return colorOut; //TODO
+    int stepSize = 1u << passNumber;
+
+    for (int y = -2; y <= 2; y++)
+    {
+        for (int x = -2; x <= 2; x++)
+        {
+            int2 sampleLoc = int2(texCoord) + int2(x, y) * stepSize;
+
+            if (sampleLoc.x < 0 || sampleLoc.x > (g_denoiseTextureSize.x - 1) || sampleLoc.y < 0 || sampleLoc.y > (g_denoiseTextureSize.y - 1))
+                continue;
+            
+            float kernelWeight = precalculatedGaussian3tap[abs(x)] * precalculatedGaussian3tap[abs(y)];
+            MaterialParameters2Texture matParams = readMaterialParametersFromTextures(sampleLoc, g_materialParams0, g_materialParams1);
+
+            float4 sampleColor = g_sourceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
+            float sampleVar = g_varianceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
+
+            float3 samplePos = reconstructWorldPosition(sampleLoc, matParams.depth);
+            float wDepth = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, depthDistanceSigma);
+            float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, normalDeltaWeight, normalDeltaPow, materialDeltaWeight, materialDeltaPow);
+
+            float colorDiff = abs(calculatePerceptualLuminance(sampleColor.rgb) - calculatePerceptualLuminance(centercolor.rgb));
+            float wColor = exp(-colorDiff / (luminanceDeltaPow * centerStdDev + EPS_MIN));
+
+            float w = kernelWeight * wDepth * wMat * wColor;
+
+            sumColor  += sampleColor * w;
+            sumVarSq  += w * w * sampleVar;
+            sumWeight += w;
+        }
+    }
+
+    float invWeight = 1.0 / max(sumWeight, EPS_MIN);
+
+    AtrousPassOutput output;
+    
+    output.color = sumColor * invWeight;
+    output.variance = sumVarSq * invWeight * invWeight;
+
+    return output;
 }
 
-/*
-float4 denoise(uint2 pixelLocation, int kernelWidth, uint2 targetWidthHeight)
-{
-    MaterialParameters2Texture centerParams = readMaterialParametersFromTextures(pixelLocation, g_materialParams0, g_materialParams1);
-    if (dot(float3(1.f, 1.f, 1.f), abs(centerParams.normal)) == 0)
-    {
-        return g_sourceTex.Load(uint3(pixelLocation, 0));
-    }
-
-    return g_sourceTex.Load(uint3(pixelLocation, 0)); //todo
-}*/
-/*
-//TODO: optimize with LDS 
-float4 lanczosFilter(uint2 pixelLocation, uint kernelWidth, uint2 targetWidthHeight)
-{
-    uint fromX = pixelLocation.x < kernelWidth ? 0 : pixelLocation.x - kernelWidth;
-    uint fromY = pixelLocation.y < kernelWidth ? 0 : pixelLocation.y - kernelWidth;
-    uint toX = min(pixelLocation.x + kernelWidth, targetWidthHeight.x - 1);
-    uint toY = min(pixelLocation.y + kernelWidth, targetWidthHeight.y - 1);
-    
-    float4 sum = 0;
-    for (uint y = fromY; y < toY; ++y)
-    {
-        for (uint x = fromX; x < toX; ++x)
-        {
-            float4 v = g_sourceTex.Load(uint3(x, y, 0));
-            uint deltaX = x < pixelLocation.x ? pixelLocation.x - x : x - pixelLocation.x;
-            uint deltaY = y < pixelLocation.y ? pixelLocation.y - y : y - pixelLocation.y;
-            float weight = g_precalculatedKernelWeights.Load(deltaX << 2) * g_precalculatedKernelWeights.Load(deltaY << 2);
-            sum += weight * v;
-
-        }
-    }
-    
-    return sum;
-}
-*/
 
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
@@ -273,7 +248,8 @@ void main( uint3 groupId : SV_GroupID,
         float4 col = 0;
         if (g_denoiseMode == DENOISE_MODE_ON)
         {
-            col = denoise(dispatchThreadId.xy, false);
+            AtrousPassOutput o = denoiseAtrous(dispatchThreadId.xy, 0);
+            col = o.color;
         }
         else if (g_denoiseMode == DENOISE_MODE_OFF)
         {
