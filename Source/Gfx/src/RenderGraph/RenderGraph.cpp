@@ -275,7 +275,7 @@ namespace YAPT
 		RenderGraphResourceView& view = m_resourceDataPerNodeSlot[nodeIndex].resourceViewPerSlot[slot];
 		if (view.type != BoundResourceType::BUFFER)
 		{
-			YAPT_LOG_FATAL_ERROR("Tried to get buffer resource from a texture slot! %s, %d", __FILE__, __LINE__);
+			YAPT_LOG_FATAL_ERROR("Tried to get buffer resource from a texture or unassigned slot! %s, %d", __FILE__, __LINE__);
 			countOut = 0;
 			return YAPT_NULL_HANDLE;
 		}
@@ -290,7 +290,7 @@ namespace YAPT
 		RenderGraphResourceView& view = m_resourceDataPerNodeSlot[nodeIndex].resourceViewPerSlot[slot];
 		if (view.type != BoundResourceType::TEXTURE)
 		{
-			YAPT_LOG_FATAL_ERROR("Tried to get texture resource from a buffer slot! %s, %d", __FILE__, __LINE__);
+			YAPT_LOG_FATAL_ERROR("Tried to get texture resource from a buffer or unassigned slot! %s, %d", __FILE__, __LINE__);
 			countOut = 0;
 			return YAPT_NULL_HANDLE;
 		}

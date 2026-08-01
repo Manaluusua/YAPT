@@ -65,7 +65,8 @@ namespace YAPT
 			mat4p viewToWorld;
 			vec4p cameraPositionWS;
 			vec4p textureDimensions;
-			uvec4p denoiseMode;
+			uvec4p modePassIndex;
+			vec4p bilaterWeightParams;
 		};
 
 		struct ClearAccumulatedSamplesParams
@@ -75,26 +76,34 @@ namespace YAPT
 			uint32_t accumulationTargetCount;
 		};
 
+		struct DenoisePass
+		{
+			ComputeNode* m_denoiseNode;
+			PostProcessComputePassUtility m_denoisePassUtility;
+			CombineSamplesSubStage* subStage;
+			FixedSizeGpuBufferHelper<DenoiseParams> m_denoiseConstants;
+			uint32_t passIndex;
+		};
+
 		void executeClear(const RenderGraphNodeExecutionContext& exec);
 		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
-		void executeDenoise(const RenderGraphNodeExecutionContext& exec);
+		void executeDenoise(DenoisePass& pass, const RenderGraphNodeExecutionContext& exec);
 
 		void precalculateKernelWeights(uint32_t width, float tau, float* dataPtr);
-
-
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
 
+		std::vector<DenoisePass> m_denoisePasses;
+
 		ComputeNode* m_clearNode;
 		ComputeNode* m_mergeNode;
-		ComputeNode* m_denoiseNode;
+		
 		PostProcessComputePassUtility m_clearMergeBufferPass;
 		PostProcessComputePassUtility m_mergePass;
-		PostProcessComputePassUtility m_denoisePass;
+		
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
-		FixedSizeGpuBufferHelper<DenoiseParams> m_denoiseConstants;
 		UpdateParams m_lastUpdateParams;
 		uvec2 m_renderResolution;
 	};

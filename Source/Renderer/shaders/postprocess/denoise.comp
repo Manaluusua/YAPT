@@ -9,7 +9,8 @@ struct DenoiseParams
     float4x4 viewToWorld;
     float4 cameraPosition;
     float4 textureDimensions;
-    uint4 denoiseParams;
+    uint4 modePassIndex;
+    float4 bilaterWeightParams;
 };
 
 
@@ -20,20 +21,22 @@ struct DenoiseParams
 #define DENOISE_MODE_VARIANCE_DEBUG 3
 #define DENOISE_SHOW_SAMPLE_SOURCES 4
 
-#define DENOISE_PLANE_DIST_SIGMA_SCALE 0.02f
-
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
 Texture2D<uint4> g_materialParams0 : register(t2, space0);
 Texture2D<uint4> g_materialParams1 : register(t3, space0);
 Texture2D<float> g_varianceTex : register(t4, space0);
 Texture2D g_lastSamples : register(t5, space0);
-RWTexture2D<float4> g_targetTex : register(u6, space0);
+RWTexture2D<float4> g_denoiseColor : register(u6, space0);
+RWTexture2D<float4> g_denoiseVariance : register(u7, space0);
 
-#define g_denoiseMode (g_denoiseParams.denoiseParams.x)
-#define g_denoiseKernelWidth (g_denoiseParams.denoiseParams.y)
+#define g_denoiseMode (g_denoiseParams.modePassIndex.x)
+#define g_denoisePassIndex (g_denoiseParams.modePassIndex.y)
 #define g_denoiseTextureSize (g_denoiseParams.textureDimensions.xy)
 #define g_denoiseTextureSizeInv (g_denoiseParams.textureDimensions.zw)
+#define g_denoiseDepthSigmaScale (g_denoiseParams.bilaterWeightParams.x)
+#define g_denoiseNormalSigma (g_denoiseParams.bilaterWeightParams.y)
+#define g_denoiseMaterialSigma (g_denoiseParams.bilaterWeightParams.z)
 
 float4 calculateDebugMaterialParams(uint2 loc)
 {
@@ -79,7 +82,7 @@ float calculatePerceptualLuminance(float3 c)
     return dot(c, float3(0.2126, 0.7152, 0.0722));
 }
 
-float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b, float normalDeltaWeight, float normalDeltaPow, float matDeltaWeight, float matDeltaPow)
+float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b, float normalDeltaSigma, float matDeltaSigma)
 {
     float roughnessDelta = abs(a.roughness - b.roughness);
     float albedoDelta = calculateVisualDifferenceAlbedo(a.albedo, b.albedo);
@@ -91,20 +94,20 @@ float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialPa
 
     //TODO: flags and better weight calculation: this multiplicative weight is likely too aggressive
     float wMat = 1.f;
-    wMat *= 1.f - roughnessDelta;
-    wMat *= 1.f - albedoDelta;
-    wMat *= 1.f - anisoDiff;
-    wMat *= 0.5f + 0.5f * (1.f - saturate(iorDelta)); //lessen effect of ior
-    wMat *= 1.f - metalnessDelta;
-    wMat *= 1.f - transparencyDelta;
+    wMat *= saturate(1.f - roughnessDelta);
+    wMat *= saturate(1.f - albedoDelta);
+    wMat *= saturate(1.f - anisoDiff);
+    wMat *= saturate(0.5f + 0.5f * (1.f - saturate(iorDelta))); //lessen effect of ior
+    wMat *= saturate(1.f - metalnessDelta);
+    wMat *= saturate(1.f - transparencyDelta);
     
     float wNormal = normalDot;
     
     
-    wMat = matDeltaWeight * pow(wMat, matDeltaPow);
-    wNormal = normalDeltaWeight * pow(wNormal, normalDeltaPow);
+    wMat = exp((-1.f + wMat) / max(matDeltaSigma, 1e-6));
+    wNormal = exp((-1.f + wNormal) / max(normalDeltaSigma, 1e-6));
     
-    return wMat + wNormal;
+    return wNormal * wMat;
 }
 
 
@@ -187,9 +190,8 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     float  sumVarSq = 0.0;
     float  sumWeight = 0.0;
 
-    float depthDistanceSigma = max(centerMatParams.depth * DENOISE_PLANE_DIST_SIGMA_SCALE, 0.001f);
-    float normalDeltaWeight = 1.f;
-    float normalDeltaPow = 1.f;
+    float depthDistanceSigma = max(centerMatParams.depth * g_denoiseDepthSigmaScale, 0.001f);
+    
     float materialDeltaWeight = 0.f;
     float materialDeltaPow = 1.f;
     float luminanceDeltaPow = 1.f;
@@ -213,7 +215,7 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
 
             float3 samplePos = reconstructWorldPosition(sampleLoc, matParams.depth);
             float wDepth = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, depthDistanceSigma);
-            float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, normalDeltaWeight, normalDeltaPow, materialDeltaWeight, materialDeltaPow);
+            float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, g_denoiseNormalSigma, g_denoiseMaterialSigma);
 
             float colorDiff = abs(calculatePerceptualLuminance(sampleColor.rgb) - calculatePerceptualLuminance(centercolor.rgb));
             float wColor = exp(-colorDiff / (luminanceDeltaPow * centerStdDev + EPS_MIN));
@@ -248,8 +250,10 @@ void main( uint3 groupId : SV_GroupID,
         float4 col = 0;
         if (g_denoiseMode == DENOISE_MODE_ON)
         {
-            AtrousPassOutput o = denoiseAtrous(dispatchThreadId.xy, 0);
+            AtrousPassOutput o = denoiseAtrous(dispatchThreadId.xy, g_denoisePassIndex);
             col = o.color;
+            g_denoiseVariance[dispatchThreadId.xy] = o.variance;
+
         }
         else if (g_denoiseMode == DENOISE_MODE_OFF)
         {
@@ -270,7 +274,7 @@ void main( uint3 groupId : SV_GroupID,
             col = g_lastSamples.Load(uint3(dispatchThreadId.xy, 0)); //TODO
         }
         
-        g_targetTex[dispatchThreadId.xy] = col;
+        g_denoiseColor[dispatchThreadId.xy] = col;
         
 		
 		

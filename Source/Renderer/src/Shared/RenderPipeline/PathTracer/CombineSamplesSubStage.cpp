@@ -112,7 +112,7 @@ namespace YAPT
 		{
 			RenderGraphNodeSlotDefinition slotdefsDenoiseNode[] =
 			{
-			{{
+			{{ //denoise color out
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::RGBA32_SFLOAT,
 				RESOURCE_USAGE_STORAGE_TEXTURE,
@@ -121,7 +121,16 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{
+				{{ //denoise var out
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::R32_SFLOAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
+			{{ //denoise color in
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -130,7 +139,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{
+			{{ //denoise var in
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -139,7 +148,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{
+			{{ //MATERIAL_PARAMS0
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -148,7 +157,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{
+			{{ //MATERIAL_PARAMS1
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -157,7 +166,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{
+			{{ //single sample color (debug)
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -168,17 +177,37 @@ namespace YAPT
 			}}
 			};
 
-			m_denoiseNode = m_graph->createComputeNode(countOf(slotdefsDenoiseNode), slotdefsDenoiseNode, []
-			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
-				{
-					static_cast<CombineSamplesSubStage*>(usrData)->executeDenoise(execContext);
-				},
-				this, "DenoiseNode");
+			static constexpr int DENOISE_PASSES_COUNT = 5;
+			m_denoisePasses.resize(DENOISE_PASSES_COUNT);
+
+			for (uint32_t i = 0; i < DENOISE_PASSES_COUNT; ++i)
+			{
+				m_denoisePasses[i].passIndex = i;
+				m_denoisePasses[i].subStage = this;
+				m_denoisePasses[i].m_denoiseNode = m_graph->createComputeNode(countOf(slotdefsDenoiseNode), slotdefsDenoiseNode, []
+				(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+					{
+						DenoisePass* denoisePass = static_cast<DenoisePass*>(usrData);
+						denoisePass->subStage->executeDenoise(*denoisePass, execContext);
+					},
+					m_denoisePasses.data() + i, "DenoiseNode");
+			}
+
+			
 		}
 		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 1);
 		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 2);
-		m_graph->createEdge(m_mergeNode, 0, m_denoiseNode, 1);
-		m_graph->createEdge(m_mergeNode, 3, m_denoiseNode, 2);
+		m_graph->createEdge(m_mergeNode, 0, m_denoisePasses[0].m_denoiseNode, 2);
+		m_graph->createEdge(m_mergeNode, 3, m_denoisePasses[0].m_denoiseNode, 3);
+
+		for (uint32_t i = 0; i < m_denoisePasses.size() - 1; ++i)
+		{
+			m_graph->createEdge(m_denoisePasses[i].m_denoiseNode, 0, m_denoisePasses[i + 1].m_denoiseNode, 2);
+			m_graph->createEdge(m_denoisePasses[i].m_denoiseNode, 1, m_denoisePasses[i + 1].m_denoiseNode, 3);
+
+			m_graph->createEdge(m_denoisePasses[i].m_denoiseNode, 2, m_denoisePasses[i + 1].m_denoiseNode, 0);
+			m_graph->createEdge(m_denoisePasses[i].m_denoiseNode, 3, m_denoisePasses[i + 1].m_denoiseNode, 1);
+		}
 	}
 
 	void CombineSamplesSubStage::setInput(InputResource resource, RenderGraphNode* node, size_t slot)
@@ -187,13 +216,29 @@ namespace YAPT
 		{
 		case InputResource::COLOR:
 			m_graph->createEdge(node, slot, m_mergeNode, 4);
-			m_graph->createEdge(node, slot, m_denoiseNode, 5);
+
+			//for now set to all denoise passes, really only need for first when just passing through debug stuff
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+			{
+				m_graph->createEdge(node, slot, m_denoisePasses[i].m_denoiseNode, 6);
+			}
+			
 			break;
 		case InputResource::MATERIAL_PARAMS0:
-			m_graph->createEdge(node, slot, m_denoiseNode, 3);
+		{
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+			{
+				m_graph->createEdge(node, slot, m_denoisePasses[i].m_denoiseNode, 4);
+			}
+		}
+			
 			break;
 		case InputResource::MATERIAL_PARAMS1:
-			m_graph->createEdge(node, slot, m_denoiseNode, 4);
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+			{
+				m_graph->createEdge(node, slot, m_denoisePasses[i].m_denoiseNode, 5);
+			}
+			
 			break;
 
 		default:
@@ -205,7 +250,7 @@ namespace YAPT
 		switch (outputResource)
 		{
 		case OutputResource::COLOR:
-			*node = m_denoiseNode;
+			*node = m_denoisePasses.back().m_denoiseNode;
 			slotOut = 0;
 			break;
 		default:
@@ -217,7 +262,11 @@ namespace YAPT
 	{
 		m_clearMergeBufferPass.deinit();
 		m_mergePass.deinit();
-		m_denoisePass.deinit();
+		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+		{
+			m_denoisePasses[i].m_denoisePassUtility.deinit();
+		}
+		
 	}
 	void CombineSamplesSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
 	{
@@ -238,8 +287,11 @@ namespace YAPT
 
 		{
 			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
-			m_denoisePass.init(m_renderer, denoise, nullptr, 0);
-			m_denoiseConstants.init(data.renderGraphLifetimeResources);
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+			{
+				m_denoisePasses[i].m_denoisePassUtility.init(m_renderer, denoise, nullptr, 0);
+				m_denoisePasses[i].m_denoiseConstants.init(data.renderGraphLifetimeResources);
+			}
 		}
 	}
 	void CombineSamplesSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
@@ -249,7 +301,12 @@ namespace YAPT
 
 		m_mergePass.createPipelineState();
 		m_clearMergeBufferPass.createPipelineState();
-		m_denoisePass.createPipelineState();
+
+		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+		{
+			m_denoisePasses[i].m_denoisePassUtility.createPipelineState();
+		}
+
 		
 		{
 			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(0);
@@ -284,13 +341,20 @@ namespace YAPT
 		}
 
 		{
-			RenderGraphResourceId resId = m_denoiseNode->getRenderGraphResourceIdForSlot(0);
+			RenderGraphResourceId resId = m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
 			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "denoised RT result");
 			m_graph->setRenderGraphResourceTexture(resId, tex);
 		}
 		
+		{
+			RenderGraphResourceId resId = m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(1);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Variance2");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
 		
 	}
 
@@ -298,14 +362,20 @@ namespace YAPT
 	{
 		bool haveTexturesChanged = m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(0));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(1));
-		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(1));
-		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(2));
-		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(3));
-		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoiseNode->getRenderGraphResourceIdForSlot(4));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(0));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(1));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(2));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(3));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(4));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(5));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(6));
 
 		CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
 		int32_t denoiseMode = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_MODE);
-		int32_t kernelSize = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_KERNEL_HALF_WIDTH) ;
+		float depthSigmaScale = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_DEPTH_SIGMA_SCALE);
+		float normalSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_NORMAL_SIGMA);
+		float matDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_MATERIAL_DIFFERENCE_SIGMA);
+		
 		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
 		if (haveTexturesChanged)
@@ -345,24 +415,30 @@ namespace YAPT
 
 			//denoise
 			{
-				TextureViewHandle denoiseTarget = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 0);
-				TextureViewHandle denoiseSource = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 1);
-				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 2);
-				TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 3);
-				TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 4);
-				TextureViewHandle latestSamples = m_graph->getTextureViewFromNodeSlot(m_denoiseNode->getSortedIndex(), 5);
+				for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+				{
+					ComputeNode* denoiseNode = m_denoisePasses[i].m_denoiseNode;
+					TextureViewHandle denoiseTarget = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 0);
+					TextureViewHandle denoiseTargetVar = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 1);
+					TextureViewHandle denoiseSource = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 2);
+					TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 3);
+					TextureViewHandle matParams0 = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 4);
+					TextureViewHandle matParams1 = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 5);
+					TextureViewHandle latestSamples = m_graph->getTextureViewFromNodeSlot(denoiseNode->getSortedIndex(), 6);
 
-				DescriptorSetUpdate updates[] = {
-					{0, 0, 1, DescriptorPtr(m_denoiseConstants.getViewPtr())},
-					{1, 0, 1, DescriptorPtr(&denoiseSource)},
-					{2, 0, 1, DescriptorPtr(&matParams0)},
-					{3, 0, 1, DescriptorPtr(&matParams1)},
-					{4, 0, 1, DescriptorPtr(&varianceTarget)},
-					{5, 0, 1, DescriptorPtr(&latestSamples) },
-					{6, 0, 1, DescriptorPtr(&denoiseTarget) }
-					
-				};
-				m_denoisePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
+					DescriptorSetUpdate updates[] = {
+						{0, 0, 1, DescriptorPtr(m_denoisePasses[i].m_denoiseConstants.getViewPtr())},
+						{1, 0, 1, DescriptorPtr(&denoiseSource)},
+						{2, 0, 1, DescriptorPtr(&matParams0)},
+						{3, 0, 1, DescriptorPtr(&matParams1)},
+						{4, 0, 1, DescriptorPtr(&varianceTarget)},
+						{5, 0, 1, DescriptorPtr(&latestSamples) },
+						{6, 0, 1, DescriptorPtr(&denoiseTarget) },
+						{7, 0, 1, DescriptorPtr(&denoiseTargetVar) }
+
+					};
+					m_denoisePasses[i].m_denoisePassUtility.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
+				}
 			}
 
 		}
@@ -391,24 +467,28 @@ namespace YAPT
 				m_mergeSamplesConstants.flush();
 			}
 
+			vec4 camPos(0.f, 0.f, 0.f, 1.f);
+			mat4 worldToView = m_renderer->getCurrentRenderView().getView();
+			mat4 viewToWorld = glm::inverse(worldToView);
+			camPos = viewToWorld * camPos;
+
+			mat4 viewToUVTransform = fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform();
+			mat4 uvToViewTransform = glm::inverse(viewToUVTransform);
+
+
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
 			{
-				uint32_t denoiseKernelHalfWidth = kernelSize;
-				DenoiseParams* denoiseParams = m_denoiseConstants.getData();
-				denoiseParams->denoiseMode = uvec4p(denoiseMode, denoiseKernelHalfWidth, 0, 0);
+				DenoiseParams* denoiseParams = m_denoisePasses[i].m_denoiseConstants.getData();
+				denoiseParams->modePassIndex = uvec4p(denoiseMode, i, 0, 0);
 				denoiseParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
 
-				vec4 camPos(0.f, 0.f, 0.f, 1.f);
-				mat4 worldToView = m_renderer->getCurrentRenderView().getView();
-				mat4 viewToWorld = glm::inverse(worldToView);
-				camPos = viewToWorld * camPos;
-
-				mat4 viewToUVTransform = fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform();
-				mat4 uvToViewTransform = glm::inverse(viewToUVTransform);
-
+				
 				denoiseParams->uvToView = uvToViewTransform;
 				denoiseParams->viewToWorld = viewToWorld;
 				denoiseParams->cameraPositionWS = camPos;
-				m_denoiseConstants.flush();
+				denoiseParams->bilaterWeightParams = vec4p(depthSigmaScale, normalSigma, matDiffSigma, 0);
+
+				m_denoisePasses[i].m_denoiseConstants.flush();
 			}
 		}
 		m_lastUpdateParams = params;
@@ -441,7 +521,7 @@ namespace YAPT
 	}
 
 
-	void CombineSamplesSubStage::executeDenoise(const RenderGraphNodeExecutionContext& exec)
+	void CombineSamplesSubStage::executeDenoise(DenoisePass& pass, const RenderGraphNodeExecutionContext& exec)
 	{
 
 		uint32_t rtWidth = m_lastUpdateParams.targetTextureResolution.x;
@@ -450,7 +530,7 @@ namespace YAPT
 		uint32_t dispatchX = (rtWidth + DENOISE_WG_SIZE - 1) / DENOISE_WG_SIZE;
 		uint32_t dispatchY = (rtHeight + DENOISE_WG_SIZE - 1) / MERGE_SAMPLES_WG_SIZE;
 
-		m_denoisePass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
+		pass.m_denoisePassUtility.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
 	}
 
 	float sinc(float x)
