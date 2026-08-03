@@ -56,12 +56,12 @@ typedef uint TransmissionType;
 
 bool isConsideredDiffuseGGX(float2 roughness)
 {
-    return min(roughness.x, roughness.y) > 0.3f;
+    return min(roughness.x, roughness.y) > 0.05f;
 }
 
 bool isConsideredDiffuseSheen(float roughness)
 {
-    return roughness > 0.3f;
+    return roughness > 0.15f;
 }
 
 
@@ -137,7 +137,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
             wi = sampleGGXReflectionDielectric(a2CC.x, a2CC.y, preCalcData.woCoating, randSampleBrdf);
             wi = mul(wi, preCalcData.toCoatingLayerTangentSpace(surfaceDef.tangent));
-            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2CC);
+            isDiffuseBounce = isConsideredDiffuseGGX(a2CC);
             isDeltaDistribution = isDeltaGGX(a2CC);
 
         }
@@ -148,7 +148,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 		{
 			wi = sampleSheen(surfaceDef.sheenRoughness, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseSheen(surfaceDef.sheenRoughness);
+            isDiffuseBounce = isConsideredDiffuseSheen(surfaceDef.sheenRoughness);
             isDeltaDistribution = isDeltaSheen(surfaceDef.sheenRoughness);
         }
 	} 
@@ -159,7 +159,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 			
 			wi = sampleGGXReflectionConductor(a2.x, a2.y, woBase, randSampleBrdf);
             wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-            isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
+            isDiffuseBounce = isConsideredDiffuseGGX(a2);
             isDeltaDistribution = isDeltaGGX(a2);
 
 		}
@@ -183,7 +183,7 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 
         wi = specLayer.sampleWi(woBase, randSampleBrdf, randbsdfSelect);
         wi = mul(wi, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
-        isDiffuseBounce = isDiffuseBounce || isConsideredDiffuseGGX(a2);
+        isDiffuseBounce = isConsideredDiffuseGGX(a2);
         isDeltaDistribution = isDeltaGGX(a2);
         
     } 

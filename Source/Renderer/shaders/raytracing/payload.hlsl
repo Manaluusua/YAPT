@@ -69,19 +69,19 @@ struct Payload //: RayStateInterface
 		flags = flagsIn;
 	}
 
-	void addFlags(uint flags)
+    void addFlags(uint flagsIn)
 	{
-		setStateFlags(getStateFlags() | flags);
-	}
-	
-    void removeFlags(uint flags)
-    {
-        setStateFlags(getStateFlags() & ~flags);
+        setStateFlags(getStateFlags() | flagsIn);
     }
 	
-	bool hasFlags(uint flags)
+    void removeFlags(uint flagsIn)
     {
-        return (getStateFlags() & flags) == flags;
+        setStateFlags(getStateFlags() & ~flagsIn);
+    }
+	
+    bool hasFlags(uint flagsIn)
+    {
+        return (getStateFlags() & flagsIn) == flagsIn;
     }
 	
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];

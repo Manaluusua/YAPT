@@ -5,7 +5,7 @@
 #include <unknwn.h>
 #include <dxcapi.h>
 
-//#define PRESERVE_DEBUG_INFO
+//#define PRESERVE_SHADER_DEBUG_INFO
 
 namespace YAPT
 {

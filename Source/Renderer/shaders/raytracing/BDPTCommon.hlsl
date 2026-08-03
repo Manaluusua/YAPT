@@ -121,19 +121,19 @@ struct BDPTRayState //: RayStateInterface
         flags = flagsIn;
     }
 
-    void addFlags(uint flags)
+    void addFlags(uint flagsIn)
     {
-        setStateFlags(getStateFlags() | flags);
+        setStateFlags(getStateFlags() | flagsIn);
     }
     
-    void removeFlags(uint flags)
+    void removeFlags(uint flagsIn)
     {
-        setStateFlags(getStateFlags() & ~flags);
+        setStateFlags(getStateFlags() & ~flagsIn);
     }
     
-    bool hasFlags(uint flags)
+    bool hasFlags(uint flagsIn)
     {
-        return (getStateFlags() & flags) == flags;
+        return (getStateFlags() & flagsIn) == flagsIn;
 
     }
 

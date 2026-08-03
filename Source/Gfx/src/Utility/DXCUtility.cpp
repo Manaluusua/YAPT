@@ -112,7 +112,7 @@ namespace YAPT
 		{
 			compilerOptions.push_back(extraParameters[i]);
 		}
-#ifdef PRESERVE_DEBUG_INFO
+#ifdef PRESERVE_SHADER_DEBUG_INFO
 		compilerOptions.push_back(L"/Zi");
 #endif
 		HRESULT result = dxcCompiler->Compile(
