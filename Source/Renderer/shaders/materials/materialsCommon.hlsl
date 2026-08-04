@@ -376,23 +376,24 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 	
 }
 
-void regularizeMaterial(inout SurfaceDefinitionRGB surfaceDef)
+float regularize(float linearRoughness, bool squared)
 {
-    if (surfaceDef.roughness < 0.3f)
+    float r = squared ? linearRoughness * linearRoughness : linearRoughness;
+    if (r < 0.3f)
     {
-        surfaceDef.roughness = clamp(surfaceDef.roughness * 2.f, 0.1f, 0.3f);
+		float r = clamp(r * 2.f, 0.1f, 0.3f);
+        return squared ? sqrt(r) : r;
 		//TODO: deal with anisotropy
     }
-	
-    if (surfaceDef.sheenRoughness < 0.3f)
-    {
-        surfaceDef.sheenRoughness = clamp(surfaceDef.sheenRoughness * 2.f, 0.1f, 0.3f);
-    }
-	
-    if (surfaceDef.clearCoatRoughness < 0.3f)
-    {
-        surfaceDef.clearCoatRoughness = clamp(surfaceDef.clearCoatRoughness * 2.f, 0.1f, 0.3f);
-    }
+    return linearRoughness;
+
+}
+
+void regularizeMaterial(inout SurfaceDefinitionRGB surfaceDef)
+{
+    surfaceDef.roughness = regularize(surfaceDef.roughness, true);
+    surfaceDef.sheenRoughness = regularize(surfaceDef.sheenRoughness, false);
+    surfaceDef.clearCoatRoughness = regularize(surfaceDef.clearCoatRoughness, true);
 }
 
 void modifySurfaceEmissionWithTexture(in MaterialEntryGPU matEntry, in float2 uv, inout SurfaceDefinitionRGB surfaceDef)
