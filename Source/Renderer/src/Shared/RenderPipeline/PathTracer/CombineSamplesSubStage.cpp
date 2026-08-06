@@ -375,6 +375,7 @@ namespace YAPT
 		float depthSigmaScale = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_DEPTH_SIGMA_SCALE);
 		float normalSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_NORMAL_SIGMA);
 		float matDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_MATERIAL_DIFFERENCE_SIGMA);
+		float colorDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_COLOR_DIFFERENCE_SIGMA);
 		
 		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
@@ -486,7 +487,7 @@ namespace YAPT
 				denoiseParams->uvToView = uvToViewTransform;
 				denoiseParams->viewToWorld = viewToWorld;
 				denoiseParams->cameraPositionWS = camPos;
-				denoiseParams->bilaterWeightParams = vec4p(depthSigmaScale, normalSigma, matDiffSigma, 0);
+				denoiseParams->bilaterWeightParams = vec4p(depthSigmaScale, normalSigma, matDiffSigma, colorDiffSigma);
 
 				m_denoisePasses[i].m_denoiseConstants.flush();
 			}

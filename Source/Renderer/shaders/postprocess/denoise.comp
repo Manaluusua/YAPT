@@ -37,6 +37,7 @@ RWTexture2D<float4> g_denoiseVariance : register(u7, space0);
 #define g_denoiseDepthSigmaScale (g_denoiseParams.bilaterWeightParams.x)
 #define g_denoiseNormalSigma (g_denoiseParams.bilaterWeightParams.y)
 #define g_denoiseMaterialSigma (g_denoiseParams.bilaterWeightParams.z)
+#define g_denoiseColorSigma (g_denoiseParams.bilaterWeightParams.w)
 
 float4 calculateDebugMaterialParams(uint2 loc)
 {
@@ -194,7 +195,6 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     
     float materialDeltaWeight = 0.f;
     float materialDeltaPow = 1.f;
-    float luminanceDeltaPow = 1.f;
     
     int stepSize = 1u << passNumber;
 
@@ -218,7 +218,7 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
             float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, g_denoiseNormalSigma, g_denoiseMaterialSigma);
 
             float colorDiff = abs(calculatePerceptualLuminance(sampleColor.rgb) - calculatePerceptualLuminance(centercolor.rgb));
-            float wColor = exp(-colorDiff / (luminanceDeltaPow * centerStdDev + EPS_MIN));
+            float wColor = exp(-colorDiff / (g_denoiseColorSigma * centerStdDev + EPS_MIN));
 
             float w = kernelWeight * wDepth * wMat * wColor;
 
