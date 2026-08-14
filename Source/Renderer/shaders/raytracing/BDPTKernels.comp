@@ -756,6 +756,23 @@ bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
 	return isValid;
 }
 
+//just simple pinhole camera for now
+float calculateCameraDirectionalPDF(float3 camToNodeWS)
+{
+	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));
+	float4 planeMax = mul(g_uvToViewTransform, float4(1, 1, 0, 1));
+	planeMin /= planeMin.w;
+	planeMax /= planeMax.w;
+
+	float2 planeExtent = abs(planeMax.xy - planeMin.xy);
+	float planeArea = safeDiv(planeExtent.x * planeExtent.y, planeMin.z * planeMin.z);
+
+	float3 camToNodeVS = mul(g_worldToViewTransform, float4(camToNodeWS, 0)).xyz;
+	float cosTheta = abs(camToNodeVS.z) * rsqrt(max(0.0001f, dot(camToNodeVS, camToNodeVS)));
+
+	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+}
+
 void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
 {
 	bool lightNodeIsDelta = (nodeData.node.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
@@ -867,16 +884,19 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 			{
 				if(checkVisibility(nodeData.node.positionWS, g_cameraPosition))
 				{
-					bool convertAreaDensityBackward = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
-					float pdfBackwardPrevNode = pdfBackward * (convertAreaDensityBackward ? solidAngleToAreaDensityMultiplier(prevPos - node.positionWS, prevNormal) : 1);
+					bool prevNodeIsEnvLight = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
+					float pdfBackwardPrevNode = pdfBackward * (prevNodeIsEnvLight ? 1 : solidAngleToAreaDensityMultiplier(prevPos - nodeData.node.positionWS, prevNormal));
 
-					float riSumCurrent = 0;
-					
-					riSumCurrent = accumulateRISum(riSumCurrent, pdfBackwardPrevNode, prevPDFForwardMIS);
-					riSumCurrent = accumulateRISum(riSumCurrent, 1, nodeData.node.pdfForwardMIS);
+					float3 camToNode = nodeData.node.positionWS - g_cameraPosition;
+					float pdfCameraDirection = calculateCameraDirectionalPDF(camToNode);
 
-					float misWeight = 1.f / (1 + riSum + riSumCurrent);
-					float4 contrib = nodeData.node.radiance * safeDiv(w, pdfForward) * misWeight;
+					float riSumCurrent = accumulateRISum(riSum, pdfBackwardPrevNode, prevPDFForwardMIS);
+					riSumCurrent = accumulateRISum(riSumCurrent, pdfCameraDirection * solidAngleToAreaDensityMultiplier(camToNode, nodeData.node.normalWS), nodeData.node.pdfForwardMIS);
+
+					float misWeight = 1.f / (1 + riSumCurrent);
+					float geomTerm = 1.f / max(0.0001f, dot(camToNode, camToNode));
+					float cameraImportance = safeDiv(pdfCameraDirection, (float)headerCount);
+					float4 contrib = nodeData.node.radiance * w * misWeight * geomTerm * cameraImportance;
 
 					SpectralSamples s;
 					s.fromFloat4(contrib);
