@@ -314,9 +314,6 @@ struct SpectralSamples
 		return samples[x];
 	}
 
-	//drop the secondary wavelengths (a dispersive event makes them invalid) and scale the hero sample so that it alone
-	//carries the whole estimator, compensating for the division by the sample count in ToXYZ. Must be applied only once
-	//per path, callers guard with RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED / LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED
 	void terminateSecondaryWavelengths()
 	{
 		samples[0] *= 4.f;

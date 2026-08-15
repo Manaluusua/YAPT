@@ -157,7 +157,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
 			//radiance arriving at this node is already truncated if the subpath dispersed on the way here
 			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0 ? LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED : 0;
-			
+			//record the incoming state, which is what calculateCommonSurfaceParams below regularizes against, so the connection can reproduce it
+			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0 ? LIGHT_PATH_NODE_FLAG_REGULARIZED : 0;
+
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
 			if(deltaDistr)
@@ -202,6 +204,13 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             {
                 break;
             }
+
+			//mirrors the camera subpath, otherwise light subpaths are never regularized and MIS combines the two sides
+			//describing the same vertex with different roughness
+			if(isDiffuseBounce)
+			{
+				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE);
+			}
 
             SpectralSamples w;
             float pdfBackward;

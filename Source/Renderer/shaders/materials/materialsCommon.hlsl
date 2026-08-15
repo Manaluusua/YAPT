@@ -379,6 +379,7 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 float regularize(float linearRoughness, bool squared)
 {
     float r = squared ? linearRoughness * linearRoughness : linearRoughness;
+	
     if (r < 0.3f)
     {
 		r = clamp(r * 2.f, 0.1f, 0.3f);

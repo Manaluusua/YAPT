@@ -15,6 +15,9 @@ static float g_spectralMainSampleWavelength;
 #define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
 #define LIGHT_PATH_NODE_FLAG_ENV_LIGHT (1 << 2)
 #define LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION (1 << 3)
+//set when the subpath had already had a diffuse bounce when this node was traced, so the material was regularized. The connection
+//has to regularize it the same way, otherwise the stored MIS pdfs and the connection evaluation describe different roughness
+#define LIGHT_PATH_NODE_FLAG_REGULARIZED (1 << 4)
 
 struct BidirectionalPathTraceConstants
 {
@@ -516,6 +519,12 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         float3 wiOS = normalize(camNodePosOS - lightPosOS);
         float3 woOSLightConnection = normalize(prevLightPosOS - lightPosOS);
 
+
+		//match the regularization the light subpath was traced with, so this evaluation and the pdfs stored on the node agree
+        if ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_REGULARIZED) != 0)
+        {
+            regularizeMaterial(surfaceDefRGB);
+        }
 
         SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
         PrecalculatedSurfaceData precalculatedSurfaceData;
