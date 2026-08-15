@@ -141,8 +141,7 @@ void rayGenPrimaryRays()
 	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
 	if(resultsValid) 
 	{
-        bool rayDispersed = (payload.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
-        float3 color = payload.totalLight.ToXYZ(rayDispersed);
+        float3 color = payload.totalLight.ToXYZ();
         g_outputColor[DispatchRaysIndex().xy] = float4(color, 1.f);
     } 
 	else

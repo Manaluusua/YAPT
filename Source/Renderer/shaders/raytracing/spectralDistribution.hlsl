@@ -314,8 +314,12 @@ struct SpectralSamples
 		return samples[x];
 	}
 
+	//drop the secondary wavelengths (a dispersive event makes them invalid) and scale the hero sample so that it alone
+	//carries the whole estimator, compensating for the division by the sample count in ToXYZ. Must be applied only once
+	//per path, callers guard with RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED / LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED
 	void terminateSecondaryWavelengths()
 	{
+		samples[0] *= 4.f;
 		for (uint i = 1; i < 4; ++i)
 		{
 			samples[i] = 0;
@@ -323,43 +327,32 @@ struct SpectralSamples
 
 	}
 
-	float3 ToXYZ(bool secondaryRaysTerminated = false)
+	float3 ToXYZ()
 	{
 
-		
+
 #ifdef DISABLE_SPECTRAL_SAMPLES
 		return float3(samples[0], samples[1], samples[2]);
 #else
 		float3 xyz = 0;
-		if (secondaryRaysTerminated)
+		float4 lambdas = getSpectralSampleLambdas();
+		for (uint i = 0; i < 4; ++i)
 		{
-			float waveLength = getHeroSpectralLambda();
+
+			float waveLength = lambdas[i];
 			float pdf = SPECTRAL_SAMPLE_LAMBDA_PDF;
 			float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
-			xyz = samples[0] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
-			return xyz;
+			xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
 		}
-		else
-		{
-			float4 lambdas = getSpectralSampleLambdas();
-			for (uint i = 0; i < 4; ++i)
-			{
-
-				float waveLength = lambdas[i];
-				float pdf = SPECTRAL_SAMPLE_LAMBDA_PDF;
-				float3 xyzCoeffs = getXYZCoeffsForWavelength(waveLength);
-				xyz += samples[i] * xyzCoeffs * safeDiv(CIE_Y_SUM_INV, pdf);
-			}
-			return xyz / 4;
-		}
+		return xyz / 4;
 
 #endif
 }
 
-	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT, bool secondaryRaysTerminated = false)
+	float3 ToRGB(int colorSpaceIndex = COLORSPACE_DEFAULT)
 	{
 
-		float3 xyz = ToXYZ(secondaryRaysTerminated);
+		float3 xyz = ToXYZ();
 		float3 rgb = 0;
 		if (colorSpaceIndex == COLORSPACE_RGB)
 		{

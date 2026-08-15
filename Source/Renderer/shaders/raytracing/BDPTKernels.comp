@@ -155,7 +155,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float2 bary = q.CommittedTriangleBarycentrics();
 
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
-			lightNodeFlags |= (rayState.getStateFlags() & TRANSMISSION_TYPE_DISPERSED) != 0 ? LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS : 0;
+			//radiance arriving at this node is already truncated if the subpath dispersed on the way here
+			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0 ? LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED : 0;
 			
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
@@ -204,7 +205,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
             SpectralSamples w;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward);
+            bool dispersed;
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
 
 			/*if(pdfBackward == 0)
 			{
@@ -228,7 +230,12 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext), which is included in material sample. So just divide with solid angle pdf
 			radiance = radiance * w * safeDiv(1.f, pdfForward);
-			
+
+			if(dispersed)
+			{
+				radiance.terminateSecondaryWavelengths();
+			}
+
             if(radiance.applyRussianRoulette(rand.getRandom1(),maxRadiance))
 			{
 				 break;
@@ -571,12 +578,20 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             SpectralSamples w;
             float pdfForward;
             float pdfBackward;
-            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward);
+            bool dispersed;
+            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
 
 			/*if(pdfForward == 0)
 			{
 				break;
 			}*/
+
+			//truncate at the dispersive bounce itself. Contributions already accumulated into totalLight at this and previous vertices
+			//keep all four wavelengths, only what the path carries onwards becomes single wavelength
+			if(dispersed)
+			{
+				camVertexContext.throughput.terminateSecondaryWavelengths();
+			}
 
             if (camVertexContext.throughput.applyRussianRoulette(rand.getRandom1()))
             {
@@ -630,8 +645,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		}
 	}
 
-	bool rayDispersed = (rayState.flags & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0;
-    float3 color = totalLight.ToXYZ(rayDispersed);
+    float3 color = totalLight.ToXYZ();
 
 	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1);
 
@@ -786,7 +800,8 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 
 	SpectralSamples s;
 	float pdfForwardMISUnused;
-	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, pdfForwardOut, pdfBackwardOut, s, pdfForwardMISUnused))
+	//connecting straight to the camera, so there is no camera subpath state, only what the light node itself carries
+	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, false, pdfForwardOut, pdfBackwardOut, s, pdfForwardMISUnused))
 	{
 		radianceOut = 0;
 		pdfForwardOut = 0;
@@ -849,7 +864,6 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 	if(vCount <= 1) return;
 
 	g_spectralMainSampleWavelength = header.sampledWavelength;
-	bool rayHasDispersed = false;
 	float riSum = 0;
 	float deferredRISum = 0;
 	float3 prevPos;
@@ -900,7 +914,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 
 					SpectralSamples s;
 					s.fromFloat4(contrib);
-					float3 color = s.ToXYZ(rayHasDispersed);
+					float3 color = s.ToXYZ();
 					addContribution(targetTexel, color);
 				}
 			}

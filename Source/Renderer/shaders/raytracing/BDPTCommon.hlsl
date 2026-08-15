@@ -10,7 +10,8 @@ static float g_spectralMainSampleWavelength;
 #include "rayState.hlsl"
 #include "lightSampling.hlsl"
 
-#define LIGHT_PATH_NODE_FLAG_TERMINATE_SECONDARY_WAVELENGTHS (1 << 0)
+//set when the radiance stored in the node has already had its secondary wavelengths terminated by a dispersive event earlier on the light subpath
+#define LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED (1 << 0)
 #define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
 #define LIGHT_PATH_NODE_FLAG_ENV_LIGHT (1 << 2)
 #define LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION (1 << 3)
@@ -284,10 +285,11 @@ LightPathHeader getLightPathHeader(uint index)
 }
 
 void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
-out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
+out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out bool dispersedOut)
 {
 
     SpectralSamples weightDummy;
+    dispersedOut = false;
 
     TransmissionType transmissionType;
     
@@ -324,6 +326,7 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward)
     {
         if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
         {
+            dispersedOut = (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) == 0;
             rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
         }
 			
@@ -397,13 +400,13 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 {
 
     handleTwoSidedMaterialOrientation(surfaceDefRGB, woOS);
-    
-    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
-    
+
     if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
     {
         regularizeMaterial(surfaceDefRGB);
     }
+
+    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
     calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
@@ -415,10 +418,7 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 {
     SurfaceDefinitionRGB surfaceDefRGB;
     fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
-    if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
-    {
-        regularizeMaterial(surfaceDefRGB);
-    }
+
     calculateCommonSurfaceParams(rayState, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 }
 
@@ -474,7 +474,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
 }
 
 
-bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut, out float pdfForwardMISOut)
+bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, bool secondaryWavelengthsAlreadyTerminated, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut, out float pdfForwardMISOut)
 {
 
     SurfaceDefinitionRGB surfaceDefRGB = lightNodeData.surfaceDefRGB;
@@ -526,11 +526,19 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         rayState.ior[0] = lightNode.iorPrevious;
         rayState.ior[1] = lightNode.iorCurrent;
         rayState.numberVolumesEntered = 2;
-        rayState.setStateFlags(0);
 
+        bool alreadyTerminated = secondaryWavelengthsAlreadyTerminated || ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0);
+        rayState.setStateFlags(alreadyTerminated ? RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED : 0);
+
+        bool dispersed;
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut);
+        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut, dispersed);
+
+        if (dispersed)
+        {
+            weightOut.terminateSecondaryWavelengths();
+        }
 
         pdfForwardMISOut = pdfForwardOut;
 
@@ -705,16 +713,29 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 
     uint lightNodeIndex = lightVertexIndex;
     LightPathNode lightNode = lightNodeData.node;
-                    
+
+	//the connected path is single wavelength as soon as either subpath has dispersed, and only the first dispersive event along it
+	//rescales the hero sample.
+    if ((lightNode.flags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0)
+    {
+        rayState.addFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
+    }
+
     SpectralSamples weightLastCameraNode;
     float pdfForwardLastCameraNode;
     float pdfBackwardLastCameraNode;
 	//evaluate weight PDFs for connecting camera node
 	{
-						
+
         float pdfForward;
         float pdfBackward;
-        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward);
+        bool dispersed;
+        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward, dispersed);
+
+        if (dispersed)
+        {
+            weightLastCameraNode.terminateSecondaryWavelengths();
+        }
 
         if (pdfForward == 0 || weightLastCameraNode.allSamplesEqual(0))
         {
@@ -724,14 +745,14 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         pdfForwardLastCameraNode = pdfForward;
         pdfBackwardLastCameraNode = pdfBackward;
     }
-					
+
     SpectralSamples weightLastLightNode = (SpectralSamples) 0;
     float pdfForwardLastLightNode;
     float pdfBackwardLastLightNode;
     float pdfForwardLastLightNodeMIS;
 	//evaluate weight PDFs for connecting light node
 	{
-        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode, pdfForwardLastLightNodeMIS);
+        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED), pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode, pdfForwardLastLightNodeMIS);
         if (!connectionValid)
         {
             return retVal;
@@ -803,9 +824,6 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         if (lightVertexIndex > 0)
         {
             geometryTerm = 1.f / toLightLenSqr;
-			//the solid angle projection of dot(wi,shadingNormal) is already included in surface eval
-			//geometryTerm *= abs(dot(camVertex.normalWS, toLightDir));
-			//geometryTerm *= abs(dot(lightNode.normalWS, toLightDir));
         }
 
         SpectralSamples absorptionOnConnection = rayState.getAbsorption();

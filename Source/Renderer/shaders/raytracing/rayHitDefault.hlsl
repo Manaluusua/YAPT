@@ -159,9 +159,14 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
             
             SpectralSamples weightSumLight = (SpectralSamples) 0.f;
             float brdfPdf = 0;
-            TransmissionType transmissionTypeDummy;
-            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeDummy);
-    
+            TransmissionType transmissionTypeLight;
+            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeLight);
+
+            if ((transmissionTypeLight & TRANSMISSION_TYPE_DISPERSED) != 0 && !rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED))
+            {
+                weightSumLight.terminateSecondaryWavelengths();
+            }
+
             if (!weightSumLight.allSamplesEqual(0))
             {
 		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
@@ -213,9 +218,14 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		{
 		    if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
 		    {
+
+				if (!rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED))
+				{
+					weightSumBRDF.terminateSecondaryWavelengths();
+				}
                 rayState.addFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
             }
-			
+
 		    bool entered = (transmissionType & TRANSMISSION_TYPE_ENTERED) != 0;
 		    bool exited = (transmissionType & TRANSMISSION_TYPE_EXITED) != 0;
 
