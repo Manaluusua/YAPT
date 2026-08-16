@@ -832,10 +832,11 @@ bool checkVisibility(float3 from, float3 to)
 
 	if(fromToLen < 0.0001) return true;
 
+	float rayMinT = 0.01f;
     RayDesc ray;
     ray.Origin = from;
     ray.Direction = fromTo / fromToLen;
-    ray.TMin = DEFAULT_RAY_MIN_T;
+    ray.TMin = rayMinT;
     ray.TMax = fromToLen;
 
     q.TraceRayInline(
