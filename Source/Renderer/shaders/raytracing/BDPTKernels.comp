@@ -44,7 +44,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     uint groupIndex : SV_GroupIndex )
 {
 	//could potentially remove this check here and just not write path if we can't reserve a header. This way we maybe end up with more valid paths per sample run
-	if(g_lightPathsPerDim.x <= dispatchThreadId.x || g_lightPathsPerDim.y <= dispatchThreadId.y) return; 
+	uint lightPathIndex = dispatchThreadId.x;
+	if(lightPathIndex >= (g_lightPathsPerDim.x * g_lightPathsPerDim.y)) return;
 
 	SpectralSamples radiance;
 	float3 lightPos;
@@ -58,7 +59,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	
     RandomSampler rand;
-    rand.init(0,  dispatchThreadId.y * g_lightPathsPerDim.x + dispatchThreadId.x); //TODO: init properly
+    rand.init(0, lightPathIndex); //TODO: init properly
 	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
 
 	float maxRadiance = 0;
@@ -396,10 +397,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		}
 		else
 		{
-			RandomSampler randTemp;
-			randTemp.init(0, groupId.y * g_lightPathsPerDim.x + groupId.x);
 
-			
+			RandomSampler randTemp;
+			randTemp.init(0, groupId.y * g_cameraRayWorkGroupCount.x + groupId.x);
 			uint headerIndex = min(floor(randTemp.getRandom1() * headerCount), headerCount - 1);
 			g_lightPathHeader = getLightPathHeader(headerIndex);
 		}
@@ -411,10 +411,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 	g_spectralMainSampleWavelength = g_lightPathHeader.sampledWavelength;
 
-    if (groupIndex < g_lightPathHeader.offsetAndCount.y)
+	
+    for (uint loadIndex = groupIndex; loadIndex < g_lightPathHeader.offsetAndCount.y; loadIndex += THREAD_GROUP_DIM_SIZE_CAM_RAY * THREAD_GROUP_DIM_SIZE_CAM_RAY)
     {
-        LightPathNode node = decompressLightPathNode(getLightPathVertex(g_lightPathHeader.offsetAndCount.x + groupIndex));
-        g_localNodes[groupIndex] = getExtractedLightPathNodeData(node);
+        LightPathNode node = decompressLightPathNode(getLightPathVertex(g_lightPathHeader.offsetAndCount.x + loadIndex));
+        g_localNodes[loadIndex] = getExtractedLightPathNodeData(node);
     }
 	
     GroupMemoryBarrierWithGroupSync();

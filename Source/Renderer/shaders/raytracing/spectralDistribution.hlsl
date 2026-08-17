@@ -124,7 +124,8 @@ struct SpectralSamples
     bool applyRussianRoulette(float rand, float normalization = 1.f)
     {
         float p = getMaxSampleValue() / normalization;
-		p = clamp(p, 0.05f, 0.95f);
+
+		p = clamp(p, 0.05f, 1.f);
 		if (rand > p)
 		{
 			return true;

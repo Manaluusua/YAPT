@@ -21,7 +21,7 @@ namespace YAPT
 {
 	constexpr glm::uvec3 WG_SIZE_CAM_STAGE = glm::uvec3(8, 8, 1);
 	constexpr glm::uvec3 WG_SIZE_LIGHT_STAGE = glm::uvec3(64, 1, 1);
-	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = 12;
+	constexpr uint32_t MAX_VERTICES_PER_LIGHT_PATH = MAX_LIGHT_PATH_VERTICES_HARD_LIMIT;
 	constexpr float ACTUAL_ALLOCATED_VERTICES_PER_PATH_RATIO = 0.8f;
 	constexpr glm::uvec2 TEXELS_PER_LIGHTPATH = glm::uvec2(8, 8);
 

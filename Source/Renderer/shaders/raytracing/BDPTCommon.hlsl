@@ -15,8 +15,7 @@ static float g_spectralMainSampleWavelength;
 #define LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE (1 << 1)
 #define LIGHT_PATH_NODE_FLAG_ENV_LIGHT (1 << 2)
 #define LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION (1 << 3)
-//set when the subpath had already had a diffuse bounce when this node was traced, so the material was regularized. The connection
-//has to regularize it the same way, otherwise the stored MIS pdfs and the connection evaluation describe different roughness
+//set if the path has already been regularized
 #define LIGHT_PATH_NODE_FLAG_REGULARIZED (1 << 4)
 
 struct BidirectionalPathTraceConstants
@@ -181,7 +180,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_maxAllocatedVertices g_bdptConstants.maxAllocatedVertices
 #define g_lightPathsPerDim g_bdptConstants.lightPathsPerDim
 
-#define g_cameraPathRandomDimensionOffset (g_maxVerticesPerLightPath * 4 + 4)
+//2 for init, 1 for wavelength, 8 for light sample, 5 per vertex
+#define g_cameraPathRandomDimensionOffset (g_maxVerticesPerLightPath * 5 + 12)
 #define g_cameraRayWorkGroupCount (g_bdptConstants.cameraRayWorkGroupCount)
 #define g_cameraWorkGroupOffset (g_bdptConstants.cameraWorkGroupSwizzleOffset)
 
