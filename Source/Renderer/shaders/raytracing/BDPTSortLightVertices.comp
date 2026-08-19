@@ -1,0 +1,38 @@
+#define WRITABLE_LIGHT_DATA
+#define WRITABLE_COUNTERS
+
+#include "BDPTCommon.hlsl"
+
+StructuredBuffer<LightPathNodePacked> g_lightPathVerticesUnsorted : register(t5, space3);
+
+[numthreads(64, 1, 1)]
+void sortLightVertices( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	uint headerCount = getLightPathsCount();
+	if(dispatchThreadId.x >= headerCount) return;
+
+	LightPathHeader header = getLightPathHeader(dispatchThreadId.x);
+	uint vCount = header.offsetAndCount.y;
+	if(vCount == 0) return;
+
+	uint vOffset;
+	reserveLightPathNodeSpaceForSorting(vCount, vOffset);
+	uint nextIndex = header.offsetAndCount.x;
+
+	for(uint i = 0; i < vCount; ++i)
+	{
+		LightPathNodePacked node = g_lightPathVerticesUnsorted[nextIndex];
+		uint storeIndex = vOffset + vCount - i - 1 ;
+		storeLightPathVertex(storeIndex, node);		
+		nextIndex = getNextIndexFromPackedNode(node);
+	}
+	
+
+	//store modified header
+	header.offsetAndCount.x = vOffset;
+	storeLightPathHeader(dispatchThreadId.x, header);
+
+}

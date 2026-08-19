@@ -1,0 +1,262 @@
+#define WRITABLE_LIGHT_DATA
+#define WRITABLE_COUNTERS
+
+#include "BDPTCommon.hlsl"
+
+[numthreads(64, 1, 1)]
+void traceLightRays( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	//could potentially remove this check here and just not write path if we can't reserve a header. This way we maybe end up with more valid paths per sample run
+	uint lightPathIndex = dispatchThreadId.x;
+	if(lightPathIndex >= (g_lightPathsPerDim.x * g_lightPathsPerDim.y)) return;
+
+	SpectralSamples radiance;
+	float3 lightPos;
+	float3 lightDir;
+	
+	LightPathNode nodes[2] = {(LightPathNode)0, (LightPathNode)0};
+	float pdfForward;
+
+	float3 rayDir;
+    float3 rayOrigin;
+
+	
+    RandomSampler rand;
+    rand.init(0, lightPathIndex); //TODO: init properly
+	g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+
+	float maxRadiance = 0;
+	bool previousWasDeltaDistr = false;
+
+	//sample light
+	{
+		float4 randomSamples0 = rand.getRandom4();
+		float4 randomSamples1 = rand.getRandom4();
+		bool sampledEnvironment;
+		float3 lightNormal;
+		float lightSamplePDF;
+		float lightPosPDF;
+		float lightDirPDF;
+		uint InstanceID;
+		uint primitiveIndex;
+        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex);
+
+		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
+        return;
+	
+		radiance = radiance;
+
+		maxRadiance = radiance.getMaxSampleValue();
+
+		nodes[0].instanceIndex = InstanceID;
+		nodes[0].primitiveIndex = primitiveIndex;
+		nodes[0].barycentrics = -1;
+		nodes[0].normalWS = lightNormal;
+		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
+		nodes[0].radiance = radiance.toFloat4();
+		nodes[0].positionWS = lightPos;
+		nodes[0].pdfForwardMIS = lightPosPDF * lightSamplePDF;
+		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
+		nodes[0].iorPrevious = IOR_DEFAULT;
+		nodes[0].iorCurrent = IOR_DEFAULT;
+		pdfForward = lightDirPDF;
+
+		rayDir = lightDir;
+		rayOrigin = lightPos + getRaySpawnOffsetUsingNormal(lightNormal, lightDir);
+
+		radiance = radiance * abs(dot(lightNormal, lightDir)) / (lightSamplePDF * lightPosPDF * lightDirPDF);
+		
+    }
+
+    uint lastVertexOffset = INVALID_LIGHT_NODE_INDEX;
+    uint lightNodeCount = 1;
+	//reserve header early
+    uint headerOffset = reserveLightPathHeader();
+
+	if((g_lightPathsPerDim.y * g_lightPathsPerDim.x) <= headerOffset) return;
+
+	BDPTRayState rayState;
+    rayState.setStateFlags(0);
+    rayState.numberVolumesEntered = 0;
+
+
+	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
+	{
+		float4 randomSamples0 = rand.getRandom4();
+
+		uint rayFlags = RAY_FLAG_NONE;
+		uint InstanceInclusionMask = ~0;
+
+		RayQuery<RAY_FLAG_NONE> q;
+
+		RayDesc ray;
+		ray.Origin = rayOrigin;
+		ray.Direction = rayDir;
+		ray.TMin = DEFAULT_RAY_MIN_T;
+		ray.TMax = DEFAULT_RAY_MAX_T;
+
+		q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags, 
+		    InstanceInclusionMask,
+		    ray);
+
+		while(q.Proceed());
+
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			
+			uint currentNodeIndex = i & 0x1;
+			uint previousNodeIndex = ((i-1)) & 0x1;
+
+            SurfaceDefinition surfaceDef;
+            PrecalculatedSurfaceData precalculatedSurfaceData;
+            float samplingProbabilities[LAYER_COUNT];
+            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            float3 woOS = normalize(-q.CommittedObjectRayDirection());
+            uint instId = q.CommittedInstanceID();
+            uint primIndex = q.CommittedPrimitiveIndex();
+            float2 bary = q.CommittedTriangleBarycentrics();
+
+			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
+			//radiance arriving at this node is already truncated if the subpath dispersed on the way here
+			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0 ? LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED : 0;
+			//record the incoming state, which is what calculateCommonSurfaceParams below regularizes against, so the connection can reproduce it
+			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0 ? LIGHT_PATH_NODE_FLAG_REGULARIZED : 0;
+
+            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
+			if(deltaDistr)
+			{
+                lightNodeFlags |= LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION;
+
+            }
+			
+            float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
+            transformNormal = transpose(transformNormal);
+			
+            float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
+            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+			
+			//TODO: store some of the ray state (dispersion,volumes(?))
+			float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - q.WorldRayOrigin(), normalWS);
+			
+			{
+				SpectralSamples abs = rayState.getAbsorption();
+				if(!abs.allSamplesEqual(0))
+				{
+					radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
+				}
+			}
+
+
+			nodes[currentNodeIndex].instanceIndex = instId;
+			nodes[currentNodeIndex].primitiveIndex = primIndex;
+			nodes[currentNodeIndex].barycentrics = bary;
+			nodes[currentNodeIndex].normalWS = normalWS;
+			nodes[currentNodeIndex].radiance = radiance.toFloat4();
+			nodes[currentNodeIndex].positionWS = posWS;
+			nodes[currentNodeIndex].pdfForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
+			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
+			nodes[currentNodeIndex].flags = lightNodeFlags;
+			
+			bool isDiffuseBounce;
+			bool sampledDeltaDir;
+			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, samplingProbabilities, isDiffuseBounce, sampledDeltaDir);
+            if (isZero(wiOS))
+            {
+                break;
+            }
+
+			//mirrors the camera subpath, otherwise light subpaths are never regularized and MIS combines the two sides
+			//describing the same vertex with different roughness
+			if(isDiffuseBounce)
+			{
+				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE);
+			}
+
+            SpectralSamples w;
+            float pdfBackward;
+            bool dispersed;
+            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
+
+			/*if(pdfBackward == 0)
+			{
+				break;
+			}*/
+
+			nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
+			
+			//store previous vertex
+			{
+				uint vOffset, vCount;
+				reserveLightPathNodeSpace(1, vOffset, vCount);
+				if(vCount == 0) break;
+
+				storeLightPathVertex(vOffset, compressLightPathNode(nodes[previousNodeIndex]));
+				lastVertexOffset = vOffset;
+				++lightNodeCount;
+			}
+
+			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
+
+			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext), which is included in material sample. So just divide with solid angle pdf
+			radiance = radiance * w * safeDiv(1.f, pdfForward);
+
+			if(dispersed)
+			{
+				radiance.terminateSecondaryWavelengths();
+			}
+
+            if(radiance.applyRussianRoulette(rand.getRandom1(),maxRadiance))
+			{
+				 break;
+			}
+
+			if(radiance.allSamplesEqual(0))
+			{
+				break;
+			}
+
+			rayDir = normalize(mul(transformNormal, wiOS));
+			rayOrigin = posWS + getRaySpawnOffsetUsingNormal(normalWS, rayDir);
+			previousWasDeltaDistr = sampledDeltaDir;
+        }
+		else 
+		{
+		    break;
+		}
+	}
+	
+	if(lightNodeCount > 0)
+	{
+		//store last node
+		{
+			uint currentNodeIndex = (lightNodeCount-1) & 0x1;
+			uint vOffset, vCount;
+			reserveLightPathNodeSpace(1, vOffset, vCount);
+			if(vCount != 0)
+			{
+				nodes[currentNodeIndex].nextIndex = lastVertexOffset;
+				storeLightPathVertex(vOffset, compressLightPathNode(nodes[currentNodeIndex]));
+				lastVertexOffset = vOffset;
+			} 
+			else
+			{
+				--lightNodeCount;
+			}
+		}
+
+		LightPathHeader header;
+		header.offsetAndCount = uint2(lastVertexOffset, lightNodeCount);
+		header.sampledWavelength = g_spectralMainSampleWavelength;
+		storeLightPathHeader(headerOffset, header);
+	
+	}
+	
+
+}

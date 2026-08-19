@@ -1,0 +1,31 @@
+#include "BDPTCommon.hlsl"
+
+ByteAddressBuffer g_perTexelPureLightPathHeader : register(t5, space3);
+ByteAddressBuffer g_pureLightPathNodes : register(t6, space3);
+RWTexture2D<float4> g_outputColor : register(u7, space3);
+
+[numthreads(THREAD_GROUP_DIM_SIZE_CAM_RAY, THREAD_GROUP_DIM_SIZE_CAM_RAY, 1)]
+void accumulatePureLightPaths( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	if(dispatchThreadId.x >= g_targetTexDimensions.x || dispatchThreadId.y >= g_targetTexDimensions.y) return;
+	
+	uint offset = calculatePureLightPathHeaderOffset(dispatchThreadId.xy);
+	
+	uint next = g_perTexelPureLightPathHeader.Load(offset);
+	float3 accumulatedLightPathRadiance = 0;
+	
+	while(next != INVALID_PURE_LIGHT_NODE_INDEX)
+	{
+		uint4 node = g_pureLightPathNodes.Load4(next * getPureLightPathNodeSizeInBytes());
+		accumulatedLightPathRadiance += asfloat(node.xyz);
+		next = node.w;
+
+	}
+
+	if(!any(accumulatedLightPathRadiance)) return;
+
+	g_outputColor[dispatchThreadId.xy] += float4(accumulatedLightPathRadiance, 0);
+}

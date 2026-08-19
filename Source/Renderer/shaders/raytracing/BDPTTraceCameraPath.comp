@@ -1,0 +1,368 @@
+RWTexture2D<float4> g_outputColor : register(u5, space3);
+RWTexture2D<uint4> g_MaterialParamsOutput0 : register(u6, space3);
+RWTexture2D<uint4> g_MaterialParamsOutput1 : register(u7, space3);
+Texture2D<uint> g_texelPermutations : register(t8, space3);
+
+#include "BDPTCommon.hlsl"
+
+groupshared ExtractedLightPathNodeData g_localNodes[MAX_LIGHT_PATH_VERTICES_HARD_LIMIT];
+groupshared LightPathHeader g_lightPathHeader;
+
+SpectralSamples ToSpectralSamples(float3 color)
+{
+	SpectralSamples s;
+	s.setFromRGBUnbounded(color);
+	return s;
+}
+
+
+
+uint2 calculateSourceTextureTexelCoordinates(uint2 groupThreadId, uint2 groupIndex)
+{
+	const uint WORKGROUPS_IN_SWIZZLE = 8;
+	
+	uint2 blockIndex = (groupIndex / WORKGROUPS_IN_SWIZZLE);
+	uint2 workGroupsInSwizzle = min(uint2(WORKGROUPS_IN_SWIZZLE, WORKGROUPS_IN_SWIZZLE), g_cameraRayWorkGroupCount - blockIndex * WORKGROUPS_IN_SWIZZLE);
+	uint2 blockOffset = blockIndex * THREAD_GROUP_DIM_SIZE_CAM_RAY * WORKGROUPS_IN_SWIZZLE;	
+
+	//offset workgroup
+	uint2 blockGroupIndex = groupIndex - blockOffset;
+	uint flatGroupsCount = workGroupsInSwizzle.x * workGroupsInSwizzle.y;
+	uint flatGroupIndex = blockGroupIndex.y * workGroupsInSwizzle.x + blockGroupIndex.x;
+	flatGroupIndex = (flatGroupIndex + g_cameraWorkGroupOffset) % flatGroupsCount;
+
+	uint2 inBlockGroupOffset = uint2(flatGroupIndex % workGroupsInSwizzle.x, flatGroupIndex / workGroupsInSwizzle.x);
+	uint2 threadOffset = groupThreadId * workGroupsInSwizzle;
+
+	return blockOffset + inBlockGroupOffset + threadOffset;
+}
+
+[numthreads(THREAD_GROUP_DIM_SIZE_CAM_RAY, THREAD_GROUP_DIM_SIZE_CAM_RAY, 1)]
+void traceCameraRays( uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex )
+{
+	//uint2 sourceTextureIndices = calculateSourceTextureTexelCoordinates(groupThreadId.xy, groupId.xy);
+	uint texelSwizzle = g_texelPermutations[dispatchThreadId.xy];
+	uint2 sourceTextureIndices = uint2(texelSwizzle & 0xFFFF, texelSwizzle >> 16);
+
+	uint2 rayIndices = dispatchIndicesToRayIndices(sourceTextureIndices);
+
+	if(rayIndices.x >= g_targetTexDimensions.x || rayIndices.y >= g_targetTexDimensions.y) return;
+
+	RandomSampler rand;
+	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
+    rand.init(g_cameraPathRandomDimensionOffset, lightPathScrambleOffset + rayIndices.y * g_targetTexDimensions.x + rayIndices.x); //TODO: init properly
+
+
+	if(groupIndex == 0)
+    {
+		uint maxLightPathCount = g_lightPathsPerDim.y * g_lightPathsPerDim.x;
+        uint headerCount = min(maxLightPathCount, getLightPathsCount());
+		if(headerCount == 0)
+		{
+			g_lightPathHeader.offsetAndCount = uint2(0, 0);
+			g_lightPathHeader.sampledWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+		}
+		else
+		{
+
+			RandomSampler randTemp;
+			randTemp.init(0, groupId.y * g_cameraRayWorkGroupCount.x + groupId.x);
+			uint headerIndex = min(floor(randTemp.getRandom1() * headerCount), headerCount - 1);
+			g_lightPathHeader = getLightPathHeader(headerIndex);
+		}
+        
+
+    }
+	
+    GroupMemoryBarrierWithGroupSync();
+	
+	g_spectralMainSampleWavelength = g_lightPathHeader.sampledWavelength;
+
+	
+    for (uint loadIndex = groupIndex; loadIndex < g_lightPathHeader.offsetAndCount.y; loadIndex += THREAD_GROUP_DIM_SIZE_CAM_RAY * THREAD_GROUP_DIM_SIZE_CAM_RAY)
+    {
+        LightPathNode node = decompressLightPathNode(getLightPathVertex(g_lightPathHeader.offsetAndCount.x + loadIndex));
+        g_localNodes[loadIndex] = getExtractedLightPathNodeData(node);
+    }
+	
+    GroupMemoryBarrierWithGroupSync();
+	
+	
+
+	float2 uv = (float2)rayIndices * g_targetTexDimensions.zw;
+    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
+	float3 rayOrigin = g_cameraPosition;
+	
+	SpectralSamples totalLight;
+	totalLight.set(0);
+
+	BDPTRayState rayState;
+    rayState.setStateFlags(0);
+    rayState.numberVolumesEntered = 0;
+
+    CameraVertexContext camVertexContext;
+    camVertexContext.throughput.set(1);
+    camVertexContext.pdfRatioSum = 0;
+    camVertexContext.previousPDFForwardMIS = 0;
+	
+	float pdfForwardCamera = 1;
+	uint camVertexIndex = 0;
+	uint pathCount = 0;
+	float deferredRISumCamera = 0;
+
+	uint maxCameraVertices = g_maxRayDepth;
+	for(; camVertexIndex < maxCameraVertices; ++camVertexIndex)
+	{
+		uint rayFlags = RAY_FLAG_NONE;
+		uint InstanceInclusionMask = ~0;
+
+		RayQuery<RAY_FLAG_NONE> q;
+
+		RayDesc ray;
+		ray.Origin = rayOrigin;
+		ray.Direction = rayDir;
+        ray.TMin = DEFAULT_RAY_MIN_T;
+		ray.TMax = DEFAULT_RAY_MAX_T;
+
+		q.TraceRayInline(
+		    g_accelerationStructure,
+		    rayFlags, 
+		    InstanceInclusionMask,
+		    ray);
+
+		while(q.Proceed());
+
+		float4 randomSamples0 = rand.getRandom4();
+
+		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		{
+			
+            camVertexContext.posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
+            camVertexContext.triangleHitFrontFace = q.CommittedTriangleFrontFace();
+            camVertexContext.woOS = normalize(-q.CommittedObjectRayDirection());
+            uint instId = q.CommittedInstanceID();
+            uint primIndex = q.CommittedPrimitiveIndex();
+            float2 bary = q.CommittedTriangleBarycentrics();
+			
+			bool outputShadingParams = firstBounceMaterialWriteEnabled();
+			if(camVertexIndex == 0 && outputShadingParams)
+			{
+				SurfaceDefinitionRGB surfaceDefRGB;
+				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
+				float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
+				transformNormal = transpose(transformNormal);
+
+
+				writeMaterialParamsForFirstBounce(sourceTextureIndices.xy, surfaceDefRGB, transformNormal, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				calculateCommonSurfaceParams(rayState, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+			} 
+			else
+			{
+				calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+			}
+			
+            
+			
+            float3x3 transformNormal = (float3x3) q.CandidateWorldToObject3x4();
+            transformNormal = transpose(transformNormal);
+            camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
+            
+			bool deltaDistr = isDeltaDistribution(camVertexContext.precalculatedSurfaceData.a2, camVertexContext.surfaceDef);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? -1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - q.WorldRayOrigin(), camVertexContext.normalWS);
+			
+			{
+				SpectralSamples abs = rayState.getAbsorption();
+				if(!abs.allSamplesEqual(0))
+				{
+                    camVertexContext.throughput = camVertexContext.throughput * calculateTransmittance(q.CommittedRayT(), abs);
+                }
+			}
+
+            if (!camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
+            {
+                float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
+				if(shouldPathContribute(camVertexIndex + 1, 0))
+				{
+					bool twoSided = isSurfaceTwoSided(camVertexContext.surfaceDef.flags);
+					if(twoSided || dot(camVertexContext.surfaceDef.geometryNormal, camVertexContext.woOS) > 0)
+					{
+						totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
+					}
+					++pathCount;
+				}
+
+                break;
+            }
+			else if(!deltaDistr)
+			//try to connect path to light nodes
+			{
+                LightVertexContext lightVertexContext;
+				lightVertexContext.riSum = 0;
+				float deferredRISumLight = 0;
+                for (uint lightVertexIndex = 0; lightVertexIndex < g_lightPathHeader.offsetAndCount.y; ++lightVertexIndex)
+                {
+                    uint lightNodeIndex = lightVertexIndex;
+					ExtractedLightPathNodeData nodeData = g_localNodes[lightNodeIndex];
+                    LightPathNode lightNode = nodeData.node;
+					bool lightNodeIsDelta = (lightNode.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
+
+					//TODO: no point trying to connect if light is delta
+                    if(!lightNodeIsDelta)
+					{
+						float3x4 toLocalFrame = q.CandidateWorldToObject3x4();
+						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+						float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
+						camVertexContext.wiOS = normalize(lightPosOS - posOS);
+
+						SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, nodeData, lightVertexIndex, lightVertexContext, rayState);
+
+						if(shouldPathContribute(camVertexIndex + 1, lightVertexIndex + 1))
+						{
+							totalLight = totalLight + lightConnectionRadiance;
+							++pathCount;
+						}
+					}
+                    
+					lightVertexContext.riSum = deferredRISumLight;
+
+					deferredRISumLight = accumulateRISum(deferredRISumLight, lightNode.pdfBackwardMIS, lightNode.pdfForwardMIS);
+
+                    lightVertexContext.prevNodeNormalWS = lightNode.normalWS;
+                    lightVertexContext.prevNodePosWS = lightNode.positionWS;
+                    lightVertexContext.previousPDFForwardMIS = lightNode.pdfForwardMIS;
+					if(lightVertexIndex == 0)
+                    {
+                        lightVertexContext.originatingNodeFlags = lightNode.flags;
+                    }
+
+                }
+
+			}
+			bool isDiffuseBounce;
+			bool sampledDeltaDir;
+            float3 wiOS = getSampleDirectionOS(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, camVertexContext.samplingProbabilities, isDiffuseBounce, sampledDeltaDir);
+
+            if (isZero(wiOS))
+            {
+                break;
+            }
+                
+			if(isDiffuseBounce)
+			{
+				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE); 
+			}
+
+            SpectralSamples w;
+            float pdfForward;
+            float pdfBackward;
+            bool dispersed;
+            evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, camVertexContext.woOS, wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
+
+			/*if(pdfForward == 0)
+			{
+				break;
+			}*/
+
+			//truncate at the dispersive bounce itself. Contributions already accumulated into totalLight at this and previous vertices
+			//keep all four wavelengths, only what the path carries onwards becomes single wavelength
+			if(dispersed)
+			{
+				camVertexContext.throughput.terminateSecondaryWavelengths();
+			}
+
+            if (camVertexContext.throughput.applyRussianRoulette(rand.getRandom1()))
+            {
+                break;
+            }
+
+
+			if(camVertexIndex > 0)
+            {
+                float pdfBackwardPrevNode = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(q.WorldRayOrigin() - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+				
+				camVertexContext.pdfRatioSum = deferredRISumCamera;
+
+				deferredRISumCamera = accumulateRISum(deferredRISumCamera, pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS);
+            }
+			
+            camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
+            camVertexContext.prevNodePosWS = camVertexContext.posWS;
+            camVertexContext.previousPDFForwardMIS = camVertexContext.currentNodeForwardPDFMIS;
+			pdfForwardCamera = sampledDeltaDir ? -1.f : pdfForward;
+
+			float3 wiWS = normalize(mul(transformNormal, wiOS));
+            camVertexContext.throughput = camVertexContext.throughput * w * safeDiv(1.f, pdfForward);
+
+			rayDir = wiWS;
+            rayOrigin = camVertexContext.posWS + getRaySpawnOffsetUsingNormal(camVertexContext.normalWS, rayDir);
+        }
+		else 
+		{
+
+			bool outputShadingParams = firstBounceMaterialWriteEnabled();
+			if (outputShadingParams && camVertexIndex == 0)
+			{
+				writeEmptyMaterialParamsForFirstBounce(sourceTextureIndices.xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+			}
+
+			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
+            float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
+
+			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex) * g_envIntensityScale;
+			if(shouldPathContribute(camVertexIndex + 1, 0))
+			{
+#ifdef WHITE_FURNACE_TEST
+				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(float3(1,1,1)) * misWeight;
+#else
+				totalLight = totalLight + camVertexContext.throughput * ToSpectralSamples(skyColor.xyz) * misWeight;
+#endif
+				++pathCount;
+			}
+			break;
+		}
+	}
+
+    float3 color = totalLight.ToXYZ();
+
+	g_outputColor[sourceTextureIndices.xy]  = float4(color, 1);
+
+	/*
+	if(camVertexIndex == 0)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+	} else if(camVertexIndex == 1)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+	} else if(camVertexIndex < 6)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 1.0f,  10.f);
+	} else if(camVertexIndex < 15)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 1.0f,  20.f);
+	}
+	else 
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 1.0f, 1.0f,  1.f);
+	}
+	return;
+	*/
+	
+	
+	/*
+	if(payload.numberVolumesEntered == 0 || payload.rayState == RAY_STATE_CANCELLED)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(1.0f, 0.0f, 0.0f,  1.f);
+	} else if(payload.numberVolumesEntered < 2)
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 1.0f, 0.0f, 1.f);
+	} else
+	{
+		g_outputColor[sourceTextureIndices.xy] = float4(0.0f, 0.0f, 1.0f,  1.f);
+	}
+	return;
+	*/
+
+}

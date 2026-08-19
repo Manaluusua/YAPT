@@ -41,9 +41,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "resetCounters",
-					"defines": [ [ "RESET_COUNTERS", "1" ] ]
+					"sourceFile": "raytracing/BDPTResetCounters.comp",
+					"entryPoint": "resetCounters"
 				}
 			]
 		},
@@ -51,9 +50,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "traceCameraRays",
-					"defines": [ [ "CAMERA_RAYS_STAGE", "1" ] ]
+					"sourceFile": "raytracing/BDPTTraceCameraPath.comp",
+					"entryPoint": "traceCameraRays"
 				}
 			]
 		},
@@ -61,9 +59,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "sortLightVertices",
-					"defines": [ [ "SORT_LIGHT_VERTICES_STAGE", "1" ] ]
+					"sourceFile": "raytracing/BDPTSortLightVertices.comp",
+					"entryPoint": "sortLightVertices"
 				}
 			]
 		},
@@ -71,9 +68,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "traceLightRays",
-					"defines": [ [ "LIGHT_RAYS_STAGE", "1" ] ]
+					"sourceFile": "raytracing/BDPTTraceLightPath.comp",
+					"entryPoint": "traceLightRays"
 				}
 			]
 		},
@@ -81,9 +77,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "initializePureLightPathResources",
-					"defines": [ [ "INITIALIZE_PURE_LIGHT_PATH_STRUCTURES", "1" ] ]
+					"sourceFile": "raytracing/BDPTInitializePureLightPaths.comp",
+					"entryPoint": "initializePureLightPathResources"
 				}
 			]
 		},
@@ -91,9 +86,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "calculatePureLightPaths",
-					"defines": [ [ "CALCULATE_PURE_LIGHT_PATHS", "1" ] ]
+					"sourceFile": "raytracing/BDPTCalculatePureLightPaths.comp",
+					"entryPoint": "calculatePureLightPaths"
 				}
 			]
 		},
@@ -101,9 +95,8 @@
 			"stages": [
 				{
 					"type": "compute",
-					"sourceFile": "raytracing/BDPTKernels.comp",
-					"entryPoint": "accumulatePureLightPaths",
-					"defines": [ [ "ACCUMULATE_PURE_LIGHT_PATHS", "1" ] ]
+					"sourceFile": "raytracing/BDPTAccumulatePureLightPaths.comp",
+					"entryPoint": "accumulatePureLightPaths"
 				}
 			]
 		},

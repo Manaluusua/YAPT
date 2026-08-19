@@ -189,6 +189,29 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_effectiveCameraPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.zw)
 #define g_effectiveLightPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.xy)
 
+#define THREAD_GROUP_DIM_SIZE_CAM_RAY 8
+
+//storage layout shared by the pure light path kernels (initialize/calculate/accumulate)
+#define INVALID_PURE_LIGHT_NODE_INDEX (0xFFFFFFFFu)
+
+struct PureLightPathNodeHeader
+{
+    uint first;
+    uint latest;
+};
+
+uint calculatePureLightPathHeaderOffset(uint2 texel)
+{
+    uint offset = texel.y * g_targetTexDimensions.x + texel.x;
+    offset *= 2 << 2;
+    return offset;
+}
+
+uint getPureLightPathNodeSizeInBytes()
+{
+    return 4 << 2;
+}
+
 #ifdef WRITABLE_LIGHT_DATA
 
 void reserveLightPathNodeSpace(uint count, out uint offsetOut, out uint countOut)
