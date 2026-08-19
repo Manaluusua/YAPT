@@ -368,6 +368,23 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out 
     }
 }
 
+//just simple pinhole camera for now
+float calculateCameraDirectionalPDF(float3 camToNodeWS)
+{
+	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));
+	float4 planeMax = mul(g_uvToViewTransform, float4(1, 1, 0, 1));
+	planeMin /= planeMin.w;
+	planeMax /= planeMax.w;
+
+	float2 planeExtent = abs(planeMax.xy - planeMin.xy);
+	float planeArea = safeDiv(planeExtent.x * planeExtent.y, planeMin.z * planeMin.z);
+
+	float3 camToNodeVS = mul(g_worldToViewTransform, float4(camToNodeWS, 0)).xyz;
+	float cosTheta = abs(camToNodeVS.z) * rsqrt(max(0.0001f, dot(camToNodeVS, camToNodeVS)));
+
+	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+}
+
 float calculatePDFRatio(float nom, float denom)
 {
     nom = nom < 0 ? 1.f : nom;

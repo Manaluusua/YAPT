@@ -42,22 +42,6 @@ bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
 	return isValid;
 }
 
-//just simple pinhole camera for now
-float calculateCameraDirectionalPDF(float3 camToNodeWS)
-{
-	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));
-	float4 planeMax = mul(g_uvToViewTransform, float4(1, 1, 0, 1));
-	planeMin /= planeMin.w;
-	planeMax /= planeMax.w;
-
-	float2 planeExtent = abs(planeMax.xy - planeMin.xy);
-	float planeArea = safeDiv(planeExtent.x * planeExtent.y, planeMin.z * planeMin.z);
-
-	float3 camToNodeVS = mul(g_worldToViewTransform, float4(camToNodeWS, 0)).xyz;
-	float cosTheta = abs(camToNodeVS.z) * rsqrt(max(0.0001f, dot(camToNodeVS, camToNodeVS)));
-
-	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
-}
 
 void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
 {
@@ -182,7 +166,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 
 					float misWeight = 1.f / (1 + riSumCurrent);
 					float geomTerm = 1.f / max(0.0001f, dot(camToNode, camToNode));
-					float cameraImportance = safeDiv(pdfCameraDirection, (float)headerCount);
+                    float cameraImportance = safeDiv(pdfCameraDirection, (float)headerCount);
 					float4 contrib = nodeData.node.radiance * w * misWeight * geomTerm * cameraImportance;
 
 					SpectralSamples s;

@@ -107,8 +107,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
     camVertexContext.throughput.set(1);
     camVertexContext.pdfRatioSum = 0;
     camVertexContext.previousPDFForwardMIS = 0;
-	
-	float pdfForwardCamera = 1;
+
+    float pdfForwardCamera = calculateCameraDirectionalPDF(rayDir);
 	uint camVertexIndex = 0;
 	uint pathCount = 0;
 	float deferredRISumCamera = 0;
@@ -266,8 +266,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				break;
 			}*/
 
-			//truncate at the dispersive bounce itself. Contributions already accumulated into totalLight at this and previous vertices
-			//keep all four wavelengths, only what the path carries onwards becomes single wavelength
 			if(dispersed)
 			{
 				camVertexContext.throughput.terminateSecondaryWavelengths();
