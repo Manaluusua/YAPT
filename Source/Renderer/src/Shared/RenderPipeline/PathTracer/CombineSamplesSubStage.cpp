@@ -10,6 +10,7 @@
 #define ACCUMULATION_TARGET_COUNT 2
 #define ACCUMULATION_TARGET_FORMAT (ResourceFormat::RGBA32_SFLOAT)
 
+
 namespace YAPT
 {
 	CombineSamplesSubStage::CombineSamplesSubStage()
@@ -476,7 +477,6 @@ namespace YAPT
 			mat4 viewToUVTransform = fromPlatformNDCToTextureSpace() * m_renderer->getCurrentRenderView().getProjectionPlatform();
 			mat4 uvToViewTransform = glm::inverse(viewToUVTransform);
 
-
 			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
 			{
 				DenoiseParams* denoiseParams = m_denoisePasses[i].m_denoiseConstants.getData();
@@ -488,6 +488,7 @@ namespace YAPT
 				denoiseParams->viewToWorld = viewToWorld;
 				denoiseParams->cameraPositionWS = camPos;
 				denoiseParams->bilaterWeightParams = vec4p(depthSigmaScale, normalSigma, matDiffSigma, colorDiffSigma);
+				denoiseParams->miscParams = uvec4p(i == m_denoisePasses.size() - 1 ? 1: 0, 0, 0, 0);
 
 				m_denoisePasses[i].m_denoiseConstants.flush();
 			}

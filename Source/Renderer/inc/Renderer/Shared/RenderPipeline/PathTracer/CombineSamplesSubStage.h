@@ -67,6 +67,7 @@ namespace YAPT
 			vec4p textureDimensions;
 			uvec4p modePassIndex;
 			vec4p bilaterWeightParams;
+			uvec4p miscParams;
 		};
 
 		struct ClearAccumulatedSamplesParams

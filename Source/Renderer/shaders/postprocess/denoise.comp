@@ -2,6 +2,7 @@
 #include "../common/common.hlsl"
 #include "../common/commonMath.hlsl"
 #include "materialParameterTextures.hlsl"
+#include "../common/colorSpaces.hlsl"
 
 struct DenoiseParams
 {
@@ -11,6 +12,7 @@ struct DenoiseParams
     float4 textureDimensions;
     uint4 modePassIndex;
     float4 bilaterWeightParams;
+    uint4 miscParams;
 };
 
 
@@ -38,6 +40,7 @@ RWTexture2D<float4> g_denoiseVariance : register(u7, space0);
 #define g_denoiseNormalSigma (g_denoiseParams.bilaterWeightParams.y)
 #define g_denoiseMaterialSigma (g_denoiseParams.bilaterWeightParams.z)
 #define g_denoiseColorSigma (g_denoiseParams.bilaterWeightParams.w)
+#define g_convert2RGB (g_denoiseParams.miscParams.x)
 
 float4 calculateDebugMaterialParams(uint2 loc)
 {
@@ -248,6 +251,7 @@ void main( uint3 groupId : SV_GroupID,
     if (dispatchThreadId.x < g_denoiseTextureSize.x && dispatchThreadId.y < g_denoiseTextureSize.y)
 	{
         float4 col = 0;
+        bool allowConversion = true;
         if (g_denoiseMode == DENOISE_MODE_ON)
         {
             AtrousPassOutput o = denoiseAtrous(dispatchThreadId.xy, g_denoisePassIndex);
@@ -262,16 +266,22 @@ void main( uint3 groupId : SV_GroupID,
         else if (g_denoiseMode == DENOISE_MODE_MAT_PARAMS_DEBUG)
         {
             col = calculateDebugMaterialParams(dispatchThreadId.xy);
+            allowConversion = false;
         }
         else if (g_denoiseMode == DENOISE_MODE_VARIANCE_DEBUG)
         {
             float var = g_varianceTex.Load(uint3(dispatchThreadId.xy, 0));
             col = var;
-
+            allowConversion = false;
         }
         else if (g_denoiseMode == DENOISE_SHOW_SAMPLE_SOURCES)
         {
             col = g_lastSamples.Load(uint3(dispatchThreadId.xy, 0)); //TODO
+        }
+        
+        if (g_convert2RGB != 0 && allowConversion)
+        {
+            col.xyz = mul(c_srgbXYZToRGB, col.xyz);
         }
         
         g_denoiseColor[dispatchThreadId.xy] = col;

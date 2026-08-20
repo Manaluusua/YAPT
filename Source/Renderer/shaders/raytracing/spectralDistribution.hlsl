@@ -325,6 +325,11 @@ struct SpectralSamples
 
 	}
 
+	void undoSecondaryWavelengthRescale()
+	{
+		samples[0] *= (1.f / 4.f);
+	}
+
 	float3 ToXYZ()
 	{
 

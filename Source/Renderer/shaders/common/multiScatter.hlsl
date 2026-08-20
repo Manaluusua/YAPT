@@ -5,6 +5,9 @@
 //#define RECIPROCAL_MULTISCATTER
 
 
+#define MIN_TRANSLUCENT_DIRECTIONAL_ALBEDO 0.1f
+
+
 //-------------------------------------- LUT lookups -----------------------------------------------------//
 float getAverageSSDirectionalAlbedoNoFresnel(float linearRoughness)
 {
@@ -216,9 +219,10 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
 }
 
 
+
 float getEnergyCompensationTranslucentTurquin(in float etaR, in float dotWo, in float dotWi, in float linearRoughness, in float singleScatter)
 {
-    float dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, abs(dotWo), linearRoughness);
+    float dirAlbedoWo = max(getDirectionalAlbedoTranslucent(etaR, abs(dotWo), linearRoughness), MIN_TRANSLUCENT_DIRECTIONAL_ALBEDO);
     float ems = (singleScatter / dirAlbedoWo) - singleScatter;
 
     return ems;

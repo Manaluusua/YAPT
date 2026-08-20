@@ -149,7 +149,7 @@ void main( uint3 groupId : SV_GroupID,
         }
         resultSum /= accumTargets;
         variance /= accumTargets;
-        resultSum = mul(c_srgbXYZToRGB, resultSum);
+
         g_mergedResTex[targetPosition] = float4(resultSum, 1.f);
         
         if (g_mergeParams.sampleCount == 0)

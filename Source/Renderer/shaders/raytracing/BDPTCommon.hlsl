@@ -335,13 +335,25 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out 
     {
         TransmissionType transmissionTypeDummy;
         bool triangleHitFrontfaceReverseDir = triangleHitFrontFace;
-        if (dot(woOS, surfaceDef.geometryNormal) * dot(wiOS, surfaceDef.geometryNormal) < 0)
+        bool transmittedPair = dot(woOS, surfaceDef.geometryNormal) * dot(wiOS, surfaceDef.geometryNormal) < 0;
+        if (transmittedPair)
         {
             triangleHitFrontfaceReverseDir = !triangleHitFrontfaceReverseDir;
 
         }
-        
+
+		//keep these before precalculatedSurfaceData is overwritten below
+        float fromIORForward = precalculatedSurfaceData.fromIOR;
+        float toIORForward = precalculatedSurfaceData.toIOR;
+
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
+
+        if (transmittedPair)
+        {
+            precalculatedSurfaceData.fromIOR = toIORForward;
+            precalculatedSurfaceData.toIOR = fromIORForward;
+        }
+
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
         evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
     }
@@ -765,7 +777,9 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 
 	//the connected path is single wavelength as soon as either subpath has dispersed, and only the first dispersive event along it
 	//rescales the hero sample.
-    if ((lightNode.flags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0)
+    bool cameraSubpathTerminated = rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
+    bool lightSubpathTerminated = (lightNode.flags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0;
+    if (lightSubpathTerminated)
     {
         rayState.addFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
     }
@@ -882,9 +896,12 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         }
 
         retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight * geometryTerm * misWeight;
-		
-		
-       
+
+		//both throughputs already carry a hero rescale from their own dispersive event, so drop the duplicate one
+        if (cameraSubpathTerminated && lightSubpathTerminated)
+        {
+            retVal.undoSecondaryWavelengthRescale();
+        }
 
         return retVal;
     }
