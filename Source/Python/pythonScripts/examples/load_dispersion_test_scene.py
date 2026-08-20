@@ -100,9 +100,9 @@ def createLight():
     global scene
 
     lightScale = 2
-    center = vec3([-30, 20, 0])
+    center = vec3([-60, 20, 0])
     radius = 30
-    emission_val = 200
+    emission_val = 200000
     
     obj, mesh, mat = createObject("lightPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", center, lightScale)
     
@@ -118,23 +118,35 @@ def createLight():
 def loadObjects():
 
     center = vec3([0, -50, 0])
+    gap = 50
 
-    angle = 0
-    s = math.sin(angle)
-    c = math.cos(angle)
-    
-    obj, mesh, mat = createObject("Goblet", "D:/Random/3DSampleAssets/Models/Goblet.gltf", center, 300)
-    
-    rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))
-    
-    quat = v4(rot.x(), rot.y(), rot.z(), rot.scalar())
-    
-    obj.getTransform().setOrientation(quat)
+    count = 5
 
-    mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
-    mat.setEnableDispersion(True)
-    mat.setCauchysCoefficients(vec2([1.5046, 0.00420]))
-    mat.setRoughness(0.0)
+    for i in range(count):
+       angle = i * (math.radians(360) / count)
+       s = math.sin(angle)
+       c = math.cos(angle)
+       offset = -gap * math.floor(count / 2) + i * gap
+
+    
+       obj, mesh, mat = createObject("Goblet", "D:/Random/3DSampleAssets/Models/Goblet.gltf", center + v3(0, 0, offset), 300)
+
+       r = 1
+       if count > 1:
+           r = i / (count - 1)
+
+       r = r * r
+       
+       rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))
+       
+       quat = v4(rot.x(), rot.y(), rot.z(), rot.scalar())
+       
+       obj.getTransform().setOrientation(quat)
+    
+       mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
+       mat.setEnableDispersion(True)
+       mat.setCauchysCoefficients(vec2([1.5046, 0.00420]))
+       mat.setRoughness(r)
 
 #envmap
 env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
