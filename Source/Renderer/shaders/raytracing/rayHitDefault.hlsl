@@ -29,7 +29,9 @@ void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 l
     sampleRandomLightPosition(lightSampleRand, lightSampleOutput, lightSelectionPDF);
 
     float3 toLight = lightSampleOutput.positionWS - currentPosWS;
-    emissionOut = lightSampleOutput.radiance;
+
+    float cosEmit = -dot(lightSampleOutput.normalWS, normalize(toLight));
+    emissionOut = lightSampleOutput.radiance * evaluateEmissionProfile(cosEmit, lightSampleOutput.emissionFocus);
     pdfOut = lightSelectionPDF * lightSampleOutput.pdfPos * areaDensityToSolidAngleMultiplier(toLight, lightSampleOutput.normalWS);
     
     lightSamplePositionOut = lightSampleOutput.positionWS;
@@ -349,7 +351,14 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 		
 #endif
         float sideMultiplier = dot(surfaceDef.geometryNormal, -rayDir) < 0 ? 0 : 1;
-        payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS * sideMultiplier;
+        float emissionProfile = 1.f;
+        if (surfaceDef.emissionFocus > 0.f)
+        {
+			//object space normal/direction cosines are not preserved under non uniform scaling, so do this in world space
+            float3 geometryNormalWS = normalize(mul(surfaceDef.geometryNormal, (float3x3) WorldToObject3x4()));
+            emissionProfile = evaluateEmissionProfile(dot(geometryNormalWS, -normalize(WorldRayDirection())), surfaceDef.emissionFocus);
+        }
+        payload.totalLight = payload.totalLight + payload.throughput * surfaceDef.emissive * wMIS * sideMultiplier * emissionProfile;
 		payload.rayState = RAY_STATE_TERMINATED;
 	}
 	else

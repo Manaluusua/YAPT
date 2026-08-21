@@ -119,6 +119,16 @@ namespace YAPT
 		return m_materialParams.emissive;
 	}
 
+	void MaterialProxy::setEmissionFocus(float focus)
+	{
+		m_materialParams.emissionFocus = focus;
+		setDirty();
+	}
+	float MaterialProxy::getEmissionFocus() const
+	{
+		return m_materialParams.emissionFocus;
+	}
+
 	void MaterialProxy::setDielectricIOR(float ior)
 	{
 		m_materialParams.dielectricIOR = ior;

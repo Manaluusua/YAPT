@@ -90,6 +90,16 @@ namespace YAPT
         return m_material->getEmission();
     }
 
+    void PyMaterial::setEmissionFocus(float focus)
+    {
+        m_material->setEmissionFocus(focus);
+    }
+
+    float PyMaterial::getEmissionFocus() const
+    {
+        return m_material->getEmissionFocus();
+    }
+
     void PyMaterial::setDielectricIOR(float ior)
     {
         m_material->setDielectricIOR(ior);
@@ -286,6 +296,8 @@ namespace YAPT
             .def("getAbsorption", &PyMaterial::getAbsorption, pybind11::return_value_policy::reference_internal)
             .def("setEmission", &PyMaterial::setEmission)
             .def("getEmission", &PyMaterial::getEmission, pybind11::return_value_policy::reference_internal)
+            .def("setEmissionFocus", &PyMaterial::setEmissionFocus)
+            .def("getEmissionFocus", &PyMaterial::getEmissionFocus)
             .def("setDielectricIOR", &PyMaterial::setDielectricIOR)
             .def("getDielectricIOR", &PyMaterial::getDielectricIOR)
             .def("setRoughness", &PyMaterial::setRoughness)

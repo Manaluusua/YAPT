@@ -11,6 +11,8 @@ struct LightSampleOutput
     float3 normalWS;
     float pdfPos;
     float pdfDir;
+    float emissionFocus;
+    float emissionProfileWeight;
     uint instanceIndex;
     uint primitiveIndex;
     float2 baryCentrics;
@@ -99,20 +101,24 @@ void sampleLight(uint lightIndex, float3 randValuesPos, float2 randValuesDir, ou
     
     tangent = normalize(mul((float3x3)lightEntry.transformInvTransp, tangent));
     bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
+    float emissionFocus = surfaceDefRGB.emissionFocus;
     float3 lightDir;
     if(twoSided)
     {
-        lightDir = sampleCosineWeightedSphere(randValuesDir);
+        lightDir = sampleCosinePowerWeightedSphere(randValuesDir, emissionFocus);
     }
     else
     {
-        lightDir = sampleCosineWeightedHemisphere(randValuesDir);
+        lightDir = sampleCosinePowerWeightedHemisphere(randValuesDir, emissionFocus);
     }
     float3x3 tanToWS = constructBasisTransform(geometryNormalWS, tangent);
 
+	//radiance is not weighted with emission profile weight since the light might be evaluated for different direction than the one sampled here (if only pos is relevant)
     output.radiance.setFromRGBUnbounded(surfaceDefRGB.emissive);
     output.pdfPos = 1.f / (primCount * area);
-    output.pdfDir = twoSided ? pdfCosineWeightedSphere(lightDir.y) : pdfCosineWeightedHemisphere(lightDir.y);
+    output.pdfDir = twoSided ? pdfCosinePowerWeightedSphere(lightDir.y, emissionFocus) : pdfCosinePowerWeightedHemisphere(lightDir.y, emissionFocus);
+    output.emissionFocus = emissionFocus;
+    output.emissionProfileWeight = evaluateEmissionProfile(lightDir.y, emissionFocus);
     output.positionWS = pos;
     output.directionWS = mul(lightDir, tanToWS);
     output.normalWS = geometryNormalWS;
@@ -142,7 +148,8 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
     RenderObjectTransformDataGPU transformData = getTransformDataForInstance(instanceIndex);
     MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
-    bool twoSided = (getMaterialEntry(matMeshIndices.x).materialMask & MaterialMask_TwoSided) != 0;
+    MaterialEntryGPU lightMatEntry = getMaterialEntry(matMeshIndices.x);
+    bool twoSided = (lightMatEntry.materialMask & MaterialMask_TwoSided) != 0;
     uint primCount = (meshEntry.indexCount / 3);
 
     float3 barycentrics = float3(1 - bary.x - bary.y, bary.x, bary.y);
@@ -161,11 +168,11 @@ void pdfForSamplingLight(uint instanceIndex, uint primitiveIndex, float2 bary, f
     float cosTheta = dot(lightSurfaceNormal, towardsDir);
     if (twoSided)
     {
-        dirPDF = pdfCosineWeightedSphere(cosTheta);
+        dirPDF = pdfCosinePowerWeightedSphere(cosTheta, lightMatEntry.emissionFocus);
     }
     else
     {
-        dirPDF = cosTheta >= 0 ? pdfCosineWeightedHemisphere(cosTheta) : 0;
+        dirPDF = cosTheta >= 0 ? pdfCosinePowerWeightedHemisphere(cosTheta, lightMatEntry.emissionFocus) : 0;
     }
 
 }

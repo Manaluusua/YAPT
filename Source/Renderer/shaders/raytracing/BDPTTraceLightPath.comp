@@ -42,7 +42,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		float lightDirPDF;
 		uint InstanceID;
 		uint primitiveIndex;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex);
+		float emissionProfileWeight;
+        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex, emissionProfileWeight);
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
@@ -67,7 +68,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		rayDir = lightDir;
 		rayOrigin = lightPos + getRaySpawnOffsetUsingNormal(lightNormal, lightDir);
 
-		radiance = radiance * abs(dot(lightNormal, lightDir)) / (lightSamplePDF * lightPosPDF * lightDirPDF);
+		radiance = radiance * emissionProfileWeight * abs(dot(lightNormal, lightDir)) / (lightSamplePDF * lightPosPDF * lightDirPDF);
 		
     }
 

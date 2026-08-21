@@ -90,6 +90,7 @@ namespace YAPT
 
 			dst.cauchysCoefficients = matParams.cauchysCoeffs;
 			dst.sheenAmount = matParams.sheenAmount;
+			dst.emissionFocus = matParams.emissionFocus;
 			dst.sheenColorRoughness = vec4p(matParams.sheenTint, matParams.sheenRoughness);
 			dst.albedoTexIndexAndScale = uvec2p(matParams.albedoTex.textureIndex, matParams.albedoTex.packedScale);
 			dst.normalTexIndexAndScale = uvec2p(matParams.normalTex.textureIndex, matParams.normalTex.packedScale);

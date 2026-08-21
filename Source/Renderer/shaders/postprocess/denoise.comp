@@ -258,7 +258,7 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
         float4 chromaFiltered = sumChroma / max(sumChromaWeight, EPS_MIN);
         if (chromaFiltered.y > EPS_MIN && output.color.y > 0.f)
         {
-            output.color.xyz = chromaFiltered.xyz * (output.color.y / chromaFiltered.y);0
+            output.color.xyz = chromaFiltered.xyz * (output.color.y / chromaFiltered.y);
         }
     }
 #endif

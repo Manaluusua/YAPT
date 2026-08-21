@@ -21,7 +21,7 @@ struct MaterialEntryGPU
 
 	float2 cauchysCoefficients;
 	float sheenAmount;
-	float pad0;
+	float emissionFocus;
 
 
 	float4 sheenColorRoughness;

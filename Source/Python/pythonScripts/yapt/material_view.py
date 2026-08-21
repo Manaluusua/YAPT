@@ -29,6 +29,7 @@ class MaterialView(QWidget):
         layout.addWidget(self.create_material_property_float("Absorption", 3))
 
         layout.addWidget(self.create_material_property_float("Emission", 3, limit_max = max_float))
+        layout.addWidget(self.create_material_property_float("EmissionFocus", 1, limit_max = 256))
 
         layout.addWidget(QLabel("Clearcoat"))
         layout.addWidget(self.create_material_property_float("ClearCoatAmount", 1))

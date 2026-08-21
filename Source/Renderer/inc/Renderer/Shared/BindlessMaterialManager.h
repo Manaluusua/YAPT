@@ -20,7 +20,7 @@ namespace YAPT
 
 		vec2p cauchysCoefficients;
 		float sheenAmount;
-		float pad0;
+		float emissionFocus;
 
 
 		vec4p sheenColorRoughness;

@@ -29,12 +29,40 @@ float3 sampleCosineWeightedHemisphere(in float2 rand)
 float3 sampleCosineWeightedSphere(in float2 s)
 {
 	//TODO: should probably pick the hemisphere with 3rd uncorrelated rand value, rather than scaling it.
-	
+
     bool flip = s.x < 0.5f;
-	
+
     s.x = flip ? s.x * 2.f : (s.x - 0.5f) * 2.f;
-	
+
     float3 dir = sampleCosineWeightedHemisphere(s);
+    dir.y = flip ? -dir.y : dir.y;
+    return dir;
+}
+
+//cos^(exponent+1) weighted hemisphere. exponent == 0 is identical to sampleCosineWeightedHemisphere
+float3 sampleCosinePowerWeightedHemisphere(in float2 rand, in float exponent)
+{
+    float y = pow(1.f - rand.x, 1.f / (exponent + 2.f));
+    float r = sqrt(max(0.f, 1.f - sqr(y)));
+    float phi = 2.0f * PI * rand.y;
+    float s, c;
+    sincos(phi, s, c);
+
+    float x = r * c;
+    float z = r * s;
+    return float3(x, y, z);
+}
+
+float3 sampleCosinePowerWeightedSphere(in float2 s, in float exponent)
+{
+	//TODO: should probably pick the hemisphere with 3rd uncorrelated rand value, rather than scaling it.
+
+    bool flip = s.x < 0.5f;
+
+    s.x = flip ? s.x * 2.f : (s.x - 0.5f) * 2.f;
+
+    float3 dir = sampleCosinePowerWeightedHemisphere(s, exponent);
+    dir.y = flip ? -dir.y : dir.y;
     return dir;
 }
 
@@ -58,6 +86,30 @@ float pdfCosineWeightedHemisphere(in float dotIN)
 float pdfCosineWeightedSphere(in float dotIN)
 {
     return abs(dotIN) * INVPI * 0.5f;
+
+}
+
+float pdfCosinePowerWeightedHemisphere(in float dotIN, in float exponent)
+{
+    return (exponent + 2.f) * INVPI * 0.5f * pow(saturate(dotIN), exponent + 1.f);
+
+}
+
+float pdfCosinePowerWeightedSphere(in float dotIN, in float exponent)
+{
+    return (exponent + 2.f) * INVPI * 0.25f * pow(abs(dotIN), exponent + 1.f);
+
+}
+
+//angular emission profile of an emissive surface: Le(w) = emissive * (n+2)/2 * |cos|^n.
+//the (n+2)/2 factor keeps the total emitted power constant as the exponent grows, so increasing the
+//focus tightens the lobe instead of dimming the scene. exponent == 0 returns 1 (lambertian emitter).
+//sidedness is deliberately not handled here, the callers do their own one sided culling.
+float evaluateEmissionProfile(in float dotIN, in float exponent)
+{
+	//pow(0, 0) is not well defined, and the lambertian case is the common one, so branch it out
+    float profile = exponent > 0.f ? pow(abs(dotIN), exponent) : 1.f;
+    return (exponent + 2.f) * 0.5f * profile;
 
 }
 

@@ -37,6 +37,7 @@ struct SurfaceDefinitionRGB
 	
     float thinFilmThicknessNM;
 	float sheenAmount;
+	float emissionFocus;
     uint occlusionSpecDiffPacked;
 	uint flags;
 };
@@ -311,6 +312,7 @@ void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceD
 	surfaceDef.absorption = matEntry.absorptionDielectricIOR.xyz;
 	surfaceDef.dielectricIOR = matEntry.absorptionDielectricIOR.a;
 	surfaceDef.emissive = matEntry.emissiveRoughness.xyz;
+	surfaceDef.emissionFocus = matEntry.emissionFocus;
 	surfaceDef.roughness = matEntry.emissiveRoughness.a;
 	surfaceDef.specularAmount = matEntry.specAmountClearCoatAmountIORRoughness.x;
 	surfaceDef.clearCoatAmount = matEntry.specAmountClearCoatAmountIORRoughness.y;

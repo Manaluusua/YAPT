@@ -38,6 +38,9 @@ namespace YAPT
 		void setEmission(const vec3p& v);
 		const vec3p& getEmission() const;
 
+		void setEmissionFocus(float focus);
+		float getEmissionFocus() const;
+
 		void setDielectricIOR(float ior);
 		float getDielectricIOR() const;
 

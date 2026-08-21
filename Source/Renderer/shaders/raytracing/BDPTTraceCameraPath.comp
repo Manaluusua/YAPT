@@ -189,7 +189,8 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					bool twoSided = isSurfaceTwoSided(camVertexContext.surfaceDef.flags);
 					if(twoSided || dot(camVertexContext.surfaceDef.geometryNormal, camVertexContext.woOS) > 0)
 					{
-						totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight;
+						float emissionProfile = evaluateEmissionProfile(dot(camVertexContext.normalWS, -rayDir), camVertexContext.surfaceDef.emissionFocus);
+						totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight * emissionProfile;
 					}
 					++pathCount;
 				}

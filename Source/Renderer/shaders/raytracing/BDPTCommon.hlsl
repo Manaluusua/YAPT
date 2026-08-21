@@ -483,7 +483,7 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float e
     pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
 }
 
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment, out uint instanceOut, out uint primitiveOut)
+void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment, out uint instanceOut, out uint primitiveOut, out float emissionProfileWeightOut)
 {
     if (g_lightCount == 0)
     {
@@ -493,6 +493,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
         normalOut = 0;
         instanceOut = -1;
         primitiveOut = -1;
+        emissionProfileWeightOut = 1.f;
         return;
     }
 
@@ -506,6 +507,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
         normalOut = 0;
         instanceOut = -1;
         primitiveOut = -1;
+        emissionProfileWeightOut = 1.f;
 
     }
     else
@@ -524,6 +526,7 @@ void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 light
         primitiveOut = output.primitiveIndex;
         pdflightSelection = 1 / lightProb;
         sampledEnvironment = false;
+        emissionProfileWeightOut = output.emissionProfileWeight;
 
     }
 }
@@ -554,11 +557,13 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         float pdf = lightNode.pdfForwardMIS;
         pdfForwardOut = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
-        weightOut.set(safeDiv(1.f, pdfForwardOut));
         pdfBackwardOut = 0;
 
         float cosLightEmit = dot(lightNode.normalWS, normalize(fromLightWS));
-        pdfForwardMISOut = twoSided ? pdfCosineWeightedSphere(cosLightEmit) : (cosLightEmit >= 0 ? pdfCosineWeightedHemisphere(cosLightEmit) : 0);
+        float emissionFocus = ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0) ? 0.f : surfaceDefRGB.emissionFocus;
+        weightOut.set(safeDiv(evaluateEmissionProfile(cosLightEmit, emissionFocus), pdfForwardOut));
+
+        pdfForwardMISOut = twoSided ? pdfCosinePowerWeightedSphere(cosLightEmit, emissionFocus) : (cosLightEmit >= 0 ? pdfCosinePowerWeightedHemisphere(cosLightEmit, emissionFocus) : 0);
 
 
     }

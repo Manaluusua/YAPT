@@ -27,6 +27,7 @@ namespace YAPT
 	void MaterialInternal::validateMaterial()
 	{
 		m_materialParams.roughness = std::max(ROUGHNESS_MIN, m_materialParams.roughness); 
+		m_materialParams.emissionFocus = std::max(0.f, m_materialParams.emissionFocus);
 
 		//coating must sum to 1
 		float coatingSum = m_materialParams.clearCoatAmount + m_materialParams.sheenAmount;
