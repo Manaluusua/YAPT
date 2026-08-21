@@ -14,6 +14,11 @@
 
 #define LAYER_COUNT (LAYERIND_DIFFUSE_REFL + 1)
 
+//Pulls the shading normals away from glancing angles so the sampled direction is less likely to disagree with the geometry normal.
+//KEEP THIS OFF: it breaks the white furnace test, transmissive materials lose noticeable energy and the loss grows with roughness.
+//#define NUDGE_SHADING_NORMALS
+#define REJECT_SHADING_GEOMETRY_FRAME_MISMATCH
+
 #define MAT_SAMPLING_ADD_LAYER(layer, probability) samplingProbabilities[layer] = (probability); sampleSum += (probability);
 
 struct PrecalculatedSurfaceData
@@ -203,7 +208,23 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
 	{
 		wi = 0.f;
 	}
-	
+
+
+
+#ifdef REJECT_SHADING_GEOMETRY_FRAME_MISMATCH
+	if (allowTransmitted && sampleLayer == LAYERIND_SPEC_DIELECTRIC && !isZero(wi))
+	{
+		float3 woOS = mul(preCalcData.woBase, preCalcData.toBaseLayerTangentSpace(surfaceDef.tangent));
+		bool transmittedGeometry = dot(woOS, surfaceDef.geometryNormal) * dot(wi, surfaceDef.geometryNormal) < 0;
+		bool transmittedShading = preCalcData.woBase.y * dot(wi, preCalcData.baseLayerNormal) < 0;
+
+		if (transmittedGeometry != transmittedShading)
+		{
+			wi = 0.f;
+		}
+	}
+#endif
+
     isDiffuseBounceOut = isDiffuseBounce;
     isDeltaDistributionOut = isDeltaDistribution;
     
@@ -533,23 +554,12 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
     surfaceDataOut.baseLayerNormal = surfaceDef.baseLayerNormal;
     surfaceDataOut.coatingLayerNormal = surfaceDef.coatingLayerNormal;
     
+#ifdef NUDGE_SHADING_NORMALS
+    bool twoSided = isSurfaceTwoSided(surfaceDef.flags);
+    surfaceDataOut.baseLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.baseLayerNormal, surfaceDef.roughness, surfaceDef.transparency, twoSided);
+    surfaceDataOut.coatingLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.coatingLayerNormal, surfaceDef.clearCoatRoughness, surfaceDef.transparency, twoSided);
+#endif
 
-    //make sure the shdading normals don't point to wrong direction
-    //if (dot(surfaceDataOut.baseLayerNormal, woObjSpace) < GLANCING_ANGLE_EPSILON)
-    {
-        //surfaceDataOut.baseLayerNormal = reflect(-surfaceDataOut.baseLayerNormal, surfaceDef.geometryNormal);
-        //surfaceDataOut.baseLayerNormal = surfaceDef.geometryNormal;
-        //surfaceDataOut.baseLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.baseLayerNormal, surfaceDef.roughness, surfaceDef.transparency, isSurfaceTwoSided(surfaceDef.flags));
-
-    }
-    
-    //if (dot(surfaceDataOut.coatingLayerNormal, woObjSpace) < GLANCING_ANGLE_EPSILON)
-    {
-        //surfaceDataOut.coatingLayerNormal = reflect(-surfaceDataOut.coatingLayerNormal, surfaceDef.geometryNormal);
-        //surfaceDataOut.coatingLayerNormal = surfaceDef.geometryNormal;
-        //surfaceDataOut.coatingLayerNormal = nudgeNormal(-woObjSpace, surfaceDataOut.coatingLayerNormal, surfaceDef.clearCoatRoughness, surfaceDef.transparency, isSurfaceTwoSided(surfaceDef.flags));
-    }
-    
     float3 woCoating = mul(surfaceDataOut.toCoatingLayerTangentSpace(surfaceDef.tangent), woObjSpace);
     float3 woBase = mul(surfaceDataOut.toBaseLayerTangentSpace(surfaceDef.tangent), woObjSpace);
     woCoating = normalize(woCoating);
