@@ -4,6 +4,9 @@
 #include "materialParameterTextures.hlsl"
 #include "../common/colorSpaces.hlsl"
 
+
+#define DENOISE_CHROMA_SEPARATELY
+
 struct DenoiseParams
 {
     float4x4 uvToView;
@@ -194,6 +197,11 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     float  sumVarSq = 0.0;
     float  sumWeight = 0.0;
 
+#ifdef DENOISE_CHROMA_SEPARATELY
+    float4 sumChroma = float4(0, 0, 0, 0);
+    float  sumChromaWeight = 0.0;
+#endif
+
     float depthDistanceSigma = max(centerMatParams.depth * g_denoiseDepthSigmaScale, 0.001f);
     
     float materialDeltaWeight = 0.f;
@@ -220,7 +228,7 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
             float wDepth = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, depthDistanceSigma);
             float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, g_denoiseNormalSigma, g_denoiseMaterialSigma);
 
-            float colorDiff = abs(calculatePerceptualLuminance(sampleColor.rgb) - calculatePerceptualLuminance(centercolor.rgb));
+            float colorDiff = abs(sampleColor.y - centercolor.y);
             float wColor = exp(-colorDiff / (g_denoiseColorSigma * centerStdDev + EPS_MIN));
 
             float w = kernelWeight * wDepth * wMat * wColor;
@@ -228,6 +236,12 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
             sumColor  += sampleColor * w;
             sumVarSq  += w * w * sampleVar;
             sumWeight += w;
+
+#ifdef DENOISE_CHROMA_SEPARATELY
+            float wChroma = kernelWeight * wDepth * wMat;
+            sumChroma       += sampleColor * wChroma;
+            sumChromaWeight += wChroma;
+#endif
         }
     }
 
@@ -237,6 +251,17 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     
     output.color = sumColor * invWeight;
     output.variance = sumVarSq * invWeight * invWeight;
+
+#ifdef DENOISE_CHROMA_SEPARATELY
+
+    {
+        float4 chromaFiltered = sumChroma / max(sumChromaWeight, EPS_MIN);
+        if (chromaFiltered.y > EPS_MIN && output.color.y > 0.f)
+        {
+            output.color.xyz = chromaFiltered.xyz * (output.color.y / chromaFiltered.y);0
+        }
+    }
+#endif
 
     return output;
 }
