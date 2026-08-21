@@ -241,6 +241,18 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     return output;
 }
 
+float3 gamutClamp(float3 col)
+{
+
+    float lum = calculatePerceptualLuminance(col);
+    float m = min(min(col.x, col.y), col.z);
+    if (m < 0.f)
+    {
+        col.xyz = lerp(lum.xxx, col.xyz, safeDiv(lum, lum - m));
+    }
+    return col;
+}
+
 
 [numthreads(8, 8, 1)]
 void main( uint3 groupId : SV_GroupID,
@@ -282,6 +294,8 @@ void main( uint3 groupId : SV_GroupID,
         if (g_convert2RGB != 0 && allowConversion)
         {
             col.xyz = mul(c_srgbXYZToRGB, col.xyz);
+            col.xyz = gamutClamp(col.xyz);
+
         }
         
         g_denoiseColor[dispatchThreadId.xy] = col;
