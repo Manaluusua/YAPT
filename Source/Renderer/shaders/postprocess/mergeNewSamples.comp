@@ -87,20 +87,21 @@ float3 clampFireflySample(uint2 targetPos, float3 newColor, uint accumulatedSamp
 {
     float scale = g_mergeParams.fireflyClampScale;
 
-	//no estimate to compare against on the very first sample of a pixel
     if (scale <= 0.f || accumulatedSamples == 0)
     {
         return newColor;
     }
 
 
-    float newLum = newColor.y;
-    if (newLum <= 0.f)
+    if (all(newColor <= 0.f))
     {
         return newColor;
     }
 
-    float refLum = 0.f;
+    //cant simply clamp with just y (luminance) as it will skew the hue towards wavelengths that have lower coeffs in SPD -> xyz, 
+    //the result would be that everything gets shifted towards magentaish color and greens get mitigated. This is not correct either,
+    //later on could maybe try storing the wavelength too and resolving directly the energy rather than the already converted color
+    float3 refXYZ = 0.f;
     for (int y = -1; y <= 1; ++y)
     {
         for (int x = -1; x <= 1; ++x)
@@ -110,28 +111,34 @@ float3 clampFireflySample(uint2 targetPos, float3 newColor, uint accumulatedSamp
             if (loc.x < 0 || loc.y < 0 || loc.x >= (int) g_mergeParams.targetTextureDimensions.x || loc.y >= (int) g_mergeParams.targetTextureDimensions.y)
                 continue;
 
-			//g_mergedResTex is not cleared between accumulations, so only trust pixels that have samples merged
             if (g_sampleCountsTex[uint2(loc)] == 0)
                 continue;
 
-            refLum = max(refLum, g_mergedResTex[uint2(loc)].y);
+            refXYZ = max(refXYZ, max(g_mergedResTex[uint2(loc)].xyz, 0.f));
         }
     }
 
-    if (refLum <= 0.f)
+    float refLevel = max(max(refXYZ.x, refXYZ.y), refXYZ.z);
+    if (refLevel <= 0.f)
     {
         return newColor;
     }
 
+    const float MIN_CHANNEL_REFERENCE_FRACTION = 0.05f;
+    refXYZ = max(refXYZ, refLevel * MIN_CHANNEL_REFERENCE_FRACTION);
+
     float relax = pow(max(1.f, (float) accumulatedSamples), g_mergeParams.fireflyClampRelaxPower);
-    float threshold = refLum * scale * relax;
+    float3 allowed = refXYZ * scale * relax;
 
-    if (newLum > threshold)
-    {
-        newColor *= threshold / newLum;
-    }
+    float s = 1.f;
+    if (newColor.x > allowed.x)
+        s = min(s, allowed.x / newColor.x);
+    if (newColor.y > allowed.y)
+        s = min(s, allowed.y / newColor.y);
+    if (newColor.z > allowed.z)
+        s = min(s, allowed.z / newColor.z);
 
-    return newColor;
+    return newColor * s;
 }
 
 [numthreads(8, 8, 1)]
