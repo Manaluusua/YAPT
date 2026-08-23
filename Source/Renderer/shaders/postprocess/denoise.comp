@@ -191,6 +191,14 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
 
     MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(texCoord.xy, g_materialParams0, g_materialParams1);
     float4 centercolor = g_sourceTex.Load(uint3(texCoord.xy, 0));
+    if (all(centerMatParams.normal == 0.f))
+    {
+        AtrousPassOutput output;
+        output.color = centercolor;
+        output.variance = 0;
+        return output;
+    }
+        
     float3 centerPos = reconstructWorldPosition(texCoord.xy, centerMatParams.depth);
     
     float4 sumColor = float4(0, 0, 0, 0);
