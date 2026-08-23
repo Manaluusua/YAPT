@@ -140,6 +140,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
 		{
 			
+            if (shouldStartRegularizing(camVertexIndex, g_regularizeAfterVertices))
+            {
+                rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
+            }
+
             camVertexContext.posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
             camVertexContext.triangleHitFrontFace = q.CommittedTriangleFrontFace();
             camVertexContext.woOS = normalize(-q.CommittedObjectRayDirection());
@@ -253,7 +258,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
                 
 			if(isDiffuseBounce)
 			{
-				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE); 
+				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH); 
 			}
 
             SpectralSamples w;

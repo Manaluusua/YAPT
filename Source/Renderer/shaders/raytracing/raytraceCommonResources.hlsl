@@ -23,6 +23,10 @@ struct RaytraceConstantData
     float envIntensityScale;
     uint lightCount;
     uint flags;
+    uint regularizeAfterVertices;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 };
 
 //uniforms
@@ -44,6 +48,7 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_cameraPosition g_rayGenConstants.cameraPosition.xyz
 #define g_rayDirUvOffset g_rayGenConstants.rayUVOffset.xy
 #define g_maxRayDepth g_rayGenConstants.maxRayDepth
+#define g_regularizeAfterVertices g_rayGenConstants.regularizeAfterVertices
 #define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
 #define g_targetOffsetScaleBias g_rayGenConstants.targetOffsetScaleBias
 #define g_lightCount g_rayGenConstants.lightCount

@@ -81,6 +81,13 @@ namespace YAPT
 		}
 
 		rtConstants->maxRayDepth = 16;
+
+		{
+			CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
+			int32_t regularizeAfter = config.getRendererVarValueInternal<int32_t>(RVARNAME_REGULARIZE_AFTER_VERTICES);
+			rtConstants->regularizeAfterVertices = regularizeAfter < 0 ? 0u : (uint32_t)regularizeAfter;
+		}
+
 		rtConstants->rayUVOffset = rayUVOffset;
 		rtConstants->cameraPosition = camPos;
 		rtConstants->targetTexDimensions = vec4p(params.renderResolution.x, params.renderResolution.y, targetPixelWidth, targetPixelHeight);

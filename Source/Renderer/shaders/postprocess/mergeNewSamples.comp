@@ -10,7 +10,11 @@ struct MergeNewSamplesParams
 	uint2 sourceTextureDimensions;
 	uint64_t sampleCount;
     uint accumulationTargetCount;
-	
+    float fireflyClampScale;
+    float fireflyClampRelaxPower;
+    uint pad0;
+    uint pad1;
+    uint pad2;
 };
 
 ConstantBuffer<MergeNewSamplesParams> g_mergeParams : register(b0, space0);
@@ -78,9 +82,56 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 	
 }
 
-float toPerceptualDiff(float3 color)
+
+float3 clampFireflySample(uint2 targetPos, float3 newColor, uint accumulatedSamples)
 {
-    return (color.x + color.y + color.z) * 0.33333; //TODO
+    float scale = g_mergeParams.fireflyClampScale;
+
+	//no estimate to compare against on the very first sample of a pixel
+    if (scale <= 0.f || accumulatedSamples == 0)
+    {
+        return newColor;
+    }
+
+
+    float newLum = newColor.y;
+    if (newLum <= 0.f)
+    {
+        return newColor;
+    }
+
+    float refLum = 0.f;
+    for (int y = -1; y <= 1; ++y)
+    {
+        for (int x = -1; x <= 1; ++x)
+        {
+            int2 loc = int2(targetPos) + int2(x, y);
+
+            if (loc.x < 0 || loc.y < 0 || loc.x >= (int) g_mergeParams.targetTextureDimensions.x || loc.y >= (int) g_mergeParams.targetTextureDimensions.y)
+                continue;
+
+			//g_mergedResTex is not cleared between accumulations, so only trust pixels that have samples merged
+            if (g_sampleCountsTex[uint2(loc)] == 0)
+                continue;
+
+            refLum = max(refLum, g_mergedResTex[uint2(loc)].y);
+        }
+    }
+
+    if (refLum <= 0.f)
+    {
+        return newColor;
+    }
+
+    float relax = pow(max(1.f, (float) accumulatedSamples), g_mergeParams.fireflyClampRelaxPower);
+    float threshold = refLum * scale * relax;
+
+    if (newLum > threshold)
+    {
+        newColor *= threshold / newLum;
+    }
+
+    return newColor;
 }
 
 [numthreads(8, 8, 1)]
@@ -101,10 +152,11 @@ void main( uint3 groupId : SV_GroupID,
         
 #ifdef USE_PER_PIXEL_SAMPLE_COUNT
         newSamples = srcColor.a;
-        
+
         if (newSamples > 0)
 		{
             oldSamples = g_sampleCountsTex[targetPosition];
+            srcColor.xyz = clampFireflySample(targetPosition, srcColor.xyz, oldSamples);
             g_sampleCountsTex[targetPosition] = newSamples + oldSamples;
         }
 #else
@@ -112,6 +164,7 @@ void main( uint3 groupId : SV_GroupID,
 		{
             newSamples = 1;
             oldSamples = g_mergeParams.sampleCount;
+            srcColor.xyz = clampFireflySample(targetPosition, srcColor.xyz, oldSamples);
 		}
 #endif
         uint accumLayer = g_mergeParams.sampleCount % g_mergeParams.accumulationTargetCount;

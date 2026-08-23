@@ -113,6 +113,11 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			uint currentNodeIndex = i & 0x1;
 			uint previousNodeIndex = ((i-1)) & 0x1;
 
+			if (shouldStartRegularizing(i - 1, g_regularizeAfterVertices))
+			{
+				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
+			}
+
             SurfaceDefinition surfaceDef;
             PrecalculatedSurfaceData precalculatedSurfaceData;
             float samplingProbabilities[LAYER_COUNT];
@@ -123,10 +128,10 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float2 bary = q.CommittedTriangleBarycentrics();
 
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
-			//radiance arriving at this node is already truncated if the subpath dispersed on the way here
+
 			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0 ? LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED : 0;
-			//record the incoming state, which is what calculateCommonSurfaceParams below regularizes against, so the connection can reproduce it
-			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0 ? LIGHT_PATH_NODE_FLAG_REGULARIZED : 0;
+
+			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_REGULARIZE_PATH) != 0 ? LIGHT_PATH_NODE_FLAG_REGULARIZED : 0;
 
             calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
@@ -177,7 +182,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			//describing the same vertex with different roughness
 			if(isDiffuseBounce)
 			{
-				rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE);
+				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
 			}
 
             SpectralSamples w;

@@ -197,7 +197,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
         
         if (isDiffuseBounce)
         {
-            rayState.addFlags(RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE);
+            rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
         }
     }
 	
@@ -310,7 +310,13 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     setupSurfaceOrientation(surfaceDefRGB);
 	modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
     
-    if ((payload.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
+	// A path with just delta vertices never regularize, which leads to fireflies. Add an option to force regularization after x bounces
+    if (shouldStartRegularizing(payload.getPathLength(), g_regularizeAfterVertices))
+    {
+        payload.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
+    }
+
+    if ((payload.getStateFlags() & RAYSTATE_FLAGS_REGULARIZE_PATH) != 0)
     {
         regularizeMaterial(surfaceDefRGB);
     }

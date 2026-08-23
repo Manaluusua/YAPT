@@ -378,6 +378,9 @@ namespace YAPT
 		float matDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_MATERIAL_DIFFERENCE_SIGMA);
 		float colorDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_COLOR_DIFFERENCE_SIGMA);
 		
+		float fireflyClampScale = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_SCALE);
+		float fireflyClampRelaxPower = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_RELAX_POWER);
+
 		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
 		if (haveTexturesChanged)
@@ -465,6 +468,8 @@ namespace YAPT
 				mergeSamplesParams->targetTextureDimensions = params.targetTextureResolution;
 				mergeSamplesParams->sampleCount = params.samplesPerPixel;
 				mergeSamplesParams->accumulationTargetCount = ACCUMULATION_TARGET_COUNT;
+				mergeSamplesParams->fireflyClampScale = fireflyClampScale;
+				mergeSamplesParams->fireflyClampRelaxPower = fireflyClampRelaxPower;
 				MathUtils::generateSobolSequence(1u, 4u, glm::value_ptr(mergeSamplesParams->randomSequence), (uint32_t)params.samplesPerPixel);
 				m_mergeSamplesConstants.flush();
 			}

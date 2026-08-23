@@ -57,6 +57,11 @@ namespace YAPT
 			uvec2p sourceTextureDimensions;
 			uint64_t sampleCount;
 			uint32_t accumulationTargetCount;
+			float fireflyClampScale;
+			float fireflyClampRelaxPower;
+			uint32_t pad0;
+			uint32_t pad1;
+			uint32_t pad2;
 		};
 
 		struct DenoiseParams

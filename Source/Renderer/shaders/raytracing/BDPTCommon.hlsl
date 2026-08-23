@@ -456,7 +456,7 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 
     handleTwoSidedMaterialOrientation(surfaceDefRGB, woOS);
 
-    if ((rayState.getStateFlags() & RAYSTATE_FLAGS_HAS_DIFFUSE_BOUNCE) != 0)
+    if ((rayState.getStateFlags() & RAYSTATE_FLAGS_REGULARIZE_PATH) != 0)
     {
         regularizeMaterial(surfaceDefRGB);
     }

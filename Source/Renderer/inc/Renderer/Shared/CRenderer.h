@@ -18,6 +18,9 @@
 #define RVARNAME_SKYBOX "World.Skycube"
 
 #define RVARNAME_ACTIVE_RENDERPIPELINE "RenderPipeline"
+#define RVARNAME_REGULARIZE_AFTER_VERTICES "Firefly.RegularizeAfterVertices"
+#define RVARNAME_FIREFLY_CLAMP_SCALE "Firefly.FireflyClampScale"
+#define RVARNAME_FIREFLY_CLAMP_RELAX_POWER "Firefly.FireflyClampRelaxPower"
 #define RVARNAME_DENOISE_MODE "Denoise.Mode"
 #define RVARNAME_DENOISE_DEPTH_SIGMA_SCALE "Denoise.DepthSigmaScale"
 #define RVARNAME_DENOISE_NORMAL_SIGMA "Denoise.NormalSigma"
