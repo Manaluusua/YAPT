@@ -131,7 +131,7 @@ namespace YAPT
 			
 			RenderGraphResourceId renderTargetResId = m_renderMeshesNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
-			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_ColorClear, true);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, MemoryType::DEFAULT, s_ColorClear, true);
 			m_colorTarget = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Mesh Debug Stage Color Target");
 			getGraph()->setRenderGraphResourceTexture(renderTargetResId, m_colorTarget);
 		}
@@ -141,7 +141,7 @@ namespace YAPT
 		{
 			RenderGraphResourceId renderTargetResId = m_renderMeshesNode->getRenderGraphResourceIdForSlot(1);
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(renderTargetResId);
-			TextureDesc depthDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, s_DepthClear, true);
+			TextureDesc depthDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, data.newRenderResolutionWidth, data.newRenderResolutionHeight, 1, 1, MemoryType::DEFAULT, s_DepthClear, true);
 
 			m_depthTarget = data.resolutionDependantResourcesPool->requestTexture(depthDesc, "Mesh Debug Stage Depth Target");
 			getGraph()->setRenderGraphResourceTexture(renderTargetResId, m_depthTarget);

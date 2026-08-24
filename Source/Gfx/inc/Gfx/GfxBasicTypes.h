@@ -58,12 +58,12 @@ namespace YAPT
 		BINDING_POINT_RAYTRACE
 	};
 
-	enum class ResourcePoolType
+	enum class MemoryType
 	{
 		//common/idle
-		RESOURCEPOOL_TYPE_DEFAULT = 0,
-		RESOURCEPOOL_TYPE_CPU_MAPPABLE_UPLOAD = YAPTBIT(1),
-		RESOURCEPOOL_TYPE_CPU_MAPPABLE_READBACK = YAPTBIT(0),
+		DEFAULT = 0,
+		CPU_MAPPABLE_UPLOAD = YAPTBIT(1),
+		CPU_MAPPABLE_READBACK = YAPTBIT(0),
 	};
 
 
@@ -582,18 +582,20 @@ namespace YAPT
 	struct BufferDesc
 	{
 		BufferDesc() = default;
-		BufferDesc(ResourceUsage usage, size_t size)
+		BufferDesc(ResourceUsage usage, size_t size, MemoryType memType = MemoryType::DEFAULT)
 			:resourceUsage(usage),
-			sizeInBytes(size)
+			sizeInBytes(size),
+			memoryType(memType)
 		{}
 		ResourceUsage resourceUsage;
 		size_t sizeInBytes;
+		MemoryType memoryType = MemoryType::DEFAULT;
 	};
 
 	struct TextureDesc
 	{
 		TextureDesc() = default;
-		TextureDesc(ResourceDimension dimensions, ResourceFormat format, ResourceUsage usage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices, ClearValue optimizedClearValue = {}, bool useOptimizedClearValue = false)
+		TextureDesc(ResourceDimension dimensions, ResourceFormat format, ResourceUsage usage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices, MemoryType memType = MemoryType::DEFAULT, ClearValue optimizedClearValue = {}, bool useOptimizedClearValue = false)
 			:dimension(dimensions),
 			format(format),
 			resourceUsage(usage),
@@ -602,7 +604,8 @@ namespace YAPT
 			mips(mips),
 			depthOrSlices(depthOrSlices),
 			optimizedClearValue(optimizedClearValue),
-			useOptimizedClearValue(useOptimizedClearValue)
+			useOptimizedClearValue(useOptimizedClearValue),
+			memoryType(memType)
 		{
 		}
 
@@ -614,6 +617,7 @@ namespace YAPT
 		uint32_t mips;
 		uint32_t depthOrSlices;
 		ClearValue optimizedClearValue;
+		MemoryType memoryType = MemoryType::DEFAULT;
 		bool useOptimizedClearValue;
 	};
 

@@ -717,6 +717,22 @@ namespace YAPT
 		resourceDesc.Flags = yaptToDx12ResourceFlags(bufferDesc.resourceUsage);
 	}
 
+	inline D3D12_HEAP_TYPE yaptMemoryTypetoHeadType(MemoryType memType)
+	{
+		switch (memType)
+		{
+		case MemoryType::DEFAULT:
+			return D3D12_HEAP_TYPE_DEFAULT;
+		case MemoryType::CPU_MAPPABLE_UPLOAD:
+			return D3D12_HEAP_TYPE_UPLOAD;
+		case MemoryType::CPU_MAPPABLE_READBACK:
+			return D3D12_HEAP_TYPE_READBACK;
+		default:
+			assert(!"unknown memory type!");
+			return D3D12_HEAP_TYPE_DEFAULT;
+		}
+	}
+
 	inline void fillGraphicsPipelineStateShaderStages(const ShaderStageCreateInfo* shaderStages, uint32_t numberOfShaderStages, D3D12_GRAPHICS_PIPELINE_STATE_DESC& descOut)
 	{
 		descOut.VS.BytecodeLength = 0;

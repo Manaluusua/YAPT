@@ -117,8 +117,8 @@ namespace YAPT
 				textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
 			}
 
-			textureHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
-			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, D3D12_HEAP_TYPE_DEFAULT, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
+			textureHandle->heapType = yaptMemoryTypetoHeadType(desc.memoryType);
+			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, textureHandle->heapType, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
@@ -140,12 +140,12 @@ namespace YAPT
 			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;//yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
 			bufferHandle->lastSeenState.init(state, 1);
 
-			bufferHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
+			bufferHandle->heapType = yaptMemoryTypetoHeadType(desc.memoryType);
 
 
 			D3D12_RESOURCE_DESC resDesc = bufferHandle->bufferDesc;
 			resDesc.Width = (UINT)align(resDesc.Width, getMinimumAlignmentForBufferUsage(RESOURCE_USAGE_UNIFORM_BUFFER));
-			bufferHandle->allocBlock = h->getResourceManager().allocate(resDesc, D3D12_HEAP_TYPE_DEFAULT, state, nullptr, IID_PPV_ARGS(&bufferHandle->resource));
+			bufferHandle->allocBlock = h->getResourceManager().allocate(resDesc, bufferHandle->heapType, state, nullptr, IID_PPV_ARGS(&bufferHandle->resource));
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
