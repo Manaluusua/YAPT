@@ -241,9 +241,9 @@ namespace YAPT
 		}
 	}
 
-	Texture* CRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
+	Texture* CRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices, MemoryType memoryType)
 	{
-		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices);
+		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices, memoryType);
 		textureToBeCreated(desc);
 
 		TextureImpl* tex = new TextureImpl(desc, this);
@@ -256,9 +256,9 @@ namespace YAPT
 		return tex;
 	}
 
-	Buffer* CRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
+	Buffer* CRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size, MemoryType memoryType)
 	{
-		BufferDesc desc(resourceUsage, size);
+		BufferDesc desc(resourceUsage, size, memoryType);
 		bufferToBeCreated(desc);
 
 		BufferImpl* buf = new BufferImpl(desc, this);
@@ -269,6 +269,17 @@ namespace YAPT
 		bufferCreated(buf);
 
 		return buf;
+	}
+
+	void CRenderer::readback(ReadbackSourceTexture source, Texture* target)
+	{
+		assert(target->getDesc().memoryType == MemoryType::CPU_MAPPABLE_READBACK);
+		assert("TODO");
+	}
+	void CRenderer::readback(ReadbackSourceBuffer source, Buffer* target)
+	{
+		assert(target->getDesc().memoryType == MemoryType::CPU_MAPPABLE_READBACK);
+		assert("TODO");
 	}
 
 	Mesh* CRenderer::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)
