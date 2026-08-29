@@ -23,7 +23,7 @@ namespace YAPT
 		MaterialProxy* createMaterial();
 		void materialReleased(MaterialProxy* obj);
 
-		void replicateChanges();
+		void commitChanges();
 
 		MaterialInternal* getMaterialInternal(MaterialIndex id);
 

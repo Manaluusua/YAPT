@@ -12,9 +12,10 @@ namespace YAPT
 
 	enum class ReadbackState
 	{
+		Created,
 		Pending,
 		Ready,
-		Unused
+		Freed
 	};
 	class ReadbackObject : public RCObject
 	{

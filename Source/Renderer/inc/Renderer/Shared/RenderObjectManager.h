@@ -74,7 +74,7 @@ namespace YAPT
 		RenderObjectProxy* createRenderObject();
 		void renderObjectReleased(RenderObjectProxy* obj);
 
-		void replicateChanges();
+		void commitChanges();
 
 		void getCreatedEntries(const RenderObjectId*& ids, size_t& numberOfEntries) const
 		{

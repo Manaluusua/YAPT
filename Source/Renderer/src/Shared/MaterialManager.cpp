@@ -25,7 +25,7 @@ namespace YAPT
 		obj->_materialState |= MaterialProxy::MATERIALSTATE_DESTROYED;
 	}
 
-	void MaterialManager::replicateChanges()
+	void MaterialManager::commitChanges()
 	{
 		
 

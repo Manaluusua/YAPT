@@ -21,6 +21,16 @@ constexpr static uint32_t MAX_NUMBER_RENDERJOBS_PER_FRAME = 2048;
 constexpr static uint32_t RESERVED_NUMBER_OF_DEPS_PER_JOB = 8;
 constexpr static size_t PER_FRAME_ALLOCATOR_CAPACITY_IN_BYTES = 0xFFFFFF;
 
+namespace
+{
+	template<typename T>
+	void commitChangesFunc(void* ptr)
+	{
+		static_cast<T*>(ptr)->commitChanges();
+	}
+}
+
+
 namespace YAPT
 {
 	Renderer* createRenderer()
@@ -57,14 +67,13 @@ namespace YAPT
 	{
 		Gfx::prepare(m_gfxHandle);
 	}
+
+
+
 	void CRenderer::render(const RenderParameters& renderParams)
 	{
 		waitForRenderThreadIdle();
 
-		//replicate changes and allow caller to continue, while continuing with the actual rendering work
-		m_meshMngr->replicateChanges();
-		m_materialMngr->replicateChanges();
-		m_renderObjectManager->replicateChanges();
 		{
 			m_hasViewMoved = m_currentRenderView->getView() != renderParams.view || m_currentRenderView->getProjection() != renderParams.projection;
 
@@ -76,12 +85,20 @@ namespace YAPT
 
 			m_frameDeltaInSeconds = renderParams.frameDeltaInSeconds;
 		}
-		
-		m_rendererConfig.commitChanges();
 
 		Gfx::renderBegin(m_gfxHandle);
+
+		JobHandle replicateChangesHandles[5];
+		replicateChangesHandles[0] = m_jobSystem.submit(commitChangesFunc<MeshManager>, m_meshMngr);
+		replicateChangesHandles[1] = m_jobSystem.submit(commitChangesFunc<MaterialManager>, m_materialMngr);
+		replicateChangesHandles[2] = m_jobSystem.submit(commitChangesFunc<RenderObjectManager>, m_renderObjectManager, replicateChangesHandles, 2); //depends on mesh and material manager changes
+		replicateChangesHandles[3] = m_jobSystem.submit(commitChangesFunc<ReadbackManager>, m_readbackManager);
+		replicateChangesHandles[4] = m_jobSystem.submit(commitChangesFunc<CRendererConfiguration>, &m_rendererConfig);
+		
 		m_textureManager->flush();
 		m_bufferManager->flush();
+
+		m_jobSystem.wait(m_jobSystem.submit(nullptr, nullptr, replicateChangesHandles, countOf(replicateChangesHandles)));
 
 		{
 			std::unique_lock<std::mutex> lock(m_renderWorkerMutex);
@@ -185,9 +202,10 @@ namespace YAPT
 
  		m_rendererConfig.clear();
 
-		m_renderObjectManager->replicateChanges();
-		m_meshMngr->replicateChanges();
-		m_materialMngr->replicateChanges();
+		m_renderObjectManager->commitChanges();
+		m_meshMngr->commitChanges();
+		m_materialMngr->commitChanges();
+		m_readbackManager->commitChanges();
 
 		delete m_lightManager;
 		m_lightManager = nullptr;

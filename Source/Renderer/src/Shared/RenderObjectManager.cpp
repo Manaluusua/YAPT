@@ -43,7 +43,7 @@ namespace YAPT
 		obj->_renderObjectState |= RenderObjectProxy::RENDEROBJECTSTATE_DESTROYED;
 	}
 
-	void RenderObjectManager::replicateChanges()
+	void RenderObjectManager::commitChanges()
 	{
 		m_createdEntries.clear();
 		m_modifiedEntries.clear();

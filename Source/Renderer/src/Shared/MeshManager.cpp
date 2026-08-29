@@ -27,7 +27,7 @@ namespace YAPT
 		obj->_meshState |= MeshProxy::MESHSTATE_DESTROYED;
 	}
 	 
-	void MeshManager::replicateChanges()
+	void MeshManager::commitChanges()
 	{
 
 		m_createdEntries.clear();

@@ -28,7 +28,7 @@ namespace YAPT
 		MeshProxy* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
 		void meshReleased(MeshProxy* obj);
 
-		void replicateChanges();
+		void commitChanges();
 
 		MeshInternal* getMeshInternal(MeshIndex id);
 

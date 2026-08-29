@@ -14,7 +14,7 @@ namespace YAPT
 	public:
 		friend class ReadbackManager;
 		CReadbackObject()
-			:m_state(ReadbackState::Unused),
+			:m_state(ReadbackState::Freed),
 			m_index(uint32_t(-1))
 		{
 
@@ -22,14 +22,30 @@ namespace YAPT
 
 		virtual ReadbackState getState() final
 		{
-			return ReadbackState::Pending;
+			return m_state.load();
 		}
 
 		virtual void allReferencesReleased() final
 		{
-			setState(ReadbackState::Unused);
+			setState(ReadbackState::Freed);
 		}
 	private:
+
+		virtual ReadbackState getStateNonAtomic() final
+		{
+			return m_state;
+		}
+
+		void setReadbackTarget(ReadbackTarget target)
+		{
+			m_target = target;
+		}
+
+		ReadbackTarget getReadbackTarget() const
+		{
+			return m_target;
+		}
+
 		void setState(ReadbackState state)
 		{
 			if (state == ReadbackState::Ready)
@@ -58,8 +74,10 @@ namespace YAPT
 		{
 			return m_index;
 		}
-		uint32_t m_index;
+		
 		std::atomic<ReadbackState> m_state;
+		uint32_t m_index;
+		ReadbackTarget m_target;
 	};
 
 	class ReadbackManager 
@@ -69,15 +87,19 @@ namespace YAPT
 		ReadbackManager(CRenderer& renderer);
 		~ReadbackManager();
 
-		void syncToRenderThread();
+		void commitChanges();
 
 		ReadbackHandle readback(ReadbackTarget target);
 	private:
 		static constexpr uint32_t MAX_READBACK_REQUESTS = 256;
-		void readbackObjectRelease(CReadbackObject* obj);
+
+		void freeResource(uint32_t index, ReadbackTarget target);
+		void allocateResource(uint32_t index, ReadbackTarget target);
 
 		CRenderer& m_renderer;
 		CReadbackObject m_readbackObjectPool[MAX_READBACK_REQUESTS];
+		uint32_t m_activeReadbackObjects[MAX_READBACK_REQUESTS];
+		std::atomic<uint32_t> m_activeReadbackObjectCount;
 		DeferredFreeArrayIndexAllocator m_freeReadbackObjects;
 
 	};
