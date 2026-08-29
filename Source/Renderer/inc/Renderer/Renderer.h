@@ -7,6 +7,7 @@
 #include <Renderer/RenderObject.h>
 #include <Renderer/RendererConfiguration.h>
 #include <Renderer/RendererCacheProvider.h>
+#include <Renderer/ReadbackHandle.h>
 
 namespace YAPT
 {
@@ -32,15 +33,8 @@ namespace YAPT
 
 	};
 
-	enum class ReadbackSourceTexture
-	{
-		FinalColor
-	};
+	
 
-	enum class ReadbackSourceBuffer
-	{
-		
-	};
 	
 	class Renderer
 	{
@@ -54,11 +48,10 @@ namespace YAPT
 		virtual void prepare() = 0;
 		virtual void render(const RenderParameters& renderParams) = 0;
 
-		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1, MemoryType memoryType = MemoryType::DEFAULT) = 0;
-		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size, MemoryType memoryType = MemoryType::DEFAULT) = 0;
+		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1) = 0;
+		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size) = 0;
 
-		virtual void readback(ReadbackSourceTexture source, Texture* target) = 0;
-		virtual void readback(ReadbackSourceBuffer source, Buffer* target) = 0;
+		virtual ReadbackHandle readback(ReadbackTarget target) = 0;
 
 		/**
 			Creates a mesh with given layouts. Buffers bound to the mesh are assumed to be in the same order (ie. buffer bound to index 0 has the layout of the first layout in the list passed here).

@@ -12,6 +12,7 @@
 #include <Renderer/Shared/BindlessBufferManager.h>
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/RendererVarsList.h>
+#include <Renderer/Shared/ReadBackManager.h>
 
 #define MAX_BINDLESS_TEXTURES_COUNT 0xFFFF
 #define MAX_BINDLESS_BUFFERS_COUNT 0xFFFF
@@ -151,6 +152,8 @@ namespace YAPT
 		m_renderPipelineMngr = new RenderPipelineManager();
 		m_renderPipelineMngr->initialize(initContext);
 
+		m_readbackManager = new ReadbackManager(*this);
+
 		return true;
 	}
 
@@ -198,6 +201,8 @@ namespace YAPT
 		m_materialMngr = nullptr;
 		delete m_shaderLoader;
 		m_shaderLoader = nullptr;
+		delete m_readbackManager;
+		m_readbackManager = nullptr;
 		
 		if (m_coreResourcesUtility)
 		{
@@ -241,9 +246,9 @@ namespace YAPT
 		}
 	}
 
-	Texture* CRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices, MemoryType memoryType)
+	Texture* CRenderer::createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips, uint32_t depthOrSlices)
 	{
-		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices, memoryType);
+		TextureDesc desc(dimensions, format, resourceUsage, width, height, mips, depthOrSlices, MemoryType::DEFAULT);
 		textureToBeCreated(desc);
 
 		TextureImpl* tex = new TextureImpl(desc, this);
@@ -256,9 +261,9 @@ namespace YAPT
 		return tex;
 	}
 
-	Buffer* CRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size, MemoryType memoryType)
+	Buffer* CRenderer::createBuffer(const char* name, ResourceUsage resourceUsage, size_t size)
 	{
-		BufferDesc desc(resourceUsage, size, memoryType);
+		BufferDesc desc(resourceUsage, size, MemoryType::DEFAULT);
 		bufferToBeCreated(desc);
 
 		BufferImpl* buf = new BufferImpl(desc, this);
@@ -271,15 +276,10 @@ namespace YAPT
 		return buf;
 	}
 
-	void CRenderer::readback(ReadbackSourceTexture source, Texture* target)
+	ReadbackHandle CRenderer::readback(ReadbackTarget target)
 	{
-		assert(target->getDesc().memoryType == MemoryType::CPU_MAPPABLE_READBACK);
-		assert("TODO");
-	}
-	void CRenderer::readback(ReadbackSourceBuffer source, Buffer* target)
-	{
-		assert(target->getDesc().memoryType == MemoryType::CPU_MAPPABLE_READBACK);
-		assert("TODO");
+		return m_readbackManager->readback(target);
+
 	}
 
 	Mesh* CRenderer::createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices)

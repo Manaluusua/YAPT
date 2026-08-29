@@ -48,6 +48,7 @@ namespace YAPT
 	class BindlessTextureManager;
 	class BindlessBufferManager;
 	class LightManager;
+	class ReadbackManager;
 
 	using RendererFrameAllocator = ArenaAllocator;
 
@@ -65,11 +66,10 @@ namespace YAPT
 		virtual bool setRenderOutputToSurface(const WindowSurfaceDefinition& windowSurface) final;
 		virtual void resetRenderOutput() final;
 		
-		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1, MemoryType memoryType = MemoryType::DEFAULT) final;
-		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size, MemoryType memoryType = MemoryType::DEFAULT) final;
+		virtual Texture* createTexture(const char* name, ResourceDimension dimensions, ResourceFormat format, ResourceUsage resourceUsage, uint32_t width, uint32_t height, uint32_t mips = 1, uint32_t depthOrSlices = 1) final;
+		virtual Buffer* createBuffer(const char* name, ResourceUsage resourceUsage, size_t size) final;
 
-		virtual void readback(ReadbackSourceTexture source, Texture* target) final;
-		virtual void readback(ReadbackSourceBuffer source, Buffer* target) final;
+		virtual ReadbackHandle readback(ReadbackTarget target) final;
 
 		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices) final;
 		virtual Material* createMaterial() final;
@@ -143,6 +143,7 @@ namespace YAPT
 		ShaderLoader* m_shaderLoader;
 
 		RendererCacheProvider* m_cacheProvider;
+		ReadbackManager* m_readbackManager;
 
 		CRendererConfiguration m_rendererConfig;
 
