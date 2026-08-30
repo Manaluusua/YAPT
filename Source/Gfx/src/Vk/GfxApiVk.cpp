@@ -130,6 +130,30 @@ namespace YAPT
 			h->getResourceManager()->upload(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
 
+		FenceHandle createFence(FenceType type)
+		{
+			assert(!"TODO");
+			return nullptr;
+		}
+		void resetFence(FenceHandle handle)
+		{
+			assert(!"TODO");
+		}
+		FenceState getFenceState(FenceHandle handle)
+		{
+			assert(!"TODO");
+			return FenceState::Signaled;
+		}
+		void destroyFence(FenceHandle handle)
+		{
+			assert(!"TODO");
+		}
+
+		void readback(GfxApiHandle h, ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal)
+		{
+			assert(!"TODO");
+		}
+
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)
 		{
 			

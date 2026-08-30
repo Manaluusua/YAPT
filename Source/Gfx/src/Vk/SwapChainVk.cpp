@@ -188,14 +188,13 @@ namespace YAPT
 			vkImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 			vkImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
-			VkMemoryPropertyFlags memoryFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 			for (uint32_t i = 0; i < imageCount; ++i)
 			{
 				VkImage vkImage = m_swapChainImages[i];
 
 				TextureHandleVk* texHandle = new TextureHandleVk(*rendererVk->getResourceManager());
-				texHandle->memoryFlags = memoryFlags;
+				texHandle->mappable = false;
 				texHandle->createInfo = vkImageInfo;
 				texHandle->dimensions = ResourceDimension::TEXTURE_2D;
 				texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, 1);

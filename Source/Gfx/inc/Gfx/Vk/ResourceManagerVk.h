@@ -36,10 +36,9 @@ namespace YAPT
 		void destroyBuffer(BufferHandleVk* handle);
 		void destroyTexture(TextureHandleVk* handle);
 
-		bool createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut);
-		bool createBufferVk(const VkBufferCreateInfo& desc, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut);
-		bool createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut);
-		bool createTextureVk(const VkImageCreateInfo& desc, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut);
+		bool createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut, VmaAllocationInfo* infoOut = nullptr);
+		bool createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut, VmaAllocationInfo* infoOut = nullptr);
+
 		void destroyBufferVk(VkBuffer buff, Allocation alloc);
 		void destroyTextureVk(VkImage image, Allocation alloc);
 

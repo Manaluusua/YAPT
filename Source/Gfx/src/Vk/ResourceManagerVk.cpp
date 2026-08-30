@@ -159,7 +159,7 @@ namespace YAPT
 
 	void ResourceManagerVk::upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 	{
-		if ((handle->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
+		if (!handle->mappable)
 		{
 			copyViaUploadHeap(handle, offsetInBytes, sizeInBytes, data, heapType);
 		}
@@ -171,7 +171,7 @@ namespace YAPT
 	}
 	void* ResourceManagerVk::map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 	{
-		if ((handle->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
+		if (!handle->mappable)
 		{
 			return mapCopyRangeFromUploadHeap(handle, offsetInBytes, sizeInBytes, heapType);
 		}
@@ -190,7 +190,7 @@ namespace YAPT
 	void ResourceManagerVk::upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 	{
 
-		if ((image->memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) == 0)
+		if(!image->mappable)
 		{
 			copyViaUploadHeap(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
@@ -293,16 +293,16 @@ namespace YAPT
 			buffHandle->name = std::string(name);
 		}
 #endif
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-		VkResult res = vmaCreateBuffer(m_allocator, &buffHandle->createInfo, &allocInfo, &buffHandle->buffer, &buffHandle->alloc, nullptr);
-
-		checkVkResult(res);
+		VmaAllocationCreateInfo createInfo{};
+		createInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		createInfo.flags = desc.memoryType == MemoryType::DEFAULT ? 0 : VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		bool res = createBufferVk(buffHandle->createInfo, createInfo, owningQueueFamily, &buffHandle->buffer, &buffHandle->alloc, nullptr);
 
 		buffHandle->owningQueueFamily = owningQueueFamily;
 		buffHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
-
-		if (res != VK_SUCCESS)
+		buffHandle->mappable = desc.memoryType == MemoryType::DEFAULT ? false : true;
+		
+		if (!res)
 		{
 			delete buffHandle;
 			buffHandle = nullptr;
@@ -318,13 +318,18 @@ namespace YAPT
 		texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
 		texHandle->owningQueueFamily = owningQueueFamily;
 		texHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
+		texHandle->mappable = desc.memoryType == MemoryType::DEFAULT ? false : true;
 #ifdef VK_DEBUGNAMES_ENABLE
 		if (name)
 		{
 			texHandle->name = std::string(name);
 		}
 #endif
-		bool res = createTextureVk(texHandle->createInfo, owningQueueFamily, &texHandle->image, &texHandle->alloc);
+
+		VmaAllocationCreateInfo createInfo{};
+		createInfo.usage = VMA_MEMORY_USAGE_AUTO;
+		createInfo.flags = desc.memoryType == MemoryType::DEFAULT ? 0 : VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+		bool res = createTextureVk(texHandle->createInfo, createInfo, owningQueueFamily, &texHandle->image, &texHandle->alloc, nullptr);
 		if (!res)
 		{
 			delete texHandle;
@@ -346,34 +351,15 @@ namespace YAPT
 		delete handle;
 	}
 
-	bool ResourceManagerVk::createBufferVk(const VkBufferCreateInfo& desc, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut)
+	bool ResourceManagerVk::createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut, VmaAllocationInfo* infoOut)
 	{
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-		return createBufferVk(desc, allocInfo, owningQueueFamily, buffOut, allocOut);
-	}
-
-	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut)
-	{
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-		return createTextureVk(desc, allocInfo, owningQueueFamily, imageOut, allocOut);
-	}
-
-	bool ResourceManagerVk::createBufferVk(const VkBufferCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkBuffer* buffOut, Allocation* allocOut)
-	{
-		VkResult res = vmaCreateBuffer(m_allocator, &desc, &allocInfo, buffOut, allocOut, nullptr);
+		VkResult res = vmaCreateBuffer(m_allocator, &desc, &allocInfo, buffOut, allocOut, infoOut);
 		return checkVkResult(res);
 	}
 
-	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut)
+	bool ResourceManagerVk::createTextureVk(const VkImageCreateInfo& desc, const VmaAllocationCreateInfo& allocInfo, uint32_t owningQueueFamily, VkImage* imageOut, Allocation* allocOut, VmaAllocationInfo* infoOut)
 	{
-		
-		//VkImageFormatProperties props;
-		//vkGetPhysicalDeviceImageFormatProperties(m_physicalDevice, desc.format, desc.imageType, desc.tiling, desc.usage, desc.flags, &props);
-		
-
-		VkResult res = vmaCreateImage(m_allocator, &desc, &allocInfo, imageOut, allocOut, nullptr);
+		VkResult res = vmaCreateImage(m_allocator, &desc, &allocInfo, imageOut, allocOut, infoOut);
 		return checkVkResult(res);
 	}
 

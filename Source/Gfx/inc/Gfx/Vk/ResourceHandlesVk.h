@@ -27,10 +27,10 @@ namespace YAPT
 		VkBuffer buffer;
 		Allocation alloc;
 		VkBufferCreateInfo createInfo;
-		VkMemoryPropertyFlags memoryFlags;
 		uint32_t owningQueueFamily;
 		VkPipelineStageFlags lastUsedStages;
 		char* mappedMemory;
+		bool mappable;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;
 #endif
@@ -49,11 +49,11 @@ namespace YAPT
 		Allocation alloc;
 		ResourceDimension dimensions;
 		VkImageCreateInfo createInfo;
-		VkMemoryPropertyFlags memoryFlags;
 		uint32_t owningQueueFamily;
 		ResourceStateTracker<VkImageLayout> currentLayouts;
 		VkPipelineStageFlags lastUsedStages;
 		char* mappedMemory;
+		bool mappable;
 #ifdef VK_DEBUGNAMES_ENABLE
 		std::string name;
 #endif

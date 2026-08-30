@@ -49,6 +49,7 @@ namespace YAPT
 	typedef DescriptorSetPoolVk* DescriptorSetPoolHandle;
 	typedef DescriptorSetVk* DescriptorSetHandle;
 	typedef ShaderTableVk* ShaderTableHandle;
+	typedef void* FenceHandle;
 
 	struct QueueDefinitionVk
 	{

@@ -177,6 +177,23 @@ namespace YAPT
 			delete handle;
 		}
 
+		void copyTextureToTexture(GfxApiHandle h, CommandBufferHandle cmdBuffer, TextureHandle source, TextureHandle dst, size_t numberOfCopyDefinitions, const ImageCopyDef* copydefs)
+		{
+			assert(!"TODO");
+		}
+		void copyTextureToBuffer(GfxApiHandle h, CommandBufferHandle cmdBuffer, TextureHandle source, BufferHandle dst, size_t numberOfCopyDefinitions, const BufferImageCopyDef* copydefs)
+		{
+			assert(!"TODO");
+		}
+		void copyBufferToBuffer(GfxApiHandle h, CommandBufferHandle cmdBuffer, BufferHandle source, BufferHandle dst, size_t numberOfCopyDefinitions, const BufferCopydef* copydefs)
+		{
+			assert(!"TODO");
+		}
+		void copyBufferToTexture(GfxApiHandle h, CommandBufferHandle cmdBuffer, BufferHandle source, TextureHandle dst, size_t numberOfCopyDefinitions, const BufferImageCopyDef* copydefs)
+		{
+			assert(!"TODO");
+		}
+
 		void uploadBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 		{
 			h->getResourceManager().upload(handle, offsetInBytes, sizeInBytes, data, heapType);

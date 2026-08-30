@@ -27,14 +27,13 @@ namespace YAPT
 		TextureHandle getTextureHandleToNextBackbuffer(SwapChainHandle swapChain);
 		void present(GfxApiHandle h, SwapChainHandle swapChain);
 
-
 		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name);
 		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name);
 		void destroyTexture(GfxApiHandle h, TextureHandle handle);
 		void destroyBuffer(GfxApiHandle h, BufferHandle handle);
 
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage);
-		 
+
 		void uploadBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		//data is assumed to be: arraySlice * mipCount ie. all mip levels of first array slice, then all mips of second array slice etc.
 		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage = ResourceStateDescription::defaultAfterCopyTextureState());
@@ -112,7 +111,14 @@ namespace YAPT
 		ShaderPipelineReflection* createShaderPipelineReflection(ShaderModuleHandle* shaderModules, size_t shaderModuleCount);
 		void destroyShaderPipelineReflection(ShaderPipelineReflection* refl);
 
-		//dispatch/draw commands
+		FenceHandle createFence(FenceType type);
+		void resetFence(FenceHandle handle);
+		FenceState getFenceState(FenceHandle handle);
+		void destroyFence(FenceHandle handle);
+
+		void readback(GfxApiHandle h, ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal);
+
+
 		void setGraphicsPipelineState(GfxApiHandle h, CommandBufferHandle buff, GraphicsPipelineStateHandle pso);
 		void setComputePipelineState(GfxApiHandle h, CommandBufferHandle buff, ComputePipelineStateHandle pso);
 		void setRaytracePipelineState(GfxApiHandle h, CommandBufferHandle buff, RaytracePipelineStateHandle pso);

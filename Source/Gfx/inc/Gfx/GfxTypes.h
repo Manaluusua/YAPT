@@ -409,12 +409,84 @@ namespace YAPT
 		DURING_RENDER
 	};
 
+	enum class GpuDownloadStage
+	{
+		AFTER_RENDER
+	};
+
+	enum class FenceType
+	{
+		CPU_GPU_SYNC
+	};
+
+	enum class FenceState
+	{
+		Unused,
+		Pending,
+		Signaled
+	};
+
 	struct ShaderTableEntry
 	{
 		size_t shaderIndexInPso; //shader index in pso (for a given type, ie. raygen, miss and hit groups all start from 0)
 		size_t shaderTableIndex;
 		uint8_t* shaderTableExtraData;
 		size_t extraDataInBytes;
+	};
+
+	struct ImageCopySubresourceDefinition
+	{
+		uint32_t mip;
+		uint32_t arraySliceOffset;
+		uint32_t arraySliceCount;
+	};
+
+	struct ImageCopyDefinition
+	{
+		ImageCopySubresourceDefinition srcSubresource;
+		Offset3D srcOffset;
+		ImageCopySubresourceDefinition dstSubresource;
+		Offset3D dstOffset;
+		Extent3D extent;
+	};
+
+	struct BufferImageCopyDefinition
+	{
+		size_t bufferOffset;
+		size_t bufferRowLength;
+		size_t bufferImageHeight;
+		ImageCopySubresourceDefinition imageSubresource;
+		Offset3D imageOffset;
+		Extent3D imageExtent;
+	} ;
+
+	struct BufferCopyDefinition
+	{
+		size_t	srcOffset;
+		size_t	dstOffset;
+		size_t	size;
+	};
+
+	struct TextureReadbackDefinition
+	{
+		TextureHandle src;
+		TextureHandle dst;
+		ImageCopyDefinition def;
+	};
+
+	struct BufferReadbackDefinition
+	{
+		BufferHandle src;
+		BufferHandle dst;
+		BufferCopyDefinition def;
+	};
+
+	struct ReadbackDefinitions
+	{
+		TextureReadbackDefinition* textureReadbackDefinitions;
+		BufferReadbackDefinition* bufferReadbackDefinitions;
+		uint32_t textureReadbackCount;
+		uint32_t bufferReadbackCount;
 	};
 
 	//forward declarations
