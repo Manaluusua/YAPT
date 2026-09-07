@@ -11,7 +11,7 @@ namespace YAPT
 
 		const static uint32_t INVALID_INDEX = uint32_t(-1);
 
-		ArrayIndexAllocator(size_t numberOf32bitMasks);
+		ArrayIndexAllocator(uint32_t numberOf32bitMasks);
 		virtual ~ArrayIndexAllocator();
 
 		uint32_t allocate();
@@ -19,6 +19,7 @@ namespace YAPT
 
 	protected:
 		std::vector<std::atomic<uint32_t>> m_bitMasks;
-		std::atomic<size_t> m_lastAllocatedBitmaskIndex;
+		std::atomic<uint32_t> m_lastAllocatedBitmaskIndex;
+
 	};
 }

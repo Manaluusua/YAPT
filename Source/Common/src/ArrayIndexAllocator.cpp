@@ -5,7 +5,7 @@ namespace YAPT
 {
 
 
-	ArrayIndexAllocator::ArrayIndexAllocator(size_t numberOf32bitMasks)
+	ArrayIndexAllocator::ArrayIndexAllocator(uint32_t numberOf32bitMasks)
 		:m_lastAllocatedBitmaskIndex(0),
 		m_bitMasks(numberOf32bitMasks)
 	{
@@ -21,8 +21,8 @@ namespace YAPT
 
 	uint32_t ArrayIndexAllocator::allocate()
 	{
-		size_t currentBitmaskIndex = m_lastAllocatedBitmaskIndex;
-		size_t startedFromIndex = currentBitmaskIndex;
+		uint32_t currentBitmaskIndex = m_lastAllocatedBitmaskIndex;
+		uint32_t startedFromIndex = currentBitmaskIndex;
 		while (true)
 		{
 
@@ -34,7 +34,7 @@ namespace YAPT
 				//Went through all the entries, did not find a free slot
 				if (startedFromIndex == currentBitmaskIndex)
 				{
-					return uint32_t(-1);
+					return INVALID_INDEX;
 				}
 				continue;
 			}

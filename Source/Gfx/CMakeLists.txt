@@ -29,6 +29,8 @@ set(HEADERS
 	inc/Gfx/WindowSurfaceDefinition.h
 	inc/Gfx/ShaderPipelineReflection.h
 	
+	inc/Gfx/Common/SyncPrimitiveManager.h
+	
 	inc/Gfx/Utility/ResourceViewPool.h
 	inc/Gfx/Utility/ResourceStateTracker.h
 	inc/Gfx/Utility/DXCUtility.h
@@ -50,6 +52,8 @@ set(SOURCE
 	src/Utility/DXCUtility.cpp
 	
 	src/ShaderPipelineReflection.cpp
+	
+	src/Common/SyncPrimitiveManager.cpp
 
 	src/RenderGraph/RenderGraph.cpp
 	src/RenderGraph/RenderGraphNode.cpp
