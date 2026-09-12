@@ -9,30 +9,21 @@
 namespace YAPT
 {
 	UploadHelperVk::UploadHelperVk(ResourceManagerVk& resourceMngr, SubmissionThreadVk& submitThread, size_t heapSize, size_t numberOfPartitions)
-		:m_resMngr(resourceMngr),
-		m_submissionThread(submitThread),
+		:CopyHelperVk(resourceMngr, submitThread),
 		m_uploadHeap(resourceMngr, heapSize, numberOfPartitions),
 		m_pendingBufferUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
 		m_pendingTextureUploads(INITIAL_MAX_COPY_ENTRIES_PER_COPY_TYPE),
-		m_pendingUnmaps(128),
-		m_commandBuffersPool(resourceMngr.getDevice())
+		m_pendingUnmaps(128)
 
 	{
-
-		m_syncUtility.initialize(resourceMngr.getDevice(), numberOfPartitions, true, true);
-		m_commandBuffersPool.initialize(numberOfPartitions, 1, resourceMngr.getCopyQueue().queueFamilyIndex);
-		m_submissionIDs.resize(numberOfPartitions);
-		m_queueTransitionHelper.initialize(m_resMngr.getDevice(), numberOfPartitions, 2);
+		//all the uploads gathered during a frame are flushed as a single batch
+		initialize(numberOfPartitions, 1);
 	}
 
 
 	UploadHelperVk::~UploadHelperVk()
 	{
-		m_syncUtility.deinitialize();
-		m_commandBuffersPool.deinitialize();
 
-		m_queueTransitionHelper.deinitialize();
-		
 	}
 
 	void* UploadHelperVk::mapCopyRangeForBufferData(VkBuffer buffer, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes)
@@ -206,54 +197,17 @@ namespace YAPT
 	void UploadHelperVk::prepareNextUploadBatch()
 	{
 
-		m_syncUtility.nextFrame();
+		prepareNextFrame();
 		m_uploadHeap.nextPartition();
 	}
 
 
 
-	
+
 	bool UploadHelperVk::flushUploadBatch(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
 	{
 
-		VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
-		auto addBufferBarrier = [this](VkBuffer buffer, VkDeviceSize offset, VkDeviceSize size, uint32_t srcQueueFamily, uint32_t dstQueueFamily)
-		{
-			VkBufferMemoryBarrier barrier{ VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr };
-			barrier.srcAccessMask = 0;
-			barrier.dstAccessMask = 0;
-			barrier.dstQueueFamilyIndex = dstQueueFamily;
-			barrier.srcQueueFamilyIndex = srcQueueFamily;
-			barrier.buffer = buffer;
-			barrier.offset = offset;
-			barrier.size = size;
-
-			m_allBufferBarriers.push_back(barrier);
-
-
-		};
-
-		auto addImageBarrier = [this](VkImageLayout oldLayout, VkImageLayout newLayout, VkImageLayout afterCopyLayout, VkImage image, uint32_t slice, uint32_t sliceCount, uint32_t mip, uint32_t mipCount, uint32_t srcQueueFamily, uint32_t dstQueueFamily) -> void
-		{
-			VkImageMemoryBarrier barrier{ VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr };
-			barrier.srcAccessMask = 0;
-			barrier.dstAccessMask = 0;
-			barrier.dstQueueFamilyIndex = dstQueueFamily;
-			barrier.srcQueueFamilyIndex = srcQueueFamily;
-			barrier.image = image;
-			barrier.newLayout = newLayout;
-			barrier.oldLayout = oldLayout;
-			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			barrier.subresourceRange.baseArrayLayer = slice;
-			barrier.subresourceRange.baseMipLevel = mip;
-			barrier.subresourceRange.layerCount = sliceCount;
-			barrier.subresourceRange.levelCount = mipCount;
-
-			m_allImageBarriers.push_back(barrier);
-			m_afterCopyLayout.push_back(afterCopyLayout);
-		};
-
+		const VkImageLayout copyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
 		Allocation* pendingUnmaps = m_pendingUnmaps.getAll();
 		for (size_t i = 0; i < m_pendingUnmaps.count(); ++i)
@@ -263,12 +217,11 @@ namespace YAPT
 
 		if (m_pendingBufferUploads.count() == 0 && m_pendingTextureUploads.count() == 0) return false;
 
-		
+
 
 		//clear all previous barriers
-		m_allImageBarriers.clear();
-		m_allBufferBarriers.clear();
-		
+		clearBarriers();
+
 
 		TextureUpload* textureUploadsList = m_pendingTextureUploads.getAll();
 		BufferUpload* bufferUploadsList = m_pendingBufferUploads.getAll();
@@ -279,29 +232,11 @@ namespace YAPT
 			for (size_t i = 0; i < m_pendingTextureUploads.count(); ++i)
 			{
 				const TextureUpload& info = textureUploadsList[i];
-				ResourceStateTracker<VkImageLayout>& layouts = info.dstImage->currentLayouts;
 
 				for (uint32_t copyDescIndex = 0; copyDescIndex < info.copyDescs.size(); ++copyDescIndex)
 				{
 					const VkBufferImageCopy& copyDesc = info.copyDescs[copyDescIndex];
-					for (uint32_t arrayOffset = 0; arrayOffset < copyDesc.imageSubresource.layerCount; ++arrayOffset)
-					{
-						uint32_t arraySlice = copyDesc.imageSubresource.baseArrayLayer + arrayOffset;
-						uint32_t subresourceIndex = calculateSubresourceIndex(copyDesc.imageSubresource.mipLevel, arraySlice, info.dstImage->createInfo.mipLevels, info.dstImage->createInfo.arrayLayers);
-						VkImageLayout currentLayout = layouts.getStateForSubResource(subresourceIndex);
-						uint32_t arraySliceCount = 1;
-						if ((info.dstImage->createInfo.flags & VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT) != 0)
-						{
-							arraySliceCount = VK_REMAINING_ARRAY_LAYERS;
-						}
-						if (currentLayout != copyLayout || info.dstImage->owningQueueFamily != m_resMngr.getCopyQueue().queueFamilyIndex)
-						{
-							addImageBarrier(currentLayout, copyLayout, info.layoutAfterCopy, info.dstImage->image, arraySlice, arraySliceCount, copyDesc.imageSubresource.mipLevel, 1, info.dstImage->owningQueueFamily, m_resMngr.getCopyQueue().queueFamilyIndex);
-							layouts.setStateForSubResource(subresourceIndex, info.layoutAfterCopy);
-						}
-					}
-
-
+					addBarriersForImageCopy(info.dstImage, copyDesc.imageSubresource.mipLevel, copyDesc.imageSubresource.baseArrayLayer, copyDesc.imageSubresource.layerCount, copyLayout, info.layoutAfterCopy);
 				}
 			}
 		}
@@ -311,35 +246,16 @@ namespace YAPT
 			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
 			{
 				const BufferUpload& info = bufferUploadsList[i];
-				if (info.dstBufferQueueFamilyIndex != m_resMngr.getCopyQueue().queueFamilyIndex)
-				{
-					addBufferBarrier(info.dstBuffer, info.copyDesc.dstOffset, info.copyDesc.size, info.dstBufferQueueFamilyIndex, m_resMngr.getCopyQueue().queueFamilyIndex);
-				}
+				addBarriersForBufferCopy(info.dstBuffer, info.dstBufferQueueFamilyIndex, info.copyDesc.dstOffset, info.copyDesc.size);
 			}
 
 		}
 
-		VkSemaphore lastSignaledSemaphore = VK_NULL_HANDLE;
-
-		m_queueTransitionHelper.resetCommandBuffersForFrame(m_syncUtility.getFrameIndex());
-		m_queueTransitionHelper.clearBarriers();
-		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), true);
-		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), true);
-		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 0, semaphoresToWait, semaphoresToWaitCount, lastSignaledSemaphore);
-
-		m_commandBuffersPool.resetPool(m_syncUtility.getFrameIndex());
-
-		VkCommandBuffer cmdBuff = m_commandBuffersPool.beginCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
-
-		if (m_allBufferBarriers.size() > 0 || m_allImageBarriers.size() > 0)
-		{
-			vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)m_allBufferBarriers.size(), m_allBufferBarriers.data(), (uint32_t)m_allImageBarriers.size(), m_allImageBarriers.data());
-		}
-
+		VkCommandBuffer cmdBuff = beginCopyBatch(semaphoresToWait, semaphoresToWaitCount);
 
 		// Buffer copies
 		{
-			
+
 			//copy
 			for (size_t i = 0; i < m_pendingBufferUploads.count(); ++i)
 			{
@@ -348,7 +264,7 @@ namespace YAPT
 			}
 
 		}
-		
+
 		//image copies
 		{
 
@@ -360,58 +276,11 @@ namespace YAPT
 			}
 		}
 
-		for (size_t i = 0; i < m_allBufferBarriers.size(); ++i)
-		{
-			std::swap(m_allBufferBarriers[i].dstQueueFamilyIndex, m_allBufferBarriers[i].srcQueueFamilyIndex);
-		}
-
-		for (size_t i = 0; i < m_allImageBarriers.size(); ++i)
-		{
-			std::swap(m_allImageBarriers[i].dstQueueFamilyIndex, m_allImageBarriers[i].srcQueueFamilyIndex);
-			m_allImageBarriers[i].oldLayout = m_allImageBarriers[i].newLayout;
-			m_allImageBarriers[i].newLayout = m_afterCopyLayout[i];
-		}
-
-		
-
-		if (m_allBufferBarriers.size() > 0 || m_allImageBarriers.size() > 0)
-		{
-			vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)m_allBufferBarriers.size(), m_allBufferBarriers.data(), (uint32_t)m_allImageBarriers.size(), m_allImageBarriers.data());
-		}
-
 		m_pendingBufferUploads.clear();
 		m_pendingTextureUploads.clear();
 		m_pendingUnmaps.clear();
-		
-		m_commandBuffersPool.endCommandBufferRecording(m_syncUtility.getFrameIndex(), 0);
 
-		VkSemaphore signalSem = m_syncUtility.getSemaphoreForThisFrame();
-
-		SubmissionThreadVk::Submission submission;
-		submission.semaphoresToSignalCount = 1;
-		submission.semaphoresToSignal = &signalSem;
-		
-
-		submission.semaphoresToWaitCount = lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWaitCount :  1;
-		submission.semaphoresToWait = lastSignaledSemaphore == VK_NULL_HANDLE ? semaphoresToWait : &lastSignaledSemaphore;
-
-		submission.commandLists = &cmdBuff;
-		submission.commandListsCount = 1;
-
-		submission.fenceToSignal = m_syncUtility.getFenceForThisFrame();
-		
-		m_syncUtility.markThisFrameSyncDataIssued();
-
-		m_submissionIDs[m_syncUtility.getFrameIndex()] = m_submissionThread.submit(COMMANDQUEUETYPE_COPY, m_resMngr.getCopyQueue().queueIndex, submission);
-		
-		lastSignaledSemaphore = signalSem;
-
-		m_queueTransitionHelper.clearBarriers();
-		m_queueTransitionHelper.addFromBarriers(m_allBufferBarriers.data(), m_allBufferBarriers.size(), false);
-		m_queueTransitionHelper.addFromBarriers(m_allImageBarriers.data(), m_allImageBarriers.size(), false);
-		m_queueTransitionHelper.issueTransitionBarriers(m_submissionThread, m_syncUtility.getFrameIndex(), 1, &lastSignaledSemaphore, 1, lastSignaledSemaphore);
-
-		signaledSemaphore = lastSignaledSemaphore;
+		signaledSemaphore = endCopyBatch(cmdBuff, VK_NULL_HANDLE);
 
 		return true;
 

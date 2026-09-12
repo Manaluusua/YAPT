@@ -27,6 +27,7 @@ namespace YAPT
 		VkBuffer buffer;
 		Allocation alloc;
 		VkBufferCreateInfo createInfo;
+		BufferDesc buffDesc;
 		uint32_t owningQueueFamily;
 		VkPipelineStageFlags lastUsedStages;
 		char* mappedMemory;
@@ -47,8 +48,8 @@ namespace YAPT
 		TextureViews views;
 		VkImage image;
 		Allocation alloc;
-		ResourceDimension dimensions;
 		VkImageCreateInfo createInfo;
+		TextureDesc texDesc;
 		uint32_t owningQueueFamily;
 		ResourceStateTracker<VkImageLayout> currentLayouts;
 		VkPipelineStageFlags lastUsedStages;

@@ -188,6 +188,15 @@ namespace YAPT
 			vkImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 			vkImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 
+			TextureDesc texDesc;
+			texDesc.dimension = ResourceDimension::TEXTURE_2D;
+			texDesc.depthOrSlices = 1;
+			texDesc.width = width;
+			texDesc.height = height;
+			texDesc.resourceUsage = RESOURCE_USAGE_SAMPLED_TEXTURE | RESOURCE_USAGE_RENDER_TARGET_TEXTURE | RESOURCE_USAGE_PRESENTABLE_TEXTURE;
+			texDesc.dimension = ResourceDimension::TEXTURE_2D;
+			texDesc.format = ResourceFormat::UNKNOWN;
+
 
 			for (uint32_t i = 0; i < imageCount; ++i)
 			{
@@ -196,7 +205,7 @@ namespace YAPT
 				TextureHandleVk* texHandle = new TextureHandleVk(*rendererVk->getResourceManager());
 				texHandle->mappable = false;
 				texHandle->createInfo = vkImageInfo;
-				texHandle->dimensions = ResourceDimension::TEXTURE_2D;
+				texHandle->texDesc = texDesc;
 				texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, 1);
 				texHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 				texHandle->image = vkImage;

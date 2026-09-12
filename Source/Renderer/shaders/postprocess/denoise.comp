@@ -33,7 +33,7 @@ Texture2D<uint4> g_materialParams1 : register(t3, space0);
 Texture2D<float> g_varianceTex : register(t4, space0);
 Texture2D g_lastSamples : register(t5, space0);
 RWTexture2D<float4> g_denoiseColor : register(u6, space0);
-RWTexture2D<float4> g_denoiseVariance : register(u7, space0);
+RWTexture2D<float> g_denoiseVariance : register(u7, space0);
 
 #define g_denoiseMode (g_denoiseParams.modePassIndex.x)
 #define g_denoisePassIndex (g_denoiseParams.modePassIndex.y)

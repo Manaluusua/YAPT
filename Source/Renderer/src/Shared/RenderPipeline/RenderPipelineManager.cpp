@@ -127,6 +127,23 @@ namespace YAPT
 		}
 	}
 
+	void RenderPipelineManager::readbackRequested(ReadbackTarget target)
+	{
+		//TODO
+	}
+	TextureHandle RenderPipelineManager::getReadbackTextureResource(ReadbackTarget target)
+	{
+		if (m_activePipeline)
+		{
+			return m_activePipeline->getNamedResource(RenderPipeline::NamedRenderPipelineTexture::FinalColor);
+		}
+		return YAPT_NULL_HANDLE;
+	}
+	BufferHandle RenderPipelineManager::getReadbackBufferResource(ReadbackTarget target)
+	{
+		//TODO
+		return YAPT_NULL_HANDLE;
+	}
 
 	void RenderPipelineManager::activatePipeline(RenderPipeline* p)
 	{

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/RenderPipeline/RenderPipeline.h>
-
+#include <Renderer/ReadbackHandle.h>
 
 namespace YAPT
 {
@@ -13,6 +13,10 @@ namespace YAPT
 		JobHandle prepare(const RenderPipeline::PrepareContext& cntx);
 		JobHandle update(const RenderPipeline::UpdateContext& cntx);
 		void execute(const RenderPipeline::ExecuteContext& cntx);
+
+		void readbackRequested(ReadbackTarget target);
+		TextureHandle getReadbackTextureResource(ReadbackTarget target);
+		BufferHandle getReadbackBufferResource(ReadbackTarget target);
 
 	private:
 

@@ -401,6 +401,8 @@ namespace YAPT
 			prepareContext.renderWidth = res.x;
 			prepareContext.renderHeight = res.y;
 
+			m_readbackManager->onBeforeRender(m_renderPipelineMngr);
+
 			JobHandle jobsToWait = m_renderPipelineMngr->prepare(prepareContext);
 			getJobSystem().wait(jobsToWait);
 
@@ -425,6 +427,7 @@ namespace YAPT
 			execContext.executeTasksPool = &getJobSystem();
 			m_renderPipelineMngr->execute(execContext);
 		}
+		m_readbackManager->onAfterRender(m_renderPipelineMngr);
 		Gfx::executeEnd(m_gfxHandle);
 	}
 

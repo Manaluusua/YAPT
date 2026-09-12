@@ -70,15 +70,7 @@ namespace YAPT
 
 	}
 
-	void QueueTransitionHelperVk::resetCommandBuffersForFrame(size_t frameIndex)
-	{
-		for (auto iter = m_queueFamilyTransitionData.begin(); iter != m_queueFamilyTransitionData.end(); ++iter)
-		{
-			iter->second.commandBuffersPool.resetPool(frameIndex);
-		}
-	}
-
-	bool QueueTransitionHelperVk::issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t frameIndex, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled)
+	bool QueueTransitionHelperVk::issueTransitionBarriers(SubmissionThreadVk& submitThread, size_t transitionIndex, VkSemaphore* semaphoresToWait, size_t numberOfSemaphoresToWait, VkSemaphore& lastSignalled)
 	{
 		VkSemaphore latestSignalled = VK_NULL_HANDLE;
 		bool isFirstSubmit = true;
@@ -89,13 +81,19 @@ namespace YAPT
 
 			if (transitionData.imageBarriers.size() > 0 || transitionData.bufferBarriers.size() > 0)
 			{
+				RingSyncUtility& syncUtility = transitionData.syncUtilities[transitionIndex];
 
-				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(frameIndex, transitionIndex);
+				syncUtility.nextFrame();
+
+				size_t poolIndex = transitionIndex * syncUtility.getFramesInFlight() + syncUtility.getFrameIndex();
+				transitionData.commandBuffersPool.resetPool(poolIndex);
+
+				VkCommandBuffer cmdBuff = transitionData.commandBuffersPool.beginCommandBufferRecording(poolIndex, 0);
 				vkCmdPipelineBarrier(cmdBuff, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, (uint32_t)transitionData.bufferBarriers.size(), transitionData.bufferBarriers.data(), (uint32_t)transitionData.imageBarriers.size(), transitionData.imageBarriers.data());
 
-				transitionData.commandBuffersPool.endCommandBufferRecording(frameIndex, transitionIndex);
+				transitionData.commandBuffersPool.endCommandBufferRecording(poolIndex, 0);
 
-				VkSemaphore signalSemaphore = transitionData.syncUtilities[transitionIndex].getSemaphoreForThisFrame();
+				VkSemaphore signalSemaphore = syncUtility.getSemaphoreForThisFrame();
 
 				SubmissionThreadVk::Submission submission;
 
@@ -117,14 +115,13 @@ namespace YAPT
 				submission.commandLists = &cmdBuff;
 				submission.commandListsCount = 1;
 
-				submission.fenceToSignal = VK_NULL_HANDLE;
+				submission.fenceToSignal = syncUtility.getFenceForThisFrame();
 
 
 				submitThread.submit(iter->first, submission);
 
-				transitionData.syncUtilities[transitionIndex].markThisFrameSyncDataIssued();
+				syncUtility.markThisFrameSyncDataIssued();
 				latestSignalled = signalSemaphore;
-				transitionData.syncUtilities[transitionIndex].nextFrame();
 
 				transitionsIssued = true;
 
@@ -140,12 +137,14 @@ namespace YAPT
 	QueueTransitionHelperVk::QueueFamilyTransitionData::QueueFamilyTransitionData(VkDevice device, uint32_t numberOfPartitions, size_t maxNumberOfTransitionsPerFrame, uint32_t queueFamilyIndex)
 		:commandBuffersPool(device)
 	{
-		commandBuffersPool.initialize(numberOfPartitions, maxNumberOfTransitionsPerFrame, queueFamilyIndex);
+		//a command pool of its own per transition and partition, so that recycling the command buffers of one
+		//transition cannot touch the ones another transition still has in flight
+		commandBuffersPool.initialize(numberOfPartitions * maxNumberOfTransitionsPerFrame, 1, queueFamilyIndex);
 
 		syncUtilities.resize(maxNumberOfTransitionsPerFrame);
 		for (size_t i = 0; i < maxNumberOfTransitionsPerFrame; ++i)
 		{
-			syncUtilities[i].initialize(device, numberOfPartitions, false, true);
+			syncUtilities[i].initialize(device, numberOfPartitions, true, true);
 		}
 	}
 	QueueTransitionHelperVk::QueueFamilyTransitionData::~QueueFamilyTransitionData()

@@ -12,6 +12,16 @@ namespace YAPT
 	{
 	public:
 
+		enum class NamedRenderPipelineTexture
+		{
+			FinalColor
+		};
+
+		enum class NamedRenderPipelineBuffer
+		{
+			
+		};
+
 		struct InitializeContext
 		{
 			CRenderer* renderer;
@@ -43,7 +53,8 @@ namespace YAPT
 		virtual JobHandle update(const UpdateContext& cntx) = 0;
 		virtual void execute(const ExecuteContext& cntx) = 0;
 		
-		
+		virtual TextureHandle getNamedResource(NamedRenderPipelineTexture tex) { return YAPT_NULL_HANDLE; };
+		virtual BufferHandle getNamedResource(NamedRenderPipelineBuffer buff) { return YAPT_NULL_HANDLE; };
 	};
 }
 #endif

@@ -27,8 +27,10 @@ namespace YAPT
 		TextureHandle getTextureHandleToNextBackbuffer(SwapChainHandle swapChain);
 		void present(GfxApiHandle h, SwapChainHandle swapChain);
 
-		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name);
-		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name);
+		TextureHandle createTexture(GfxApiHandle h, const TextureDesc& desc, const ResourceStateDescription& initialState, const char* name);
+		BufferHandle createBuffer(GfxApiHandle h, const BufferDesc& desc, const ResourceStateDescription& initialState, const char* name);
+		const TextureDesc& getDesc(GfxApiHandle h, TextureHandle handle);
+		const BufferDesc& getDesc(GfxApiHandle h, BufferHandle handle);
 		void destroyTexture(GfxApiHandle h, TextureHandle handle);
 		void destroyBuffer(GfxApiHandle h, BufferHandle handle);
 
@@ -111,10 +113,9 @@ namespace YAPT
 		ShaderPipelineReflection* createShaderPipelineReflection(ShaderModuleHandle* shaderModules, size_t shaderModuleCount);
 		void destroyShaderPipelineReflection(ShaderPipelineReflection* refl);
 
-		FenceHandle createFence(FenceType type);
-		void resetFence(FenceHandle handle);
-		FenceState getFenceState(FenceHandle handle);
-		void destroyFence(FenceHandle handle);
+		FenceHandle acquireFence(GfxApiHandle h, FenceType type);
+		FenceState getFenceState(GfxApiHandle h, FenceHandle handle);
+		void freeFence(GfxApiHandle h, FenceHandle handle);
 
 		void readback(GfxApiHandle h, ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal);
 

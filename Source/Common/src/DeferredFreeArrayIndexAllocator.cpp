@@ -3,7 +3,7 @@
 #include <assert.h>
 namespace YAPT
 {
-	DeferredFreeArrayIndexAllocator::DeferredFreeArrayIndexAllocator(size_t numberOfPendingFreeLists, size_t numberOf32bitMasks)
+	DeferredFreeArrayIndexAllocator::DeferredFreeArrayIndexAllocator(size_t numberOfPendingFreeLists, uint32_t numberOf32bitMasks)
 		:ArrayIndexAllocator(numberOf32bitMasks),
 		m_currentWriteIndex(0),
 		m_nextFreeListToFlushIndex(numberOfPendingFreeLists - 1),

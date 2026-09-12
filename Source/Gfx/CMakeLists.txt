@@ -204,7 +204,9 @@ if(${BUILD_VK_BACKEND})
 		inc/Gfx/Vk/YaptToVkConversions.h
 		inc/Gfx/Vk/ResourceHandlesVk.h
 		inc/Gfx/Vk/UploadHeapVk.h
+		inc/Gfx/Vk/CopyHelperVk.h
 		inc/Gfx/Vk/UploadHelperVk.h
+		inc/Gfx/Vk/DownloadHelperVk.h
 		inc/Gfx/Vk/SubmissionThreadVk.h
 		inc/Gfx/Vk/SyncUtilities.h
 		inc/Gfx/Vk/CommandBufferPoolVk.h
@@ -234,7 +236,9 @@ if(${BUILD_VK_BACKEND})
 		src/Vk/ResourceManagerVk.cpp
 		src/Vk/ResourceHandlesVk.cpp
 		src/Vk/UploadHeapVk.cpp
+		src/Vk/CopyHelperVk.cpp
 		src/Vk/UploadHelperVk.cpp
+		src/Vk/DownloadHelperVk.cpp
 		src/Vk/SubmissionThreadVk.cpp
 		src/Vk/SyncUtilities.cpp
 		src/Vk/CommandBufferPoolVk.cpp

@@ -7,7 +7,7 @@ namespace YAPT
 	class DeferredFreeArrayIndexAllocator : private ArrayIndexAllocator
 	{
 	public:
-		DeferredFreeArrayIndexAllocator(size_t numberOfPendingFreeLists, size_t numberOf32bitMasks);
+		DeferredFreeArrayIndexAllocator(size_t numberOfPendingFreeLists, uint32_t numberOf32bitMasks);
 		~DeferredFreeArrayIndexAllocator();
 
 		uint32_t allocate();

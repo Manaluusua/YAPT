@@ -9,6 +9,7 @@
 #include <Gfx/Vk/ResourceUtilityVk.h>
 #include <vector>
 #include <assert.h>
+#include <Gfx/Common/SyncPrimitiveManager.h>
 
 #define DEFAULT_UPLOAD_HEAP_SIZE 128 * 1e6 //128mb
 
@@ -58,6 +59,8 @@ namespace YAPT
 
 		CommandBufferPoolVk* createCommandBufferPool(size_t numberOfBuffersPerFrame, size_t queueId);
 		void destroyCommandBufferPool(CommandBufferPoolVk* pool);
+
+		VkFence getFence(FenceHandle handle) { return m_primitiveMngr.getFence(handle); }
 
 		const QueueDefinitionVk& getCopyQueue() const { return m_copyQueue; }
 		AccelerationStructureBuilder* getAccelerationStructureBuilder() { return m_accStructBuilder; }
@@ -112,6 +115,53 @@ namespace YAPT
 			char data[32];
 		};
 
+		class SyncImpl
+		{
+		public:
+			SyncImpl(VkDevice device)
+				:m_device(device)
+			{
+
+			}
+
+			VkFence createFence()
+			{
+				VkFenceCreateInfo createInfo;
+				createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+				createInfo.pNext = nullptr;
+				createInfo.flags = 0;
+				VkFence fence;
+				VkResult res = vkCreateFence(m_device, &createInfo, VK_ALLOC_CB, &fence);
+				assert(checkVkResult(res));
+				return fence;
+			}
+
+			void destroyFence(VkFence f)
+			{
+				vkDestroyFence(m_device, f, VK_ALLOC_CB);
+			}
+
+			void resetFence(VkFence f)
+			{
+				vkResetFences(m_device, 1, &f);
+			}
+
+			bool isFencePending(VkFence fence)
+			{
+				VkResult res = vkGetFenceStatus(m_device, fence);
+				if (res == VK_NOT_READY) {
+					return true;
+				}
+				return false;
+			}
+
+		private:
+			VkDevice m_device;
+		};
+
+		static constexpr uint32_t MAX_FENCE_COUNT = 1024;
+		typedef SyncPrimitiveManager<VkFence, SyncImpl, MAX_FENCE_COUNT> PrimitiveManagerVk;
+
 		void copyViaUploadHeap(VkBuffer handle, uint32_t owningFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount,
@@ -136,10 +186,9 @@ namespace YAPT
 		UploadHelperVk* m_duringFrameUploads;
 
 		AccelerationStructureBuilder* m_accStructBuilder;
-
+		PrimitiveManagerVk m_primitiveMngr;
+		
 		VkExtensions m_extensionFuncs;
-
-
 		VmaAllocator m_allocator;
 
 

@@ -6,8 +6,7 @@ namespace YAPT
 {
 	enum class ReadbackTarget
 	{
-		FinalColor = 0,
-		COUNT
+		FinalColor = 0
 	};
 
 	enum class ReadbackState

@@ -91,13 +91,22 @@ namespace YAPT
 
 		//Resources
 
-		TextureHandle createTexture(GfxApiHandle h, const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
+		TextureHandle createTexture(GfxApiHandle h, const TextureDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
 			return h->getResourceManager()->createTexture(desc, initialState, h->getGraphicsQueue().queueFamilyIndex, name);
 		}
-		BufferHandle createBuffer(GfxApiHandle h, const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, const char* name)
+		BufferHandle createBuffer(GfxApiHandle h, const BufferDesc& desc, const ResourceStateDescription& initialState, const char* name)
 		{
 			return h->getResourceManager()->createBuffer(desc, initialState, h->getGraphicsQueue().queueFamilyIndex, name);
+		}
+
+		const TextureDesc& getDesc(GfxApiHandle h, TextureHandle handle)
+		{
+			return handle->texDesc;
+		}
+		const BufferDesc& getDesc(GfxApiHandle h, BufferHandle handle)
+		{
+			return handle->buffDesc;
 		}
 
 		void destroyTexture(GfxApiHandle h, TextureHandle handle)
@@ -130,21 +139,18 @@ namespace YAPT
 			h->getResourceManager()->upload(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
 
-		FenceHandle createFence(FenceType type)
+		FenceHandle acquireFence(GfxApiHandle h, FenceType type)
 		{
 			assert(!"TODO");
-			return nullptr;
+			return InvalidFenceHandle;
 		}
-		void resetFence(FenceHandle handle)
-		{
-			assert(!"TODO");
-		}
-		FenceState getFenceState(FenceHandle handle)
+
+		FenceState getFenceState(GfxApiHandle h, FenceHandle handle)
 		{
 			assert(!"TODO");
 			return FenceState::Signaled;
 		}
-		void destroyFence(FenceHandle handle)
+		void freeFence(GfxApiHandle h, FenceHandle handle)
 		{
 			assert(!"TODO");
 		}
@@ -185,7 +191,7 @@ namespace YAPT
 
 			if (d.dimensions == ResourceDimension::UNDEFINED)
 			{
-				d.dimensions = texHandle->dimensions;
+				d.dimensions = texHandle->texDesc.dimension;
 			}
 
 			if (d.arraySliceCount == YAPT_TEXTURE_VIEW_DESC_ALL_SLICES)

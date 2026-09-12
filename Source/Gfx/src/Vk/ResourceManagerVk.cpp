@@ -23,6 +23,7 @@ namespace YAPT
 		m_device(device),
 		m_physicalDevice(physicalDevice),
 		m_accStructBuilder(nullptr),
+		m_primitiveMngr(device),
 		m_extensionFuncs(extFuncs),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
@@ -301,6 +302,7 @@ namespace YAPT
 		buffHandle->owningQueueFamily = owningQueueFamily;
 		buffHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 		buffHandle->mappable = desc.memoryType == MemoryType::DEFAULT ? false : true;
+		buffHandle->buffDesc = desc;
 		
 		if (!res)
 		{
@@ -313,12 +315,12 @@ namespace YAPT
 	TextureHandleVk* ResourceManagerVk::createTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name)
 	{
 		TextureHandleVk* texHandle = new TextureHandleVk(*this);
-		yaptTextureDescToVk(desc, texHandle->createInfo);
-		texHandle->dimensions = desc.dimension;
+		yaptTextureDescToVk(desc, texHandle->createInfo, desc.memoryType == MemoryType::CPU_MAPPABLE_READBACK);
 		texHandle->currentLayouts.init(VK_IMAGE_LAYOUT_UNDEFINED, desc.depthOrSlices * desc.mips);
 		texHandle->owningQueueFamily = owningQueueFamily;
 		texHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
 		texHandle->mappable = desc.memoryType == MemoryType::DEFAULT ? false : true;
+		texHandle->texDesc = desc;
 #ifdef VK_DEBUGNAMES_ENABLE
 		if (name)
 		{
