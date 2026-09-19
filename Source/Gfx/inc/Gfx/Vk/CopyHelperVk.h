@@ -42,6 +42,9 @@ namespace YAPT
 
 		VkSemaphore endCopyBatch(VkCommandBuffer cmdBuff, VkFence fenceToSignalAfterCopies);
 
+		//how many batches may be issued between two prepareNextFrame() calls
+		size_t getBatchesPerFrame() const { return m_syncUtilities.size(); }
+
 		ResourceManagerVk& m_resMngr;
 		SubmissionThreadVk& m_submissionThread;
 

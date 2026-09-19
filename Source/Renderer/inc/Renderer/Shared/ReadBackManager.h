@@ -16,21 +16,22 @@ namespace YAPT
 	{
 	public:
 		ReadbackGroup(GfxApiHandle gfx, FenceHandle fence)
-			:m_gfx(gfx),
-			m_fence(fence)
+			:m_fenceHandle(fence),
+			m_gfx(gfx)
 		{
 
 		}
 
 		~ReadbackGroup()
 		{
-			Gfx::freeFence(m_gfx, m_fence);
+			Gfx::freeFence(m_gfx, m_fenceHandle);
 		}
-		FenceHandle fenceHandle = InvalidFenceHandle;
+		
+		FenceHandle getFenceHandle() const { return m_fenceHandle; }
 
 	private:
 		GfxApiHandle m_gfx;
-		FenceHandle m_fence;
+		FenceHandle m_fenceHandle = InvalidFenceHandle;
 	};
 
 	class CReadbackObject : public ReadbackObject

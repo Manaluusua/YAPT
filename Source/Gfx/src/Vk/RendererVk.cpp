@@ -37,6 +37,7 @@ namespace YAPT
 		m_device(VK_NULL_HANDLE),
 		m_surface(VK_NULL_HANDLE),
 		m_resourceManager(nullptr),
+		m_pendingDownloadSemaphore(VK_NULL_HANDLE),
 		m_selectedPhysicalDeviceIndex(-1)
 	{
 
@@ -59,6 +60,7 @@ namespace YAPT
 		}
 
 		m_syncUtility.deinitialize();
+		m_downloadSyncUtility.deinitialize();
 
 		if (m_device != VK_NULL_HANDLE)
 		{
@@ -113,6 +115,7 @@ namespace YAPT
 	void RendererVk::executeBegin()
 	{
 		m_resourceManager->flushFrameUploads();
+		m_resourceManager->prepareDownloads();
 		m_syncUtility.waitForNextFrame();
 	}
 	void RendererVk::executeEnd()
@@ -141,6 +144,18 @@ namespace YAPT
 			
 			addSemaphoreIfNotNull(m_semaphoresToWait, m_resourceManager->getLastSignaledSemaphore());
 
+			//nothing else consumes what the readback copies signal, so the next submit picks it up
+			addSemaphoreIfNotNull(m_semaphoresToWait, m_pendingDownloadSemaphore);
+			m_pendingDownloadSemaphore = VK_NULL_HANDLE;
+
+			//the readbacks copy what this submit renders, so they get a signal of their own to wait on
+			VkSemaphore downloadWaitSemaphore = VK_NULL_HANDLE;
+			if (m_resourceManager->hasPendingDownloads())
+			{
+				downloadWaitSemaphore = m_downloadSyncUtility.getSemaphoreForThisFrame();
+				addSemaphoreIfNotNull(m_semaphoresToSignal, downloadWaitSemaphore);
+			}
+
 			SubmissionThreadVk::Submission submission{};
 			submission.commandLists = m_submittedCommandBuffers.data();
 			submission.commandListsCount = m_submittedCommandBuffers.size();
@@ -157,8 +172,17 @@ namespace YAPT
 			m_submittedCommandBuffers.clear();
 
 			m_resourceManager->clearLastSignaledSemaphore();
+
+			if (downloadWaitSemaphore != VK_NULL_HANDLE)
+			{
+				VkSemaphore signaledSemaphore = VK_NULL_HANDLE;
+				if (m_resourceManager->flushDownloads(&downloadWaitSemaphore, 1, signaledSemaphore))
+				{
+					m_pendingDownloadSemaphore = signaledSemaphore;
+				}
+			}
 		}
-		
+
 		//quick and dirty present. Should in reality handle presents just like commandbuffers: add them to some sequential commandlist and process it with submits. 
 		
 		auto cb = [](void* ptr)
@@ -180,6 +204,7 @@ namespace YAPT
 		m_swapChainsToPresent.clear();
 		m_syncUtility.markThisFrameSyncDataIssued();
 		m_syncUtility.nextFrame();
+		m_downloadSyncUtility.nextFrame();
 	}
 
 
@@ -265,6 +290,8 @@ namespace YAPT
 
 			m_resourceManager = new ResourceManagerVk(m_physicalDeviceInfos.devices[m_selectedPhysicalDeviceIndex], m_instance, getVkExtFuncs(), m_submissionThread, m_copyQueue,  m_device, m_gfxConfig.pipelineLength);
 			m_syncUtility.initialize(m_device, m_gfxConfig.pipelineLength, true, true);
+			m_downloadSyncUtility.initialize(m_device, m_gfxConfig.pipelineLength, false, true);
+			m_pendingDownloadSemaphore = VK_NULL_HANDLE;
 		}
 
 		if (success)

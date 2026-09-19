@@ -1,6 +1,7 @@
 #include <Gfx/Vk/ResourceManagerVk.h>
 #include <Gfx/Vk/SubmissionThreadVk.h>
 #include <Gfx/Vk/UploadHelperVk.h>
+#include <Gfx/Vk/DownloadHelperVk.h>
 #include <Gfx/Vk/ResourceHandlesVk.h>
 #include <Gfx/Vk/ShaderModuleVk.h>
 #include <Gfx/Vk/YaptToVkConversions.h>
@@ -27,6 +28,7 @@ namespace YAPT
 		m_extensionFuncs(extFuncs),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
+		m_afterRenderDownloads(nullptr),
 		m_destroyObjectsIndex(0)
 	{
 		m_pendingDestroyedObjects.resize(pipelineLength);
@@ -49,6 +51,7 @@ namespace YAPT
 
 		m_preFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
 		m_duringFrameUploads = new UploadHelperVk(*this, submissionThread, size_t(DEFAULT_UPLOAD_HEAP_SIZE), pipelineLength);
+		m_afterRenderDownloads = new DownloadHelperVk(*this, submissionThread, pipelineLength, DEFAULT_MAX_DOWNLOADS_PER_FRAME);
 		m_accStructBuilder = new AccelerationStructureBuilder(*this);
 		m_lastSignaledSemaphore = VK_NULL_HANDLE;
 
@@ -66,8 +69,12 @@ namespace YAPT
 		m_preFrameUploads = nullptr;
 		delete m_duringFrameUploads;
 		m_duringFrameUploads = nullptr;
+		delete m_afterRenderDownloads;
+		m_afterRenderDownloads = nullptr;
 		delete m_accStructBuilder;
 		m_accStructBuilder = nullptr;
+
+		m_primitiveMngr.destroyAllFences();
 
 		//destroy pending list
 		{
@@ -105,6 +112,9 @@ namespace YAPT
 	void ResourceManagerVk::prepare()
 	{
 		m_preFrameUploads->prepareNextUploadBatch();
+
+		//hand the fences that were freed while still pending back to the allocator
+		m_primitiveMngr.syncPendingFree();
 		{
 			//apply & clear pending destruction list
 			m_destroyObjectsIndex = (m_destroyObjectsIndex + 1) % m_pendingDestroyedObjects.size();
@@ -149,6 +159,54 @@ namespace YAPT
 		{
 			m_lastSignaledSemaphore = signaledSemaphore;
 		}
+	}
+
+	void ResourceManagerVk::prepareDownloads()
+	{
+		m_afterRenderDownloads->prepareNextDownloadBatch();
+	}
+
+	void ResourceManagerVk::readback(ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal)
+	{
+		switch (stage)
+		{
+		case YAPT::GpuDownloadStage::AFTER_RENDER:
+		{
+			//only taken over here, the copies read what the frame renders and can not be issued before that work has
+			//been submitted
+			m_afterRenderDownloads->queueDownloads(def, fenceToSignal);
+			break;
+		}
+		default:
+			assert(!"unknown download stage");
+			break;
+		}
+	}
+
+	bool ResourceManagerVk::hasPendingDownloads() const
+	{
+		return m_afterRenderDownloads->hasQueuedDownloads();
+	}
+
+	bool ResourceManagerVk::flushDownloads(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
+	{
+		return m_afterRenderDownloads->flushDownloadBatches(semaphoresToWait, semaphoresToWaitCount, signaledSemaphore);
+	}
+
+	FenceHandle ResourceManagerVk::acquireFence(FenceType type)
+	{
+		assert(type == FenceType::CPU_GPU_SYNC);
+		return m_primitiveMngr.acquireFence();
+	}
+
+	FenceState ResourceManagerVk::getFenceState(FenceHandle handle)
+	{
+		return m_primitiveMngr.getFenceState(handle);
+	}
+
+	void ResourceManagerVk::freeFence(FenceHandle handle)
+	{
+		m_primitiveMngr.freeFence(handle);
 	}
 
 

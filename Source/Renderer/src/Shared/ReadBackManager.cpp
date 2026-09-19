@@ -62,11 +62,12 @@ namespace YAPT
 						isValidRequest = true;
 					}
 				}
+				break;
 				default:
 					assert(!"unknown readback target");
 				}
 			}
-			
+
 
 			if (!isValidRequest)
 			{
@@ -77,7 +78,13 @@ namespace YAPT
 
 		if (textureReadbackDefs.size() > 0 || bufferReadbackDefs.size() > 0)
 		{
-			Gfx::readback(m_renderer.getGfxHandle(), readbackDefs, GpuDownloadStage::AFTER_RENDER, group->fenceHandle);
+			assert(group != nullptr);
+			readbackDefs.textureReadbackDefinitions = textureReadbackDefs.data();
+			readbackDefs.textureReadbackCount = (uint32_t)textureReadbackDefs.size();
+			readbackDefs.bufferReadbackDefinitions = bufferReadbackDefs.data();
+			readbackDefs.bufferReadbackCount = (uint32_t)bufferReadbackDefs.size();
+
+			Gfx::readback(m_renderer.getGfxHandle(), readbackDefs, GpuDownloadStage::AFTER_RENDER, group->getFenceHandle());
 		}
 	}
 
@@ -147,6 +154,7 @@ namespace YAPT
 	{
 		TextureDesc desc = Gfx::getDesc(m_renderer.getGfxHandle(), handle);
 		desc.memoryType = MemoryType::CPU_MAPPABLE_READBACK;
+		desc.resourceUsage |= RESOURCE_USAGE_COPY_DESTINATION; 
 		//TODO: pool
 		return Gfx::createTexture(m_renderer.getGfxHandle(), desc, ResourceStateDescription::defaultInitialResourceState(), "readbackTexture");
 		
@@ -155,12 +163,30 @@ namespace YAPT
 	{
 		BufferDesc desc = Gfx::getDesc(m_renderer.getGfxHandle(), handle);
 		desc.memoryType = MemoryType::CPU_MAPPABLE_READBACK;
+		desc.resourceUsage |= RESOURCE_USAGE_COPY_DESTINATION;
 		//TODO: pool
 		return Gfx::createBuffer(m_renderer.getGfxHandle(), desc, ResourceStateDescription::defaultInitialResourceState(), "readbackBuffer");
 	}
 
 	void ReadbackManager::issueReadback(CReadbackObject& obj, TextureHandle src, TextureHandle target, ReadbackGroup* group, TextureReadbackDefinition& defOut)
 	{
+
+		const TextureDesc& desc = Gfx::getDesc(m_renderer.getGfxHandle(), src);
+		const bool isVolume = desc.dimension == ResourceDimension::TEXTURE_3D;
+
+		ImageCopySubresourceDefinition subresource;
+		subresource.mip = 0;
+		subresource.arraySliceOffset = 0;
+		subresource.arraySliceCount = isVolume ? 1 : desc.depthOrSlices;
+
+		defOut.src = src;
+		defOut.dst = target;
+		defOut.def.srcSubresource = subresource;
+		defOut.def.srcOffset = { 0, 0, 0 };
+		defOut.def.dstSubresource = subresource;
+		defOut.def.dstOffset = { 0, 0, 0 };
+		defOut.def.extent = { desc.width, desc.height, isVolume ? desc.depthOrSlices : 1 };
+
 		obj._texHandle = target;
 		obj._buffHandle = YAPT_NULL_HANDLE;
 		obj._readbackGroup = group;
@@ -168,6 +194,14 @@ namespace YAPT
 	}
 	void ReadbackManager::issueReadback(CReadbackObject& obj, BufferHandle src, BufferHandle target, ReadbackGroup* group, BufferReadbackDefinition& defOut)
 	{
+		const BufferDesc& desc = Gfx::getDesc(m_renderer.getGfxHandle(), src);
+
+		defOut.src = src;
+		defOut.dst = target;
+		defOut.def.srcOffset = 0;
+		defOut.def.dstOffset = 0;
+		defOut.def.size = desc.sizeInBytes;
+
 		obj._texHandle = YAPT_NULL_HANDLE;
 		obj._buffHandle = target;
 		obj._readbackGroup = group;

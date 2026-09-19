@@ -141,23 +141,21 @@ namespace YAPT
 
 		FenceHandle acquireFence(GfxApiHandle h, FenceType type)
 		{
-			assert(!"TODO");
-			return InvalidFenceHandle;
+			return h->getResourceManager()->acquireFence(type);
 		}
 
 		FenceState getFenceState(GfxApiHandle h, FenceHandle handle)
 		{
-			assert(!"TODO");
-			return FenceState::Signaled;
+			return h->getResourceManager()->getFenceState(handle);
 		}
 		void freeFence(GfxApiHandle h, FenceHandle handle)
 		{
-			assert(!"TODO");
+			h->getResourceManager()->freeFence(handle);
 		}
 
 		void readback(GfxApiHandle h, ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal)
 		{
-			assert(!"TODO");
+			h->getResourceManager()->readback(def, stage, fenceToSignal);
 		}
 
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)

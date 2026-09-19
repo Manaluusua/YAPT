@@ -156,6 +156,12 @@ namespace YAPT
 
 		ResourceManagerVk* m_resourceManager;
 		RingSyncUtility m_syncUtility;
+
+		//signaled by the frame's render submit for the readback copies to wait on, and the semaphore those copies
+		//signal in turn, which the next frame's submit picks up so it does not stay dangling
+		RingSyncUtility m_downloadSyncUtility;
+		VkSemaphore m_pendingDownloadSemaphore;
+
 		ResourceFormat m_selectedSwapChainFormat;
 
 		std::vector<VkCommandBuffer> m_submittedCommandBuffers;

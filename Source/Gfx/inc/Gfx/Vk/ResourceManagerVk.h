@@ -12,11 +12,13 @@
 #include <Gfx/Common/SyncPrimitiveManager.h>
 
 #define DEFAULT_UPLOAD_HEAP_SIZE 128 * 1e6 //128mb
+#define DEFAULT_MAX_DOWNLOADS_PER_FRAME 4
 
 namespace YAPT
 {
 	class SubmissionThreadVk;
 	class UploadHelperVk;
+	class DownloadHelperVk;
 	class CommandBufferPoolVk;
 	class AccelerationStructureBuilder;
 
@@ -31,6 +33,7 @@ namespace YAPT
 		void prepare();
 		void flushPreFrameUploads(VkSemaphore semaphoreToWaitBeforeUploads);
 		void flushFrameUploads();
+		void prepareDownloads();
 
 		BufferHandleVk* createBuffer(const YAPT::BufferDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name);
 		TextureHandleVk* createTexture(const YAPT::TextureDesc& desc, const ResourceStateDescription& initialState, uint32_t owningQueueFamily, const char* name);
@@ -53,6 +56,14 @@ namespace YAPT
 		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 		void unmap(BufferHandleVk* handle);
 		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
+
+		void readback(ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal);
+		bool hasPendingDownloads() const;
+		bool flushDownloads(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore);
+
+		FenceHandle acquireFence(FenceType type);
+		FenceState getFenceState(FenceHandle handle);
+		void freeFence(FenceHandle handle);
 
 		ShaderModuleHandle createShaderModule(const char* filepath, ShaderModuleType moduleType, const char* entryPoint, const ShaderModuleDefine* defines, size_t defineCount);
 		void destroyShaderModule(ShaderModuleHandle m);
@@ -184,6 +195,7 @@ namespace YAPT
 
 		UploadHelperVk* m_preFrameUploads;
 		UploadHelperVk* m_duringFrameUploads;
+		DownloadHelperVk* m_afterRenderDownloads;
 
 		AccelerationStructureBuilder* m_accStructBuilder;
 		PrimitiveManagerVk m_primitiveMngr;

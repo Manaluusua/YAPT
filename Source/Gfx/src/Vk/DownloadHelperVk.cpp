@@ -26,13 +26,76 @@ namespace YAPT
 		prepareNextFrame();
 	}
 
-	bool DownloadHelperVk::issueDownloads(ReadbackDefinitions& def, VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore, FenceHandle fenceToSignal)
+	void DownloadHelperVk::queueDownloads(const ReadbackDefinitions& def, FenceHandle fenceToSignal)
+	{
+		if (def.textureReadbackCount == 0 && def.bufferReadbackCount == 0) return;
+
+		//every queued call becomes a batch of its own, so there is a limit to how many of them fit in a frame
+		assert(m_queuedBatches.size() < getBatchesPerFrame());
+		if (m_queuedBatches.size() >= getBatchesPerFrame())
+		{
+			YAPT_LOG_ERROR("more than %zu readbacks requested in a single frame, dropping the rest", getBatchesPerFrame());
+			return;
+		}
+
+		QueuedDownloadBatch batch;
+		batch.textureOffset = m_queuedTextureReadbacks.size();
+		batch.textureCount = def.textureReadbackCount;
+		batch.bufferOffset = m_queuedBufferReadbacks.size();
+		batch.bufferCount = def.bufferReadbackCount;
+		batch.fenceToSignal = fenceToSignal;
+
+		if (def.textureReadbackCount > 0)
+		{
+			m_queuedTextureReadbacks.insert(m_queuedTextureReadbacks.end(), def.textureReadbackDefinitions, def.textureReadbackDefinitions + def.textureReadbackCount);
+		}
+		if (def.bufferReadbackCount > 0)
+		{
+			m_queuedBufferReadbacks.insert(m_queuedBufferReadbacks.end(), def.bufferReadbackDefinitions, def.bufferReadbackDefinitions + def.bufferReadbackCount);
+		}
+
+		m_queuedBatches.push_back(batch);
+	}
+
+	bool DownloadHelperVk::flushDownloadBatches(VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
+	{
+		if (m_queuedBatches.size() == 0) return false;
+
+		VkSemaphore lastSignaledSemaphore = VK_NULL_HANDLE;
+		for (size_t i = 0; i < m_queuedBatches.size(); ++i)
+		{
+			VkSemaphore batchSemaphore = VK_NULL_HANDLE;
+
+			//the first batch waits for the render work, every one after that continues from the previous one
+			if (i == 0)
+			{
+				issueDownloads(m_queuedBatches[i], semaphoresToWait, semaphoresToWaitCount, batchSemaphore);
+			}
+			else
+			{
+				issueDownloads(m_queuedBatches[i], &lastSignaledSemaphore, 1, batchSemaphore);
+			}
+
+			lastSignaledSemaphore = batchSemaphore;
+		}
+
+		m_queuedTextureReadbacks.clear();
+		m_queuedBufferReadbacks.clear();
+		m_queuedBatches.clear();
+
+		signaledSemaphore = lastSignaledSemaphore;
+
+		return true;
+	}
+
+	void DownloadHelperVk::issueDownloads(const QueuedDownloadBatch& batch, VkSemaphore* semaphoresToWait, size_t semaphoresToWaitCount, VkSemaphore& signaledSemaphore)
 	{
 
 		const VkImageLayout srcCopyLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 		const VkImageLayout dstCopyLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
-		if (def.textureReadbackCount == 0 && def.bufferReadbackCount == 0) return false;
+		const TextureReadbackDefinition* textureReadbacks = m_queuedTextureReadbacks.data() + batch.textureOffset;
+		const BufferReadbackDefinition* bufferReadbacks = m_queuedBufferReadbacks.data() + batch.bufferOffset;
 
 		//clear all previous barriers
 		clearBarriers();
@@ -41,9 +104,9 @@ namespace YAPT
 		{
 			//the sources are only borrowed for the copy and go back to whatever they were being used for, the readback
 			//targets are left host readable
-			for (uint32_t i = 0; i < def.textureReadbackCount; ++i)
+			for (size_t i = 0; i < batch.textureCount; ++i)
 			{
-				const TextureReadbackDefinition& info = def.textureReadbackDefinitions[i];
+				const TextureReadbackDefinition& info = textureReadbacks[i];
 
 				addBarriersForImageCopy(info.src, info.def.srcSubresource.mip, info.def.srcSubresource.arraySliceOffset, info.def.srcSubresource.arraySliceCount, srcCopyLayout, RESTORE_LAYOUT_BEFORE_COPY);
 				addBarriersForImageCopy(info.dst, info.def.dstSubresource.mip, info.def.dstSubresource.arraySliceOffset, info.def.dstSubresource.arraySliceCount, dstCopyLayout, HOST_READABLE_LAYOUT);
@@ -52,9 +115,9 @@ namespace YAPT
 
 		//buffer barriers
 		{
-			for (uint32_t i = 0; i < def.bufferReadbackCount; ++i)
+			for (size_t i = 0; i < batch.bufferCount; ++i)
 			{
-				const BufferReadbackDefinition& info = def.bufferReadbackDefinitions[i];
+				const BufferReadbackDefinition& info = bufferReadbacks[i];
 
 				addBarriersForBufferCopy(info.src->buffer, info.src->owningQueueFamily, info.def.srcOffset, info.def.size);
 				addBarriersForBufferCopy(info.dst->buffer, info.dst->owningQueueFamily, info.def.dstOffset, info.def.size);
@@ -68,9 +131,9 @@ namespace YAPT
 		{
 
 			//copy
-			for (uint32_t i = 0; i < def.bufferReadbackCount; ++i)
+			for (size_t i = 0; i < batch.bufferCount; ++i)
 			{
-				const BufferReadbackDefinition& info = def.bufferReadbackDefinitions[i];
+				const BufferReadbackDefinition& info = bufferReadbacks[i];
 
 				VkBufferCopy copyDesc;
 				copyDesc.srcOffset = info.def.srcOffset;
@@ -86,9 +149,9 @@ namespace YAPT
 		{
 
 			//issue texture copies
-			for (uint32_t i = 0; i < def.textureReadbackCount; ++i)
+			for (size_t i = 0; i < batch.textureCount; ++i)
 			{
-				const TextureReadbackDefinition& info = def.textureReadbackDefinitions[i];
+				const TextureReadbackDefinition& info = textureReadbacks[i];
 
 				VkImageCopy copyDesc{};
 				copyDesc.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -111,8 +174,6 @@ namespace YAPT
 
 		//the fence is what tells the readback manager the mapped memory is safe to read, so it is signaled right after
 		//the copies, not after the resources have been handed back to their owners
-		signaledSemaphore = endCopyBatch(cmdBuff, m_resMngr.getFence(fenceToSignal));
-
-		return true;
+		signaledSemaphore = endCopyBatch(cmdBuff, m_resMngr.getFence(batch.fenceToSignal));
 	}
 }
