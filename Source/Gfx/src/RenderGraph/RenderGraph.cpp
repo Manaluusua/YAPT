@@ -202,6 +202,11 @@ namespace YAPT
 		return m_resourceRequirements.getRenderGraphResourceDescription(id);
 	}
 
+	void RenderGraph::markExtraUsageFlagsForResource(RenderGraphResourceId id, ResourceUsage usage)
+	{
+		m_resourceRequirements.addExtraUsageFlagsforResource(id, usage);
+	}
+
 	void RenderGraph::setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount)
 	{
 		if (getRenderGraphResourceDescription(id).resourceDimensions != ResourceDimension::BUFFER)

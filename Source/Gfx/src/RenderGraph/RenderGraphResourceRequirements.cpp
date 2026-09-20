@@ -35,6 +35,11 @@ namespace YAPT
 		m_nodeSlotToResourceIndex.clear();
 	}
 
+	void RenderGraphResourceRequirements::addExtraUsageFlagsforResource(size_t resourceIndex, ResourceUsage usage)
+	{
+		assert(resourceIndex < m_requiredRenderGraphResourceDescriptions.size());
+		m_requiredRenderGraphResourceDescriptions[resourceIndex].resourceUsage |= usage;
+	}
 
 	RenderGraphResourceUsage& RenderGraphResourceRequirements::getRenderGraphResourceUsageIn(size_t nodeIndex, size_t slot)
 	{

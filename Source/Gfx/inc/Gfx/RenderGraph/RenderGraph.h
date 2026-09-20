@@ -36,6 +36,7 @@ namespace YAPT
 
 		RenderGraphResourceId getRenderGraphResourceIdUsedInSlot(size_t nodeIndex, size_t slot) const;
 		const RenderGraphResourceDescription& getRenderGraphResourceDescription(RenderGraphResourceId id) const;
+		void markExtraUsageFlagsForResource(RenderGraphResourceId id, ResourceUsage usage);
 
 		void setRenderGraphResourceBuffer(RenderGraphResourceId id, BufferHandle handle)
 		{

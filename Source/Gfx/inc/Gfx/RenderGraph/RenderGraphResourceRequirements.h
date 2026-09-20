@@ -41,6 +41,7 @@ namespace YAPT
 
 		void resolve(RenderGraphNode** sortedNodes, size_t nodeCount);
 		void reset();
+		void addExtraUsageFlagsforResource(size_t resourceIndex, ResourceUsage usage);
 	private:
 
 		struct RenderGraphResourceUsagePerSlot

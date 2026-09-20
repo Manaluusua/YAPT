@@ -52,6 +52,14 @@ namespace YAPT
 		
 		getRenderGraph()->compile();
 		getRenderGraph()->setupScheduling(2);
+
+		//for readback
+		{
+			RenderStageConnection conn = tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR);
+			RenderGraphResourceId resId = getRenderGraph()->getRenderGraphResourceIdUsedInSlot(conn.node->getSortedIndex(), conn.slot);
+			getRenderGraph()->markExtraUsageFlagsForResource(resId, RESOURCE_USAGE_COPY_SOURCE);
+		}
+		
 	}
 
 	JobHandle PathTracerPipeline::update(const UpdateContext& cntx)
