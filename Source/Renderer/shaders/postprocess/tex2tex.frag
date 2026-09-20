@@ -18,7 +18,7 @@ struct Input
 float4 tex2tex(Input input) : SV_TARGET
 {
     float4 color = colorTex.Sample(colorSampler, input.uv);
-#ifdef MULTIPLY_WITH_ALPHA
+#ifdef MULTIPLY_WITH_UBO_ALPHA
 	color *= g_tex2TexParams.alpha;
 #endif
     return color;

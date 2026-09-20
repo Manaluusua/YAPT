@@ -61,6 +61,19 @@
 					"entryPoint": "main"
 				}
 			]
+		},
+		"copyTexture": {
+			"stages": [{
+					"type": "vertex",
+					"sourceFile": "postprocess/vertexCommon.vertex",
+					"defines": ["USE_UV_COORDINATES"]
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "postprocess/tex2tex.frag",
+					"entryPoint": "tex2tex"
+				}
+			]
 		}
 	}
 }

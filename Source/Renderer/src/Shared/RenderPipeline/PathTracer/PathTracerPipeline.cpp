@@ -1,6 +1,7 @@
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathTraceStage.h>
 #include <Renderer/Shared/RenderPipeline/TonemapStage.h>
+#include <Renderer/Shared/RenderPipeline/CopyTextureStage.h>
 #include <Renderer/Shared/RenderPipeline/SwapChainStage.h>
 
 namespace YAPT
@@ -35,16 +36,19 @@ namespace YAPT
 	void PathTracerPipeline::setupRenderPipeline()
 	{
 		PathTraceStage* rtStage = new PathTraceStage(&m_matManager, &m_meshManager, m_pathTraceType);
-		TonemapStage* tstage = new TonemapStage(true);
+		TonemapStage* tstage = new TonemapStage(false);
+		CopyTextureStage* copyStage = new CopyTextureStage(ResourceFormat::UNKNOWN, ResourceFormat::RGBA8_SRGB);
 		SwapChainStage* scStage = new SwapChainStage;
 
 		addRenderStage(rtStage);
 		addRenderStage(tstage);
+		addRenderStage(copyStage);
 		addRenderStage(scStage);
 		
 
 		tstage->setInputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR, rtStage->getOutputConnection(PathTraceStage::RAYTRACE_STAGE_CONNECTION_COLOR));
-		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR));
+		copyStage->setInputConnection(CopyTextureStage::COPYTEXTURE_STAGE_CONNECTION_SOURCE, tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR));
+		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, copyStage->getOutputConnection(CopyTextureStage::COPYTEXTURE_STAGE_CONNECTION_DESTINATION));
 		
 		getRenderGraph()->compile();
 		getRenderGraph()->setupScheduling(2);
