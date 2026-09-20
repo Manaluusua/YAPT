@@ -18,6 +18,8 @@ namespace YAPT
 		virtual void initialize(const InitializeContext& cntx) final;
 		virtual void shutdown() final;
 		virtual JobHandle update(const UpdateContext& cntx) final;
+		virtual TextureHandle getNamedResource(NamedRenderPipelineTexture tex) final; { return YAPT_NULL_HANDLE; };
+		virtual BufferHandle getNamedResource(NamedRenderPipelineBuffer buff) final; { return YAPT_NULL_HANDLE; };
 	protected:
 		virtual void setupRenderPipeline() override;
 

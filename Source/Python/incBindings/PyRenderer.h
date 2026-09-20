@@ -4,6 +4,7 @@
 #include <PyRendererVar.h>
 #include <Windows.h>
 #include <PyMesh.h>
+#include <Renderer/ReadbackHandle.h>
 namespace YAPT
 {
 	class Renderer;
@@ -13,7 +14,8 @@ namespace YAPT
 	class PyTexture;
 	class PyBuffer;
 	class PyMaterial;
-	
+	class PyReadbackObject;
+
 	class PyRenderer
 	{
 	public:
@@ -33,6 +35,8 @@ namespace YAPT
 
 		std::shared_ptr<PyMaterial> createMaterial(const char* name);
 		std::shared_ptr<PyMesh> createMesh(const char* name, const std::vector<PyVertexBufferLayout>& layouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices);
+
+		std::shared_ptr<PyReadbackObject> readback(ReadbackTarget target);
 
 		PyRendererVar getRendererVariable(const char* varName);
 		std::vector<const char*> getAllRendererVariableNames();

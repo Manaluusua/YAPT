@@ -7,6 +7,7 @@
 #include <PyTexture.h>
 #include <PyBuffer.h>
 #include <PyMaterial.h>
+#include <PyReadback.h>
 
 namespace YAPT
 {
@@ -112,6 +113,13 @@ namespace YAPT
 		return std::make_shared<PyMesh>(m_renderer, name,  layouts, vertexCount, submeshCount, use16BitIndices);
 	}
 
+	std::shared_ptr<PyReadbackObject> PyRenderer::readback(ReadbackTarget target)
+	{
+		assert(m_renderer != nullptr);
+		ReadbackHandle readback = m_renderer->readback(target);
+		return std::make_shared<PyReadbackObject>(readback.get());
+	}
+
 	BINDING_FUNC(PyRenderer, m)
 	{
 		pybind11::class_<PyRenderer>(m, "Renderer")
@@ -125,7 +133,8 @@ namespace YAPT
 			.def("createTexture", &PyRenderer::createTexture)
 			.def("createBuffer", &PyRenderer::createBuffer)
 			.def("createMesh", &PyRenderer::createMesh)
-			.def("createMaterial", &PyRenderer::createMaterial);
+			.def("createMaterial", &PyRenderer::createMaterial)
+			.def("readback", &PyRenderer::readback);
 	
 	}
 }

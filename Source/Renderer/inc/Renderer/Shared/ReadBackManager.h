@@ -17,9 +17,25 @@ namespace YAPT
 	public:
 		ReadbackGroup(GfxApiHandle gfx, FenceHandle fence)
 			:m_fenceHandle(fence),
-			m_gfx(gfx)
+			m_gfx(gfx),
+			m_lastQueriedState(FenceState::Unused)
 		{
 
+		}
+
+		FenceState getFenceState()
+		{
+			FenceState lastState = m_lastQueriedState.load();
+			if (lastState == FenceState::Pending)
+			{
+				FenceState state = Gfx::getFenceState(m_gfx, m_fenceHandle);
+				if (state != FenceState::Pending)
+				{
+					m_lastQueriedState.store(state);
+					lastState = state;
+				}
+			}
+			return lastState;
 		}
 
 		~ReadbackGroup()
@@ -32,6 +48,7 @@ namespace YAPT
 	private:
 		GfxApiHandle m_gfx;
 		FenceHandle m_fenceHandle = InvalidFenceHandle;
+		std::atomic<FenceState> m_lastQueriedState;
 	};
 
 	class CReadbackObject : public ReadbackObject
@@ -49,7 +66,20 @@ namespace YAPT
 
 		virtual ReadbackState getState() final
 		{
-			return m_state.load();
+			ReadbackState state = m_state.load();
+			if (state == ReadbackState::Pending)
+			{
+				if (_readbackGroup != nullptr)
+				{
+					FenceState fenceState =_readbackGroup->getFenceState();
+					if (fenceState != FenceState::Pending)
+					{
+						setState(ReadbackState::Ready);
+						state = ReadbackState::Ready;
+					}
+				}
+			}
+			return state;
 		}
 
 		virtual void allReferencesReleased() final
@@ -75,16 +105,19 @@ namespace YAPT
 
 		void setState(ReadbackState state)
 		{
-			if (state == ReadbackState::Ready)
+			ReadbackState currentState = m_state.load();
+			if (state == ReadbackState::Ready && currentState == ReadbackState::Pending)
 			{
-				while (m_state.load() == ReadbackState::Pending)
+				while (currentState == ReadbackState::Pending)
 				{
 					ReadbackState expected = ReadbackState::Pending;
 					if (m_state.compare_exchange_weak(expected, ReadbackState::Ready, std::memory_order_acq_rel))
 					{
 						break;
 					}
+					currentState = m_state.load();
 				}
+				
 			}
 			else
 			{

@@ -57,5 +57,12 @@ namespace YAPT
 		return RenderPipelineBase::update(cntx);
 	}
 
-
+	TextureHandle PathTracerPipeline::getNamedResource(NamedRenderPipelineTexture tex)
+	{
+		return YAPT_NULL_HANDLE;
+	}
+	BufferHandle PathTracerPipeline::getNamedResource(NamedRenderPipelineBuffer buff)
+	{
+		return YAPT_NULL_HANDLE;
+	}
 }

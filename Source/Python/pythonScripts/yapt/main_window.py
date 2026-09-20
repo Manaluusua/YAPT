@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QMainWindow, QWidget, QFileDialog, QVBoxLayout
 from PySide6.QtGui import QAction, QPalette, QColor
 from yapt.renderer_vars_window import RendererVarsWindow
 from yapt.objects_dialog import ObjectsDialog
+from yapt.screenshot_dialog import ScreenshotDialog
 from yapt.scene_loader import SceneLoader
 import os
 import traceback
@@ -22,6 +23,7 @@ class MainWindow(QMainWindow):
 
         self._objects_dialog = None
         self._rvars_window = None
+        self._screenshot_dialog = None
     #UI
     def set_dark_theme(self):
         lightColor = "#a2ff00"
@@ -76,6 +78,9 @@ class MainWindow(QMainWindow):
         objects_action = QAction("Objects", self)
         objects_action.triggered.connect(self.show_objects_dialog)
         options_menu.addAction(objects_action)
+        screenshot_action = QAction("Screenshot", self)
+        screenshot_action.triggered.connect(self.show_screenshot_dialog)
+        options_menu.addAction(screenshot_action)
     
     def setup_render_area(self):
         self._renderAreaWidget = QWidget()
@@ -129,6 +134,14 @@ class MainWindow(QMainWindow):
         self._objects_dialog.refresh()
         self._objects_dialog.show()
 
+    def show_screenshot_dialog(self):
+
+        if self._screenshot_dialog == None:
+            self._screenshot_dialog = ScreenshotDialog(self, self._app.get_screenshot_controller())
+
+        self._screenshot_dialog.refresh()
+        self._screenshot_dialog.show()
+
     def closeEvent(self, event):
 
         if self._rvars_window != None:
@@ -137,8 +150,12 @@ class MainWindow(QMainWindow):
         if self._objects_dialog != None:
             self._objects_dialog.setParent(None)
 
+        if self._screenshot_dialog != None:
+            self._screenshot_dialog.setParent(None)
+
         self._rvars_window = None
         self._objects_dialog = None
+        self._screenshot_dialog = None
 
         self._app.shutdown()
         super().closeEvent(event)

@@ -2,10 +2,12 @@ from py_yapt import Renderer, RendererCache, ivec2
 from yapt.main_window import MainWindow
 from yapt.resources import Resources
 from yapt.scene_wrapper import SceneWrapper
+from yapt.screenshot_controller import ScreenshotController
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QDateTime
 import sys
 import gc
+import traceback
 
 class Application:
     def __init__(self):
@@ -18,6 +20,9 @@ class Application:
         )
         self._scene = SceneWrapper(self._renderer)
         self._resources = Resources(self._renderer)
+
+        self._tick_listeners = []
+        self._screenshot_controller = ScreenshotController(self)
 
         DEFAULT_TICK_RATE = 1000.0 / 60;
         self._timer = QTimer(self._main_window)
@@ -38,6 +43,9 @@ class Application:
             return
 
         self._timer.stop() #hammertime
+        self._screenshot_controller.shutdown()
+        self._screenshot_controller = None
+        self._tick_listeners.clear()
         self._resources.clear()
         self._resources = None
         self._scene.shutdown()
@@ -60,6 +68,27 @@ class Application:
 
     def get_camera_controller(self):
         return self._scene.get_camera_controller()
+
+    def get_screenshot_controller(self):
+        return self._screenshot_controller
+
+    #tick listeners are called once per update/render, with the delta time in seconds as their only argument
+    def add_tick_listener(self, l):
+        if l not in self._tick_listeners:
+            self._tick_listeners.append(l)
+
+    def remove_tick_listener(self, l):
+        if l in self._tick_listeners:
+            self._tick_listeners.remove(l)
+
+    def notify_tick_listeners(self, dt):
+        #iterate a copy so that a listener can unregister itself while being ticked
+        for l in list(self._tick_listeners):
+            try:
+                l(dt)
+            except Exception as e:
+                print(f"An error occurred while ticking {l}: {e}")
+                traceback.print_exc()
 
     def refresh_swapchain(self):
         
@@ -85,3 +114,4 @@ class Application:
         dt = (current_time - self._last_update_ms) * 1e-3;
         self._scene.update(dt);
         self._last_update_ms = current_time;
+        self.notify_tick_listeners(dt)
