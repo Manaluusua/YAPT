@@ -58,10 +58,15 @@ namespace YAPT
 		CReadbackObject()
 			:m_state(ReadbackState::Freed),
 			m_index(uint32_t(-1)),
-			_buffHandle(YAPT_NULL_HANDLE),
-			_texHandle(YAPT_NULL_HANDLE)
+			m_buffHandle(YAPT_NULL_HANDLE),
+			m_texHandle(YAPT_NULL_HANDLE)
 		{
 
+		}
+
+		void init(GfxApiHandle gfx)
+		{
+			m_gfxHandle = gfx;
 		}
 
 		virtual ReadbackState getState() final
@@ -135,14 +140,42 @@ namespace YAPT
 			return m_index;
 		}
 
+		void setResource(TextureHandle resource)
+		{
+			m_texHandle = resource;
+			assert(m_buffHandle == YAPT_NULL_HANDLE);
+		}
+
+		void setResource(BufferHandle resource)
+		{
+			m_buffHandle = resource;
+			assert(m_texHandle == YAPT_NULL_HANDLE);
+		}
+
+		void clearResource()
+		{
+			//TODO: pool these and return to pool
+			if (m_texHandle != YAPT_NULL_HANDLE)
+			{
+				Gfx::destroyTexture(m_gfxHandle, m_texHandle);
+				m_texHandle = YAPT_NULL_HANDLE;
+			}
+			if (m_buffHandle != YAPT_NULL_HANDLE)
+			{
+				Gfx::destroyBuffer(m_gfxHandle, m_buffHandle);
+				m_buffHandle = YAPT_NULL_HANDLE;
+			}
+		}
 		
 		std::atomic<ReadbackState> m_state;
 		uint32_t m_index;
 		ReadbackTarget m_target;
+		TextureHandle m_texHandle;
+		BufferHandle m_buffHandle;
+		GfxApiHandle m_gfxHandle;
 		//Manager by ReadbackManager
-		TextureHandle _texHandle;
-		BufferHandle _buffHandle;
 		RCObjectPtr<ReadbackGroup> _readbackGroup;
+
 	};
 
 	class ReadbackManager 

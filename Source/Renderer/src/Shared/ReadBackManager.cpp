@@ -15,7 +15,10 @@ namespace YAPT
 		m_activeReadbackObjectCount(0),
 		m_newReadbackRequestsCount(0)
 	{
-
+		for (size_t i = 0; i < MAX_READBACK_REQUESTS; ++i)
+		{
+			m_readbackObjectPool[i].init(m_renderer.getGfxHandle());
+		}
 	}
 	ReadbackManager::~ReadbackManager()
 	{
@@ -137,16 +140,7 @@ namespace YAPT
 	void ReadbackManager::freeResource(uint32_t index, ReadbackTarget target)
 	{
 		CReadbackObject& obj = m_readbackObjectPool[index];
-		if (obj._texHandle != YAPT_NULL_HANDLE)
-		{
-			Gfx::destroyTexture(m_renderer.getGfxHandle(), obj._texHandle);
-			obj._texHandle = YAPT_NULL_HANDLE;
-		}
-		if (obj._buffHandle != YAPT_NULL_HANDLE)
-		{
-			Gfx::destroyBuffer(m_renderer.getGfxHandle(), obj._buffHandle);
-			obj._buffHandle = YAPT_NULL_HANDLE;
-		}
+		obj.clearResource();
 		obj._readbackGroup = nullptr;
 	}
 
@@ -187,8 +181,7 @@ namespace YAPT
 		defOut.def.dstOffset = { 0, 0, 0 };
 		defOut.def.extent = { desc.width, desc.height, isVolume ? desc.depthOrSlices : 1 };
 
-		obj._texHandle = target;
-		obj._buffHandle = YAPT_NULL_HANDLE;
+		obj.setResource(target);
 		obj._readbackGroup = group;
 		obj.setState(ReadbackState::Pending);
 	}
@@ -202,8 +195,7 @@ namespace YAPT
 		defOut.def.dstOffset = 0;
 		defOut.def.size = desc.sizeInBytes;
 
-		obj._texHandle = YAPT_NULL_HANDLE;
-		obj._buffHandle = target;
+		obj.setResource(target);
 		obj._readbackGroup = group;
 		obj.setState(ReadbackState::Pending);
 	}

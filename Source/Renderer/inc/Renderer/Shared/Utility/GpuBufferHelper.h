@@ -55,14 +55,14 @@ namespace YAPT
 
 		void flush()
 		{
-			char* dst = (char*)Gfx::mapBuffer(m_gfxHandle, m_bufferHandle, 0, BufferSize, GpuUploadStage::DURING_RENDER);
+			char* dst = (char*)Gfx::mapFromUploadStage(m_gfxHandle, m_bufferHandle, 0, BufferSize, GpuUploadStage::DURING_RENDER);
 
 			for (size_t i = 0; i < ARRAY_COUNT; ++i)
 			{
 				memcpy(dst, &m_internalData[i], sizeof(T));
 				dst += EntrySize;
 			}
-			Gfx::unmapBuffer(m_gfxHandle, m_bufferHandle);
+			Gfx::unmapFromUploadStage(m_gfxHandle, m_bufferHandle);
 			
 		}
 	private:
@@ -200,13 +200,13 @@ namespace YAPT
 
 		char* map(size_t entryOffset, size_t entryCount)
 		{
-			char* dst = (char*)Gfx::mapBuffer(m_gfxHandle, m_bufferHandle, entryOffset * m_alignedEntrySize, entryCount * m_alignedEntrySize, GpuUploadStage::DURING_RENDER);
+			char* dst = (char*)Gfx::mapFromUploadStage(m_gfxHandle, m_bufferHandle, entryOffset * m_alignedEntrySize, entryCount * m_alignedEntrySize, GpuUploadStage::DURING_RENDER);
 			return dst;
 		}
 
 		void unmap()
 		{
-			Gfx::unmapBuffer(m_gfxHandle, m_bufferHandle);
+			Gfx::unmapFromUploadStage(m_gfxHandle, m_bufferHandle);
 		}
 
 

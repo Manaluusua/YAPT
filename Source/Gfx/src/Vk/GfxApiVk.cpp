@@ -124,14 +124,31 @@ namespace YAPT
 			
 		}
 
-		void* mapBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
+		void* map(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes)
 		{
-			return h->getResourceManager()->map(handle, offsetInBytes, sizeInBytes, heapType);
+			return h->getResourceManager()->map(handle, offsetInBytes, sizeInBytes);
+		}
+		void unmap(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes)
+		{
+			h->getResourceManager()->unmap(handle, offsetInBytes, sizeInBytes);
+		}
+		void* map(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			return h->getResourceManager()->map(handle, arraySliceOffset, mipOffset);
+		}
+		void unmap(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			h->getResourceManager()->unmap(handle, arraySliceOffset, mipOffset);
 		}
 
-		void unmapBuffer(GfxApiHandle h, BufferHandle handle)
+		void* mapFromUploadStage(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 		{
-			h->getResourceManager()->unmap(handle);
+			return h->getResourceManager()->mapUpload(handle, offsetInBytes, sizeInBytes, heapType);
+		}
+
+		void unmapFromUploadStage(GfxApiHandle h, BufferHandle handle)
+		{
+			h->getResourceManager()->unmapUpload(handle);
 		}
 
 		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)

@@ -225,10 +225,10 @@ namespace YAPT
 		else
 		{
 			memcpy(handle->mappedMemory + offsetInBytes, data, sizeInBytes);
-			unmap(handle);
+			unmapUpload(handle);
 		}
 	}
-	void* ResourceManagerVk::map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
+	void* ResourceManagerVk::mapUpload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 	{
 		if (!handle->mappable)
 		{
@@ -241,9 +241,131 @@ namespace YAPT
 
 	}
 
-	void ResourceManagerVk::unmap(BufferHandleVk* handle)
+	void ResourceManagerVk::unmapUpload(BufferHandleVk* handle)
 	{
-		//for now we do nothing. TODO: invalidate caches if the memory is not host coherent 
+		unmap(handle, 0, handle->buffDesc.sizeInBytes);
+	}
+
+	void ResourceManagerVk::unmap(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes)
+	{
+		if (!handle->mappable)
+		{
+			//nothing of the resource itself was ever mapped, the data went through the upload heap
+			return;
+		}
+
+		assert(offsetInBytes + sizeInBytes <= handle->buffDesc.sizeInBytes);
+
+		flushMappedRange(handle->alloc, handle->buffDesc.memoryType, offsetInBytes, sizeInBytes);
+		unmap(handle->alloc);
+	}
+
+	void* ResourceManagerVk::map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes)
+	{
+		if (!handle->mappable)
+		{
+			YAPT_LOG_WARNING("trying to map buffer memory that is not host visible");
+			return nullptr;
+		}
+
+		assert(offsetInBytes + sizeInBytes <= handle->buffDesc.sizeInBytes);
+
+		char* mapped = (char*)map(handle->alloc);
+		if (mapped == nullptr)
+		{
+			return nullptr;
+		}
+		invalidateMappedRange(handle->alloc, handle->buffDesc.memoryType, offsetInBytes, sizeInBytes);
+		return mapped + offsetInBytes;
+	}
+
+	void* ResourceManagerVk::map(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		if (!handle->mappable)
+		{
+			YAPT_LOG_WARNING("trying to map texture memory that is not host visible");
+			return nullptr;
+		}
+
+		//only linearly tiled images have a subresource layout the cpu can make any sense of
+		if (handle->createInfo.tiling != VK_IMAGE_TILING_LINEAR)
+		{
+			YAPT_LOG_WARNING("trying to map a texture that is not linearly tiled");
+			return nullptr;
+		}
+
+		const VkSubresourceLayout subResourceLayout = getSubresourceLayout(handle, arraySliceOffset, mipOffset);
+
+		char* mapped = (char*)map(handle->alloc);
+		if (mapped == nullptr)
+		{
+			return nullptr;
+		}
+		invalidateMappedRange(handle->alloc, handle->texDesc.memoryType, subResourceLayout.offset, subResourceLayout.size);
+		return mapped + subResourceLayout.offset;
+	}
+
+	void ResourceManagerVk::unmap(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		//mirrors the conditions under which map() actually mapped anything
+		if (!handle->mappable || handle->createInfo.tiling != VK_IMAGE_TILING_LINEAR)
+		{
+			return;
+		}
+
+		const VkSubresourceLayout subResourceLayout = getSubresourceLayout(handle, arraySliceOffset, mipOffset);
+
+		flushMappedRange(handle->alloc, handle->texDesc.memoryType, subResourceLayout.offset, subResourceLayout.size);
+		unmap(handle->alloc);
+	}
+
+	VkSubresourceLayout ResourceManagerVk::getSubresourceLayout(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		assert(arraySliceOffset < handle->createInfo.arrayLayers);
+		assert(mipOffset < handle->createInfo.mipLevels);
+
+		//vkGetImageSubresourceLayout wants a single aspect
+		const VkImageAspectFlags usageAspects = yaptUsageToAspectFlags(handle->texDesc.resourceUsage);
+		VkImageAspectFlags aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+		if (usageAspects & VK_IMAGE_ASPECT_DEPTH_BIT)
+		{
+			aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
+		}
+		else if (usageAspects & VK_IMAGE_ASPECT_STENCIL_BIT)
+		{
+			aspect = VK_IMAGE_ASPECT_STENCIL_BIT;
+		}
+
+		VkImageSubresource subResource{};
+		subResource.aspectMask = aspect;
+		subResource.mipLevel = mipOffset;
+		subResource.arrayLayer = arraySliceOffset;
+
+		VkSubresourceLayout subResourceLayout;
+		vkGetImageSubresourceLayout(m_device, handle->image, &subResource, &subResourceLayout);
+		return subResourceLayout;
+	}
+
+	void ResourceManagerVk::invalidateMappedRange(Allocation alloc, MemoryType memoryType, VkDeviceSize offsetInBytes, VkDeviceSize sizeInBytes)
+	{
+		if (memoryType != MemoryType::CPU_MAPPABLE_READBACK)
+		{
+			return;
+		}
+
+		VkResult res = vmaInvalidateAllocation(m_allocator, alloc, offsetInBytes, sizeInBytes);
+		assert(checkVkResult(res));
+	}
+
+	void ResourceManagerVk::flushMappedRange(Allocation alloc, MemoryType memoryType, VkDeviceSize offsetInBytes, VkDeviceSize sizeInBytes)
+	{
+		if (memoryType != MemoryType::CPU_MAPPABLE_UPLOAD)
+		{
+			return;
+		}
+
+		VkResult res = vmaFlushAllocation(m_allocator, alloc, offsetInBytes, sizeInBytes);
+		assert(checkVkResult(res));
 	}
 
 	void ResourceManagerVk::upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
@@ -425,15 +547,15 @@ namespace YAPT
 
 	void* ResourceManagerVk::map(Allocation alloc)
 	{
-		
 		if (alloc->IsPersistentMap())
 		{
 			return alloc->GetMappedData();
 		}
 		else
 		{
-			void* mapped;
-			vmaMapMemory(m_allocator, alloc, &mapped);
+			void* mapped = nullptr;
+			VkResult res = vmaMapMemory(m_allocator, alloc, &mapped);
+			assert(checkVkResult(res));
 			return mapped;
 		}
 	}

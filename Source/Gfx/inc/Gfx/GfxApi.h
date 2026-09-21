@@ -39,8 +39,13 @@ namespace YAPT
 		void uploadBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		//data is assumed to be: arraySlice * mipCount ie. all mip levels of first array slice, then all mips of second array slice etc.
 		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage = ResourceStateDescription::defaultAfterCopyTextureState());
-		void* mapBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
-		void unmapBuffer(GfxApiHandle h, BufferHandle handle);
+		void* map(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes);
+		void unmap(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes);
+		void* map(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		void unmap(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+
+		void* mapFromUploadStage(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
+		void unmapFromUploadStage(GfxApiHandle h, BufferHandle handle);
 
 		TextureViewHandle getTextureView(GfxApiHandle h, TextureHandle texHandle, const TextureViewDesc& desc);
 		BufferViewHandle getBufferView(GfxApiHandle h, BufferHandle bufHandle, const BufferViewDesc& desc);

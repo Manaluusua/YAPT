@@ -53,8 +53,16 @@ namespace YAPT
 
 		void upload(VkBuffer handle, uint32_t owningQueueFamilyIndex, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void upload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
-		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
-		void unmap(BufferHandleVk* handle);
+		void* mapUpload(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
+		void unmapUpload(BufferHandleVk* handle);
+		//direct mapping of the resource memory, nullptr if the resource memory is not host visible.
+		//unmap takes the same range that was passed to map
+		void* map(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes);
+		void unmap(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes);
+		void* map(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		void unmap(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		//unmaps the whole buffer, used by the upload heap path
+		
 		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 
 		void readback(ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal);
@@ -178,6 +186,12 @@ namespace YAPT
 		void copyViaUploadHeap(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount,
 			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 		void* mapCopyRangeFromUploadHeap(BufferHandleVk* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
+
+		//host cache maintenance around a direct mapping, both nops on host coherent memory
+		void invalidateMappedRange(Allocation alloc, MemoryType memoryType, VkDeviceSize offsetInBytes, VkDeviceSize sizeInBytes);
+		void flushMappedRange(Allocation alloc, MemoryType memoryType, VkDeviceSize offsetInBytes, VkDeviceSize sizeInBytes);
+		//the memory range a single subresource occupies, only valid for linearly tiled images
+		VkSubresourceLayout getSubresourceLayout(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
 
 		
 		
