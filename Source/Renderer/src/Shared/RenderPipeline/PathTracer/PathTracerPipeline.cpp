@@ -58,6 +58,8 @@ namespace YAPT
 			RenderStageConnection conn = tstage->getOutputConnection(TonemapStage::TONEMAP_STAGE_CONNECTION_COLOR);
 			RenderGraphResourceId resId = getRenderGraph()->getRenderGraphResourceIdUsedInSlot(conn.node->getSortedIndex(), conn.slot);
 			getRenderGraph()->markExtraUsageFlagsForResource(resId, RESOURCE_USAGE_COPY_SOURCE);
+
+			setNamedResourceMapping(NamedRenderPipelineTexture::FinalColor, conn.node->getSortedIndex(), conn.slot);
 		}
 		
 	}
@@ -67,14 +69,5 @@ namespace YAPT
 		m_matManager.update();
 		m_meshManager.update();
 		return RenderPipelineBase::update(cntx);
-	}
-
-	TextureHandle PathTracerPipeline::getNamedResource(NamedRenderPipelineTexture tex)
-	{
-		return YAPT_NULL_HANDLE;
-	}
-	BufferHandle PathTracerPipeline::getNamedResource(NamedRenderPipelineBuffer buff)
-	{
-		return YAPT_NULL_HANDLE;
 	}
 }

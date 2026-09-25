@@ -50,6 +50,25 @@ namespace YAPT
 		void setRenderGraphResourceBuffers(RenderGraphResourceId id, BufferHandle* handles, size_t handleCount);
 		void setRenderGraphResourceTextures(RenderGraphResourceId id, TextureHandle* handles, size_t handleCount);
 
+		void getBuffersForResourceId(RenderGraphResourceId id, const BufferHandle*& handles, size_t& handleCount);
+		void getTexturesForResourceId(RenderGraphResourceId id, const TextureHandle*& handles, size_t& handleCount);
+
+		BufferHandle getBufferForResourceId(RenderGraphResourceId id)
+		{
+			const BufferHandle* handles = nullptr;
+			size_t handleCount = 0;
+			getBuffersForResourceId(id, handles, handleCount);
+			if (handleCount == 0) return YAPT_NULL_HANDLE;
+			return *handles;
+		}
+		TextureHandle getTextureForResourceId(RenderGraphResourceId id)
+		{
+			const TextureHandle* handles = nullptr;
+			size_t handleCount = 0;
+			getTexturesForResourceId(id, handles, handleCount);
+			if (handleCount == 0) return YAPT_NULL_HANDLE;
+			return *handles;
+		}
 
 		BufferHandle getBufferFromNodeSlot(size_t nodeIndex, size_t slot)
 		{

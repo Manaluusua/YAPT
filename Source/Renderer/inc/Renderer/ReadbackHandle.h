@@ -2,6 +2,7 @@
 
 #include <Common/RCObject.h>
 #include <Common/RCObjectPtr.h>
+#include <Gfx/GfxTypes.h>
 namespace YAPT
 {
 	enum class ReadbackTarget
@@ -14,12 +15,25 @@ namespace YAPT
 		Created,
 		Pending,
 		Ready,
+		Failed,
 		Freed
 	};
+	
+	struct ReadbackData
+	{
+		const void* data;
+		size_t widthOrSizeInBytes;
+		size_t height;
+		size_t depthOrSlices;
+		ResourceDimension dimensions;
+		ResourceFormat format;
+	};
+
 	class ReadbackObject : public RCObject
 	{
 	public:
 		virtual ReadbackState getState() = 0;
+		virtual const ReadbackData* getData() = 0;
 	};
 
 	using ReadbackHandle = RCObjectPtr<ReadbackObject>;

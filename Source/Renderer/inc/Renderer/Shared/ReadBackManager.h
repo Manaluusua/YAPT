@@ -67,6 +67,7 @@ namespace YAPT
 		void init(GfxApiHandle gfx)
 		{
 			m_gfxHandle = gfx;
+			m_readbackData.data = nullptr;
 		}
 
 		virtual ReadbackState getState() final
@@ -85,6 +86,29 @@ namespace YAPT
 				}
 			}
 			return state;
+		}
+
+		virtual const ReadbackData* getData() final
+		{
+			if (getState() != ReadbackState::Ready)
+			{
+				return nullptr;
+			}
+
+			if (m_readbackData.data == nullptr)
+			{
+				if (m_texHandle != YAPT_NULL_HANDLE)
+				{
+					m_readbackData.data = Gfx::map(m_gfxHandle, m_texHandle, 0, 0);
+				} else
+				{
+					assert(m_buffHandle != YAPT_NULL_HANDLE);
+					m_readbackData.data = Gfx::map(m_gfxHandle, m_buffHandle, 0, m_readbackData.widthOrSizeInBytes);
+				}
+
+				
+			}
+			return &m_readbackData;
 		}
 
 		virtual void allReferencesReleased() final
@@ -144,27 +168,52 @@ namespace YAPT
 		{
 			m_texHandle = resource;
 			assert(m_buffHandle == YAPT_NULL_HANDLE);
+			const TextureDesc& desc = Gfx::getDesc(m_gfxHandle, resource);
+			m_readbackData.dimensions = desc.dimension;
+			m_readbackData.format = desc.format;
+			m_readbackData.widthOrSizeInBytes = desc.width;
+			m_readbackData.height = desc.height;
+			m_readbackData.depthOrSlices = desc.depthOrSlices;
 		}
 
 		void setResource(BufferHandle resource)
 		{
 			m_buffHandle = resource;
 			assert(m_texHandle == YAPT_NULL_HANDLE);
+
+			const BufferDesc& desc = Gfx::getDesc(m_gfxHandle, resource);
+			m_readbackData.dimensions = ResourceDimension::BUFFER;
+			m_readbackData.format = ResourceFormat::UNKNOWN;
+			m_readbackData.widthOrSizeInBytes = desc.sizeInBytes;
+			m_readbackData.height = 0;
+			m_readbackData.depthOrSlices = 0;
 		}
 
 		void clearResource()
 		{
 			//TODO: pool these and return to pool
+
 			if (m_texHandle != YAPT_NULL_HANDLE)
 			{
+				if (m_readbackData.data != nullptr)
+				{
+					Gfx::unmap(m_gfxHandle, m_texHandle, 0, 0);
+				}
 				Gfx::destroyTexture(m_gfxHandle, m_texHandle);
 				m_texHandle = YAPT_NULL_HANDLE;
 			}
+
+
 			if (m_buffHandle != YAPT_NULL_HANDLE)
 			{
+				if (m_readbackData.data != nullptr)
+				{
+					Gfx::unmap(m_gfxHandle, m_buffHandle, 0, m_readbackData.widthOrSizeInBytes);
+				}
 				Gfx::destroyBuffer(m_gfxHandle, m_buffHandle);
 				m_buffHandle = YAPT_NULL_HANDLE;
 			}
+			m_readbackData.data = nullptr;
 		}
 		
 		std::atomic<ReadbackState> m_state;
@@ -173,6 +222,7 @@ namespace YAPT
 		TextureHandle m_texHandle;
 		BufferHandle m_buffHandle;
 		GfxApiHandle m_gfxHandle;
+		ReadbackData m_readbackData;
 		//Manager by ReadbackManager
 		RCObjectPtr<ReadbackGroup> _readbackGroup;
 

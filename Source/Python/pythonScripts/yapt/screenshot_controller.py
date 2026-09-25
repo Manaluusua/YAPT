@@ -1,8 +1,10 @@
 from py_yapt import ReadbackTarget, ReadbackState
+from yapt.screenshot_writer import write_readback_data
 from PySide6.QtCore import QDateTime
 import os
+import traceback
 
-#a readback that has been issued and is waiting to become ready
+
 class PendingScreenshot:
     def __init__(self, file_path, readback, state):
         self.file_path = file_path
@@ -13,10 +15,9 @@ class PendingScreenshot:
 
 
 class ScreenshotController:
-    #issuing readbacks faster than they complete would grow the pending list without a bound
+
     MAX_PENDING_SCREENSHOTS = 8
     DEFAULT_INTERVAL_SECONDS = 1.0
-    #a readback that keeps sitting in the same state is only reported every this many ticks, instead of on every single one
     POLL_LOG_INTERVAL_TICKS = 60
 
     def __init__(self, app):
@@ -153,7 +154,7 @@ class ScreenshotController:
 
             state = pending.readback.getState()
             polled.append((pending, state))
-            if state != ReadbackState.Ready and state != ReadbackState.Freed:
+            if state != ReadbackState.Ready and state != ReadbackState.Freed and state != ReadbackState.Failed:
                 still_pending.append(pending)
 
         #drop the finished ones before reporting anything, so that listeners see the state as it is after the poll
@@ -167,19 +168,29 @@ class ScreenshotController:
                 self._store_image(pending)
             elif state == ReadbackState.Freed:
                 self._log(f"'{name}' was freed before it became ready, dropping it")
+            elif state == ReadbackState.Failed:
+                self._log(f"'{name}' failed, dropping it")
             else:
-                #Created (waiting to be picked up by the renderer) or Pending (waiting on the GPU).
-                #Report state changes as they happen, and otherwise only every now and then so that a
-                #readback that stays put doesn't flood the log on every single tick.
                 state_changed = state != pending.last_logged_state
                 if state_changed or (pending.ticks_waited % self.POLL_LOG_INTERVAL_TICKS) == 0:
                     self._log(f"'{name}' polled, state: {state}, waited {pending.ticks_waited} ticks ({pending.time_waited:.3f}s)")
                     pending.last_logged_state = state
 
     def _store_image(self, pending):
-        #TODO: the readback data cannot be mapped yet, so the image is only reported and not written out
-        self._log(f"TODO: write image data to '{pending.file_path}'")
-        pending.readback.release()
+        name = os.path.basename(pending.file_path)
+        try:
+            data = pending.readback.getData()
+            if data == None:
+                self._log(f"'{name}' has no data to write")
+            else:
+                description = write_readback_data(data, pending.file_path)
+                self._log(f"wrote '{name}' ({description})")
+        except Exception as e:
+            self._log(f"failed to write '{name}': {e}")
+            traceback.print_exc()
+        finally:
+            #the readback holds on to a gpu resource, so let go of it whether or not the write worked out
+            pending.readback.release()
 
     def _build_file_path(self):
         timestamp = QDateTime.currentDateTime().toString("yyyyMMdd_hhmmsszzz")

@@ -231,6 +231,35 @@ namespace YAPT
 		
 	}
 
+	void RenderGraph::getBuffersForResourceId(RenderGraphResourceId id, const BufferHandle*& handles, size_t& handleCount)
+	{
+		const RenderGraphResourceBindings& bindings = m_boundRenderGraphResources[id];
+		if (bindings.type == BoundResourceType::BUFFER)
+		{
+			handles = bindings.bufferHandles.data();
+			handleCount = bindings.bufferHandles.size();
+		}
+		else
+		{
+			handles = nullptr;
+			handleCount = 0;
+		}
+	}
+	void RenderGraph::getTexturesForResourceId(RenderGraphResourceId id, const TextureHandle*& handles, size_t& handleCount)
+	{
+		const RenderGraphResourceBindings& bindings = m_boundRenderGraphResources[id];
+		if (bindings.type == BoundResourceType::TEXTURE)
+		{
+			handles = bindings.textureHandles.data();
+			handleCount = bindings.textureHandles.size();
+		}
+		else
+		{
+			handles = nullptr;
+			handleCount = 0;
+		}
+	}
+
 	bool RenderGraph::isResourceBoundThisFrame(RenderGraphResourceId id) const
 	{
 		return m_boundRenderGraphResources[id].boundInThisFrame;

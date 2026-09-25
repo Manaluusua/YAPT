@@ -20,12 +20,32 @@ namespace YAPT
 		virtual JobHandle update(const UpdateContext& cntx) override;
 		virtual void execute(const ExecuteContext& cntx) override;
 
+		virtual TextureHandle getNamedResource(NamedRenderPipelineTexture tex) override;
+		virtual BufferHandle getNamedResource(NamedRenderPipelineBuffer buff) override;
+
 		RenderGraph* getRenderGraph() { return m_graph; }
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }
 
 	protected:
 
 		
+
+		struct NamedRenderPipelineTextureMapping
+		{
+			NamedRenderPipelineTexture namedTexture;
+			size_t nodeIndex;
+			size_t slotIndex;
+		};
+
+		struct NamedRenderPipelineBufferMapping
+		{
+			NamedRenderPipelineBuffer namedBuffer;
+			size_t nodeIndex;
+			size_t slotIndex;
+		};
+
+		void setNamedResourceMapping(NamedRenderPipelineTexture tex, size_t nodeIndex, size_t slotIndex);
+		void setNamedResourceMapping(NamedRenderPipelineBuffer buff, size_t nodeIndex, size_t slotIndex);
 
 		void addRenderStage(RenderStage* stage);
 		virtual void setupRenderPipeline() = 0;
@@ -34,8 +54,6 @@ namespace YAPT
 		CRenderer* m_renderer;
 		GfxApiHandle m_gfxHandle;
 		
-		
-
 		size_t m_renderResolutionWidth;
 		size_t m_renderResolutionHeight;
 
@@ -44,6 +62,9 @@ namespace YAPT
 
 		std::vector<RenderStage*> m_stages;
 		std::vector<JobHandle> m_jobsToWait;
+
+		std::vector<NamedRenderPipelineTextureMapping> m_namedTextureMappings;
+		std::vector<NamedRenderPipelineBufferMapping> m_namedBufferMappings;
 
 		bool m_firstPrepareAfterInit;
 

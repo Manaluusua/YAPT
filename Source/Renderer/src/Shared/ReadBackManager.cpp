@@ -74,7 +74,7 @@ namespace YAPT
 
 			if (!isValidRequest)
 			{
-				obj.setState(ReadbackState::Ready);
+				obj.setState(ReadbackState::Failed);
 			}
 		}
 		m_newReadbackRequestsCount = 0;

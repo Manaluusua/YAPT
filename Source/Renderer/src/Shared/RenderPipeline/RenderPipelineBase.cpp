@@ -168,4 +168,42 @@ namespace YAPT
 		stage->initialize();
 		m_stages.push_back(stage);
 	}
+
+	void RenderPipelineBase::setNamedResourceMapping(NamedRenderPipelineTexture tex, size_t nodeIndex, size_t slotIndex)
+	{
+		m_namedTextureMappings.push_back({ tex, nodeIndex, slotIndex });
+	}
+	void RenderPipelineBase::setNamedResourceMapping(NamedRenderPipelineBuffer buff, size_t nodeIndex, size_t slotIndex)
+	{
+		m_namedBufferMappings.push_back({ buff, nodeIndex, slotIndex });
+	}
+
+	TextureHandle RenderPipelineBase::getNamedResource(NamedRenderPipelineTexture tex)
+	{
+		for (size_t i = 0; i < m_namedTextureMappings.size(); ++i)
+		{
+			const NamedRenderPipelineTextureMapping& mapping = m_namedTextureMappings[i];
+			if (mapping.namedTexture == tex)
+			{
+				RenderGraphResourceId resId = getRenderGraph()->getRenderGraphResourceIdUsedInSlot(mapping.nodeIndex, mapping.slotIndex);
+				return getRenderGraph()->getTextureForResourceId(resId);
+			}
+		}
+
+		return YAPT_NULL_HANDLE;
+	}
+	BufferHandle RenderPipelineBase::getNamedResource(NamedRenderPipelineBuffer buff)
+	{
+		for (size_t i = 0; i < m_namedBufferMappings.size(); ++i)
+		{
+			const NamedRenderPipelineBufferMapping& mapping = m_namedBufferMappings[i];
+			if (mapping.namedBuffer == buff)
+			{
+				RenderGraphResourceId resId = getRenderGraph()->getRenderGraphResourceIdUsedInSlot(mapping.nodeIndex, mapping.slotIndex);
+				return getRenderGraph()->getBufferForResourceId(resId);
+			}
+		}
+
+		return YAPT_NULL_HANDLE;
+	}
 }
