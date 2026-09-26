@@ -64,6 +64,7 @@ namespace YAPT
 		void prepareNodeExecution(RaytraceNodeDx12* node, const RenderGraphNodeExecutionContext& context);
 
 		void handleClears(RenderGraphNode* node, const RenderGraphNodeExecutionContext& context);
+		void discardTargetIfContentsNotNeeded(RenderNodeDx12* node, size_t slot, GraphicsCommandListDx12* cmdList);
 
 		void fillBarriersForFirstUseInGraph(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to, const ResourceStateTrackerDx12& stateTracker, ID3D12Resource* resource, std::vector<D3D12_RESOURCE_BARRIER>& barriers);
 

@@ -233,9 +233,46 @@ namespace YAPT
 		{
 			context.cmdBuffer->cmdList->OMSetRenderTargets((UINT)numberOfColorTargets, numberOfColorTargets > 0 ? &rtvHeapHandle : nullptr, TRUE, hasDepthStencil ? &dsvHeapHandle : nullptr);
 		}
+		for (size_t colorTargetIndex = 0; colorTargetIndex < numberOfColorTargets; ++colorTargetIndex)
+		{
+			discardTargetIfContentsNotNeeded(node, node->getNodeSlotIndexForRenderTargetIndex(colorTargetIndex), context.cmdBuffer->cmdList);
+		}
+		if (hasDepthStencil)
+		{
+			discardTargetIfContentsNotNeeded(node, node->getNodeSlotIndexForDepthStencil(), context.cmdBuffer->cmdList);
+		}
 
 
 	}
+	void RenderGraphDx12::discardTargetIfContentsNotNeeded(RenderNodeDx12* node, size_t slot, GraphicsCommandListDx12* cmdList)
+	{
+
+		const RenderGraphNodeSlotDefinition& slotDef = node->getNodeSlotResourceDefinition(slot);
+		const bool isFirstUsage = node->getNumberOfInputEdges(slot) == 0;
+		const bool forceLoad = (slotDef.flags & RGNS_FLAG_ALWAYS_REQUIRE_LOAD) != 0;
+		//cleared targets get initialized by the clear in handleClears
+		const bool hasClear = slotDef.clearFrequency == RenderNodeClearFrequency::ALWAYS;
+
+		if (!isFirstUsage || forceLoad || hasClear)
+		{
+			return;
+		}
+
+		RenderGraphResourceId resId = node->getRenderGraphResourceIdForSlot(slot);
+		TextureHandle texture = m_boundRenderGraphResources[resId].textureHandles[0];
+		const RenderGraphResourceUsage& usage = m_resourceRequirements.getRenderGraphResourceUsage(node->getSortedIndex(), slot);
+
+		for (uint32_t slice = 0; slice < (uint32_t)usage.resourceDescription.arraySliceCount; ++slice)
+		{
+			D3D12_DISCARD_REGION region;
+			region.NumRects = 0;
+			region.pRects = nullptr;
+			region.FirstSubresource = texture->getSubresourceIndex(usage.arraySliceOffset + slice, usage.mipOffset);
+			region.NumSubresources = 1;
+			cmdList->DiscardResource(texture->resource.get(), &region);
+		}
+	}
+
 	void RenderGraphDx12::prepareNodeExecution(ComputeNodeDx12* node, const RenderGraphNodeExecutionContext& context)
 	{
 

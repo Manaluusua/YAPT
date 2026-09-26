@@ -25,6 +25,9 @@ namespace YAPT
 		size_t widthOrSizeInBytes;
 		size_t height;
 		size_t depthOrSlices;
+		//layout of the mapped texture data, 0 for buffers
+		size_t rowPitchInBytes;
+		size_t depthPitchInBytes;
 		ResourceDimension dimensions;
 		ResourceFormat format;
 	};

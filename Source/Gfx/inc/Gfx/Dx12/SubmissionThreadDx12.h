@@ -53,8 +53,8 @@ namespace YAPT
 		void initialize(const Configuration& config);
 		void deinitialize();
 
-		SubmissionId wait(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceState* fences, size_t numberOfFences);
-		SubmissionId signal(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceState* fences, size_t numberOfFences);
+		SubmissionId wait(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceValueDx12* fences, size_t numberOfFences);
+		SubmissionId signal(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceValueDx12* fences, size_t numberOfFences);
 		SubmissionId submit(CommandQueueType commandQueueType, size_t commandQueueIndex, ID3D12CommandList** commandLists, size_t numberOfCommandLists);
 
 		void issueCallback(SubmissionThreadDx12Callback callback, void* usrData);
@@ -76,7 +76,7 @@ namespace YAPT
 			TaskType type;
 			CommandQueueType commandQueueType;
 			size_t commandQueueIndex;
-			std::vector<FenceState> fences;
+			std::vector<FenceValueDx12> fences;
 			std::vector<ID3D12CommandList*> commandLists;
 			SubmissionThreadDx12Callback callback;
 			void* usrData;

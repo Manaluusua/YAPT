@@ -95,6 +95,7 @@ if(${BUILD_DX12_BACKEND})
 		inc/Gfx/Dx12/SubmissionThreadDx12.h
 		inc/Gfx/Dx12/UploadHeapDx12.h
 		inc/Gfx/Dx12/UploadHelperDx12.h
+		inc/Gfx/Dx12/DownloadHelperDx12.h
 		inc/Gfx/Dx12/PipelineStateUtilityDx12.h
 		inc/Gfx/Dx12/ComputePipelineStateDx12.h
 		inc/Gfx/Dx12/GraphicsPipelineStateDx12.h
@@ -126,6 +127,7 @@ if(${BUILD_DX12_BACKEND})
 		src/Dx12/SubmissionThreadDx12.cpp
 		src/Dx12/UploadHeapDx12.cpp
 		src/Dx12/UploadHelperDx12.cpp
+		src/Dx12/DownloadHelperDx12.cpp
 		src/Dx12/PipelineStateUtilityDx12.cpp
 		src/Dx12/ComputePipelineStateDx12.cpp
 		src/Dx12/GraphicsPipelineStateDx12.cpp

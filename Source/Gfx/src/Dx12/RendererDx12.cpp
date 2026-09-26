@@ -212,7 +212,7 @@ namespace YAPT
 		UINT64 frameId = m_fenceHelper.getCurrentFrameCount();
 
 		size_t fenceCount = 0;
-		FenceState fenceStates[1];
+		FenceValueDx12 fenceStates[1];
 		//fence for previous frame rendering 
 		if (frameId > 1)
 		{
@@ -229,7 +229,7 @@ namespace YAPT
 		
 		UINT64 frameId = m_fenceHelper.getCurrentFrameCount();
 		size_t fenceCount = 0;
-		FenceState fenceStates[1];
+		FenceValueDx12 fenceStates[1];
 		//fence for previous frame rendering 
 		if (frameId > 1)
 		{
@@ -264,6 +264,11 @@ namespace YAPT
 		m_lastSubmitId = m_submitThread.submit(SubmissionThreadDx12::COMMANDQUEUETYPE_GRAPHICS, 0, m_submittedCommandLists.data(), m_submittedCommandLists.size());
 		m_submittedCommandLists.clear();
 
+		if (m_resourceManager->hasPendingDownloads())
+		{
+			m_resourceManager->flushDownloads((size_t)m_fenceHelper.getCurrentFrameIndex());
+		}
+
 		//quick and dirty present. Should in reality handle presents just like commandbuffers: add them to some sequential commandlist and process it with submits.
 
 		auto cb = [](void* ptr)
@@ -283,7 +288,7 @@ namespace YAPT
 			m_commandListPoolers[i]->incrementFrame();
 		}
 
-		FenceState fenceState{ m_fenceHelper.getFenceForFrame(m_fenceHelper.getCurrentFrameCount()), m_fenceHelper.getCurrentFrameCount() };
+		FenceValueDx12 fenceState{ m_fenceHelper.getFenceForFrame(m_fenceHelper.getCurrentFrameCount()), m_fenceHelper.getCurrentFrameCount() };
 		m_submitThread.signal(SubmissionThreadDx12::COMMANDQUEUETYPE_GRAPHICS, 0, &fenceState, 1);
 		m_fenceHelper.incrementFrameCount();
 

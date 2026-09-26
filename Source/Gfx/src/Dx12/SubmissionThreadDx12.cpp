@@ -49,7 +49,7 @@ namespace YAPT
 		m_submissionThread.join();
 	}
 
-	SubmissionThreadDx12::SubmissionId SubmissionThreadDx12::wait(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceState* fences, size_t numberOfFences)
+	SubmissionThreadDx12::SubmissionId SubmissionThreadDx12::wait(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceValueDx12* fences, size_t numberOfFences)
 	{
 		Task* t = m_taskQueue.getNextForWriting();
 		t->type = TaskType::WAIT;
@@ -61,7 +61,7 @@ namespace YAPT
 
 		return SubmissionThreadDx12::SubmissionId{ m_submitted.fetch_add(1, std::memory_order_relaxed) };
 	}
-	SubmissionThreadDx12::SubmissionId SubmissionThreadDx12::signal(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceState* fences, size_t numberOfFences)
+	SubmissionThreadDx12::SubmissionId SubmissionThreadDx12::signal(CommandQueueType commandQueueType, size_t commandQueueIndex, FenceValueDx12* fences, size_t numberOfFences)
 	{
 		Task* t = m_taskQueue.getNextForWriting();
 		t->type = TaskType::SIGNAL;

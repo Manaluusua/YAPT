@@ -319,6 +319,23 @@ namespace YAPT
 		unmap(handle->alloc);
 	}
 
+	TextureSubresourceLayout ResourceManagerVk::getMappedSubresourceLayout(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		TextureSubresourceLayout layout{};
+		//mirrors the conditions under which map() actually maps anything
+		if (!handle->mappable || handle->createInfo.tiling != VK_IMAGE_TILING_LINEAR)
+		{
+			return layout;
+		}
+
+		const VkSubresourceLayout subResourceLayout = getSubresourceLayout(handle, arraySliceOffset, mipOffset);
+		layout.offsetInBytes = subResourceLayout.offset;
+		layout.sizeInBytes = subResourceLayout.size;
+		layout.rowPitchInBytes = subResourceLayout.rowPitch;
+		layout.depthPitchInBytes = subResourceLayout.depthPitch;
+		return layout;
+	}
+
 	VkSubresourceLayout ResourceManagerVk::getSubresourceLayout(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
 	{
 		assert(arraySliceOffset < handle->createInfo.arrayLayers);

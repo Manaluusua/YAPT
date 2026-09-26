@@ -10,6 +10,7 @@
 #include <Gfx/GfxApi.h>
 #include <Common/CommonUtilities.h>
 #include <Common/GrowingMultiProducerPendingList.h>
+#include <Gfx/Common/SyncPrimitiveManager.h>
 
 #include <vector>
 
@@ -33,6 +34,7 @@ namespace YAPT
 	class BufferDx12;
 	class TextureDx12;
 	class UploadHelperDx12;
+	class DownloadHelperDx12;
 	class DescriptorHeapAllocatorDx12;
 
 	class ResourceManagerDx12
@@ -56,10 +58,24 @@ namespace YAPT
 		void destroyShaderModule(ShaderModuleHandle m);
 
 		void upload(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
-		void* map(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
-		void unmap(BufferHandleDx12* handle);
 		void upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
-		
+
+		void* mapForUpload(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
+		void unmapForUpload(BufferHandleDx12* handle);
+
+		void* map(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes);
+		void unmap(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes);
+		void* map(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		void unmap(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		TextureSubresourceLayout getMappedSubresourceLayout(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+
+		void readback(ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal);
+
+		FenceHandle acquireFence(FenceType type);
+		FenceState getFenceState(FenceHandle handle);
+		void freeFence(FenceHandle handle);
+		FenceDx12* getFence(FenceHandle handle) { return m_primitiveMngr.getFence(handle); }
+
 		DescriptorSetPoolDx12* createDescriptorSetPool(const DescriptorSetLayoutDx12* layout, size_t numberOfDescriptorSets);
 		void destroyDescriptorSetPool(DescriptorSetPoolDx12* pool);
 
@@ -88,14 +104,57 @@ namespace YAPT
 
 	private:
 
+		class SyncImpl
+		{
+		public:
+			SyncImpl(ID3D12Device5& device)
+				:m_device(device)
+			{
+
+			}
+
+			FenceDx12* createFence()
+			{
+				FenceDx12* f = new FenceDx12;
+				checkForDxError(m_device.CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&f->fence)));
+				//pending until something signals it, like an unsignaled VkFence
+				f->signalValue = 1;
+				return f;
+			}
+
+			void destroyFence(FenceDx12* f)
+			{
+				delete f;
+			}
+
+			void resetFence(FenceDx12* f)
+			{
+				f->signalValue.fetch_add(1);
+			}
+
+			bool isFencePending(FenceDx12* f)
+			{
+				return f->fence->GetCompletedValue() < f->signalValue.load();
+			}
+
+		private:
+			ID3D12Device5& m_device;
+		};
+
+		static constexpr uint32_t MAX_FENCE_COUNT = 1024;
+		typedef SyncPrimitiveManager<FenceDx12*, SyncImpl, MAX_FENCE_COUNT> PrimitiveManagerDx12;
+
+		bool hasPendingDownloads() const;
+		void flushDownloads(size_t frameIndex);
+
 		void copyViaUploadHeap(ID3D12Resource* buffer, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType);
 		void copyViaUploadHeap(ID3D12Resource* texture, const D3D12_RESOURCE_DESC& resourceDesc, size_t arraySliceOffset, size_t arraySliceCount,
 			size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);
 		void* mapCopyRangeFromUploadHeap(ID3D12Resource* buffer, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 
 		void prepare();
-		void uploadPreFrameData(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex = 0);
-		void uploadFrameData(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex = 0);
+		void uploadPreFrameData(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex = 0);
+		void uploadFrameData(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex = 0);
 
 		void issueWaitForLatestUploads(SubmissionThreadDx12& submissionThread, SubmissionThreadDx12::CommandQueueType queueType, size_t queueIndex);
 
@@ -110,7 +169,10 @@ namespace YAPT
 
 		UploadHelperDx12* m_preFrameUploads;
 		UploadHelperDx12* m_duringFrameUploads;
-		
+		DownloadHelperDx12* m_afterRenderDownloads;
+
+		PrimitiveManagerDx12 m_primitiveMngr;
+
 		DescriptorHeapAllocatorDx12* m_nonSamplerDescHeapAllocator;
 		DescriptorHeapAllocatorDx12* m_samplerDescHeapAllocator;
 

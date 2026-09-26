@@ -121,7 +121,7 @@ namespace YAPT
 	}
 
 
-	void UploadHelperDx12::flushUploadBatch(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex)
+	void UploadHelperDx12::flushUploadBatch(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex)
 	{
 		//to be safe, make sure the previous submit has been processed so we can reuse the commandlist
 		while (m_submissionThread->isPending(m_lastUploadSubmission))
@@ -186,7 +186,7 @@ namespace YAPT
 
 		//signal the copies
 		ID3D12Fence* fence = m_fenceHelper.getFenceForFrame(m_fenceHelper.getCurrentFrameCount());
-		FenceState fenceState{ fence, m_fenceHelper.getCurrentFrameCount() };
+		FenceValueDx12 fenceState{ fence, m_fenceHelper.getCurrentFrameCount() };
 		m_submissionThread->signal(SubmissionThreadDx12::COMMANDQUEUETYPE_COPY, queueIndex, &fenceState, 1);
 		m_fenceHelper.incrementFrameCount();
 

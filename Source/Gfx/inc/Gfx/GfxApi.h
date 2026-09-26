@@ -43,6 +43,8 @@ namespace YAPT
 		void unmap(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes);
 		void* map(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset);
 		void unmap(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		//layout of the memory map() returns for the given subresource, all zeroes if the texture can not be mapped
+		TextureSubresourceLayout getMappedSubresourceLayout(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset);
 
 		void* mapFromUploadStage(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType);
 		void unmapFromUploadStage(GfxApiHandle h, BufferHandle handle);

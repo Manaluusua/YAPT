@@ -107,6 +107,24 @@ namespace YAPT
 		D3D12_HEAP_TYPE heapType;
 		ResourceStateTrackerDx12 lastSeenState;
 		D3D12_CLEAR_VALUE clearValue;
+		TextureDesc texDesc;
+
+		std::vector<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> footprints;
+		std::vector<UINT> numRows;
+
+		bool isBufferBacked() const { return heapType != D3D12_HEAP_TYPE_DEFAULT; }
+
+		UINT getSubresourceIndex(uint32_t arraySlice, uint32_t mip) const
+		{
+			const bool isVolume = textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+			return mip + (isVolume ? 0 : arraySlice) * textureDesc.MipLevels;
+		}
+
+		UINT getSubresourceCount() const
+		{
+			const bool isVolume = textureDesc.Dimension == D3D12_RESOURCE_DIMENSION_TEXTURE3D;
+			return textureDesc.MipLevels * (isVolume ? 1 : textureDesc.DepthOrArraySize);
+		}
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;
@@ -172,7 +190,7 @@ namespace YAPT
 		Allocation* allocBlock;
 		D3D12_HEAP_TYPE heapType;
 		ResourceStateTrackerDx12 lastSeenState;
-		
+		BufferDesc buffDesc;
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 		std::string name;
@@ -231,6 +249,8 @@ namespace YAPT
 	typedef DescriptorSetPoolDx12* DescriptorSetPoolHandle;
 	typedef DescriptorSetDx12* DescriptorSetHandle;
 	typedef ShaderTableDx12* ShaderTableHandle;
+	typedef uint32_t FenceHandle;
+	constexpr uint32_t InvalidFenceHandle = uint32_t(-1);
 }
 
 #endif

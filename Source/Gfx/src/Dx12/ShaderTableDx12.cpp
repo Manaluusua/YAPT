@@ -55,6 +55,7 @@ namespace YAPT
 				continue;
 			}
 			m_bufferHandles[i]->heapType = D3D12_HEAP_TYPE_UPLOAD;
+			m_bufferHandles[i]->buffDesc = BufferDesc(RESOURCE_USAGE_UNKNOWN, bufferSizes[i], MemoryType::CPU_MAPPABLE_UPLOAD);
 			m_bufferHandles[i]->allocBlock = m_resMngr.allocate(resourceDesc, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&m_bufferHandles[i]->resource));
 
 			bufferHandlesToAllocate[numberOfBufferHandlesToAllocate] = m_bufferHandles[i];
@@ -214,33 +215,33 @@ namespace YAPT
 			if (rayGenDirty)
 			{
 				size_t dataSize = m_bufferHandles[RayGenIndex]->bufferDesc.Width;
-				void* dstPtr = m_resMngr.map(m_bufferHandles[RayGenIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
+				void* dstPtr = m_resMngr.mapForUpload(m_bufferHandles[RayGenIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
 				memcpy(dstPtr, m_shadowBuffer.data() + getOffsetToRayGenShaderSectionInBytes(), dataSize);
-				m_resMngr.unmap(m_bufferHandles[RayGenIndex]);
+				m_resMngr.unmapForUpload(m_bufferHandles[RayGenIndex]);
 			}
 
 			if (missDirty)
 			{
 				size_t dataSize = m_bufferHandles[MissIndex]->bufferDesc.Width;
-				void* dstPtr = m_resMngr.map(m_bufferHandles[MissIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
+				void* dstPtr = m_resMngr.mapForUpload(m_bufferHandles[MissIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
 				memcpy(dstPtr, m_shadowBuffer.data() + getOffsetToMissShaderSectionInBytes(), dataSize);
-				m_resMngr.unmap(m_bufferHandles[RayGenIndex]);
+				m_resMngr.unmapForUpload(m_bufferHandles[MissIndex]);
 			}
 
 			if (hitGroupDirty)
 			{
 				size_t dataSize = m_bufferHandles[HitGroupIndex]->bufferDesc.Width;
-				void* dstPtr = m_resMngr.map(m_bufferHandles[HitGroupIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
+				void* dstPtr = m_resMngr.mapForUpload(m_bufferHandles[HitGroupIndex], 0, dataSize, GpuUploadStage::DURING_RENDER);
 				memcpy(dstPtr, m_shadowBuffer.data() + getOffsetToHitGroupSectionInBytes(), dataSize);
-				m_resMngr.unmap(m_bufferHandles[RayGenIndex]);
+				m_resMngr.unmapForUpload(m_bufferHandles[HitGroupIndex]);
 			}
 			
 		} else
 		{
 			size_t dataSize = m_bufferHandles[0]->bufferDesc.Width;
-			void* dstPtr = m_resMngr.map(m_bufferHandles[0], 0, dataSize, GpuUploadStage::DURING_RENDER);
+			void* dstPtr = m_resMngr.mapForUpload(m_bufferHandles[0], 0, dataSize, GpuUploadStage::DURING_RENDER);
 			memcpy(dstPtr, m_shadowBuffer.data(), dataSize);
-			m_resMngr.unmap(m_bufferHandles[0]);
+			m_resMngr.unmapForUpload(m_bufferHandles[0]);
 		}
 		
 	}

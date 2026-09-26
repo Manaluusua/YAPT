@@ -68,6 +68,8 @@ namespace YAPT
 		{
 			m_gfxHandle = gfx;
 			m_readbackData.data = nullptr;
+			m_readbackData.rowPitchInBytes = 0;
+			m_readbackData.depthPitchInBytes = 0;
 		}
 
 		virtual ReadbackState getState() final
@@ -100,6 +102,10 @@ namespace YAPT
 				if (m_texHandle != YAPT_NULL_HANDLE)
 				{
 					m_readbackData.data = Gfx::map(m_gfxHandle, m_texHandle, 0, 0);
+					//backends are free to pad rows/slices of mapped textures
+					const TextureSubresourceLayout layout = Gfx::getMappedSubresourceLayout(m_gfxHandle, m_texHandle, 0, 0);
+					m_readbackData.rowPitchInBytes = layout.rowPitchInBytes;
+					m_readbackData.depthPitchInBytes = layout.depthPitchInBytes;
 				} else
 				{
 					assert(m_buffHandle != YAPT_NULL_HANDLE);
@@ -174,6 +180,9 @@ namespace YAPT
 			m_readbackData.widthOrSizeInBytes = desc.width;
 			m_readbackData.height = desc.height;
 			m_readbackData.depthOrSlices = desc.depthOrSlices;
+			//only known once mapped
+			m_readbackData.rowPitchInBytes = 0;
+			m_readbackData.depthPitchInBytes = 0;
 		}
 
 		void setResource(BufferHandle resource)
@@ -187,6 +196,8 @@ namespace YAPT
 			m_readbackData.widthOrSizeInBytes = desc.sizeInBytes;
 			m_readbackData.height = 0;
 			m_readbackData.depthOrSlices = 0;
+			m_readbackData.rowPitchInBytes = 0;
+			m_readbackData.depthPitchInBytes = 0;
 		}
 
 		void clearResource()

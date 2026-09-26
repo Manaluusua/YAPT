@@ -44,7 +44,11 @@ namespace YAPT
 		{
 			return 0;
 		}
-		//assume tightly packed for now, should return row pitch later if needed
+		if (m_data->rowPitchInBytes != 0)
+		{
+			return m_data->rowPitchInBytes;
+		}
+		//backend did not report a layout, assume tightly packed
 		return m_data->widthOrSizeInBytes * getTexelSizeInBytes();
 	}
 
@@ -61,7 +65,9 @@ namespace YAPT
 		//a volume maps as a single subresource covering every depth slice, while an array maps one slice at a time
 		if (m_data->dimensions == ResourceDimension::TEXTURE_3D)
 		{
-			sizeInBytes *= m_data->depthOrSlices > 0 ? m_data->depthOrSlices : 1;
+			const size_t depth = m_data->depthOrSlices > 0 ? m_data->depthOrSlices : 1;
+			const size_t depthPitch = m_data->depthPitchInBytes != 0 ? m_data->depthPitchInBytes : sizeInBytes;
+			sizeInBytes = depthPitch * depth;
 		}
 		return sizeInBytes;
 	}

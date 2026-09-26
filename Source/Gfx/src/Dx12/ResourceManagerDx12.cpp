@@ -4,6 +4,7 @@
 #include <Gfx/Dx12/Dx12MiscUtils.h>
 #include <Gfx/Dx12/d3dx12.h>
 #include <Gfx/Dx12/UploadHelperDx12.h>
+#include <Gfx/Dx12/DownloadHelperDx12.h>
 #include <Gfx/Dx12/DescriptorHeapAllocatorDx12.h>
 #include <Gfx/Dx12/DescriptorSetPoolDx12.h>
 #include <Common/CommonWindowsUtility.h>
@@ -20,6 +21,8 @@ namespace YAPT
 		m_adapter(adapter),
 		m_preFrameUploads(nullptr),
 		m_duringFrameUploads(nullptr),
+		m_afterRenderDownloads(nullptr),
+		m_primitiveMngr(device),
 		m_pipelineLength(pipelineLength)
 	{
 		
@@ -53,6 +56,7 @@ namespace YAPT
 
 		m_preFrameUploads = new UploadHelperDx12(*this, submissionThread, assetUploadHeapSize, m_pipelineLength);
 		m_duringFrameUploads = new UploadHelperDx12(*this, submissionThread, renderUploadHeapSize, m_pipelineLength);
+		m_afterRenderDownloads = new DownloadHelperDx12(*this, submissionThread, m_pipelineLength);
 
 		m_nonSamplerDescHeapAllocator = new DescriptorHeapAllocatorDx12(*this, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, DEFAULT_DESCRIPTORHEAP_SIZE_NONSAMPLER);
 		m_samplerDescHeapAllocator = new DescriptorHeapAllocatorDx12(*this, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, DEFAULT_DESCRIPTORHEAP_SIZE_SAMPLER);
@@ -84,6 +88,13 @@ namespace YAPT
 			delete m_duringFrameUploads;
 			m_duringFrameUploads = nullptr;
 		}
+		if (m_afterRenderDownloads)
+		{
+			delete m_afterRenderDownloads;
+			m_afterRenderDownloads = nullptr;
+		}
+
+		m_primitiveMngr.destroyAllFences();
 
 		m_pendingDestroyedObjects.clear();
 		for (size_t i = 0; i < m_pendingFreedAllocations.size(); ++i)
@@ -163,7 +174,7 @@ namespace YAPT
 			YAPT_LOG_FATAL_ERROR("Map for given heaptype not supported");
 		}
 	}
-	void* ResourceManagerDx12::map(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
+	void* ResourceManagerDx12::mapForUpload(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 	{
 		if (handle->heapType == D3D12_HEAP_TYPE_DEFAULT)
 		{
@@ -181,12 +192,161 @@ namespace YAPT
 		}
 	}
 
-	void ResourceManagerDx12::unmap(BufferHandleDx12* handle)
+	void ResourceManagerDx12::unmapForUpload(BufferHandleDx12* handle)
 	{
 		if (handle->heapType == D3D12_HEAP_TYPE_UPLOAD)
 		{
 			handle->unmap();
 		}
+	}
+
+	static void* mapResourceRange(ID3D12Resource* resource, D3D12_HEAP_TYPE heapType, size_t beginInBytes, size_t endInBytes)
+	{
+		D3D12_RANGE readRange = { 0, 0 };
+		if (heapType == D3D12_HEAP_TYPE_READBACK)
+		{
+			readRange = { beginInBytes, endInBytes };
+		}
+
+		void* mapped = nullptr;
+		if (FAILED(resource->Map(0, &readRange, &mapped)))
+		{
+			YAPT_LOG_ERROR("failed to map resource");
+			return nullptr;
+		}
+		return mapped;
+	}
+
+	static void unmapResourceRange(ID3D12Resource* resource, D3D12_HEAP_TYPE heapType, size_t beginInBytes, size_t endInBytes)
+	{
+		D3D12_RANGE writtenRange = { 0, 0 };
+		if (heapType == D3D12_HEAP_TYPE_UPLOAD)
+		{
+			writtenRange = { beginInBytes, endInBytes };
+		}
+		resource->Unmap(0, &writtenRange);
+	}
+
+	void* ResourceManagerDx12::map(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes)
+	{
+		if (handle->heapType == D3D12_HEAP_TYPE_DEFAULT)
+		{
+			YAPT_LOG_WARNING("trying to map buffer memory that is not host visible");
+			return nullptr;
+		}
+
+		assert(offsetInBytes + sizeInBytes <= handle->bufferDesc.Width);
+
+		char* mapped = (char*)mapResourceRange(handle->resource, handle->heapType, offsetInBytes, offsetInBytes + sizeInBytes);
+		if (mapped == nullptr)
+		{
+			return nullptr;
+		}
+		return mapped + offsetInBytes;
+	}
+
+	void ResourceManagerDx12::unmap(BufferHandleDx12* handle, size_t offsetInBytes, size_t sizeInBytes)
+	{
+		//mirrors the conditions under which map() actually mapped anything
+		if (handle->heapType == D3D12_HEAP_TYPE_DEFAULT)
+		{
+			return;
+		}
+
+		assert(offsetInBytes + sizeInBytes <= handle->bufferDesc.Width);
+		unmapResourceRange(handle->resource, handle->heapType, offsetInBytes, offsetInBytes + sizeInBytes);
+	}
+
+	void* ResourceManagerDx12::map(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		if (!handle->isBufferBacked())
+		{
+			YAPT_LOG_WARNING("trying to map texture memory that is not host visible");
+			return nullptr;
+		}
+
+		const TextureSubresourceLayout layout = getMappedSubresourceLayout(handle, arraySliceOffset, mipOffset);
+
+		char* mapped = (char*)mapResourceRange(handle->resource, handle->heapType, layout.offsetInBytes, layout.offsetInBytes + layout.sizeInBytes);
+		if (mapped == nullptr)
+		{
+			return nullptr;
+		}
+		return mapped + layout.offsetInBytes;
+	}
+
+	void ResourceManagerDx12::unmap(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		if (!handle->isBufferBacked())
+		{
+			return;
+		}
+
+		const TextureSubresourceLayout layout = getMappedSubresourceLayout(handle, arraySliceOffset, mipOffset);
+		unmapResourceRange(handle->resource, handle->heapType, layout.offsetInBytes, layout.offsetInBytes + layout.sizeInBytes);
+	}
+
+	TextureSubresourceLayout ResourceManagerDx12::getMappedSubresourceLayout(TextureHandleDx12* handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+	{
+		TextureSubresourceLayout layout{};
+		if (!handle->isBufferBacked())
+		{
+			return layout;
+		}
+
+		assert(mipOffset < handle->textureDesc.MipLevels);
+		const UINT subresource = handle->getSubresourceIndex(arraySliceOffset, mipOffset);
+		assert(subresource < handle->footprints.size());
+
+		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = handle->footprints[subresource];
+		layout.offsetInBytes = footprint.Offset;
+		layout.rowPitchInBytes = footprint.Footprint.RowPitch;
+		layout.depthPitchInBytes = size_t(footprint.Footprint.RowPitch) * handle->numRows[subresource];
+		layout.sizeInBytes = layout.depthPitchInBytes * footprint.Footprint.Depth;
+		return layout;
+	}
+
+	void ResourceManagerDx12::readback(ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal)
+	{
+		switch (stage)
+		{
+		case YAPT::GpuDownloadStage::AFTER_RENDER:
+		{
+			//only taken over here, the copies read what the frame renders and can not be issued before that work has
+			//been submitted
+			m_afterRenderDownloads->queueDownloads(def, fenceToSignal);
+			break;
+		}
+		default:
+			assert(!"unknown download stage");
+			break;
+		}
+	}
+
+	bool ResourceManagerDx12::hasPendingDownloads() const
+	{
+		return m_afterRenderDownloads->hasQueuedDownloads();
+	}
+
+	void ResourceManagerDx12::flushDownloads(size_t frameIndex)
+	{
+		m_afterRenderDownloads->flushDownloadBatches(frameIndex);
+	}
+
+	FenceHandle ResourceManagerDx12::acquireFence(FenceType type)
+	{
+		assert(type == FenceType::CPU_GPU_SYNC);
+		return m_primitiveMngr.acquireFence();
+	}
+
+	FenceState ResourceManagerDx12::getFenceState(FenceHandle handle)
+	{
+		return m_primitiveMngr.getFenceState(handle);
+	}
+
+	void ResourceManagerDx12::freeFence(FenceHandle handle)
+	{
+		m_primitiveMngr.freeFence(handle);
 	}
 
 	void ResourceManagerDx12::upload(TextureHandle image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
@@ -306,7 +466,10 @@ namespace YAPT
 	{
 
 		m_preFrameUploads->prepareNextUploadBatch();
-		
+
+		//hand the fences that were freed while still pending back to the allocator
+		m_primitiveMngr.syncPendingFree();
+
 		{
 			std::unique_lock<std::mutex> lock(m_destroyObjectsMutex);
 			m_destroyPendingListIndex = (m_destroyPendingListIndex + 1) % m_pendingDestroyedObjects.size();;
@@ -322,7 +485,7 @@ namespace YAPT
 		
 	}
 
-	void ResourceManagerDx12::uploadPreFrameData(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex)
+	void ResourceManagerDx12::uploadPreFrameData(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex)
 	{
 		m_preFrameUploads->flushUploadBatch(fencesToWait, fenceCount, queueIndex);
 		
@@ -338,7 +501,7 @@ namespace YAPT
 
 	}
 
-	void ResourceManagerDx12::uploadFrameData(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex)
+	void ResourceManagerDx12::uploadFrameData(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex)
 	{
 		m_duringFrameUploads->flushUploadBatch(fencesToWait, fenceCount, queueIndex);
 	}
@@ -348,7 +511,7 @@ namespace YAPT
 		ID3D12Fence* fence1 = m_preFrameUploads->getFenceHelper().getFenceForFrame(m_preFrameUploads->getFenceHelper().getCurrentFrameCount() - 1);
 		ID3D12Fence* fence2 = m_duringFrameUploads->getFenceHelper().getFenceForFrame(m_duringFrameUploads->getFenceHelper().getCurrentFrameCount() - 1);
 
-		FenceState fenceStates[] =
+		FenceValueDx12 fenceStates[] =
 		{
 			{ fence1, m_preFrameUploads->getFenceHelper().getCurrentFrameCount() - 1 },
 			{ fence2, m_duringFrameUploads->getFenceHelper().getCurrentFrameCount() - 1 }

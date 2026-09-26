@@ -61,6 +61,8 @@ namespace YAPT
 		void unmap(BufferHandleVk* handle, size_t offsetInBytes, size_t sizeInBytes);
 		void* map(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
 		void unmap(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
+		//all zeroes for textures map() refuses to map
+		TextureSubresourceLayout getMappedSubresourceLayout(TextureHandleVk* handle, uint32_t arraySliceOffset, uint32_t mipOffset);
 		//unmaps the whole buffer, used by the upload heap path
 		
 		void upload(TextureHandleVk* image, size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage);

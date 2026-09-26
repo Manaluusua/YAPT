@@ -22,7 +22,7 @@ namespace YAPT
 			size_t arraySliceOffset, size_t arraySliceCount, size_t mipOffset, size_t mipCount, const TextureDataDefinition* textureDataDefinitions, const ResourceStateDescription& afterUploadUsage);
 
 		void prepareNextUploadBatch();
-		void flushUploadBatch(FenceState* fencesToWait, size_t fenceCount, size_t queueIndex);
+		void flushUploadBatch(FenceValueDx12* fencesToWait, size_t fenceCount, size_t queueIndex);
 
 		FrameCycleFenceHelper& getFenceHelper() { return m_fenceHelper; }
 

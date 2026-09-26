@@ -140,6 +140,10 @@ namespace YAPT
 		{
 			h->getResourceManager()->unmap(handle, arraySliceOffset, mipOffset);
 		}
+		TextureSubresourceLayout getMappedSubresourceLayout(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			return h->getResourceManager()->getMappedSubresourceLayout(handle, arraySliceOffset, mipOffset);
+		}
 
 		void* mapFromUploadStage(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
 		{

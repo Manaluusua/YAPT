@@ -84,6 +84,8 @@ namespace YAPT
 				uint32_t fenceIndex = m_pendingFreePrimitives[i];
 				if (getFenceState(fenceIndex) != FenceState::Pending)
 				{
+					//done with the gpu, can finally be handed out again
+					m_indexAllocators.free(fenceIndex);
 					std::swap(m_pendingFreePrimitives[i], m_pendingFreePrimitives[freeCount - 1]);
 					--freeCount;
 					--i;

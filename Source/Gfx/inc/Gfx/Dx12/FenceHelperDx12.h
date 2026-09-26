@@ -4,13 +4,20 @@
 
 #include <Gfx/Dx12/Dx12CommonIncludes.h>
 #include <vector>
+#include <atomic>
 
 namespace YAPT
 {
-	struct FenceState
+	struct FenceValueDx12
 	{
 		ID3D12Fence* fence;
 		UINT64 value;
+	};
+
+	struct FenceDx12
+	{
+		RCPtr<ID3D12Fence> fence;
+		std::atomic<UINT64> signalValue;
 	};
 
 	class FenceHelperDx12

@@ -481,6 +481,15 @@ namespace YAPT
 		BufferCopyDefinition def;
 	};
 
+	//how a single subresource of a cpu mappable texture is laid out in the memory returned by map()
+	struct TextureSubresourceLayout
+	{
+		size_t offsetInBytes;
+		size_t sizeInBytes;
+		size_t rowPitchInBytes;
+		size_t depthPitchInBytes;
+	};
+
 	struct ReadbackDefinitions
 	{
 		TextureReadbackDefinition* textureReadbackDefinitions;

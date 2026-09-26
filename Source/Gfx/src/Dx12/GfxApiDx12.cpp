@@ -15,6 +15,7 @@
 #include <Gfx/Dx12/ShaderPipelineReflectionDx12.h>
 #include <Gfx/Dx12/DescriptorSetPoolDx12.h>
 #include <Gfx/Dx12/ShaderTableDx12.h>
+#include <Gfx/Dx12/d3dx12.h>
 #include <Math/Math.h>
 #include <Common/CommonWindowsUtility.h>
 
@@ -89,36 +90,56 @@ namespace YAPT
 		{
 			TextureHandleDx12* textureHandle = new TextureHandleDx12;
 			textureDescToDx12ResourceDesc(desc, textureHandle->textureDesc);
-			D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
-			//rely on state promotion if usage is copy dest
-			if (state == D3D12_RESOURCE_STATE_COPY_DEST)
-			{
-				state = D3D12_RESOURCE_STATE_COMMON;
-			}
+			textureHandle->texDesc = desc;
 			textureHandle->dimension = desc.dimension;
-			textureHandle->lastSeenState.init(state, desc.depthOrSlices * desc.mips);
+			textureHandle->heapType = yaptMemoryTypetoHeadType(desc.memoryType);
 
-			if (desc.useOptimizedClearValue)
+			if (textureHandle->isBufferBacked())
 			{
-				textureHandle->clearValue.Format = textureHandle->textureDesc.Format;
-				if (desc.optimizedClearValue.type == ClearValue::_ClearValueType::DEPTH_STENCIL)
-				{
-					textureHandle->clearValue.DepthStencil.Depth = desc.optimizedClearValue.value.depthStencil.depth;
-					textureHandle->clearValue.DepthStencil.Stencil = desc.optimizedClearValue.value.depthStencil.stencil;
-				}
-				else
-				{
-					memcpy(textureHandle->clearValue.Color, desc.optimizedClearValue.value.fvec, sizeof(float)*4);
-				}
-				
+				const UINT subresourceCount = textureHandle->getSubresourceCount();
+				textureHandle->footprints.resize(subresourceCount);
+				textureHandle->numRows.resize(subresourceCount);
+				UINT64 totalSizeInBytes = 0;
+				h->getResourceManager().getDevice().GetCopyableFootprints(&textureHandle->textureDesc, 0, subresourceCount, 0, textureHandle->footprints.data(), textureHandle->numRows.data(), nullptr, &totalSizeInBytes);
+
+				const D3D12_RESOURCE_STATES stagingState = textureHandle->heapType == D3D12_HEAP_TYPE_READBACK ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
+				textureHandle->lastSeenState.init(stagingState, 1);
+				textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
+
+				CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(totalSizeInBytes);
+				textureHandle->allocBlock = h->getResourceManager().allocate(bufferDesc, textureHandle->heapType, stagingState, nullptr, IID_PPV_ARGS(&textureHandle->resource));
 			}
 			else
 			{
-				textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
-			}
+				D3D12_RESOURCE_STATES state = yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+				//rely on state promotion if usage is copy dest
+				if (state == D3D12_RESOURCE_STATE_COPY_DEST)
+				{
+					state = D3D12_RESOURCE_STATE_COMMON;
+				}
+				textureHandle->lastSeenState.init(state, desc.depthOrSlices * desc.mips);
 
-			textureHandle->heapType = yaptMemoryTypetoHeadType(desc.memoryType);
-			textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, textureHandle->heapType, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
+				if (desc.useOptimizedClearValue)
+				{
+					textureHandle->clearValue.Format = textureHandle->textureDesc.Format;
+					if (desc.optimizedClearValue.type == ClearValue::_ClearValueType::DEPTH_STENCIL)
+					{
+						textureHandle->clearValue.DepthStencil.Depth = desc.optimizedClearValue.value.depthStencil.depth;
+						textureHandle->clearValue.DepthStencil.Stencil = desc.optimizedClearValue.value.depthStencil.stencil;
+					}
+					else
+					{
+						memcpy(textureHandle->clearValue.Color, desc.optimizedClearValue.value.fvec, sizeof(float)*4);
+					}
+					
+				}
+				else
+				{
+					textureHandle->clearValue.Format = DXGI_FORMAT_UNKNOWN;
+				}
+
+				textureHandle->allocBlock = h->getResourceManager().allocate(textureHandle->textureDesc, textureHandle->heapType, state, desc.useOptimizedClearValue ? &textureHandle->clearValue : nullptr, IID_PPV_ARGS(&textureHandle->resource));
+			}
 
 #ifdef DX12_DEBUGNAMES_ENABLE
 			if (name)
@@ -137,10 +158,16 @@ namespace YAPT
 		{
 			BufferHandleDx12* bufferHandle = new BufferHandleDx12;
 			bufferDescToDx12ResourceDesc(desc, bufferHandle->bufferDesc);
-			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;//yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
-			bufferHandle->lastSeenState.init(state, 1);
-
+			bufferHandle->buffDesc = desc;
 			bufferHandle->heapType = yaptMemoryTypetoHeadType(desc.memoryType);
+
+			D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON;//yaptUsageToDx12ResourceStates(initialState.resourceUsage, initialState.accessFlags, initialState.shaderStagesUsedIn);
+			//readback heap resources have to be created in, and stay in, COPY_DEST
+			if (bufferHandle->heapType == D3D12_HEAP_TYPE_READBACK)
+			{
+				state = D3D12_RESOURCE_STATE_COPY_DEST;
+			}
+			bufferHandle->lastSeenState.init(state, 1);
 
 
 			D3D12_RESOURCE_DESC resDesc = bufferHandle->bufferDesc;
@@ -162,6 +189,15 @@ namespace YAPT
 			return bufferHandle;
 		}
 
+		const TextureDesc& getDesc(GfxApiHandle h, TextureHandle handle)
+		{
+			return handle->texDesc;
+		}
+		const BufferDesc& getDesc(GfxApiHandle h, BufferHandle handle)
+		{
+			return handle->buffDesc;
+		}
+
 		void destroyTexture(GfxApiHandle h, TextureHandle handle)
 		{
 			ResourceManagerDx12& mngr = h->getResourceManager();
@@ -177,22 +213,6 @@ namespace YAPT
 			delete handle;
 		}
 
-		void copyTextureToTexture(GfxApiHandle h, CommandBufferHandle cmdBuffer, TextureHandle source, TextureHandle dst, size_t numberOfCopyDefinitions, const ImageCopyDef* copydefs)
-		{
-			assert(!"TODO");
-		}
-		void copyTextureToBuffer(GfxApiHandle h, CommandBufferHandle cmdBuffer, TextureHandle source, BufferHandle dst, size_t numberOfCopyDefinitions, const BufferImageCopyDef* copydefs)
-		{
-			assert(!"TODO");
-		}
-		void copyBufferToBuffer(GfxApiHandle h, CommandBufferHandle cmdBuffer, BufferHandle source, BufferHandle dst, size_t numberOfCopyDefinitions, const BufferCopydef* copydefs)
-		{
-			assert(!"TODO");
-		}
-		void copyBufferToTexture(GfxApiHandle h, CommandBufferHandle cmdBuffer, BufferHandle source, TextureHandle dst, size_t numberOfCopyDefinitions, const BufferImageCopyDef* copydefs)
-		{
-			assert(!"TODO");
-		}
 
 		void uploadBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, const void* data, GpuUploadStage heapType)
 		{
@@ -200,20 +220,61 @@ namespace YAPT
 			
 		}
 
-		void* mapBuffer(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
-		{
-			return h->getResourceManager().map(handle, offsetInBytes, sizeInBytes, heapType);
-		}
-
-		void unmapBuffer(GfxApiHandle h, BufferHandle handle)
-		{
-			h->getResourceManager().unmap(handle);
-		}
-
+	
 		void uploadTexture(GfxApiHandle h, TextureHandle image, uint32_t arraySliceOffset, uint32_t arraySliceCount, uint32_t mipOffset, uint32_t mipCount, const TextureDataDefinition* textureDataDefinitions, GpuUploadStage heapType, const ResourceStateDescription& afterUploadUsage)
 		{
 			h->getResourceManager().upload(image, arraySliceOffset, arraySliceCount, mipOffset, mipCount, textureDataDefinitions, heapType, afterUploadUsage);
 		}
+
+		void* mapFromUploadStage(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes, GpuUploadStage heapType)
+		{
+			return h->getResourceManager().mapForUpload(handle, offsetInBytes, sizeInBytes, heapType);
+		}
+
+		void unmapFromUploadStage(GfxApiHandle h, BufferHandle handle)
+		{
+			h->getResourceManager().unmapForUpload(handle);
+		}
+
+		void* map(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes)
+		{
+			return h->getResourceManager().map(handle, offsetInBytes, sizeInBytes);
+		}
+		void unmap(GfxApiHandle h, BufferHandle handle, size_t offsetInBytes, size_t sizeInBytes)
+		{
+			h->getResourceManager().unmap(handle, offsetInBytes, sizeInBytes);
+		}
+		void* map(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			return h->getResourceManager().map(handle, arraySliceOffset, mipOffset);
+		}
+		void unmap(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			h->getResourceManager().unmap(handle, arraySliceOffset, mipOffset);
+		}
+		TextureSubresourceLayout getMappedSubresourceLayout(GfxApiHandle h, TextureHandle handle, uint32_t arraySliceOffset, uint32_t mipOffset)
+		{
+			return h->getResourceManager().getMappedSubresourceLayout(handle, arraySliceOffset, mipOffset);
+		}
+
+		FenceHandle acquireFence(GfxApiHandle h, FenceType type)
+		{
+			return h->getResourceManager().acquireFence(type);
+		}
+		FenceState getFenceState(GfxApiHandle h, FenceHandle handle)
+		{
+			return h->getResourceManager().getFenceState(handle);
+		}
+		void freeFence(GfxApiHandle h, FenceHandle handle)
+		{
+			h->getResourceManager().freeFence(handle);
+		}
+
+		void readback(GfxApiHandle h, ReadbackDefinitions& def, GpuDownloadStage stage, FenceHandle fenceToSignal)
+		{
+			h->getResourceManager().readback(def, stage, fenceToSignal);
+		}
+
 
 		size_t getBufferMinimumAlignment(GfxApiHandle h, ResourceUsage resourceUsage)
 		{

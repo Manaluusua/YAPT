@@ -92,6 +92,11 @@ namespace YAPT
 				texHandle->name = "Swapchain Image";
 #endif
 				texHandle->dimension = ResourceDimension::TEXTURE_2D;
+				texHandle->heapType = D3D12_HEAP_TYPE_DEFAULT;
+
+				//matches swapChainDesc.Format above
+				texHandle->texDesc = TextureDesc(ResourceDimension::TEXTURE_2D, ResourceFormat::RGBA8_UNORM, RESOURCE_USAGE_RENDER_TARGET_TEXTURE,
+					swapChainDesc.Width, swapChainDesc.Height, 1, 1, MemoryType::DEFAULT);
 
 				texHandle->textureDesc.Width = swapChainDesc.Width;
 				texHandle->textureDesc.Height = swapChainDesc.Height;
