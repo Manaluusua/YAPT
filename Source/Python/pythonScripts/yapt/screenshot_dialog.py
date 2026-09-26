@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy,
-                               QDoubleSpinBox, QPushButton, QLineEdit, QPlainTextEdit, QFileDialog)
+                               QPushButton, QLineEdit, QPlainTextEdit, QFileDialog)
+from yapt.ui_utility import CompactDoubleSpinBox
 
 
 class ScreenshotDialog(QDialog):
@@ -67,7 +68,7 @@ class ScreenshotDialog(QDialog):
 
         interval_layout = QHBoxLayout()
         interval_layout.addWidget(QLabel("Interval (s)"))
-        self._interval_spinbox = QDoubleSpinBox()
+        self._interval_spinbox = CompactDoubleSpinBox()
         self._interval_spinbox.setDecimals(3)
         self._interval_spinbox.setMinimum(0.01)
         self._interval_spinbox.setMaximum(3600.0)

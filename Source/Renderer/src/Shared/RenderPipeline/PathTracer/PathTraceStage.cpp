@@ -31,7 +31,8 @@ namespace YAPT
 		m_resolveTargetHeight(0),
 		m_raysPerFrameDivisor(1),
 		m_accelerationStructureNeedsRebuild(true),
-		m_lastEnvMap(nullptr)
+		m_lastEnvMap(nullptr),
+		m_lastEnvIntensityScale(1.f)
 	{
 		switch (type)
 		{
@@ -129,7 +130,11 @@ namespace YAPT
 	JobHandle PathTraceStage::update(const UpdateData& cntx)
 	{
 
-		if (m_accelerationStructureNeedsRebuild || hasCameraMoved())
+		float envIntensityScale = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<float>(RVARNAME_ENV_INTENSITY_SCALE);
+		bool envIntensityChanged = envIntensityScale != m_lastEnvIntensityScale;
+		m_lastEnvIntensityScale = envIntensityScale;
+
+		if (m_accelerationStructureNeedsRebuild || hasCameraMoved() || envIntensityChanged)
 		{
 			clearAccumulatedFrames();
 		}

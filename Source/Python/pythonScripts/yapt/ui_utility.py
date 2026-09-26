@@ -2,6 +2,25 @@ from PySide6.QtWidgets import QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLay
 from PySide6.QtGui import QAction
 
 
+class CompactDoubleSpinBox(QDoubleSpinBox):
+    """QDoubleSpinBox that only shows the decimals a value needs (0.5 instead of 0.500000).
+    decimals() still sets the precision, so more digits can be typed in when needed."""
+
+    def textFromValue(self, value):
+        locale = self.locale()
+        text = locale.toString(float(value), 'f', self.decimals())
+        if not self.isGroupSeparatorShown():
+            text = text.replace(locale.groupSeparator(), "")
+
+        decimal_point = locale.decimalPoint()
+        if decimal_point in text:
+            text = text.rstrip("0").rstrip(decimal_point)
+
+        if text in ("", "-0"):
+            text = "0"
+        return text
+
+
 class NumericValuesUI(QWidget):
     def __init__(self, parent, numbers_count, decimals_count, name = None, on_change_callback = None):
         super().__init__(parent)
@@ -20,7 +39,7 @@ class NumericValuesUI(QWidget):
         self._spinBoxes = []
 
         for i in range(numbers_count):
-            sb = QDoubleSpinBox()
+            sb = CompactDoubleSpinBox()
             sb.setDecimals(decimals_count)
             sb.valueChanged.connect(self.value_changed)
             layout.addWidget(sb)

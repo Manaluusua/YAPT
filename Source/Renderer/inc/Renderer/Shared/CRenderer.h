@@ -16,6 +16,7 @@
 
 #define RVARNAME_RENDER_RESOLUTION "Generic.RenderResolution"
 #define RVARNAME_SKYBOX "World.Skycube"
+#define RVARNAME_ENV_INTENSITY_SCALE "World.EnvIntensityScale"
 
 #define RVARNAME_ACTIVE_RENDERPIPELINE "RenderPipeline"
 #define RVARNAME_REGULARIZE_AFTER_VERTICES "Firefly.RegularizeAfterVertices"
