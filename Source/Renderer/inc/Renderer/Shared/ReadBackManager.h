@@ -18,7 +18,8 @@ namespace YAPT
 		ReadbackGroup(GfxApiHandle gfx, FenceHandle fence)
 			:m_fenceHandle(fence),
 			m_gfx(gfx),
-			m_lastQueriedState(FenceState::Unused)
+			//start out pending so the fence actually gets polled, otherwise the readback reads as ready before the gpu has done the copy
+			m_lastQueriedState(fence == InvalidFenceHandle ? FenceState::Unused : FenceState::Pending)
 		{
 
 		}
