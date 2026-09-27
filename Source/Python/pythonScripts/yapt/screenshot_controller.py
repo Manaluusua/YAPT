@@ -1,6 +1,6 @@
 from py_yapt import ReadbackTarget, ReadbackState
 from yapt.screenshot_writer import write_readback_data
-from PySide6.QtCore import QDateTime
+from PySide6.QtCore import QDate, QDateTime, QStandardPaths
 import os
 import traceback
 
@@ -29,7 +29,7 @@ class ScreenshotController:
         self._interval = self.DEFAULT_INTERVAL_SECONDS
         self._time_since_last_capture = 0.0
 
-        self._output_directory = os.path.abspath("screenshots")
+        self._output_directory = self._default_output_directory()
         self._name_prefix = "screenshot"
         self._capture_index = 0
 
@@ -116,6 +116,15 @@ class ScreenshotController:
             self._stop_ticking()
 
     #internals
+    @staticmethod
+    def _default_output_directory():
+        #the desktop location follows windows folder redirection (e.g. onedrive), unlike a plain ~/Desktop
+        desktop = QStandardPaths.writableLocation(QStandardPaths.DesktopLocation)
+        if not desktop:
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        date = QDate.currentDate().toString("yyyy-MM-dd")
+        return os.path.normpath(os.path.join(desktop, "YaptScreenshots", date))
+
     def _start_ticking(self):
         if self._is_ticking:
             return
