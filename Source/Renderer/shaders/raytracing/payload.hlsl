@@ -84,6 +84,10 @@ struct Payload //: RayStateInterface
         return (getStateFlags() & flagsIn) == flagsIn;
     }
 	
+    uint getNumberOfVolumesEntered()
+    {
+        return numberVolumesEntered;
+    }
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
 	SpectralSamples throughput;
 	SpectralSamples totalLight;

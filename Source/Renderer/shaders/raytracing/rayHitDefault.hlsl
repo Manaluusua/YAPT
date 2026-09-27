@@ -337,7 +337,9 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	//surface setup done, do the rest
 	float3 nextSampleDirBRDF;
 	float rayDistance = RayTCurrent();
-	
+    
+    handleRayStartInsideMedium(payload, surfaceDef, rayDir, geometryNormal);
+    
 	//before handling the intersection, apply and clear absorption
     SpectralSamples absorb = payload.getAbsorption();
     if (!absorb.allSamplesEqual(0))

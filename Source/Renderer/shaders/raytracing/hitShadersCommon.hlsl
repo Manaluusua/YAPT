@@ -147,6 +147,18 @@ float3 getRaySpawnOffsetUsingNormal(float3 geometryNormal, float3 nextSampleDir)
     return rayOffset;
 }
 
+template<typename RayState>
+void handleRayStartInsideMedium(inout RayState state, in SurfaceDefinition surfaceDef, float3 rayDir, float3 geometryNormal)
+{
+    
+    //special case where the ray starts from inside a medium:
+    if (dot(rayDir, geometryNormal) > 0 && state.getNumberOfVolumesEntered() == 0 && !isSurfaceTwoSided(surfaceDef.flags))
+    {
+        state.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
+    }
+
+}
+
 float3 getRaySpawnOffsetTowardsRay(float3 nextSampleDir)
 {
     float offsetEpsilon = 0.01f;

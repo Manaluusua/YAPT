@@ -124,12 +124,12 @@ class SceneLoader:
                 self._set_texture(pbr_config.baseColorTexture, yapt_mat.setAlbedoTexture)
 
             metallicFactor = 1
-            if getattr(pbr_config, "metallicFactor"):
+            if pbr_config.metallicFactor is not None:
                 metallicFactor = pbr_config.metallicFactor
             yapt_mat.setMetalness(metallicFactor)
 
             roughnessFactor = 1
-            if getattr(pbr_config, "roughnessFactor"):
+            if pbr_config.roughnessFactor is not None:
                 roughnessFactor = pbr_config.roughnessFactor
             yapt_mat.setRoughness(roughnessFactor)
 
@@ -158,7 +158,7 @@ class SceneLoader:
                 if("attenuationColor" in volume):
                     att_col = volume["attenuationColor"]
 
-                if(att_dist > 0 and (att_col[0] != 1 or att_col[1] != 1 or att_col[1] != 1 )):
+                if(att_dist > 0 and (att_col[0] != 1 or att_col[1] != 1 or att_col[2] != 1)):
                     absorb = v3(-math.log(att_col[0]) / att_dist, -math.log(att_col[1]) / att_dist, -math.log(att_col[2]) / att_dist)
                     yapt_mat.setAbsorption(absorb)
 
@@ -217,7 +217,7 @@ class SceneLoader:
         gltf_mesh = self._gltf.meshes[node.mesh]
         for primIndex in range(0, len(gltf_mesh.primitives)):
             prim = gltf_mesh.primitives[primIndex]
-            if getattr(prim, "material"):
+            if prim.material is not None:
                 mat_ind = prim.material
                 obj_materials.append(self._materials[mat_ind])
             else:
@@ -237,7 +237,7 @@ class SceneLoader:
         obj = None
         if self._has_transform(node):
             #if node has mesh and its succesfully loaded, create renderobject
-            if(node.mesh):
+            if(node.mesh is not None):
                 mesh_group = self._mesh_groups[node.mesh]
                 if mesh_group != None and len(mesh_group[0]) > 0:
                     obj = self._create_render_object(node)

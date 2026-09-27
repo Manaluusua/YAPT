@@ -115,6 +115,11 @@ struct BDPTRayState //: RayStateInterface
         numberVolumesEntered = numberVolumesEntered == 0 ? 0 : numberVolumesEntered - 1;
     }
 
+    uint getNumberOfVolumesEntered()
+    {
+        return numberVolumesEntered;
+    }
+
     uint getStateFlags()
     {
         return flags;
@@ -450,7 +455,7 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     return data;
 }
 
-void calculateCommonSurfaceParams(in BDPTRayState rayState, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
+void calculateCommonSurfaceParams(inout BDPTRayState rayState, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
 
@@ -463,12 +468,15 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
 
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
+    //must happen before the precalculated data is set up so that the IORs (and the absorption applied by the caller) account for the medium the ray started in
+    handleRayStartInsideMedium(rayState, surfaceDef, -woOS, surfaceDef.geometryNormal);
+
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
     calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 }
 
 
-void calculateCommonSurfaceParams(in BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace,
+void calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
     SurfaceDefinitionRGB surfaceDefRGB;
