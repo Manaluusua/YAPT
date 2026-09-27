@@ -94,11 +94,25 @@ class SceneLoader:
         setter_fn(tex, v2(1, 1))
         return tex
 
+    def _warn_unsupported_textures(self, mat, ext_name, ext, tex_keys):
+        unsupported = [key for key in tex_keys if key in ext]
+        if unsupported:
+            print(f"material {mat.name}: {ext_name} textures {unsupported} are not supported, using factors only")
+
     def _load_material_gltf(self, mat):
-        yapt_mat = self._renderer.createMaterial(f"{mat.name}_mat") 
-        
+        yapt_mat = self._renderer.createMaterial(f"{mat.name}_mat")
+        extensions = getattr(mat, "extensions", None) or {}
+
+        #emission
+        emissive_strength = 1.0
+        if "KHR_materials_emissive_strength" in extensions:
+            emissive_strength = extensions["KHR_materials_emissive_strength"].get("emissiveStrength", 1.0)
+
         if getattr(mat, "emissiveFactor"):
-            yapt_mat.setEmission(vec3(mat.emissiveFactor))
+            yapt_mat.setEmission(vec3([c * emissive_strength for c in mat.emissiveFactor]))
+
+        if getattr(mat, "emissiveTexture"):
+            self._set_texture(mat.emissiveTexture, yapt_mat.setEmissiveTexture)
 
         if getattr(mat, "normalTexture"):
             self._set_texture(mat.normalTexture, yapt_mat.setNormalTexture)
@@ -118,7 +132,9 @@ class SceneLoader:
             if getattr(pbr_config, "baseColorFactor"):
                 color = pbr_config.baseColorFactor
             yapt_mat.setAlbedo(v3(color[0], color[1], color[2]))
-            yapt_mat.setTransparency(color[3])
+            # yapt "transparency" is the dielectric transmission weight (KHR_materials_transmission below),
+            # glTF base color alpha is coverage which yapt doesn't support
+            yapt_mat.setTransparency(0)
 
 
             if getattr(pbr_config, "baseColorTexture"):
@@ -140,8 +156,40 @@ class SceneLoader:
                     print(f"loading material {mat.name} which has separate occlusion and roughness and metalness textures. Yapt assumes ORM to be in one tex, using the RM texture for everything! ")
         
         #material extensions
-        if getattr(mat, "extensions"):
-            extensions = mat.extensions
+        if extensions:
+
+            #transmission
+            if "KHR_materials_transmission" in extensions:
+                transmission = extensions["KHR_materials_transmission"]
+                self._warn_unsupported_textures(mat, "KHR_materials_transmission", transmission, ["transmissionTexture"])
+                yapt_mat.setTransparency(transmission.get("transmissionFactor", 0.0))
+
+            #specular (specularColorFactor is dielectric F0 tint, yapt's specular tint is only the conductor edge tint)
+            if "KHR_materials_specular" in extensions:
+                specular = extensions["KHR_materials_specular"]
+                self._warn_unsupported_textures(mat, "KHR_materials_specular", specular, ["specularTexture"])
+                yapt_mat.setSpecularAmount(specular.get("specularFactor", 1.0))
+
+            #clearcoat (glTF clearcoat has fixed IOR 1.5)
+            if "KHR_materials_clearcoat" in extensions:
+                clearcoat = extensions["KHR_materials_clearcoat"]
+                self._warn_unsupported_textures(mat, "KHR_materials_clearcoat", clearcoat,
+                                                ["clearcoatTexture", "clearcoatRoughnessTexture", "clearcoatNormalTexture"])
+                yapt_mat.setClearCoatAmount(clearcoat.get("clearcoatFactor", 0.0))
+                yapt_mat.setClearCoatRoughness(clearcoat.get("clearcoatRoughnessFactor", 0.0))
+                yapt_mat.setClearCoatIOR(1.5)
+
+            #sheen: glTF sheen color = yapt sheen amount * tint, glTF roughness is perceptual while yapt's sheen distribution takes alpha directly
+            if "KHR_materials_sheen" in extensions:
+                sheen = extensions["KHR_materials_sheen"]
+                self._warn_unsupported_textures(mat, "KHR_materials_sheen", sheen, ["sheenColorTexture", "sheenRoughnessTexture"])
+                sheen_color = sheen.get("sheenColorFactor", [0.0, 0.0, 0.0])
+                sheen_amount = max(sheen_color)
+                if sheen_amount > 0:
+                    yapt_mat.setSheenAmount(sheen_amount)
+                    yapt_mat.setSheenTint(vec3([c / sheen_amount for c in sheen_color]))
+                    sheen_roughness = sheen.get("sheenRoughnessFactor", 0.0)
+                    yapt_mat.setSheenRoughness(sheen_roughness * sheen_roughness)
 
             #volume
             if "KHR_materials_volume" in extensions:
