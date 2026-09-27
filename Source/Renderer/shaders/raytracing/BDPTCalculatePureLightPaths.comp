@@ -92,9 +92,7 @@ bool checkVisibility(float3 from, float3 to)
 		    InstanceInclusionMask,
 		    ray);
 
-    while (q.Proceed())
-    {
-    }
+    PROCEED_ALPHA_TESTED(q)
 
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {

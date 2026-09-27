@@ -132,7 +132,7 @@ namespace YAPT
 					AccelerationStructureInstanceDefinition& def = instanceDefs[instanceDefsOffset + k];
 					fillInstanceTransform(transforms[i], def.instanceToWorld);
 					def.blas = blasArray.blasPerSubMesh[k];
-					paramsHandler(i, ids[i], k,  def.instanceID, def.instanceMask, def.hitGroupShaderTableOffset);
+					paramsHandler(i, ids[i], k,  def.instanceID, def.instanceMask, def.hitGroupShaderTableOffset, def.forceNonOpaque);
 				}
 			}
 

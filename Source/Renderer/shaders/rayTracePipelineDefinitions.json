@@ -18,6 +18,15 @@
 				}
 			]
 		},
+		"rayAnyHitAlphaTest": {
+			"stages": [
+				{
+					"type": "library",
+					"sourceFile": "raytracing/rayAnyHitAlphaTest.hlsl",
+					"entryPoint": "rayAnyHitAlphaTest"
+				}
+			]
+		},
 		"rayHitDefaultWithNEE": {
 			"stages": [
 				{

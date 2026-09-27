@@ -29,6 +29,9 @@ struct MaterialEntryGPU
 	uint2 normalTexIndexAndScale;
 	uint2 ormTexIndexAndScale;
 	uint2 emissiveTexIndexAndScale;
+
+	float alphaCutoff;
+	uint3 padding;
 };
 
 struct MeshEntryGPU

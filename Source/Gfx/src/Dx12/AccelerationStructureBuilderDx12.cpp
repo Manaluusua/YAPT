@@ -376,7 +376,7 @@ namespace YAPT
 
 					instanceDataDstPtr->InstanceID = instanceDef.instanceID;
 					instanceDataDstPtr->InstanceContributionToHitGroupIndex = instanceDef.hitGroupShaderTableOffset;
-					instanceDataDstPtr->Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+					instanceDataDstPtr->Flags = instanceDef.forceNonOpaque ? D3D12_RAYTRACING_INSTANCE_FLAG_FORCE_NON_OPAQUE : D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
 					memcpy(instanceDataDstPtr->Transform, instanceDef.instanceToWorld, sizeof(instanceDataDstPtr->Transform));
 					instanceDataDstPtr->AccelerationStructure = instanceDef.blas->accelerationStructure->GetGPUVirtualAddress();
 					instanceDataDstPtr->InstanceMask = instanceDef.instanceMask;

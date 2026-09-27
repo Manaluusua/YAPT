@@ -104,15 +104,55 @@ struct BDPTRayState //: RayStateInterface
         return beforeCurrentIOR;
     }
 
-    void enteredVolume(float IOR, SpectralSamples absorptionParam)
+    int findVolume(uint materialIndex)
+    {
+        for (int i = int(numberVolumesEntered) - 1; i >= 0; --i)
+        {
+            if (volumeMaterial[i] == materialIndex)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    void enteredVolume(float IOR, SpectralSamples absorptionParam, uint materialIndex)
     {
         numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
         ior[numberVolumesEntered - 1] = IOR;
         absorption[numberVolumesEntered - 1] = absorptionParam;
+        volumeMaterial[numberVolumesEntered - 1] = materialIndex;
     }
-    void exitedVolume()
+
+
+    void exitedVolume(uint materialIndex)
     {
-        numberVolumesEntered = numberVolumesEntered == 0 ? 0 : numberVolumesEntered - 1;
+        if (numberVolumesEntered == 0)
+        {
+            return;
+        }
+        int index = findVolume(materialIndex);
+        if (index < 0)
+        {
+            index = int(numberVolumesEntered) - 1;
+        }
+        for (uint i = uint(index); i + 1 < numberVolumesEntered; ++i)
+        {
+            ior[i] = ior[i + 1];
+            absorption[i] = absorption[i + 1];
+            volumeMaterial[i] = volumeMaterial[i + 1];
+        }
+        --numberVolumesEntered;
+    }
+
+    bool isFalseIntersection(uint materialIndex, bool hitFrontFace)
+    {
+        if (hitFrontFace || numberVolumesEntered < 2)
+        {
+            return false;
+        }
+        int index = findVolume(materialIndex);
+        return index >= 0 && index != int(numberVolumesEntered) - 1;
     }
 
     uint getNumberOfVolumesEntered()
@@ -147,6 +187,7 @@ struct BDPTRayState //: RayStateInterface
 
     SpectralSamples absorption[RAY_MAX_VOLUMES_ENTERED];
     float4 ior;
+    uint4 volumeMaterial;
     uint numberVolumesEntered;
     uint flags;
 };
@@ -315,7 +356,7 @@ LightPathHeader getLightPathHeader(uint index)
     return h;
 }
 
-void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
+void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in uint materialIndex, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
 out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out bool dispersedOut)
 {
 
@@ -375,12 +416,12 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out 
 			
         if ((transmissionType & TRANSMISSION_TYPE_EXITED) != 0)
         {
-            rayState.exitedVolume();
+            rayState.exitedVolume(materialIndex);
 
         }
         else if ((transmissionType & TRANSMISSION_TYPE_ENTERED) != 0)
         {
-            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
+            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption, materialIndex);
         }
     }
 }
@@ -455,7 +496,7 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     return data;
 }
 
-void calculateCommonSurfaceParams(inout BDPTRayState rayState, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
+void calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint materialIndex, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
 out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
 {
 
@@ -469,7 +510,7 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
     surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
     //must happen before the precalculated data is set up so that the IORs (and the absorption applied by the caller) account for the medium the ray started in
-    handleRayStartInsideMedium(rayState, surfaceDef, -woOS, surfaceDef.geometryNormal);
+    handleRayStartInsideMedium(rayState, surfaceDef, materialIndex, -woOS, surfaceDef.geometryNormal);
 
     getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
     calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
@@ -482,7 +523,7 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
     SurfaceDefinitionRGB surfaceDefRGB;
     fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
 
-    calculateCommonSurfaceParams(rayState, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+    calculateCommonSurfaceParams(rayState, getMaterialAndMeshIndicesForInstance(instanceIndex).x, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
 }
 
 
@@ -599,6 +640,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         BDPTRayState rayState;
         rayState.ior[0] = lightNode.iorPrevious;
         rayState.ior[1] = lightNode.iorCurrent;
+        rayState.volumeMaterial = VOLUME_MATERIAL_NONE;
         rayState.numberVolumesEntered = 2;
 
         bool alreadyTerminated = secondaryWavelengthsAlreadyTerminated || ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0);
@@ -607,7 +649,7 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         bool dispersed;
         getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
         calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut, dispersed);
+        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, VOLUME_MATERIAL_NONE, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut, dispersed);
 
         if (dispersed)
         {
@@ -642,6 +684,7 @@ struct CameraVertexContext
     float3 prevNodeNormalWS;
     float currentNodeForwardPDFMIS;
     bool triangleHitFrontFace;
+    uint materialIndex;
 };
 
 struct LightVertexContext
@@ -806,7 +849,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         float pdfForward;
         float pdfBackward;
         bool dispersed;
-        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward, dispersed);
+        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.materialIndex, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward, dispersed);
 
         if (dispersed)
         {
@@ -848,7 +891,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         uint rayFlags = RAY_FLAG_NONE;
         uint InstanceInclusionMask = ~0;
         RayDesc ray;
-        ray.Origin = camVertex.posWS + getRaySpawnOffsetTowardsRay(toLightDir);
+        ray.Origin = spawnRayOrigin(camVertex.posWS, camVertex.normalWS, toLightDir);
         ray.Direction = toLightDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
         ray.TMax = DEFAULT_RAY_MIN_T + toLightLen + VISIBILITY_RAY_EPSILON;
@@ -860,7 +903,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 							InstanceInclusionMask,
 							ray);
 
-        while (q.Proceed());
+        PROCEED_ALPHA_TESTED(q)
 						
         bool lightNodeVisible = false;
         bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
@@ -910,7 +953,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 
         retVal = weightLastLightNode * weightLastCameraNode * camVertex.throughput * radianceFromLight * geometryTerm * misWeight;
 
-		//both throughputs already carry a hero rescale from their own dispersive event, so drop the duplicate one
+		//remove duplocate wavelength scale
         if (cameraSubpathTerminated && lightSubpathTerminated)
         {
             retVal.undoSecondaryWavelengthRescale();

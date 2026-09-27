@@ -255,6 +255,9 @@ namespace YAPT
 			renderObjectsHaveChanges = true;
 		}
 
-		return m_blasHadChanges || renderObjectsHaveChanges;
+		//alpha tested materials make their instances non opaque
+		bool alphaMaskChanges = m_renderer->getMaterialManager().hasAlphaMaskChanges();
+
+		return m_blasHadChanges || renderObjectsHaveChanges || alphaMaskChanges;
 	}
 }

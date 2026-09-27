@@ -59,6 +59,7 @@ namespace YAPT
 			sheenAmount(0.f),
 			thinFilmThicknessNM(0.f),
 			emissionFocus(0.f),
+			alphaCutoff(0.f),
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
@@ -94,6 +95,7 @@ namespace YAPT
 			sheenAmount(0.f),
 			thinFilmThicknessNM(0.f),
 			emissionFocus(0.f),
+			alphaCutoff(0.f),
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
@@ -128,6 +130,7 @@ namespace YAPT
 		float sheenAmount;
 		float thinFilmThicknessNM;
 		float emissionFocus;
+		float alphaCutoff; //0 = opaque, otherwise hits where the albedo texture alpha is below this are ignored
 
 		vec2p cauchysCoeffs;
 

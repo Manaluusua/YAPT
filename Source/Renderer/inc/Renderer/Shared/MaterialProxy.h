@@ -87,6 +87,9 @@ namespace YAPT
 		virtual void setThinFilmThicknessNM(float val) final;
 		virtual float getThinFilmThicknessNM() const final;
 
+		virtual void setAlphaCutoff(float cutoff) final;
+		virtual float getAlphaCutoff() const final;
+
 		virtual void setCauchysCoefficients(const vec2p& val) final;
 		virtual const vec2p& getCauchysCoefficients() const final;
 

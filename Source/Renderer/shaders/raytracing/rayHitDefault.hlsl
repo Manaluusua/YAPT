@@ -64,9 +64,7 @@ bool checkLightVisibility(in float3 rayPos, in float3 rayDir, float rayLen, uint
 		    InstanceInclusionMask,
 		    ray);
 
-    while (q.Proceed())
-    {
-    }
+    PROCEED_ALPHA_TESTED(q)
 
     if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {
@@ -120,7 +118,7 @@ float weightMIS(float a, float b)
 
 }
 
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
+void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, in uint materialIndex, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
 {
     float4 randomSamplesBRDF = rand.getRandom4();
 	
@@ -171,7 +169,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 
             if (!weightSumLight.allSamplesEqual(0))
             {
-		    	float3 rayStart = currentPosWS + getRaySpawnOffsetTowardsRay(toLightWS);
+		    	float3 rayStart = spawnRayOrigin(currentPosWS, normalWS, toLightWS);
                 if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
                 {
                     weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
@@ -235,12 +233,12 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		    {
 		        if (exited)
 		        {
-		            rayState.exitedVolume();
+		            rayState.exitedVolume(materialIndex);
 
 		        }
 		        else if (entered)
 		        {
-		            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
+		            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption, materialIndex);
 		        }
 		    }
 			
@@ -338,7 +336,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	float3 nextSampleDirBRDF;
 	float rayDistance = RayTCurrent();
     
-    handleRayStartInsideMedium(payload, surfaceDef, rayDir, geometryNormal);
+    handleRayStartInsideMedium(payload, surfaceDef, materialAndMeshIndices.x, rayDir, geometryNormal);
     
 	//before handling the intersection, apply and clear absorption
     SpectralSamples absorb = payload.getAbsorption();
@@ -346,6 +344,18 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	{
         payload.throughput = payload.throughput * calculateTransmittance(rayDistance, absorb);
 	}
+
+	//a surface of an overlapped volume that isn't an interface: continue through it without scattering, the ray
+	//generation doesn't count this as a bounce
+    if (payload.isFalseIntersection(materialAndMeshIndices.x, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE) && payload.falseIntersections < MAX_FALSE_INTERSECTIONS)
+    {
+        payload.falseIntersections += 1;
+        payload.exitedVolume(materialAndMeshIndices.x);
+        payload.rayDirection = WorldRayDirection();
+        payload.rayOrigin = spawnRayOrigin(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), WorldRayDirection(), WorldRayDirection());
+        payload.addFlags(RAYSTATE_FLAGS_PASSED_THROUGH);
+        return;
+    }
 	
 	if(!surfaceDef.emissive.allSamplesEqual(0))
     {
@@ -353,7 +363,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 #ifdef ENABLE_NEE
         if (g_lightCount > 0 && payload.pdfThisRay > 0 && !payload.hasFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION))
         {
-            float lightPDF = calculateExplicitLightConnectionPDF(WorldRayDirection() * RayTCurrent(), InstanceID(), PrimitiveIndex(), attr.barycentrics);
+            float lightPDF = calculateExplicitLightConnectionPDF(WorldRayOrigin() + WorldRayDirection() * RayTCurrent() - payload.segmentOrigin, InstanceID(), PrimitiveIndex(), attr.barycentrics);
             wMIS = weightMIS(payload.pdfThisRay, lightPDF);
         }
 		
@@ -383,7 +393,7 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         rand.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
         
         SpectralSamples w;
-        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
+        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, materialAndMeshIndices.x, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
         payload.throughput = payload.throughput * w;
         
         payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed;
@@ -405,7 +415,8 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         nextSampleDirBRDF = normalize(nextSampleDirBRDF);
 
         payload.rayDirection = nextSampleDirBRDF;
-        payload.rayOrigin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent() + getRaySpawnOffsetUsingNormal(normalWorld, nextSampleDirBRDF);
+        payload.rayOrigin = spawnRayOrigin(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), normalWorld, nextSampleDirBRDF);
+        payload.segmentOrigin = payload.rayOrigin;
     }
 }
 

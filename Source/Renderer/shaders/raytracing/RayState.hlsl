@@ -4,6 +4,9 @@
 #define RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED (1 << 0)
 #define RAYSTATE_FLAGS_REGULARIZE_PATH (1 << 1)
 #define RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION (1 << 2)
+#define RAYSTATE_FLAGS_PASSED_THROUGH (1 << 3) //the last hit was a false intersection, the ray continued without scattering
+
+#define VOLUME_MATERIAL_NONE 0xFFFFFFFF
 
 
 bool shouldStartRegularizing(uint vertexIndex, uint regularizeAfterVertices)
@@ -16,8 +19,9 @@ class RayStateInterface
 	float getCurrentIOR();
 	float getPreviousIOR();
 
-	void enteredVolume(float IOR, SpectralSamples absorption);
-	void exitedVolume();
+	void enteredVolume(float IOR, SpectralSamples absorption, uint materialIndex);
+	void exitedVolume(uint materialIndex);
+	bool isFalseIntersection(uint materialIndex, bool hitFrontFace);
 
 	uint getStateFlags();
 	void setStateFlags(uint flags);

@@ -200,13 +200,23 @@ namespace YAPT
 
 			m_accStructureHelper.updateBottomLevelStructures(buff);
 
-			auto assignPerInstanceParams = [this](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset)
+			MaterialPerSubmeshArray* materials = getRenderer()->getRenderObjectManager().getAllMaterials();
+			MaterialManager& matMngr = getRenderer()->getMaterialManager();
+			auto assignPerInstanceParams = [this, materials, &matMngr](size_t arrayIndex, RenderObjectId id, size_t submeshIndex, uint32_t& instanceIdOut, uint32_t& instanceMaskOut, size_t& hitGroupShaderTableOffset, bool& forceNonOpaqueOut)
 				{
 					size_t shdTblOffset = m_instanceOffsetPerRenderObject[arrayIndex];
 
 					instanceIdOut = (uint32_t)(shdTblOffset + submeshIndex);
 					instanceMaskOut = ~0;
 					hitGroupShaderTableOffset = (shdTblOffset + submeshIndex);
+
+					//alpha tested materials need their candidate hits reported
+					forceNonOpaqueOut = false;
+					if (!materials[arrayIndex].materials.empty())
+					{
+						MaterialIndex matId = materials[arrayIndex].getMaterialIDForSubmeshIndex(submeshIndex);
+						forceNonOpaqueOut = matId != InvalidMaterialId && matMngr.getMaterialInternal(matId)->getMaterialParams().alphaCutoff > 0.f;
+					}
 				};
 
 			m_accStructureHelper.updateTopLevelStructures(buff, assignPerInstanceParams);

@@ -153,6 +153,7 @@ namespace YAPT
 			asInst.instanceShaderBindingTableRecordOffset = instancesDef.hitGroupShaderTableOffset;
 			asInst.accelerationStructureReference = instancesDef.blas->getAccelerationStructureDeviceAddress();
 			asInst.instanceCustomIndex = instancesDef.instanceID;
+			asInst.flags = instancesDef.forceNonOpaque ? VK_GEOMETRY_INSTANCE_FORCE_NO_OPAQUE_BIT_KHR : 0;
 			copyTransform(instancesDef.instanceToWorld, asInst.transform);
 		}
 		

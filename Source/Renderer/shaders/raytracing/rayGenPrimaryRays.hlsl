@@ -30,6 +30,9 @@ void rayGenPrimaryRays()
 	payload.pathLength = 0;
 	
 	payload.numberVolumesEntered = 0;
+	payload.volumeMaterial = VOLUME_MATERIAL_NONE;
+	payload.segmentOrigin = rayOrigin;
+	payload.falseIntersections = 0;
 	payload.flags = 0;
     payload.pdfThisRay = 0;
     payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed; //TODO: calculate scrambling here
@@ -65,6 +68,14 @@ void rayGenPrimaryRays()
 			MissShaderIndex,									
 			ray,					
 			payload);
+
+			//passed through a false intersection without scattering, not a bounce (bounded by MAX_FALSE_INTERSECTIONS)
+			if (payload.hasFlags(RAYSTATE_FLAGS_PASSED_THROUGH))
+			{
+				payload.removeFlags(RAYSTATE_FLAGS_PASSED_THROUGH);
+				--i;
+				continue;
+			}
 			
 			payload.pathLength += 1;
 		}

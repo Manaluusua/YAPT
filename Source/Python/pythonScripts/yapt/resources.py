@@ -16,6 +16,7 @@ class Resources:
         self._mesh_loader = MeshLoader(renderer)
         self._renderer = renderer
         self._textures = {}
+        self._texture_min_alpha = {}
         self._meshes = {}
 
     def clear(self):
@@ -24,6 +25,10 @@ class Resources:
 
     def load_texture_2D(self, tex_path, fmt, verbose = False):
         return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_2d, source=tex_path, vk_format=fmt)
+
+    #smallest alpha (0..1) in the top mip of a loaded RGBA8 2D texture, None if unknown (other formats / not loaded)
+    def get_texture_min_alpha(self, tex_path):
+        return self._texture_min_alpha.get(str(Path(tex_path)))
  
     def load_texture_cube(self, tex_path, fmt, faces, verbose = False):
         return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_cube,faces=faces, vk_format=fmt)
@@ -84,10 +89,19 @@ class Resources:
         
         if(tex):
             self._textures[path_str] = tex
+            self._store_min_alpha(path_str, ktx_tex)
         
         return tex
  
  
+    def _store_min_alpha(self, path_str, ktx_tex):
+        #lets alpha testing be skipped for textures that are opaque anyway
+        if ktx_tex.vk_format.name not in ("VK_FORMAT_R8G8B8A8_SRGB", "VK_FORMAT_R8G8B8A8_UNORM") or ktx_tex.num_faces * ktx_tex.base_depth != 1:
+            return
+        texel_count = ktx_tex.base_width * ktx_tex.base_height
+        data = np.frombuffer(ktx_tex.data(), dtype=np.uint8, count=texel_count * 4, offset=ktx_tex.image_offset(0, 0, 0))
+        self._texture_min_alpha[path_str] = float(data[3::4].min()) / 255.0
+
     def _create_and_upload_texture_ktx(self, name, ktx_tex, verbose):
         width, height = ktx_tex.base_width, ktx_tex.base_height
         faces_slices = ktx_tex.num_faces * ktx_tex.base_depth

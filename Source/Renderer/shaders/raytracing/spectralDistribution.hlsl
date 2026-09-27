@@ -137,6 +137,18 @@ struct SpectralSamples
         }
     }
 
+	void setFromRGBUnboundedNoIlluminant(float3 values)
+	{
+#ifdef DISABLE_SPECTRAL_SAMPLES
+		setFromRGB(values);
+#else
+		float m = max(max(values.x, values.y), values.z);
+		float scale = 2.f * m;
+		setFromRGB(safeDiv(values, scale));
+		samples *= scale;
+#endif
+	}
+
 	void setFromRGBUnbounded(float3 values)
 	{
 #ifdef DISABLE_SPECTRAL_SAMPLES

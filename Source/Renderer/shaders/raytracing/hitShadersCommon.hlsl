@@ -56,7 +56,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 
 	surfDef.specular.setFromRGB(rgb.specular);
 	surfDef.albedo.setFromRGB(rgb.albedo);
-	surfDef.absorption.setFromRGB(rgb.absorption);
+	surfDef.absorption.setFromRGBUnboundedNoIlluminant(rgb.absorption); //absorption coefficients aren't limited to [0, 1]
 	surfDef.emissive.setFromRGBUnbounded(rgb.emissive);
 	surfDef.sheenColor.setFromRGB(rgb.sheenColor);
 
@@ -137,32 +137,57 @@ SpectralSamples calculateTransmittance(float distance, SpectralSamples absorptio
 	return s;
 }
 
-float3 getRaySpawnOffsetUsingNormal(float3 geometryNormal, float3 nextSampleDir)
+// "A Fast and Robust Method for Avoiding Self-Intersection", Ray Tracing Gems, chapter 6.
+float3 spawnRayOrigin(float3 position, float3 geometryNormal, float3 rayDir)
 {
-    float offsetEpsilon = 0.001f;
-    bool transmitted = dot(nextSampleDir, geometryNormal) < 0.f ? true : false;
-		
-    float3 rayOffset = geometryNormal * offsetEpsilon;
-    rayOffset *= transmitted ? -1.f : 1.f;
-    return rayOffset;
+    const float originThreshold = 1.0f / 32.0f;
+    const float floatScale = 1.0f / 65536.0f;
+    const float intScale = 256.0f;
+
+    float3 n = dot(rayDir, geometryNormal) < 0.f ? -geometryNormal : geometryNormal;
+    int3 offsetInt = int3(intScale * n);
+    int3 signedOffset = int3(position.x < 0 ? -offsetInt.x : offsetInt.x, position.y < 0 ? -offsetInt.y : offsetInt.y, position.z < 0 ? -offsetInt.z : offsetInt.z);
+    float3 offsetPosition = asfloat(asint(position) + signedOffset);
+    return float3(abs(position.x) < originThreshold ? position.x + floatScale * n.x : offsetPosition.x,
+                  abs(position.y) < originThreshold ? position.y + floatScale * n.y : offsetPosition.y,
+                  abs(position.z) < originThreshold ? position.z + floatScale * n.z : offsetPosition.z);
 }
 
+bool alphaTestPasses(uint instanceIndex, uint primitiveIndex, float2 barycentrics2)
+{
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
+    MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
+    if (matEntry.alphaCutoff <= 0.f || matEntry.albedoTexIndexAndScale.x == TEX_UNBOUND_INDEX)
+    {
+        return true;
+    }
+
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+    if (!meshHasValidUVs(meshEntry.uvBuffer))
+    {
+        return true;
+    }
+
+    float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float2 uv = fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics);
+    float2 uvScale = unpackTextureTransformScale(matEntry.albedoTexIndexAndScale.y);
+    float alpha = g_textures2D[matEntry.albedoTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0).a;
+    return alpha >= matEntry.alphaCutoff;
+}
+
+#define PROCEED_ALPHA_TESTED(q)     while (q.Proceed())     {         if (q.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE && alphaTestPasses(q.CandidateInstanceID(), q.CandidatePrimitiveIndex(), q.CandidateTriangleBarycentrics()))         {             q.CommitNonOpaqueTriangleHit();         }     }
+
 template<typename RayState>
-void handleRayStartInsideMedium(inout RayState state, in SurfaceDefinition surfaceDef, float3 rayDir, float3 geometryNormal)
+void handleRayStartInsideMedium(inout RayState state, in SurfaceDefinition surfaceDef, uint materialIndex, float3 rayDir, float3 geometryNormal)
 {
     
     //special case where the ray starts from inside a medium:
     if (dot(rayDir, geometryNormal) > 0 && state.getNumberOfVolumesEntered() == 0 && !isSurfaceTwoSided(surfaceDef.flags))
     {
-        state.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption);
+        state.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption, materialIndex);
     }
 
-}
-
-float3 getRaySpawnOffsetTowardsRay(float3 nextSampleDir)
-{
-    float offsetEpsilon = 0.01f;
-    return nextSampleDir * offsetEpsilon;
 }
 
 

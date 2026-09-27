@@ -49,6 +49,8 @@ namespace YAPT
 		size_t getActiveEntriesCount() const { return m_materials.getNumberOfActiveEntries(); }
 
 		bool hasChanges() const { return m_modifiedEntries.size() > 0 || m_destroyedEntries.size() > 0 || m_createdEntries.size() > 0; }
+		//a modified material turned alpha testing on or off during the last commit
+		bool hasAlphaMaskChanges() const { return m_alphaMaskChanged; }
 
 	private:
 		void materialChanged(MaterialProxy* obj);
@@ -60,6 +62,7 @@ namespace YAPT
 		std::vector<MaterialIndex> m_createdEntries;
 		std::vector<MaterialIndex> m_modifiedEntries;
 		std::vector<MaterialIndex> m_destroyedEntries;
+		bool m_alphaMaskChanged = false;
 
 		BubbleArray<MaterialInternal> m_materials;
 

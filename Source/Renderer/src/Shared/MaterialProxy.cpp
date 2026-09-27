@@ -264,6 +264,15 @@ namespace YAPT
 		m_materialParams.thinFilmThicknessNM = val;
 		setDirty();
 	}
+	void MaterialProxy::setAlphaCutoff(float cutoff)
+	{
+		m_materialParams.alphaCutoff = cutoff;
+		setDirty();
+	}
+	float MaterialProxy::getAlphaCutoff() const
+	{
+		return m_materialParams.alphaCutoff;
+	}
 	float MaterialProxy::getThinFilmThicknessNM() const
 	{
 		return m_materialParams.thinFilmThicknessNM;

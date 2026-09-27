@@ -49,15 +49,56 @@ struct Payload //: RayStateInterface
 		return beforeCurrentIOR;
 	}
 
-	void enteredVolume(float IOR, SpectralSamples absorptionParam)
-	{
-		numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
+
+    int findVolume(uint materialIndex)
+    {
+        for (int i = int(numberVolumesEntered) - 1; i >= 0; --i)
+        {
+            if (volumeMaterial[i] == materialIndex)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    void enteredVolume(float IOR, SpectralSamples absorptionParam, uint materialIndex)
+    {
+        numberVolumesEntered = min(numberVolumesEntered + 1, RAY_MAX_VOLUMES_ENTERED);
         ior[numberVolumesEntered - 1] = IOR;
         absorption[numberVolumesEntered - 1] = absorptionParam;
+        volumeMaterial[numberVolumesEntered - 1] = materialIndex;
     }
-	void exitedVolume()
-	{
-        numberVolumesEntered = numberVolumesEntered == 0 ? 0 : numberVolumesEntered - 1;
+
+
+    void exitedVolume(uint materialIndex)
+    {
+        if (numberVolumesEntered == 0)
+        {
+            return;
+        }
+        int index = findVolume(materialIndex);
+        if (index < 0)
+        {
+            index = int(numberVolumesEntered) - 1;
+        }
+        for (uint i = uint(index); i + 1 < numberVolumesEntered; ++i)
+        {
+            ior[i] = ior[i + 1];
+            absorption[i] = absorption[i + 1];
+            volumeMaterial[i] = volumeMaterial[i + 1];
+        }
+        --numberVolumesEntered;
+    }
+
+    bool isFalseIntersection(uint materialIndex, bool hitFrontFace)
+    {
+        if (hitFrontFace || numberVolumesEntered < 2)
+        {
+            return false;
+        }
+        int index = findVolume(materialIndex);
+        return index >= 0 && index != int(numberVolumesEntered) - 1;
     }
 
 	uint getStateFlags()
@@ -92,6 +133,9 @@ struct Payload //: RayStateInterface
 	SpectralSamples throughput;
 	SpectralSamples totalLight;
     float4 ior;
+    uint4 volumeMaterial;
+	float3 segmentOrigin; //last real path vertex, the ray origin can move past false intersections
+	uint falseIntersections;
 	float3 rayOrigin;
 	uint rayIndex;
 	float3 rayDirection;

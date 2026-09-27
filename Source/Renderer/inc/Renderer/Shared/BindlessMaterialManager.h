@@ -28,6 +28,9 @@ namespace YAPT
 		uvec2p normalTexIndexAndScale;
 		uvec2p ormTexIndexAndScale;
 		uvec2p emissiveTexIndexAndScale;
+
+		float alphaCutoff;
+		uint32_t padding[3];
 	};
 
 	class CRenderer;

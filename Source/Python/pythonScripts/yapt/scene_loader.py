@@ -27,6 +27,7 @@ class SceneLoader:
         #textures
         linear_images = self._find_linear_images(gltf)
         self._textures = []
+        self._image_paths = []
         for image_index, image in enumerate(gltf.images):
             #TODO: add support for loading textures embedded to glb either with bufferview or data uri
             can_load_tex = False
@@ -36,9 +37,11 @@ class SceneLoader:
             if not can_load_tex:
                 print(f"couldn't load texture image {image.name}, currently only external image files are supported")
                 self._textures.append(None)
+                self._image_paths.append(None)
                 continue
 
             image_path = str(path.parent) + "/" + image.uri
+            self._image_paths.append(image_path)
             image_name = image.name
             tex = self._load_texture(image_path, image_name, image_index in linear_images)
             self._textures.append(tex)
@@ -154,6 +157,14 @@ class SceneLoader:
             if getattr(pbr_config, "baseColorTexture"):
                 self._set_texture(pbr_config.baseColorTexture, yapt_mat.setAlbedoTexture)
 
+                # yapt can't blend, MASK and BLEND become alpha testing against the base color texture alpha.
+                # Alpha tested geometry is slower to trace, so it is only enabled if the texture has texels below the cutoff
+                alpha_mode = getattr(mat, "alphaMode", None) or "OPAQUE"
+                if alpha_mode in ("MASK", "BLEND"):
+                    cutoff = mat.alphaCutoff if alpha_mode == "MASK" and mat.alphaCutoff is not None else 0.5
+                    if self._texture_min_alpha(pbr_config.baseColorTexture) < cutoff:
+                        yapt_mat.setAlphaCutoff(cutoff)
+
             metallicFactor = 1
             if pbr_config.metallicFactor is not None:
                 metallicFactor = pbr_config.metallicFactor
@@ -257,6 +268,12 @@ class SceneLoader:
 
         return yapt_mat
     
+    def _texture_min_alpha(self, tex_def):
+        #smallest alpha of the texture's image, 0 if unknown so alpha testing stays on
+        source = self._gltf.textures[tex_def.index].source
+        min_alpha = self._resources.get_texture_min_alpha(self._image_paths[source]) if self._image_paths[source] else None
+        return 0.0 if min_alpha is None else min_alpha
+
     def _find_linear_images(self, gltf):
         # images holding data rather than color (normal, occlusion, metallic-roughness / ORM) must not be sRGB decoded
         linear_images = set()

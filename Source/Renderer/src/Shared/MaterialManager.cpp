@@ -32,6 +32,7 @@ namespace YAPT
 		m_createdEntries.clear();
 		m_modifiedEntries.clear();
 		m_destroyedEntries.clear();
+		m_alphaMaskChanged = false;
 		MaterialProxy** proxies = m_changedMaterials.getAll();
 		for (size_t i = 0; i < m_changedMaterials.count(); ++i)
 		{
@@ -52,7 +53,9 @@ namespace YAPT
 			else if ((matState & MaterialProxy::MATERIALSTATE_MODIFIED) != 0)
 			{
 				MaterialInternal& matEntry = m_materials.getDataEntryWithId(mat->_id);
+				bool wasAlphaMasked = matEntry.getMaterialParams().alphaCutoff > 0.f;
 				replicateChanges(mat, matEntry);
+				m_alphaMaskChanged = m_alphaMaskChanged || wasAlphaMasked != (matEntry.getMaterialParams().alphaCutoff > 0.f);
 				m_modifiedEntries.push_back(mat->_id);
 			}
 

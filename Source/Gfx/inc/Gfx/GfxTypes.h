@@ -61,6 +61,7 @@ namespace YAPT
 		uint32_t instanceID;
 		size_t hitGroupShaderTableOffset;
 		BottomLevelAccelerationStructureHandle blas;
+		bool forceNonOpaque = false; //geometry is built opaque, this makes the instance report candidate hits (any hit / ray query) e.g. for alpha testing
 	};
 
 	struct TopLevelAccelerationStructureDefinition

@@ -15,6 +15,7 @@
 #define RAY_STATE_TERMINATED 1
 #define RAY_STATE_CANCELLED 2
 #define RAY_MAX_VOLUMES_ENTERED 4
+#define MAX_FALSE_INTERSECTIONS 8 //surfaces of overlapped volumes a path can pass through without scattering
 
 #define IOR_DEFAULT (1.0f)
 

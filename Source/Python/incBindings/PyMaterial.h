@@ -80,6 +80,10 @@ namespace YAPT
 		void setThinFilmThicknessNM(float val);
 		float getThinFilmThicknessNM() const;
 
+		void setAlphaCutoff(float cutoff);
+
+		float getAlphaCutoff() const;
+
 		void setCauchysCoefficients(const vec2p& val);
 		const vec2p& getCauchysCoefficients() const;
 

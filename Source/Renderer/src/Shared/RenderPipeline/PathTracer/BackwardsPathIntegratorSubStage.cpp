@@ -91,8 +91,9 @@ namespace YAPT
 		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
 		const ShaderLoader::ShaderPipelineInfo* rayHit = loader->getShaderPipeline(m_useNEE ? "rayHitDefaultWithNEE" : "rayHitDefault");
 		const ShaderLoader::ShaderPipelineInfo* rayMiss = loader->getShaderPipeline("rayMissEnvironment");
+		const ShaderLoader::ShaderPipelineInfo* rayAnyHit = loader->getShaderPipeline("rayAnyHitAlphaTest");
 
-		ShaderPipelineReflection* reflArray[] = { rayGen->reflection, rayHit->reflection, rayMiss->reflection };
+		ShaderPipelineReflection* reflArray[] = { rayGen->reflection, rayHit->reflection, rayMiss->reflection, rayAnyHit->reflection };
 		m_rtLayout.initRaytraceLayoutFromShaderReflections(m_renderer->getGfxHandle(), reflArray, countOf(reflArray));
 
 		//texture and buffer array setup
@@ -123,16 +124,17 @@ namespace YAPT
 		RaytracePipelineStateDesc desc;
 		RayTraceShaderConfig config;
 
-		ShaderStageCreateInfo shaderStages[3];
+		ShaderStageCreateInfo shaderStages[4];
 
 
 		fillShaderModuleCreateInfo(rayGen->shaderModules[0], shaderStages[0]);
 		fillShaderModuleCreateInfo(rayHit->shaderModules[0], shaderStages[1]);
 		fillShaderModuleCreateInfo(rayMiss->shaderModules[0], shaderStages[2]);
+		fillShaderModuleCreateInfo(rayAnyHit->shaderModules[0], shaderStages[3]); //alpha test any hit, only runs for non opaque instances
 
 
 		RayGenerationDescription rayGenDescs[1] = { {0, 0} };
-		RayHitGroupDescription hitGroupDescs[] = { {"defaultHitGroup", 1, YAPT_NULL_INDEX, YAPT_NULL_INDEX, 0, HitGroupType::TRIANGLE} };
+		RayHitGroupDescription hitGroupDescs[] = { {"defaultHitGroup", 1, 3, YAPT_NULL_INDEX, 0, HitGroupType::TRIANGLE} };
 		RayMissDescription rayMissDescs[1] = { {2, 0} };;
 
 		config.maxAttributeSizeInBytes = sizeof(float) * 2;
