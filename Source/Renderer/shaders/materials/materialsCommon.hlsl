@@ -365,8 +365,9 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 		float2 uvScale = unpackTextureTransformScale(matEntry.ormTexIndexAndScale.y);
 		float4 orm = g_textures2D[matEntry.ormTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
         surfaceDef.occlusionSpecDiffPacked = packOcclusion(orm.x, orm.x); //for now assume both. accumulate instead of set?
-		surfaceDef.roughness = orm.y;
-		surfaceDef.metalness = orm.z;
+		//texture scales the material values (glTF convention), e.g. roughness-only maps come with metalness 0 and a white metal channel
+		surfaceDef.roughness *= orm.y;
+		surfaceDef.metalness *= orm.z;
 	}
 	
 	if(matEntry.emissiveTexIndexAndScale.x != TEX_UNBOUND_INDEX)

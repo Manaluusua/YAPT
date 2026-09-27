@@ -52,11 +52,13 @@ class SceneLoader:
         loaded_objects = [None] * len(gltf.nodes)
 
         #create nodes
+        root_objects = []
         for node_index in gltf_scene.nodes:
             node = gltf.nodes[node_index]
             obj = self._create_object(node)
             if(obj != None):
                 loaded_objects[node_index] = obj
+            root_objects.append(obj)
 
         #parenting
         for node_index in gltf_scene.nodes:
@@ -72,6 +74,18 @@ class SceneLoader:
                         print(f"child node {child} is not loaded for parent {node.name}")
                         continue
                     loaded_objects[child].setParent(parent)
+
+        #objects created for the gltf scene's root nodes, in gltf_scene.nodes order (None if a node failed to load)
+        return root_objects
+
+    def get_gltf(self):
+        return self._gltf
+
+    def get_material(self, gltf_material_name):
+        for index, mat in enumerate(self._gltf.materials):
+            if mat.name == gltf_material_name:
+                return self._materials[index]
+        return None
 
     def _get_default_material(self):
         if self._default_mat == None:
