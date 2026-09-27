@@ -66,15 +66,7 @@ CONTAINERS = {
             Surface("upper_shelf_1", 1.370, (-0.93, 0.93), (-0.24, 0.08), max_height=0.20),
             Surface("upper_shelf_2", 1.600, (-0.93, 0.93), (-0.24, 0.07), max_height=0.19),
             Surface("upper_shelf_3", 1.820, (-0.76, 0.76), (-0.24, 0.07), max_height=0.15),
-        ],
-        material_overrides={
-            # zero thickness panes authored as alpha blended dark glass, yapt has no alpha so make them clear
-            # glass. IOR ~1 since a single refracting surface would bend the rays without bending them back.
-            "vintage_cabinet_01_glass": {
-                "setTransparency": 1.0, "setAlbedo": (1.0, 1.0, 1.0), "setMetalness": 0.0,
-                "setRoughness": 0.0, "setDielectricIOR": 1.02, "setClearCoatAmount": 0.0,
-            },
-        }),
+        ]),
 }
 
 PLACEABLES = {

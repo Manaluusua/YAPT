@@ -40,6 +40,16 @@ class KtxToolInvocationError(RuntimeError):
         self.stderr = stderr
 
 
+def transfer_function_args(vk_format: str | None) -> tuple[str, ...]:
+    """Make ``ktx create`` keep the texel values as they are. By default it converts between the input file's
+    transfer function and the format's, and PNG tagging is unreliable for this: 16 bit PNGs without tags are
+    read as linear (sRGB albedo got re-encoded brighter) and sRGB tagged PNGs holding data (roughness / metalness
+    maps written by Blender) got linearized. The format we ask for already says how the data is encoded."""
+    if not vk_format:
+        return ()
+    return ("--assign-tf", "srgb" if vk_format.upper().endswith("_SRGB") else "linear")
+
+
 def default_cache_stem(kind: str, sources: Sequence[Path], options: Mapping[str, Any]) -> str:
     """Build `{kind}_{sha256}.ktx2` stem from sources and conversion options."""
 
@@ -104,7 +114,7 @@ class TextureLoader:
             raise FileNotFoundError(f"Source texture not found: {src}")
 
         fmt = vk_format
-        extra = tuple(extra_ktx_args)
+        extra = tuple(extra_ktx_args) + transfer_function_args(fmt)
         out = self._cache_path(
             "2d",
             (src,),
@@ -148,7 +158,7 @@ class TextureLoader:
                 raise FileNotFoundError(f"Cubemap face not found: {p}")
 
         fmt = vk_format
-        extra = tuple(extra_ktx_args)
+        extra = tuple(extra_ktx_args) + transfer_function_args(fmt)
         out = self._cache_path(
             "cube",
             tuple(resolved),
@@ -196,7 +206,7 @@ class TextureLoader:
                 raise FileNotFoundError(f"3D slice not found: {p}")
 
         fmt = vk_format or self.default_vk_format
-        extra = tuple(extra_ktx_args)
+        extra = tuple(extra_ktx_args) + transfer_function_args(fmt)
         out = self._cache_path(
             "3d",
             tuple(resolved),

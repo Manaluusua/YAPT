@@ -177,6 +177,10 @@ class SceneLoader:
                 transmission = extensions["KHR_materials_transmission"]
                 self._warn_unsupported_textures(mat, "KHR_materials_transmission", transmission, ["transmissionTexture"])
                 yapt_mat.setTransparency(transmission.get("transmissionFactor", 0.0))
+                # yapt treats two sided transparent surfaces as thin. In glTF, doubleSided is only about backface culling,
+                # KHR_materials_volume decides thin walled vs volume: no volume or zero thickness is thin
+                volume = extensions.get("KHR_materials_volume")
+                yapt_mat.setTwoSided(volume is None or volume.get("thicknessFactor", 0.0) == 0)
 
             #specular (specularColorFactor is dielectric F0 tint, yapt's specular tint is only the conductor edge tint)
             if "KHR_materials_specular" in extensions:
