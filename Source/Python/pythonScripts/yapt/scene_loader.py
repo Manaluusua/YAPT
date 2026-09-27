@@ -25,8 +25,9 @@ class SceneLoader:
         self._mesh_groups = self._resources.load_meshes_from_gltf(gltf, path_str, verbose)
 
         #textures
+        linear_images = self._find_linear_images(gltf)
         self._textures = []
-        for image in gltf.images:
+        for image_index, image in enumerate(gltf.images):
             #TODO: add support for loading textures embedded to glb either with bufferview or data uri
             can_load_tex = False
             if hasattr(image, 'uri') and image.uri != None and not image.uri.startswith("data:"):
@@ -39,7 +40,7 @@ class SceneLoader:
 
             image_path = str(path.parent) + "/" + image.uri
             image_name = image.name
-            tex = self._load_texture(image_path, image_name)
+            tex = self._load_texture(image_path, image_name, image_index in linear_images)
             self._textures.append(tex)
 
         #materials
@@ -190,11 +191,27 @@ class SceneLoader:
 
         return yapt_mat
     
-    def _load_texture(self, path, name):
-        #TODO: do properly: how to infer dimensions and formats?
-        
+    def _find_linear_images(self, gltf):
+        # images holding data rather than color (normal, occlusion, metallic-roughness / ORM) must not be sRGB decoded
+        linear_images = set()
+        for mat in gltf.materials:
+            tex_defs = [getattr(mat, "normalTexture", None), getattr(mat, "occlusionTexture", None)]
+            pbr_config = getattr(mat, "pbrMetallicRoughness", None)
+            if pbr_config:
+                tex_defs.append(getattr(pbr_config, "metallicRoughnessTexture", None))
+            for tex_def in tex_defs:
+                if tex_def is None or tex_def.index is None or tex_def.index >= len(gltf.textures):
+                    continue
+                source = gltf.textures[tex_def.index].source
+                if source is not None:
+                    linear_images.add(source)
+        return linear_images
+
+    def _load_texture(self, path, name, linear = False):
+        #TODO: do properly: how to infer dimensions?
+
         assumed_format = "R8G8B8A8_SRGB"
-        if "normal" in name.casefold():
+        if linear or (name and "normal" in name.casefold()):
             assumed_format = "R8G8B8A8_UNORM"
 
         return self._resources.load_texture_2D(path, assumed_format)
