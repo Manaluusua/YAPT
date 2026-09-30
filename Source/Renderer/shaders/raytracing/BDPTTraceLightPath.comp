@@ -84,9 +84,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rayState.numberVolumesEntered = 0;
     rayState.volumeMaterial = VOLUME_MATERIAL_NONE;
 
-	float3 segmentOrigin = rayOrigin; //the previous path vertex, rayOrigin moves past false intersections
-	uint falseIntersections = 0;
-
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
 		float4 randomSamples0 = rand.getRandom4();
@@ -131,21 +128,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float2 bary = q.CommittedTriangleBarycentrics();
             uint materialIndex = getMaterialAndMeshIndicesForInstance(instId).x;
 
-
-            if (rayState.isFalseIntersection(materialIndex, triangleHitFrontFace) && falseIntersections < MAX_FALSE_INTERSECTIONS)
-            {
-                ++falseIntersections;
-                SpectralSamples abs = rayState.getAbsorption();
-                if (!abs.allSamplesEqual(0))
-                {
-                    radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
-                }
-                rayState.exitedVolume(materialIndex);
-                rayOrigin = spawnRayOrigin(q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT(), rayDir, rayDir);
-                --i; 
-                continue;
-            }
-
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
 
 			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) != 0 ? LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED : 0;
@@ -167,7 +149,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
 			
 			//TODO: store some of the ray state (dispersion,volumes(?))
-			float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - segmentOrigin, normalWS);
+            float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - rayOrigin, normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -214,7 +196,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}*/
 
-			nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(segmentOrigin - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
+            nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
 			
 			//store previous vertex
 			{
@@ -249,7 +231,6 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			rayDir = normalize(mul(transformNormal, wiOS));
 			rayOrigin = spawnRayOrigin(posWS, normalWS, rayDir);
-			segmentOrigin = rayOrigin;
 			previousWasDeltaDistr = sampledDeltaDir;
         }
 		else 

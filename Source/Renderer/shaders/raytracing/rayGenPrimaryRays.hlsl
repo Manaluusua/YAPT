@@ -31,8 +31,6 @@ void rayGenPrimaryRays()
 	
 	payload.numberVolumesEntered = 0;
 	payload.volumeMaterial = VOLUME_MATERIAL_NONE;
-	payload.segmentOrigin = rayOrigin;
-	payload.falseIntersections = 0;
 	payload.flags = 0;
     payload.pdfThisRay = 0;
     payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed; //TODO: calculate scrambling here

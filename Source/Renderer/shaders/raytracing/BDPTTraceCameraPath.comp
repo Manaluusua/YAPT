@@ -115,8 +115,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	float deferredRISumCamera = 0;
 
 	uint maxCameraVertices = g_maxRayDepth;
-	float3 segmentOrigin = rayOrigin; //the previous path vertex, rayOrigin moves past false intersections
-	uint falseIntersections = 0;
 	for(; camVertexIndex < maxCameraVertices; ++camVertexIndex)
 	{
 		uint rayFlags = RAY_FLAG_NONE;
@@ -157,21 +155,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             uint materialIndex = getMaterialAndMeshIndicesForInstance(instId).x;
             camVertexContext.materialIndex = materialIndex;
 
-
-            if (rayState.isFalseIntersection(materialIndex, camVertexContext.triangleHitFrontFace) && falseIntersections < MAX_FALSE_INTERSECTIONS)
-            {
-                ++falseIntersections;
-                SpectralSamples abs = rayState.getAbsorption();
-                if (!abs.allSamplesEqual(0))
-                {
-                    camVertexContext.throughput = camVertexContext.throughput * calculateTransmittance(q.CommittedRayT(), abs);
-                }
-                rayState.exitedVolume(materialIndex);
-                rayOrigin = spawnRayOrigin(camVertexContext.posWS, rayDir, rayDir);
-                --camVertexIndex; //not a vertex (unsigned wrap is undone by the loop increment)
-                continue;
-            }
-			
 			bool outputShadingParams = firstBounceMaterialWriteEnabled();
 			if(camVertexIndex == 0 && outputShadingParams)
 			{
@@ -196,7 +179,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
             
 			bool deltaDistr = isDeltaDistribution(camVertexContext.precalculatedSurfaceData.a2, camVertexContext.surfaceDef);
-            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? -1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - segmentOrigin, camVertexContext.normalWS);
+            camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera < 0 ? -1.f : pdfForwardCamera * solidAngleToAreaDensityMultiplier(camVertexContext.posWS - rayOrigin, camVertexContext.normalWS);
 			
 			{
 				SpectralSamples abs = rayState.getAbsorption();
@@ -305,7 +288,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			if(camVertexIndex > 0)
             {
-                float pdfBackwardPrevNode = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(segmentOrigin - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
+                float pdfBackwardPrevNode = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - camVertexContext.posWS, camVertexContext.prevNodeNormalWS);
 				
 				camVertexContext.pdfRatioSum = deferredRISumCamera;
 
@@ -322,7 +305,6 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 
 			rayDir = wiWS;
             rayOrigin = spawnRayOrigin(camVertexContext.posWS, camVertexContext.normalWS, rayDir);
-            segmentOrigin = rayOrigin;
         }
 		else 
 		{

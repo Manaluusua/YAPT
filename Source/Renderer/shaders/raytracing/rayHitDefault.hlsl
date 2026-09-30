@@ -345,25 +345,13 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         payload.throughput = payload.throughput * calculateTransmittance(rayDistance, absorb);
 	}
 
-	//a surface of an overlapped volume that isn't an interface: continue through it without scattering, the ray
-	//generation doesn't count this as a bounce
-    if (payload.isFalseIntersection(materialAndMeshIndices.x, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE) && payload.falseIntersections < MAX_FALSE_INTERSECTIONS)
-    {
-        payload.falseIntersections += 1;
-        payload.exitedVolume(materialAndMeshIndices.x);
-        payload.rayDirection = WorldRayDirection();
-        payload.rayOrigin = spawnRayOrigin(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), WorldRayDirection(), WorldRayDirection());
-        payload.addFlags(RAYSTATE_FLAGS_PASSED_THROUGH);
-        return;
-    }
-	
 	if(!surfaceDef.emissive.allSamplesEqual(0))
     {
         float wMIS = 1.f;
 #ifdef ENABLE_NEE
         if (g_lightCount > 0 && payload.pdfThisRay > 0 && !payload.hasFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION))
         {
-            float lightPDF = calculateExplicitLightConnectionPDF(WorldRayOrigin() + WorldRayDirection() * RayTCurrent() - payload.segmentOrigin, InstanceID(), PrimitiveIndex(), attr.barycentrics);
+            float lightPDF = calculateExplicitLightConnectionPDF(WorldRayOrigin() + WorldRayDirection() * RayTCurrent() - payload.rayOrigin, InstanceID(), PrimitiveIndex(), attr.barycentrics);
             wMIS = weightMIS(payload.pdfThisRay, lightPDF);
         }
 		
@@ -416,7 +404,6 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 
         payload.rayDirection = nextSampleDirBRDF;
         payload.rayOrigin = spawnRayOrigin(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), normalWorld, nextSampleDirBRDF);
-        payload.segmentOrigin = payload.rayOrigin;
     }
 }
 

@@ -39,8 +39,6 @@ namespace YAPT
 			vec4p totalLight;
 			vec4p ior;
 			uvec4p volumeMaterial;
-			vec3p segmentOrigin;
-			uint32_t falseIntersections;
 			vec3p rayOrigin;
 			uint32_t rayIndex;
 			vec3p rayDirection;

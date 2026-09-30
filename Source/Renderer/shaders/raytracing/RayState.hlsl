@@ -21,7 +21,6 @@ class RayStateInterface
 
 	void enteredVolume(float IOR, SpectralSamples absorption, uint materialIndex);
 	void exitedVolume(uint materialIndex);
-	bool isFalseIntersection(uint materialIndex, bool hitFrontFace);
 
 	uint getStateFlags();
 	void setStateFlags(uint flags);

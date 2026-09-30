@@ -145,16 +145,6 @@ struct BDPTRayState //: RayStateInterface
         --numberVolumesEntered;
     }
 
-    bool isFalseIntersection(uint materialIndex, bool hitFrontFace)
-    {
-        if (hitFrontFace || numberVolumesEntered < 2)
-        {
-            return false;
-        }
-        int index = findVolume(materialIndex);
-        return index >= 0 && index != int(numberVolumesEntered) - 1;
-    }
-
     uint getNumberOfVolumesEntered()
     {
         return numberVolumesEntered;

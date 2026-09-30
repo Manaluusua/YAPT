@@ -91,16 +91,6 @@ struct Payload //: RayStateInterface
         --numberVolumesEntered;
     }
 
-    bool isFalseIntersection(uint materialIndex, bool hitFrontFace)
-    {
-        if (hitFrontFace || numberVolumesEntered < 2)
-        {
-            return false;
-        }
-        int index = findVolume(materialIndex);
-        return index >= 0 && index != int(numberVolumesEntered) - 1;
-    }
-
 	uint getStateFlags()
 	{
 		return flags;
@@ -134,8 +124,6 @@ struct Payload //: RayStateInterface
 	SpectralSamples totalLight;
     float4 ior;
     uint4 volumeMaterial;
-	float3 segmentOrigin; //last real path vertex, the ray origin can move past false intersections
-	uint falseIntersections;
 	float3 rayOrigin;
 	uint rayIndex;
 	float3 rayDirection;
