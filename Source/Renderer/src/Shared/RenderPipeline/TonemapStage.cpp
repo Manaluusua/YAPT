@@ -38,12 +38,14 @@ namespace YAPT
 		float manualExposure = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_MANUALEXPOSURE);
 		float eyeAdaptSpeed = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_EYE_ADAPT_SPEED);
 		float exposureCompensation = config.getRendererVarValueInternal<float>(RVARNAME_TONEMAP_EXPOSURE_COMPENSATION);
+		int32_t enableOperator = config.getRendererVarValueInternal<int32_t>(RVARNAME_TONEMAP_ENABLE);
 		
 		
 		float deltaTime = getRenderer()->getFrameDeltaInSeconds();
 
 		m_tonemapConstants.getData()->toeMidShoulderInit = vec4p(toe, mid, shoulder, m_isFirstRun ? 1.0f : 0.f);
 		m_tonemapConstants.getData()->exposureEyeAdaptTime = vec4p(enableAutoExposure == 0 ? 0.0f : 1.0f, enableAutoExposure != 0 ? exposureCompensation : manualExposure, eyeAdaptSpeed, deltaTime);
+		m_tonemapConstants.getData()->operatorEnabled = uvec4p(enableOperator != 0 ? 1u : 0u, 0, 0, 0);
 		 
 		m_isFirstRun = false;
 	}

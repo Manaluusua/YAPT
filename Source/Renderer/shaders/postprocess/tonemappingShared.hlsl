@@ -42,6 +42,7 @@ struct TonemapConstants
 	PrepareExposureInfoData prepareTonemapDataConstants;
 	float4 toeMidShoulderInit;
 	float4 exposureEyeAdaptTime;
+	uint4 operatorEnabled; //x: apply the tonemapping operator, exposure is applied regardless
 };
 
 

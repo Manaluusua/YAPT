@@ -54,6 +54,7 @@ namespace YAPT
 			PrepareExposureInfoData prepareTonemapDataConstants;
 			vec4p toeMidShoulderInit;
 			vec4p exposureEyeAdaptTime;
+			uvec4p operatorEnabled;
 		};
 		
 		struct ExposureInfo

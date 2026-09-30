@@ -32,6 +32,7 @@
 #define RVARNAME_DEBUG_BDPT_LIGHTPATHNODES "_DEBUG.BDPT.EffectiveLightPathNodes"
 #define RVARNAME_DEBUG_BDPT_CAMERAPATHNODES "_DEBUG.BDPT.EffectiveCameraPathNodes"
 
+#define RVARNAME_TONEMAP_ENABLE "Tonemap.Enable"
 #define RVARNAME_TONEMAP_TOE "Tonemap.Toe"
 #define RVARNAME_TONEMAP_MID "Tonemap.Mid"
 #define RVARNAME_TONEMAP_SHOULDER "Tonemap.Shoulder"

@@ -96,29 +96,38 @@ falling from 51.6 at n=0 to 39.6 at n=32 while the centre rises from 64.5 to 163
 normalisation were missing anywhere the whole image would instead dim by `2/(n+2)`, a
 factor of 17 at n=32.
 
-## Capturing, and why it is fiddly
+## Capturing
 
-The render area is a native HWND with a flip model DXGI swapchain that DWM composites
-directly. That defeats the obvious capture routes:
+Frames are captured with the renderer's own readback of the `FinalColor` target
+(`Renderer.readback(ReadbackTarget.FinalColor)`), the same image the swapchain presents, at
+render resolution. `TestHarness.capture()` issues the readback and pumps the Qt event loop
+(which drives the render loop) until it is ready, so it returns the next rendered frame and
+does not depend on the window being visible or composited. `FinalColor` is 8 bit
+`RGBA8_SRGB`, so values above 1 are clamped and a NaN shows up as black.
 
-- `QScreen.grabWindow(0, ...)` returns whatever is *behind* the window, usually the desktop
-  wallpaper, and looks entirely plausible until you notice the render never changes
-- `QWidget.grab()` returns the flat Qt background, since Qt never paints that area
-- `QScreen.grabWindow(winId)` likewise
+What the frame shows is set with renderer variables; `TestHarness.set_output()` wraps the
+common cases:
 
-`PrintWindow` with `PW_RENDERFULLCONTENT` is the one path that reads the composited
-DirectX content, and is what `yapt_harness.capture_window()` uses.
+| call | frame shows |
+| --- | --- |
+| `set_output()` | the default: denoised, tonemapped, auto exposure |
+| `set_output(denoise=False)` | the accumulated result without the denoiser |
+| `set_output(denoise=False, tonemap=False, exposure=1.0)` | plain accumulated radiance (clamped) |
+| `set_output(per_sample=True)` | only the latest frame's samples, no accumulation or denoiser |
 
-Because a broken capture produces *convincing* numbers rather than an obvious failure,
-every capture is md5 hashed and compared against the ones already taken in that run. Two
-identical captures mean the frame never updated, and the run aborts with `FAILED: stale
+`tonemap=False` sets `Tonemap.Enable` to `OFF`, which skips the tonemapping operator but still
+applies exposure. For anything else there are `set_option(name, label)`, `set_float` and
+`set_int`.
+
+Every capture is still md5 hashed and compared against the ones already taken in that run.
+Two identical captures mean the frame never updated, and the run aborts with `FAILED: stale
 captures` instead of reporting the results.
 
 ## Files
 
 | file | |
 | --- | --- |
-| `yapt_harness.py` | boots the app, drives it from a timer, captures the render area |
+| `yapt_harness.py` | boots the app, drives it from a timer, captures frames via readback |
 | `report.py` | difference images, montages, the printed table |
 | `focused_emission_scene.py` | closed diffuse box with one focused emitter |
 | `compare_integrators.py` | renders under each integrator, reports disagreement |

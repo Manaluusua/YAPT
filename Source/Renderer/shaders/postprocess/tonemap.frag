@@ -19,6 +19,11 @@ float4 tonemap(Input input) : SV_TARGET
 
     float4 color = colorTex.Sample(colorSampler, input.uv);
 	color = info.cameraExposure * color;
+
+	if (g_tonemapConstants.operatorEnabled.x == 0)
+	{
+		return color;
+	}
 	
 #ifdef TONEMAP_ACES
 	color.xyz = ACESFitted(color.xyz);
