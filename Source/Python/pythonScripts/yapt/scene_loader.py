@@ -135,6 +135,9 @@ class SceneLoader:
             self._set_texture(mat.normalTexture, yapt_mat.setNormalTexture)
 
         orm_tex = None
+        alpha_blended = False #glTF BLEND turned into transparency
+        coverage = 1.0 #the base color factor alpha part of it, the texture alpha is applied per texel
+        transmission_factor = 0.0
 
         if getattr(mat, "occlusionTexture"):
             orm_tex = self._set_texture(mat.occlusionTexture, yapt_mat.setORMTexture)
@@ -150,20 +153,33 @@ class SceneLoader:
                 color = pbr_config.baseColorFactor
             yapt_mat.setAlbedo(v3(color[0], color[1], color[2]))
             # yapt "transparency" is the dielectric transmission weight (KHR_materials_transmission below),
-            # glTF base color alpha is coverage which yapt doesn't support
+            # glTF base color alpha is coverage, which is mapped to alpha testing or transparency below
             yapt_mat.setTransparency(0)
 
-
-            if getattr(pbr_config, "baseColorTexture"):
+            has_base_color_tex = bool(getattr(pbr_config, "baseColorTexture"))
+            if has_base_color_tex:
                 self._set_texture(pbr_config.baseColorTexture, yapt_mat.setAlbedoTexture)
 
-                # yapt can't blend, MASK and BLEND become alpha testing against the base color texture alpha.
-                # Alpha tested geometry is slower to trace, so it is only enabled if the texture has texels below the cutoff
-                alpha_mode = getattr(mat, "alphaMode", None) or "OPAQUE"
-                if alpha_mode in ("MASK", "BLEND"):
-                    cutoff = mat.alphaCutoff if alpha_mode == "MASK" and mat.alphaCutoff is not None else 0.5
-                    if self._texture_min_alpha(pbr_config.baseColorTexture) < cutoff:
-                        yapt_mat.setAlphaCutoff(cutoff)
+            # MASK, and BLEND with (nearly) fully transparent texels (cutouts, foliage, decals), become alpha testing
+            # against the base color texture alpha. Alpha tested geometry is slower to trace, so it is only enabled if
+            # the texture has texels below the cutoff.
+            # Other BLEND (tinted / dirty glass) becomes thin transparency: yapt's alpha blend mode turns the texture alpha
+            # into per texel coverage, the base color factor alpha is folded into the material transparency below
+            alpha_mode = getattr(mat, "alphaMode", None) or "OPAQUE"
+            factor_alpha = color[3] if len(color) > 3 else 1.0
+            blend_cutout_max_alpha = 0.02
+            if alpha_mode == "MASK" and has_base_color_tex:
+                cutoff = mat.alphaCutoff if mat.alphaCutoff is not None else 0.5
+                if self._texture_min_alpha(pbr_config.baseColorTexture) < cutoff:
+                    yapt_mat.setAlphaCutoff(cutoff)
+            elif alpha_mode == "BLEND":
+                tex_min_alpha = self._texture_min_alpha(pbr_config.baseColorTexture) if has_base_color_tex else 1.0
+                if tex_min_alpha < blend_cutout_max_alpha:
+                    yapt_mat.setAlphaCutoff(0.5)
+                elif tex_min_alpha < 1.0 or factor_alpha < 1.0:
+                    coverage = factor_alpha
+                    yapt_mat.setAlphaBlend(tex_min_alpha < 1.0)
+                    alpha_blended = True
 
             metallicFactor = 1
             if pbr_config.metallicFactor is not None:
@@ -187,7 +203,8 @@ class SceneLoader:
             if "KHR_materials_transmission" in extensions:
                 transmission = extensions["KHR_materials_transmission"]
                 self._warn_unsupported_textures(mat, "KHR_materials_transmission", transmission, ["transmissionTexture"])
-                yapt_mat.setTransparency(transmission.get("transmissionFactor", 0.0))
+                transmission_factor = transmission.get("transmissionFactor", 0.0)
+                yapt_mat.setTransparency(transmission_factor)
                 # yapt treats two sided transparent surfaces as thin. In glTF, doubleSided is only about backface culling,
                 # KHR_materials_volume decides thin walled vs volume: no volume or zero thickness is thin
                 volume = extensions.get("KHR_materials_volume")
@@ -265,6 +282,11 @@ class SceneLoader:
 
                 yapt_mat.setDielectricIOR(ior)
 
+        if alpha_blended:
+            # the uncovered part passes straight through, the covered part keeps its own transmission
+            yapt_mat.setTransparency(1.0 - coverage * (1.0 - transmission_factor))
+            if transmission_factor == 0.0:
+                yapt_mat.setTwoSided(True) #coverage has no volume, thin
 
         return yapt_mat
     

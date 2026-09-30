@@ -90,6 +90,9 @@ namespace YAPT
 		virtual void setAlphaCutoff(float cutoff) final;
 		virtual float getAlphaCutoff() const final;
 
+		virtual void setAlphaBlend(bool val) final;
+		virtual bool isAlphaBlend() const final;
+
 		virtual void setCauchysCoefficients(const vec2p& val) final;
 		virtual const vec2p& getCauchysCoefficients() const final;
 

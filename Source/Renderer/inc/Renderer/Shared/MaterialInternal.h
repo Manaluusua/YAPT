@@ -14,7 +14,8 @@ namespace YAPT
 	{
 		MaterialMask_None = 0,
 		MaterialMask_TwoSided = 1 << 0,
-		MaterialMask_Dispersion = 1 << 1
+		MaterialMask_Dispersion = 1 << 1,
+		MaterialMask_AlphaBlend = 1 << 2
 	};
 
 	struct MaterialParameterTexture

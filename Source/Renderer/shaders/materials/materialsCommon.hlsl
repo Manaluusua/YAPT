@@ -6,6 +6,7 @@
 
 #define MaterialMask_TwoSided (1 << 0)
 #define MaterialMask_Dispersion (1 << 1)
+#define MaterialMask_AlphaBlend (1 << 2)
 #define TEX_UNBOUND_INDEX (~0)
 
 struct SurfaceDefinitionRGB
@@ -50,6 +51,11 @@ bool isSurfaceTwoSided(uint flags)
 bool hasDispersion(uint flags)
 {
 	return (flags & MaterialMask_Dispersion) != 0;
+}
+
+bool isAlphaBlended(uint flags)
+{
+	return (flags & MaterialMask_AlphaBlend) != 0;
 }
 
 
@@ -348,6 +354,11 @@ void modifySurfaceMaterialParametersWithTextures(in MaterialEntryGPU matEntry, i
 
 		float4 atex = g_textures2D[matEntry.albedoTexIndexAndScale.x].SampleLevel(g_colorSampler, uv * uvScale, 0);
 		surfaceDef.albedo *= atex.rgb;
+		if (isAlphaBlended(surfaceDef.flags))
+		{
+	
+			surfaceDef.transparency = 1.f - atex.a * (1.f - surfaceDef.transparency);
+		}
 	}
 	
 	if(matEntry.normalTexIndexAndScale.x != TEX_UNBOUND_INDEX)

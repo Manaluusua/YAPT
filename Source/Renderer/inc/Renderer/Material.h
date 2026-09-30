@@ -95,9 +95,11 @@ namespace YAPT
 		virtual void setThinFilmThicknessNM(float val) = 0;
 		virtual float getThinFilmThicknessNM() const = 0;
 
-		//alpha testing against the albedo texture alpha: hits below the cutoff are ignored, 0 disables it
 		virtual void setAlphaCutoff(float cutoff) = 0;
 		virtual float getAlphaCutoff() const = 0;
+
+		virtual void setAlphaBlend(bool val) = 0;
+		virtual bool isAlphaBlend() const = 0;
 
 		virtual void setCauchysCoefficients(const vec2p& val) = 0;
 		virtual const vec2p& getCauchysCoefficients() const = 0;

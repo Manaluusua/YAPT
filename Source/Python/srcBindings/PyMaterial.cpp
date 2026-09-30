@@ -230,6 +230,16 @@ namespace YAPT
         return m_material->getAlphaCutoff();
     }
 
+    void PyMaterial::setAlphaBlend(bool val)
+    {
+        m_material->setAlphaBlend(val);
+    }
+
+    bool PyMaterial::getAlphaBlend() const
+    {
+        return m_material->isAlphaBlend();
+    }
+
     void PyMaterial::setThinFilmThicknessNM(float val)
     {
         m_material->setThinFilmThicknessNM(val);
@@ -334,6 +344,8 @@ namespace YAPT
             .def("getSheenAmount", &PyMaterial::getSheenAmount)
             .def("setAlphaCutoff", &PyMaterial::setAlphaCutoff)
             .def("getAlphaCutoff", &PyMaterial::getAlphaCutoff)
+            .def("setAlphaBlend", &PyMaterial::setAlphaBlend)
+            .def("getAlphaBlend", &PyMaterial::getAlphaBlend)
             .def("setThinFilmThicknessNM", &PyMaterial::setThinFilmThicknessNM)
             .def("getThinFilmThicknessNM", &PyMaterial::getThinFilmThicknessNM)
             .def("setCauchysCoefficients", &PyMaterial::setCauchysCoefficients)

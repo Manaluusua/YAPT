@@ -273,6 +273,22 @@ namespace YAPT
 	{
 		return m_materialParams.alphaCutoff;
 	}
+	void MaterialProxy::setAlphaBlend(bool val)
+	{
+		if (val)
+		{
+			m_materialParams.materialMask |= MaterialMask_AlphaBlend;
+		}
+		else
+		{
+			m_materialParams.materialMask &= ~MaterialMask_AlphaBlend;
+		}
+		setDirty();
+	}
+	bool MaterialProxy::isAlphaBlend() const
+	{
+		return (m_materialParams.materialMask & MaterialMask_AlphaBlend) != 0;
+	}
 	float MaterialProxy::getThinFilmThicknessNM() const
 	{
 		return m_materialParams.thinFilmThicknessNM;

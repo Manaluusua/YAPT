@@ -84,6 +84,9 @@ namespace YAPT
 
 		float getAlphaCutoff() const;
 
+		void setAlphaBlend(bool val);
+		bool getAlphaBlend() const;
+
 		void setCauchysCoefficients(const vec2p& val);
 		const vec2p& getCauchysCoefficients() const;
 
