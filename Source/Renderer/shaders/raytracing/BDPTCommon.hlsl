@@ -433,11 +433,14 @@ float calculateCameraDirectionalPDF(float3 camToNodeWS)
 	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
 }
 
+//pdf ratio sum can overflow to inf when ratios become too big, which will become NaN when multiplied with 0, guard against that case here
+#define MAX_PDF_RATIO_SUM 1e16f
+
 float calculatePDFRatio(float nom, float denom)
 {
     nom = nom < 0 ? 1.f : nom;
     denom = denom < 0 ? 1.f : denom;
-    return safeDiv(nom, denom);
+    return min(safeDiv(nom, denom), MAX_PDF_RATIO_SUM);
 }
 
 float accumulateRISum(float riSum, float nom, float denom)
@@ -449,7 +452,7 @@ float accumulateRISum(float riSum, float nom, float denom)
     {
         riSum += ri;
     }
-    return riSum;
+    return min(riSum, MAX_PDF_RATIO_SUM);
 }
 
 void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)

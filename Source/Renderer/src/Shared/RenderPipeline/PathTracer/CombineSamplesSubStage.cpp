@@ -380,6 +380,7 @@ namespace YAPT
 		
 		float fireflyClampScale = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_SCALE);
 		float fireflyClampRelaxPower = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_RELAX_POWER);
+		bool killNaNSamples = config.getRendererVarValueInternal<int32_t>(RVARNAME_KILL_NAN_SAMPLES) != 0;
 
 		bool disableAccum = config.getRendererVarValueInternal<int32_t>(RVARNAME_ACCUMULATION_DISABLE) != 0;
 
@@ -470,6 +471,7 @@ namespace YAPT
 				mergeSamplesParams->accumulationTargetCount = ACCUMULATION_TARGET_COUNT;
 				mergeSamplesParams->fireflyClampScale = fireflyClampScale;
 				mergeSamplesParams->fireflyClampRelaxPower = fireflyClampRelaxPower;
+				mergeSamplesParams->killNaNSamples = killNaNSamples ? 1u : 0u;
 				MathUtils::generateSobolSequence(1u, 4u, glm::value_ptr(mergeSamplesParams->randomSequence), (uint32_t)params.samplesPerPixel);
 				m_mergeSamplesConstants.flush();
 			}

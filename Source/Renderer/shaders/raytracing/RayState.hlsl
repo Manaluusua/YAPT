@@ -4,7 +4,6 @@
 #define RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED (1 << 0)
 #define RAYSTATE_FLAGS_REGULARIZE_PATH (1 << 1)
 #define RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION (1 << 2)
-#define RAYSTATE_FLAGS_PASSED_THROUGH (1 << 3) //the last hit was a false intersection, the ray continued without scattering
 
 #define VOLUME_MATERIAL_NONE 0xFFFFFFFF
 

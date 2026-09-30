@@ -22,6 +22,7 @@
 #define RVARNAME_REGULARIZE_AFTER_VERTICES "Firefly.RegularizeAfterVertices"
 #define RVARNAME_FIREFLY_CLAMP_SCALE "Firefly.FireflyClampScale"
 #define RVARNAME_FIREFLY_CLAMP_RELAX_POWER "Firefly.FireflyClampRelaxPower"
+#define RVARNAME_KILL_NAN_SAMPLES "Firefly.KillNaNSamples"
 #define RVARNAME_DENOISE_MODE "Denoise.Mode"
 #define RVARNAME_DENOISE_DEPTH_SIGMA_SCALE "Denoise.DepthSigmaScale"
 #define RVARNAME_DENOISE_NORMAL_SIGMA "Denoise.NormalSigma"

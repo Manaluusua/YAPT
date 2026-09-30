@@ -12,7 +12,7 @@ struct MergeNewSamplesParams
     uint accumulationTargetCount;
     float fireflyClampScale;
     float fireflyClampRelaxPower;
-    uint pad0;
+    uint killNaNSamples;
     uint pad1;
     uint pad2;
 };
@@ -153,6 +153,12 @@ void main( uint3 groupId : SV_GroupID,
         float4 srcColor;
         float weight;
 		calculateSampleContribution(targetPosition, srcColor, weight);
+
+		//a single NaN would stay in the accumulated result for good (and get spread around by the denoiser), so drop the sample altogether
+        if (g_mergeParams.killNaNSamples != 0 && isNan(srcColor.xyz))
+        {
+            srcColor = 0;
+        }
 		
         uint oldSamples = 0;
         uint newSamples = 0;

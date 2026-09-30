@@ -59,7 +59,7 @@ namespace YAPT
 			uint32_t accumulationTargetCount;
 			float fireflyClampScale;
 			float fireflyClampRelaxPower;
-			uint32_t pad0;
+			uint32_t killNaNSamples;
 			uint32_t pad1;
 			uint32_t pad2;
 		};

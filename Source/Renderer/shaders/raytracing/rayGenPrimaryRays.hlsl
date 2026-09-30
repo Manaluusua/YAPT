@@ -67,14 +67,6 @@ void rayGenPrimaryRays()
 			ray,					
 			payload);
 
-			//passed through a false intersection without scattering, not a bounce (bounded by MAX_FALSE_INTERSECTIONS)
-			if (payload.hasFlags(RAYSTATE_FLAGS_PASSED_THROUGH))
-			{
-				payload.removeFlags(RAYSTATE_FLAGS_PASSED_THROUGH);
-				--i;
-				continue;
-			}
-			
 			payload.pathLength += 1;
 		}
 		else
@@ -146,18 +138,8 @@ void rayGenPrimaryRays()
 	return;
 	*/
 	
-	bool resultsValid = !payload.totalLight.hasNan();
-	//if the ray was terminated, write out results. if it was cancelled, don't add samples this frame
-	if(resultsValid) 
-	{
-        float3 color = payload.totalLight.ToXYZ();
-        g_outputColor[DispatchRaysIndex().xy] = float4(color, 1.f);
-    } 
-	else
-	{
-		g_outputColor[DispatchRaysIndex().xy] = float4(0.0f, 0.0f, 0.0f, 0.0f);
-		//g_outputColor[DispatchRaysIndex().xy] = float4(10.0f, 0.0f, 0.0f, 10.0f); //flag killed samples visually
-		//g_outputColor[DispatchRaysIndex().xy] = float4(payload.totalLight, 10.0f); //flag killed samples visually
-	}
+
+	float3 color = payload.totalLight.ToXYZ();
+	g_outputColor[DispatchRaysIndex().xy] = float4(color, 1.f);
 	
 }
