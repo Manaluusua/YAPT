@@ -12,6 +12,7 @@ sample objects are arranged on its counter. The sky is black, the room is lit by
   - SEED only drives the small random turn of each object (yaw_jitter); env var YAPT_SCENE_SEED overrides it
 
 Run it via the "run script" action of the app on an empty scene; objects are added, nothing is cleared.
+Asset paths are relative to ASSET_PATH ([paths] asset_path in settings.cfg / settings_local.cfg), absolute paths work too.
 Units are metres.
 """
 
@@ -19,12 +20,7 @@ from yapt.container_scene import ContainerSceneBuilder
 
 SEED = None
 
-ASSET_ROOT = "D:/Random/3DSampleAssets"
-
 CONFIG = {
-    "asset_root": ASSET_ROOT,
-    "converted_root": f"{ASSET_ROOT}/Converted",
-
     "container": "vintage_cabinet",
     "objects": [
         "brass_vase",
@@ -46,8 +42,8 @@ CONFIG = {
     "room": {
         "size": (4.2, 4.2, 2.9),    # width (x), depth (z), height
         "container_wall_gap": 0.03,
-        "floor_albedo_texture": f"{ASSET_ROOT}/Textures/weathered_planks/weathered_planks_diff_4k.png",
-        "floor_normal_texture": f"{ASSET_ROOT}/Textures/weathered_planks/weathered_planks_nor_gl_4k.png",
+        "floor_albedo_texture": "textures/weathered_planks/weathered_planks_diff_4k.png",
+        "floor_normal_texture": "textures/weathered_planks/weathered_planks_nor_gl_4k.png",
         "floor_texture_size": 2.0,  # metres per texture repeat
         "wall_color": (0.78, 0.75, 0.70),
         "ceiling_color": (0.85, 0.85, 0.85),

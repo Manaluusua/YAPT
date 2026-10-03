@@ -7,13 +7,13 @@ renderer = yapt_instance.get_renderer()
 scene = yapt_instance.get_scene()
 
 #envmap
-env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
+env_map = resources.load_texture_2D("textures/envmaps/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
 
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
 #meshes
-mesh_array, mappings = resources.load_meshes_from_path("D:/Random/3DSampleAssets/Sphere/sphere.glb")[0]
+mesh_array, mappings = resources.load_meshes_from_path("models/Sphere.glb")[0]
 sphere_mesh = mesh_array[0]
 
 #enclosing light

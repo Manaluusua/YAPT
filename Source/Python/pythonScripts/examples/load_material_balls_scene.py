@@ -53,10 +53,10 @@ def createSurrounding():
     wallScale = 1000 
     roofScale = 1000
     
-    albedo_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_diff_4k.png", "R8G8B8A8_SRGB", True)
-    normal_tex = resources.load_texture_2D("D:/Random/3DSampleAssets/Textures/weathered_planks/weathered_planks_nor_gl_4k.png","R8G8B8A8_UNORM", True)
+    albedo_tex = resources.load_texture_2D("textures/weathered_planks/weathered_planks_diff_4k.png", "R8G8B8A8_SRGB", True)
+    normal_tex = resources.load_texture_2D("textures/weathered_planks/weathered_planks_nor_gl_4k.png","R8G8B8A8_UNORM", True)
 
-    obj, mesh, mat = createObject("groundPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", v3(0, -50, 0), 2000)
+    obj, mesh, mat = createObject("groundPlane", "models/plane.glb", v3(0, -50, 0), 2000)
     tex_scale = 45
     mat.setRoughness(0.5)
     #mat.setClearCoatAmount(1)
@@ -120,7 +120,7 @@ def createLight():
         
         x,y,z = center[0] + c * radius, center[1], center[2] - s * radius
         
-        obj, mesh, mat = createObject("lightPlane", "D:/Random/3DSampleAssets/Plane/plane.glb", v3(x, y, z), lightScale)
+        obj, mesh, mat = createObject("lightPlane", "models/plane.glb", v3(x, y, z), lightScale)
 
         rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), 115)
         rot =  QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), i * 90) * rot
@@ -145,7 +145,7 @@ def loadMaterialBalls():
 
         x,y,z = center[0] + c * radius, center[1], center[2] + s * radius
 
-        obj, mesh, mat = createObject("materialBall", "D:/Random/3DSampleAssets/MaterialBall/materialball.glb", vec3([x, y, z]), 0.3)
+        obj, mesh, mat = createObject("materialBall", "models/materialBall.glb", vec3([x, y, z]), 0.3)
         
         mat2 = renderer.createMaterial(f"materialBall_mat2")
         mat2.setFromMaterialPreset(Material.MaterialPreset.METAL_ALUMINIUM)
@@ -195,7 +195,7 @@ def loadSimpleBalls():
 
         x,y,z = center[0] + c * radius, center[1], center[2] + s * radius
 
-        obj, mesh, mat = createObject("sphere", "D:/Random/3DSampleAssets/Sphere/sphere.glb", vec3([x, y, z]), 30)
+        obj, mesh, mat = createObject("sphere", "models/Sphere.glb", vec3([x, y, z]), 30)
 
         rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))
 
@@ -230,7 +230,7 @@ def loadSimpleBalls():
     
 
 #envmap
-env_map = resources.load_texture_2D("D:/Random/3DSampleAssets/EnvMapSources/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
+env_map = resources.load_texture_2D("textures/envmaps/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
 
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)

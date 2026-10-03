@@ -4,6 +4,7 @@ from yapt.renderer_vars_window import RendererVarsWindow
 from yapt.objects_dialog import ObjectsDialog
 from yapt.screenshot_dialog import ScreenshotDialog
 from yapt.scene_loader import SceneLoader
+from yapt.settings import ASSET_PATH
 import os
 import traceback
 from pathlib import Path
@@ -109,7 +110,7 @@ class MainWindow(QMainWindow):
                 traceback.print_exc()
     
     def open_scene(self):
-        openPath = self._get_default_open_path()
+        openPath = self._get_default_scene_path()
         file_name, _ = QFileDialog.getOpenFileName(self, "Open Scene", str(openPath), " gltf(*.glb *.gltf);;All Files (*)")
         if(file_name):
             resources = self._app.get_resources()
@@ -185,3 +186,6 @@ class MainWindow(QMainWindow):
 
     def _get_default_open_path(self):
         return Path(str(Path(os.path.abspath(__file__)).parent.parent) + "/examples")
+
+    def _get_default_scene_path(self):
+        return ASSET_PATH if ASSET_PATH.is_dir() else self._get_default_open_path()

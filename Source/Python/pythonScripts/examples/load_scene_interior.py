@@ -10,4 +10,4 @@ renderer = yapt_instance.get_renderer()
 scene = yapt_instance.get_scene()
 
 sceneLoader = SceneLoader(resources, scene, renderer)
-sceneLoader.load_scene_gltf("D:/Random/3DSampleAssets/SceneCoffee/office.gltf")
+sceneLoader.load_scene_gltf("models/office/office.gltf")

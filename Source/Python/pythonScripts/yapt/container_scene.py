@@ -25,6 +25,7 @@ import numpy as np
 from py_yapt import Material, vec2, vec3, vec4
 from yapt.random_shapes import q_axis_angle, q_mul, q_rotate, resolve_seed, to_linear, v3l, Q_IDENTITY
 from yapt.scene_loader import SceneLoader
+from yapt.settings import resolve_asset_path
 
 # ---------------------------------------------------------------------------
 # Containers and placeable objects
@@ -41,7 +42,7 @@ class Surface:
 
 @dataclass
 class ContainerDef:
-    path: str                   # relative to the config's "converted_root"
+    path: str                   # relative to ASSET_PATH (see yapt/settings.py), or absolute
     surfaces: list
     material_overrides: dict = field(default_factory=dict)   # glTF material name -> {material setter: value}
 
@@ -52,11 +53,11 @@ class PlaceableDef:
 
 CONTAINERS = {
     "gallinera_table": ContainerDef(
-        "gallinera_table_4k/gallinera_table_4k.gltf",
+        "models/gallinera_table_4k/gallinera_table_4k.gltf",
         [Surface("top", 0.4878, (-0.39, 0.39), (-0.235, 0.235))]),
 
     "vintage_cabinet": ContainerDef(
-        "vintage_cabinet_01_4k/vintage_cabinet_01_4k.gltf",
+        "models/vintage_cabinet_01_4k/vintage_cabinet_01_4k.gltf",
         [
             # counter under the upper hutch, its carved valance hangs down to ~0.345 above the counter
             Surface("counter_niche", 0.9112, (-0.81, 0.81), (-0.24, 0.08), max_height=0.34),
@@ -70,11 +71,11 @@ CONTAINERS = {
 }
 
 PLACEABLES = {
-    "lantern": PlaceableDef("Lantern_01_4k/Lantern_01_4k.gltf"),
-    "brass_goblets": PlaceableDef("brass_goblets_4k/brass_goblets_4k.gltf", split_nodes=True),
-    "brass_vase": PlaceableDef("brass_vase_02_4k/brass_vase_02_4k.gltf"),
-    "industrial_pipe_lamp": PlaceableDef("industrial_pipe_lamp_4k/industrial_pipe_lamp_4k.gltf"),
-    "wine_bottles": PlaceableDef("wine_bottles_01_4k/wine_bottles_01_4k.gltf", split_nodes=True),
+    "lantern": PlaceableDef("models/Lantern_01_4k/Lantern_01_4k.gltf"),
+    "brass_goblets": PlaceableDef("models/brass_goblets_4k/brass_goblets_4k.gltf", split_nodes=True),
+    "brass_vase": PlaceableDef("models/brass_vase_02_4k/brass_vase_02_4k.gltf"),
+    "industrial_pipe_lamp": PlaceableDef("models/industrial_pipe_lamp_4k/industrial_pipe_lamp_4k.gltf"),
+    "wine_bottles": PlaceableDef("models/wine_bottles_01_4k/wine_bottles_01_4k.gltf", split_nodes=True),
 }
 
 # ---------------------------------------------------------------------------
@@ -331,20 +332,20 @@ class ContainerSceneBuilder:
     def _build_room(self):
         room = self._cfg["room"]
         w, d, h = room["size"]
-        plane = f"{self._cfg['asset_root']}/Plane/plane.glb"   # 2 x 2 in XZ, facing +Y
+        plane = "models/plane.glb"   # 2 x 2 in XZ, facing +Y
 
         floor_mat = self._new_material("floor", (1.0, 1.0, 1.0), room.get("floor_roughness", 0.55))
         floor_albedo = room.get("floor_albedo_texture")
         floor_normal = room.get("floor_normal_texture")
         tile = room.get("floor_texture_size", 2.0)
         uv_scale = vec2([w / tile, d / tile])
-        if floor_albedo and os.path.exists(floor_albedo):
+        if floor_albedo and os.path.exists(resolve_asset_path(floor_albedo)):
             tex = self._resources.load_texture_2D(floor_albedo, "R8G8B8A8_SRGB")
             if tex is not None:
                 floor_mat.setAlbedoTexture(tex, uv_scale)
         else:
             floor_mat.setAlbedo(v3l(to_linear(room.get("floor_color", (0.45, 0.4, 0.35)))))
-        if floor_normal and os.path.exists(floor_normal):
+        if floor_normal and os.path.exists(resolve_asset_path(floor_normal)):
             tex = self._resources.load_texture_2D(floor_normal, "R8G8B8A8_UNORM")
             if tex is not None:
                 floor_mat.setNormalTexture(tex, uv_scale)
@@ -367,7 +368,7 @@ class ContainerSceneBuilder:
     def _place_container(self):
         name = self._cfg["container"]
         definition = CONTAINERS[name]
-        loader, roots = self._load_gltf(f"{self._cfg['converted_root']}/{definition.path}")
+        loader, roots = self._load_gltf(definition.path)
         gltf = loader.get_gltf()
         lo, hi = _union_bounds([_node_bounds(gltf, node) for node, _ in roots])
 
@@ -411,7 +412,7 @@ class ContainerSceneBuilder:
         units = []
         for entry in self._object_entries():
             definition = PLACEABLES[entry["name"]]
-            path = f"{self._cfg['converted_root']}/{definition.path}"
+            path = resolve_asset_path(definition.path)
             loader, roots = self._load_gltf(path)
             gltf = loader.get_gltf()
             groups = [[root] for root in roots] if definition.split_nodes else [roots]
@@ -532,7 +533,7 @@ class ContainerSceneBuilder:
 
     def _build_lights(self):
         """Sphere lights; emission is set so each gives roughly the wanted irradiance at the focus point."""
-        sphere = f"{self._cfg['asset_root']}/Sphere/Sphere.glb"
+        sphere = "models/Sphere.glb"
         for light in self._cfg.get("lights", []):
             pos = light["position"]
             radius = light.get("radius", 0.15)

@@ -16,6 +16,7 @@ import time
 
 import numpy as np
 from py_yapt import Material, vec2, vec3, vec4
+from yapt.settings import resolve_asset_path
 
 FLOOR_Y = 0.0
 DEFAULT_FLOOR_SCALE = 2000.0
@@ -52,13 +53,16 @@ SHAPE_PROXIES = {
     ]),
 }
 
-def mesh_paths(asset_root):
-    return {
-        "plane": f"{asset_root}/Plane/plane.glb",
-        "sphere": f"{asset_root}/Sphere/Sphere.glb",
-        "torus": f"{asset_root}/Torus/torus.glb",
-        "suzanne": f"{asset_root}/Suzanne/suzanne.glb",
-    }
+# relative to ASSET_PATH (see yapt/settings.py)
+MESH_PATHS = {
+    "plane": "models/plane.glb",
+    "sphere": "models/Sphere.glb",
+    "torus": "models/torus.glb",
+    "suzanne": "models/suzanne.glb",
+}
+
+PLANKS_ALBEDO = "textures/weathered_planks/weathered_planks_diff_4k.png"
+PLANKS_NORMAL = "textures/weathered_planks/weathered_planks_nor_gl_4k.png"
 
 # ---------------------------------------------------------------------------
 # Small math helpers (quaternions are (x, y, z, w) like the vec4 the transform expects)
@@ -294,7 +298,7 @@ class RandomShapesSceneBuilder:
         self._rng = random.Random(seed)
         self._world = ProxyWorld()
         self._reserved = FootprintSet()   # floor footprints the scatter should avoid
-        self._mesh_paths = mesh_paths(config["asset_root"])
+        self._mesh_paths = MESH_PATHS
         self._counter = 0
         self._stats = {}
         self._assets = {}
@@ -540,8 +544,7 @@ class RandomShapesSceneBuilder:
 
     def _build_environment(self, floor_scale=DEFAULT_FLOOR_SCALE):
         rng = self._rng
-        asset_root = self._cfg["asset_root"]
-        env_maps = [p for p in self._cfg["env_maps"] if os.path.exists(p)]
+        env_maps = [p for p in self._cfg["env_maps"] if os.path.exists(resolve_asset_path(p))]
         if env_maps and rng.random() < self._cfg["env_map_chance"]:
             env_map = self._resources.load_texture_2D(rng.choice(env_maps), "R16G16B16A16_SFLOAT")
             if env_map is not None:
@@ -550,9 +553,9 @@ class RandomShapesSceneBuilder:
 
         style = weighted_choice(rng, self._cfg["floor_styles"])
         mat = self._new_material("floor", Material.MaterialPreset.PLASTIC)
-        planks_albedo = f"{asset_root}/Textures/weathered_planks/weathered_planks_diff_4k.png"
-        planks_normal = f"{asset_root}/Textures/weathered_planks/weathered_planks_nor_gl_4k.png"
-        if style == "planks" and not os.path.exists(planks_albedo):
+        planks_albedo = PLANKS_ALBEDO
+        planks_normal = PLANKS_NORMAL
+        if style == "planks" and not os.path.exists(resolve_asset_path(planks_albedo)):
             style = "matte"
 
         if style == "matte":

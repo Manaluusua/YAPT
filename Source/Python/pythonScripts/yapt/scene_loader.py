@@ -1,5 +1,6 @@
 from py_yapt import Material, vec4, vec3, vec2
 from yapt.utility import *
+from yapt.settings import resolve_asset_path
 from PySide6.QtGui import QQuaternion, QVector3D
 from pathlib import Path
 from pygltflib import GLTF2
@@ -14,8 +15,9 @@ class SceneLoader:
         self._objects = {}
         self._default_mat = None
         
+    #relative paths are resolved against ASSET_PATH (see yapt/settings.py), absolute ones are used as is
     def load_scene_gltf(self, scene_path, verbose = False):
-        path = Path(scene_path)
+        path = Path(resolve_asset_path(scene_path))
         path_str = str(path)
         gltf = GLTF2().load(path_str)
        

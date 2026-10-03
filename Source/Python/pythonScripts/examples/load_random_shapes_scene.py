@@ -17,6 +17,7 @@ Tweak CONFIG below for the ranges; (a, b) tuples are sampled per scene, ints -> 
 The builder itself lives in yapt/random_shapes.py (shared with load_random_shapes_large_scene.py).
 
 Run it via the "run script" action of the app on an empty scene; objects are added, nothing is cleared.
+Asset paths are relative to ASSET_PATH ([paths] asset_path in settings.cfg / settings_local.cfg), absolute paths work too.
 """
 
 from yapt.random_shapes import RandomShapesSceneBuilder, resolve_seed
@@ -27,11 +28,7 @@ from yapt.random_shapes import RandomShapesSceneBuilder, resolve_seed
 
 SEED = None
 
-ASSET_ROOT = "D:/Random/3DSampleAssets"
-
 CONFIG = {
-    "asset_root": ASSET_ROOT,
-
     # heap of shapes stacked on each other
     "pile_count": (30, 48),
     "pile_radius": (22.0, 34.0),          # spread of the drop positions
@@ -64,7 +61,7 @@ CONFIG = {
     "orb_light_emission": (25.0, 90.0),
 
     # environment
-    "env_maps": [f"{ASSET_ROOT}/EnvMapSources/photo_studio_loft_hall_4k.exr"],
+    "env_maps": ["textures/envmaps/photo_studio_loft_hall_4k.exr"],
     "env_map_chance": 1.0,                # 0 -> black sky, the sphere lights are the only lighting
     "floor_styles": {"matte": 1.0, "glossy": 0.7, "dark_glossy": 0.6, "tinted": 0.5, "planks": 0.5},
 

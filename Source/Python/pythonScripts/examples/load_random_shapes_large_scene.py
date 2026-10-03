@@ -14,6 +14,7 @@ a number to reproduce one, env var YAPT_SCENE_SEED overrides both.
 Materials are pooled (material_pool_size) so thousands of objects share a few hundred materials.
 
 Run it via the "run script" action of the app on an empty scene; objects are added, nothing is cleared.
+Asset paths are relative to ASSET_PATH ([paths] asset_path in settings.cfg / settings_local.cfg), absolute paths work too.
 """
 
 from yapt.random_shapes import LargeRandomShapesSceneBuilder, resolve_seed
@@ -24,11 +25,7 @@ from yapt.random_shapes import LargeRandomShapesSceneBuilder, resolve_seed
 
 SEED = None
 
-ASSET_ROOT = "D:/Random/3DSampleAssets"
-
 CONFIG = {
-    "asset_root": ASSET_ROOT,
-
     # the field: a square of 2 * area_half_size (the small scene is ~420 units across)
     "area_half_size": 2100.0,
     "floor_scale": 8000.0,
@@ -74,7 +71,7 @@ CONFIG = {
     "orb_light_emission": (25.0, 90.0),
 
     # environment
-    "env_maps": [f"{ASSET_ROOT}/EnvMapSources/photo_studio_loft_hall_4k.exr"],
+    "env_maps": ["textures/envmaps/photo_studio_loft_hall_4k.exr"],
     "env_map_chance": 1.0,                # 0 -> black sky, the sphere lights are the only lighting
     "floor_styles": {"matte": 1.0, "glossy": 0.7, "dark_glossy": 0.6, "tinted": 0.5, "planks": 0.5},
 

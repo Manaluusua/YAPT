@@ -3,6 +3,7 @@ from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility, MeshLoader
 from pathlib import Path
 from yapt.texture_loader_ktx import TextureLoader, KtxToolInvocationError
+from yapt.settings import resolve_asset_path
 from cffi import FFI
 ffi = FFI()
 
@@ -23,21 +24,25 @@ class Resources:
         self._textures = None
         self._meshes = None
 
+    #relative paths are resolved against ASSET_PATH (see yapt/settings.py), absolute ones are used as is
     def load_texture_2D(self, tex_path, fmt, verbose = False):
+        tex_path = resolve_asset_path(tex_path)
         return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_2d, source=tex_path, vk_format=fmt)
 
     #smallest alpha (0..1) in the top mip of a loaded RGBA8 2D texture, None if unknown (other formats / not loaded)
     def get_texture_min_alpha(self, tex_path):
-        return self._texture_min_alpha.get(str(Path(tex_path)))
+        return self._texture_min_alpha.get(str(Path(resolve_asset_path(tex_path))))
  
     def load_texture_cube(self, tex_path, fmt, faces, verbose = False):
+        tex_path = resolve_asset_path(tex_path)
         return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_cube,faces=faces, vk_format=fmt)
  
     def load_texture_cube(self, tex_path, fmt, slices, verbose = False):
+        tex_path = resolve_asset_path(tex_path)
         return self._load_texture_internal(tex_path, verbose, self._tex_loader.load_texture_3d, slices=slices, vk_format=fmt)
 
     def load_meshes_from_path(self, mesh_path, verbose = False):
-        path = Path(mesh_path)
+        path = Path(resolve_asset_path(mesh_path))
         path_str = str(path)
         file_name = path.stem
         gltf = GLTF2().load(path_str)

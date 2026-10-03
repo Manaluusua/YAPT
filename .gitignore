@@ -1,3 +1,4 @@
 build/
 /CMakeLists.txt.user
-Source/Python/pythonScripts/yapt/__pycache__
+__pycache__/
+/settings_local.cfg

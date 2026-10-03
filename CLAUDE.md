@@ -25,6 +25,10 @@ cmake --build Build --config Debug
 
 The `YAPT` executable loads `Source/Python/pythonScripts/default_bootstrap.py` (falling back to a relative path from `Build/Bin/<Config>/`), which launches a PySide6 `QApplication` (`yapt.app.Application`). Example scenes to load from the Python console/scripts live in `Source/Python/pythonScripts/examples/`.
 
+### Assets
+
+Models/textures live outside the repo in `ASSET_PATH`, set by `[paths] asset_path` in `settings.cfg` at the repo root (default `../YAPTAssets`, i.e. a sibling of the repo; relative values resolve against the repo root). A gitignored `settings_local.cfg` with the same layout overrides it per machine. `yapt/settings.py` loads these and exposes `ASSET_PATH` / `resolve_asset_path()`; `Resources` and `SceneLoader` resolve relative paths against `ASSET_PATH` and use absolute paths as is, so scripts pass e.g. `"models/plane.glb"`. The asset folder is laid out as `models/` (single `.glb`s at the top, multi-file glTFs in their own subfolder) and `textures/` (`envmaps/`, per-material subfolders).
+
 ## Architecture
 
 ### Module dependency graph
