@@ -5,7 +5,7 @@
 #include "../common/colorSpaces.hlsl"
 
 
-#define DENOISE_CHROMA_SEPARATELY
+//#define DENOISE_CHROMA_SEPARATELY
 
 struct DenoiseParams
 {
