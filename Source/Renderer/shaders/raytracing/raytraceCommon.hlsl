@@ -19,7 +19,7 @@
 
 #define IOR_DEFAULT (1.0f)
 
-#define DEFAULT_RAY_MIN_T (0.0f)
+#define DEFAULT_RAY_MIN_T (5e-4f)
 #define DEFAULT_RAY_MAX_T (1.0f / 0.0f)
 
 //#define DISABLE_SPECTRAL_SAMPLES
