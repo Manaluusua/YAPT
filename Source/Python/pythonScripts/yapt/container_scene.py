@@ -13,6 +13,8 @@ glTF space: the height of the surface, its usable x / z extents (keep clear of e
 height above it (None = open).
 Adding an object: add a PlaceableDef to PLACEABLES. With split_nodes=True every root node of the glTF is placed
 on its own (e.g. a row of bottles), otherwise the whole file moves as one piece (e.g. a lamp + its bulb).
+Emitters add small emissive spheres to a placeable (e.g. the lantern's flame), given in its glTF space so they move
+with it.
 """
 
 import itertools
@@ -47,9 +49,17 @@ class ContainerDef:
     material_overrides: dict = field(default_factory=dict)   # glTF material name -> {material setter: value}
 
 @dataclass
+class Emitter:
+    position: tuple             # sphere centre in the placeable's glTF space
+    radius: float
+    radiance: float             # luminance of the emission
+    tint: tuple = (1.0, 1.0, 1.0)
+
+@dataclass
 class PlaceableDef:
     path: str
     split_nodes: bool = False
+    emitters: list = field(default_factory=list)   # emissive spheres moving with the object, not with split_nodes
 
 CONTAINERS = {
     "gallinera_table": ContainerDef(
@@ -71,7 +81,9 @@ CONTAINERS = {
 }
 
 PLACEABLES = {
-    "lantern": PlaceableDef("models/Lantern_01_4k/Lantern_01_4k.gltf"),
+    # flame: a small warm sphere just above the wick (top at y ~0.084) inside the glass chimney (y 0.061 - 0.130)
+    "lantern": PlaceableDef("models/Lantern_01_4k/Lantern_01_4k.gltf",
+                            emitters=[Emitter((0.0, 0.097, 0.0), 0.011, 60.0, (1.0, 0.55, 0.2))]),
     "brass_goblets": PlaceableDef("models/brass_goblets_4k/brass_goblets_4k.gltf", split_nodes=True),
     "brass_vase": PlaceableDef("models/brass_vase_02_4k/brass_vase_02_4k.gltf"),
     "industrial_pipe_lamp": PlaceableDef("models/industrial_pipe_lamp_4k/industrial_pipe_lamp_4k.gltf"),
@@ -300,6 +312,19 @@ class ContainerSceneBuilder:
                 objects[mapping[0]].setMaterial(material, mapping[1])
         return objects
 
+    def _emissive_material(self, name, radiance, tint):
+        luminance = 0.2126 * tint[0] + 0.7152 * tint[1] + 0.0722 * tint[2]
+        mat = self._renderer.createMaterial(self._unique(name))
+        mat.setEmission(v3l(tuple(c / luminance * radiance for c in tint)))
+        return mat
+
+    def _create_emitter(self, emitter):
+        """Emissive sphere at the emitter's position in its placeable's glTF space; parenting it with the placeable's
+        roots places it with them."""
+        mat = self._emissive_material("mat_emitter", emitter.radiance, emitter.tint)
+        r = emitter.radius
+        return self._create_mesh_instance("models/Sphere.glb", mat, emitter.position, (r, r, r), Q_IDENTITY)
+
     def _load_gltf(self, path):
         loader = SceneLoader(self._resources, self._scene, self._renderer)
         roots = loader.load_scene_gltf(path)
@@ -416,6 +441,12 @@ class ContainerSceneBuilder:
             loader, roots = self._load_gltf(path)
             gltf = loader.get_gltf()
             groups = [[root] for root in roots] if definition.split_nodes else [roots]
+            emitter_objects = []
+            if definition.emitters:
+                if definition.split_nodes:
+                    self._log(f"  {entry['name']}: emitters aren't supported with split_nodes, skipped")
+                else:
+                    emitter_objects = [obj for e in definition.emitters for obj in self._create_emitter(e)]
             for group in groups:
                 bounds = _union_bounds([_node_bounds(gltf, node) for node, _ in group])
                 if bounds is None:
@@ -431,7 +462,7 @@ class ContainerSceneBuilder:
                 width, depth, _ = _footprint(points, yaw)
                 label = gltf.nodes[group[0][0]].name if definition.split_nodes else entry["name"]
                 item = _Item(len(units), width, depth, hi[1] - lo[1], entry.get("surfaces"))
-                units.append({"item": item, "label": label, "objects": [obj for _, obj in group], "bounds": bounds,
+                units.append({"item": item, "label": label, "objects": [obj for _, obj in group] + emitter_objects, "bounds": bounds,
                               "points": points, "yaw": yaw, "path": definition.path, "nodes": [node for node, _ in group]})
 
         # biggest footprints first packs tighter, the rows get sorted tallest to the back afterwards
@@ -540,9 +571,7 @@ class ContainerSceneBuilder:
             tint = light.get("tint", (1.0, 1.0, 1.0))
             dist2 = sum((pos[i] - self._focus[i]) ** 2 for i in range(3))
             radiance = light.get("irradiance", 3.0) * dist2 / (math.pi * radius * radius)
-            luminance = 0.2126 * tint[0] + 0.7152 * tint[1] + 0.0722 * tint[2]
-            mat = self._renderer.createMaterial(self._unique("mat_light"))
-            mat.setEmission(v3l(tuple(c / luminance * radiance for c in tint)))
+            mat = self._emissive_material("mat_light", radiance, tint)
             self._create_mesh_instance(sphere, mat, pos, (radius, radius, radius), Q_IDENTITY)
         self.layout["lights"] = self._cfg.get("lights", [])
 

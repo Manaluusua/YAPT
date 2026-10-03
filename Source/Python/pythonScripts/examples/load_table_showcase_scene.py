@@ -1,6 +1,6 @@
 """
 Still life on the gallinera table: the table stands against the back wall of a closed room and all the converted
-sample objects are arranged on its top. The sky is black, the room is lit by two sphere lights (and the pipe lamp's bulb).
+sample objects are arranged on its top. The sky is black, the room is lit by two sphere lights (and the pipe lamp's bulb and the lantern's flame).
 
   - "objects" picks what goes on the table; plain names or dicts with extra options:
         {"name": "industrial_pipe_lamp", "yaw": 30.0, "surfaces": ["top"]}
