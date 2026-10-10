@@ -32,7 +32,9 @@ namespace YAPT
 		m_raysPerFrameDivisor(1),
 		m_accelerationStructureNeedsRebuild(true),
 		m_lastEnvMap(nullptr),
-		m_lastEnvIntensityScale(1.f)
+		m_lastEnvIntensityScale(1.f),
+		m_lastApertureRadius(0.f),
+		m_lastFocusDistance(0.f)
 	{
 		switch (type)
 		{
@@ -134,7 +136,13 @@ namespace YAPT
 		bool envIntensityChanged = envIntensityScale != m_lastEnvIntensityScale;
 		m_lastEnvIntensityScale = envIntensityScale;
 
-		if (m_accelerationStructureNeedsRebuild || hasCameraMoved() || envIntensityChanged)
+		float apertureRadius = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<float>(RVARNAME_CAMERA_APERTURE_RADIUS);
+		float focusDistance = getRenderer()->getConcreteRendererConfiguration().getRendererVarValueInternal<float>(RVARNAME_CAMERA_FOCUS_DISTANCE);
+		bool lensChanged = apertureRadius != m_lastApertureRadius || focusDistance != m_lastFocusDistance;
+		m_lastApertureRadius = apertureRadius;
+		m_lastFocusDistance = focusDistance;
+
+		if (m_accelerationStructureNeedsRebuild || hasCameraMoved() || envIntensityChanged || lensChanged)
 		{
 			clearAccumulatedFrames();
 		}

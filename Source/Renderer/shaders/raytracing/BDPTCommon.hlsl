@@ -218,6 +218,8 @@ ByteAddressBuffer g_counters : register(t4, space3);
 
 //2 for init, 1 for wavelength, 8 for light sample, 5 per vertex
 #define g_cameraPathRandomDimensionOffset (g_maxVerticesPerLightPath * 5 + 12)
+//lens sample used when connecting pure light paths to the camera, placed in the unused gap between light path and camera path dimensions
+#define g_pureLightPathLensRandomDimensionOffset (g_maxVerticesPerLightPath * 5 + 9)
 #define g_cameraRayWorkGroupCount (g_bdptConstants.cameraRayWorkGroupCount)
 #define g_cameraWorkGroupOffset (g_bdptConstants.cameraWorkGroupSwizzleOffset)
 
@@ -416,7 +418,9 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out 
     }
 }
 
-//just simple pinhole camera for now
+//thin lens camera: directional pdf 1/(A*cos^3) is independent of aperture and focus distance (density on focus plane converted to solid angle at the lens point),
+//so camToNodeWS must be the direction from the sampled lens point, not from the camera center.
+//lens position pdf is the same uniform disk pdf for camera paths and pure light paths so it cancels in MIS and is omitted
 float calculateCameraDirectionalPDF(float3 camToNodeWS)
 {
 	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));

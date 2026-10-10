@@ -16,11 +16,12 @@ void rayGenPrimaryRays()
     RandomSampler rand;
     rand.init(0, payload.rayIndex);
 
-    float2 uv = (float2) rayIndices * g_targetTexDimensions.zw;
-    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
-	float3 rayOrigin = g_cameraPosition;
-	
     g_spectralMainSampleWavelength = calculateSpectralSampleWavelength(rand.getRandom1());
+
+    float2 uv = (float2) rayIndices * g_targetTexDimensions.zw;
+    float3 rayDir;
+	float3 rayOrigin;
+    generateCameraRay(uv + g_rayDirUvOffset, rand.getTexelOffset(), rand.getRandom2(), rayOrigin, rayDir);
 
 	payload.throughput.set(1.f);
 	payload.totalLight.set(0.f);

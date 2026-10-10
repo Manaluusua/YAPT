@@ -54,6 +54,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	RandomSampler rand;
 	uint lightPathScrambleOffset = 0;//g_lightPathsPerDim.y * g_lightPathsPerDim.x; //should lightpaths use completely different random values?
     rand.init(g_cameraPathRandomDimensionOffset, lightPathScrambleOffset + rayIndices.y * g_targetTexDimensions.x + rayIndices.x); //TODO: init properly
+	float2 lensRand = rand.getRandom2();
 
 
 	if(groupIndex == 0)
@@ -93,8 +94,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 	
 
 	float2 uv = (float2)rayIndices * g_targetTexDimensions.zw;
-    float3 rayDir = generateRayDirection(uv + g_rayDirUvOffset, rand.getTexelOffset());
-	float3 rayOrigin = g_cameraPosition;
+	float3 rayDir;
+	float3 rayOrigin;
+	generateCameraRay(uv + g_rayDirUvOffset, rand.getTexelOffset(), lensRand, rayOrigin, rayDir);
 	
 	SpectralSamples totalLight;
 	totalLight.set(0);

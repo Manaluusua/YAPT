@@ -102,6 +102,18 @@ namespace YAPT
 		rtConstants->viewToWorld = viewToWorld;
 		rtConstants->viewToUV = viewToUVTransform;
 		rtConstants->worldToView = worldToView;
+		{
+			CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
+			float apertureRadius = max(0.f, config.getRendererVarValueInternal<float>(RVARNAME_CAMERA_APERTURE_RADIUS));
+			float focusDistance = max(1e-4f, config.getRendererVarValueInternal<float>(RVARNAME_CAMERA_FOCUS_DISTANCE));
+
+			//view space forward is along +z or -z depending on the projection convention, center of the near plane tells which
+			vec4 nearPlaneCenter = uvToViewTransform * vec4(0.5f, 0.5f, 0.f, 1.f);
+			float forwardZSign = (nearPlaneCenter.z / nearPlaneCenter.w) < 0.f ? -1.f : 1.f;
+
+			rtConstants->lensParams = vec4p(apertureRadius, focusDistance, forwardZSign, 0.f);
+		}
+
 		rtConstants->lightCount = (uint32_t)m_renderer->getLightManager()->getLightReferenceCount();
 
 		rtConstants->envIntensityScale = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<float>(RVARNAME_ENV_INTENSITY_SCALE);

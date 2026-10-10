@@ -91,6 +91,8 @@ namespace YAPT
 
 		Texture* m_lastEnvMap;
 		float m_lastEnvIntensityScale;
+		float m_lastApertureRadius;
+		float m_lastFocusDistance;
 
 		bool m_accelerationStructureNeedsRebuild;
 		bool m_firstTimeUpdate;

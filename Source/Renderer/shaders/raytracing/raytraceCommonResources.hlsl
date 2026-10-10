@@ -27,6 +27,7 @@ struct RaytraceConstantData
     uint pad0;
     uint pad1;
     uint pad2;
+    float4 lensParams; //x: aperture radius, y: focus distance, z: view space forward z sign, w: unused
 };
 
 //uniforms
@@ -57,6 +58,9 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_envType g_rayGenConstants.envType
 #define g_envTexIndex g_rayGenConstants.envTextureIndex
 #define g_envIntensityScale g_rayGenConstants.envIntensityScale
+#define g_lensApertureRadius g_rayGenConstants.lensParams.x
+#define g_lensFocusDistance g_rayGenConstants.lensParams.y
+#define g_viewForwardZSign g_rayGenConstants.lensParams.z
 
 #define g_randomSamples g_randomSampleLocations
 
@@ -98,29 +102,56 @@ float4 getWorldCenterAndRadiusSqr()
     return float4(c, dot(ext, ext));
 }
 
-float3 generateRayDirection(float2 uv, float2 rand)
+//uniformly sampled point on the thin lens aperture disk (lens lies on the view space xy plane, centered at the camera position)
+float3 sampleLensPositionVS(float2 rand)
+{
+    return float3(sampleConcentricDisk(rand) * g_lensApertureRadius, 0.f);
+}
+
+//thin lens camera: all rays through the same film point converge on the focus plane, aperture radius 0 is a pinhole
+void generateCameraRay(float2 uv, float2 texelRand, float2 lensRand, out float3 originWS, out float3 dirWS)
 {
     float2 texelOffset;
     if (isPixelJitterEnabled())
     {
-        texelOffset = rand.xy - 0.5f; //[-0.5, 0.5], assuming the uv is at texel center
-    } 
+        texelOffset = texelRand.xy - 0.5f; //[-0.5, 0.5], assuming the uv is at texel center
+    }
     else
     {
         texelOffset = 0;
     }
     texelOffset *= g_targetTexDimensions.zw;
-    
+
     float4 pointOnNearPlane = float4(uv + texelOffset, 0.0f, 1.0f);
-	
+
     pointOnNearPlane = mul(g_uvToViewTransform, pointOnNearPlane);
     pointOnNearPlane /= pointOnNearPlane.w;
-    pointOnNearPlane.w = 0;
-	
-    float3 worldDir = mul(g_viewToWorldTransform, pointOnNearPlane).xyz;
-	
-    float3 rayDir = normalize(worldDir);
-    return rayDir;
+
+    float3 pinholeDirVS = pointOnNearPlane.xyz;
+    float3 focusPointVS = pinholeDirVS * safeDiv(g_lensFocusDistance, abs(pinholeDirVS.z));
+    float3 lensPosVS = sampleLensPositionVS(lensRand);
+
+    originWS = mul(g_viewToWorldTransform, float4(lensPosVS, 1)).xyz;
+    dirWS = normalize(mul(g_viewToWorldTransform, float4(focusPointVS - lensPosVS, 0)).xyz);
+}
+
+//inverse of generateCameraRay for a given lens point: finds the film uv the ray from the lens point through posWS maps to
+bool projectThroughLensToUV(float3 lensPosVS, float3 posWS, out float2 uvOut)
+{
+    float3 posVS = mul(g_worldToViewTransform, float4(posWS, 1)).xyz;
+    float3 lensToPosVS = posVS - lensPosVS;
+    float forwardDist = lensToPosVS.z * g_viewForwardZSign;
+    if (forwardDist <= 0)
+    {
+        uvOut = 0;
+        return false;
+    }
+
+    float3 focusPointVS = lensPosVS + lensToPosVS * (g_lensFocusDistance / forwardDist);
+    float4 uvSpace = mul(g_viewToUVTransform, float4(focusPointVS, 1));
+    uvOut = uvSpace.xy / uvSpace.w;
+
+    return all(uvOut >= 0) && all(uvOut <= 1);
 }
 
 #define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_randomSamples.Load(dimOffset << 2))

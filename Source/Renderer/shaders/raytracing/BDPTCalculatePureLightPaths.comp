@@ -31,14 +31,11 @@ void addContribution(uint2 texel, float3 v)
 	
 }
 
-bool getProjectedPositionOnScreen(in LightPathNode node, out uint2 texel)
+bool getProjectedPositionOnScreen(in LightPathNode node, float3 lensPosVS, out uint2 texel)
 {
-    float4 texelSpace = mul(g_worldToViewTransform, float4(node.positionWS, 1));	
-    texelSpace = mul(g_viewToUVTransform, texelSpace);
-	texelSpace.xyz /= texelSpace.w;	
-
-	bool isValid = (texelSpace.x >= 0 && texelSpace.x <= 1) && (texelSpace.y >= 0 && texelSpace.y <= 1) && (texelSpace.z >= 0 && texelSpace.z <= 1);
-	texel = (uint2)floor(min(texelSpace.xy * g_targetTexDimensions.xy, g_targetTexDimensions.xy - 1));
+	float2 uv;
+	bool isValid = projectThroughLensToUV(lensPosVS, node.positionWS, uv);
+	texel = (uint2)floor(min(saturate(uv) * g_targetTexDimensions.xy, g_targetTexDimensions.xy - 1));
 	return isValid;
 }
 
@@ -119,6 +116,17 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 	if(vCount <= 1) return;
 
 	g_spectralMainSampleWavelength = header.sampledWavelength;
+
+	//connect to a uniformly sampled point on the lens, same distribution as the camera paths use so lens position pdf cancels in MIS
+	float3 lensPosVS;
+	float3 lensPosWS;
+	{
+		RandomSampler lensRand;
+		lensRand.init(g_pureLightPathLensRandomDimensionOffset, dispatchThreadId.x);
+		lensPosVS = sampleLensPositionVS(lensRand.getRandom2());
+		lensPosWS = mul(g_viewToWorldTransform, float4(lensPosVS, 1)).xyz;
+	}
+
 	float riSum = 0;
 	float deferredRISum = 0;
 	float3 prevPos;
@@ -142,21 +150,22 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 		ExtractedLightPathNodeData nodeData = getExtractedLightPathNodeData(node);
 		uint2 targetTexel;
 
-        if(getProjectedPositionOnScreen(nodeData.node, targetTexel) && shouldPathContribute(0, i + 1))
+        if(getProjectedPositionOnScreen(nodeData.node, lensPosVS, targetTexel) && shouldPathContribute(0, i + 1))
 		{
 			float4 w;
 			float pdfForward;
 			float pdfBackward;
 
-			calculateWeightTowardsCamera(nodeData, i, g_cameraPosition, prevPos, w, pdfForward, pdfBackward);
+			calculateWeightTowardsCamera(nodeData, i, lensPosWS, prevPos, w, pdfForward, pdfBackward);
 			if(any(w))
 			{
-				if(checkVisibility(nodeData.node.positionWS, g_cameraPosition))
+				if(checkVisibility(nodeData.node.positionWS, lensPosWS))
 				{
 					bool prevNodeIsEnvLight = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
 					float pdfBackwardPrevNode = pdfBackward * (prevNodeIsEnvLight ? 1 : solidAngleToAreaDensityMultiplier(prevPos - nodeData.node.positionWS, prevNormal));
 
-					float3 camToNode = nodeData.node.positionWS - g_cameraPosition;
+					//lens area pdf cancels with the lens area in camera importance, so this is the same as for a pinhole when measured from the lens point
+					float3 camToNode = nodeData.node.positionWS - lensPosWS;
 					float pdfCameraDirection = calculateCameraDirectionalPDF(camToNode);
 
 					float riSumCurrent = accumulateRISum(riSum, pdfBackwardPrevNode, prevPDFForwardMIS);

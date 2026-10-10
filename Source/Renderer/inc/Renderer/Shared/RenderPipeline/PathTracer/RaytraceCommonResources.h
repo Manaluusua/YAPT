@@ -41,6 +41,7 @@ namespace YAPT
 		uint32_t pad0;
 		uint32_t pad1;
 		uint32_t pad2;
+		vec4p lensParams; //x: aperture radius, y: focus distance, z: view space forward z sign, w: unused
 	};
 
 	struct RandomSamples

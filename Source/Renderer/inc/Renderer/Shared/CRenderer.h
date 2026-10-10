@@ -18,6 +18,9 @@
 #define RVARNAME_SKYBOX "World.Skycube"
 #define RVARNAME_ENV_INTENSITY_SCALE "World.EnvIntensityScale"
 
+#define RVARNAME_CAMERA_APERTURE_RADIUS "Camera.ApertureRadius"
+#define RVARNAME_CAMERA_FOCUS_DISTANCE "Camera.FocusDistance"
+
 #define RVARNAME_ACTIVE_RENDERPIPELINE "RenderPipeline"
 #define RVARNAME_REGULARIZE_AFTER_VERTICES "Firefly.RegularizeAfterVertices"
 #define RVARNAME_FIREFLY_CLAMP_SCALE "Firefly.FireflyClampScale"
