@@ -1,6 +1,9 @@
 #ifndef MATERIAL_PARAMETER_TEXTURES_HLSL_INCL
 #define MATERIAL_PARAMETER_TEXTURES_HLSL_INCL
 
+#define MATERIAL_PARAMS_FLAG_HIT (1u << 0)
+
+//single sample features written by the integrators for every camera sample, depth is planar view space depth
 struct MaterialParameters2Texture
 {
 	float3 albedo;
@@ -30,7 +33,7 @@ void writeMaterialParametersToTextures(uint2 location,
 	uint4 v1 = uint4(
 		asuint(params.depth),
 		f32tof16(params.metalness) | f32tof16 (params.anisotropy) << 16,
-		f32tof16(params.ior) | f32tof16 (params.materialFlags) << 16,
+		f32tof16(params.ior) | (params.materialFlags & 0xFFFF) << 16,
 		0
 	);
 	
@@ -49,15 +52,15 @@ MaterialParameters2Texture readMaterialParametersFromTextures(uint2 location,
 
 	MaterialParameters2Texture output;
 	output.albedo = float3(f16tof32(v0.x & 0xFFFF), f16tof32(v0.x >> 16), f16tof32(v0.y & 0xFFFF));
-	output.transparency = v0.y >> 16;
+	output.transparency = f16tof32(v0.y >> 16);
 	
 	output.normal = float3(f16tof32(v0.z & 0xFFFF), f16tof32(v0.z >> 16), f16tof32(v0.w & 0xFFFF));
-	output.roughness = v0.w >> 16;
+	output.roughness = f16tof32(v0.w >> 16);
 	
 	output.depth = asfloat(v1.x);
-	output.metalness = v1.y & 0xFFFF;
-	output.anisotropy = v1.y >> 16;
-	output.ior = v1.z & 0xFFFF;
+	output.metalness = f16tof32(v1.y & 0xFFFF);
+	output.anisotropy = f16tof32(v1.y >> 16);
+	output.ior = f16tof32(v1.z & 0xFFFF);
 	output.materialFlags = v1.z >> 16;
 	
 	return output;

@@ -9,6 +9,9 @@
 #define DENOISE_WG_SIZE 8
 #define ACCUMULATION_TARGET_COUNT 2
 #define ACCUMULATION_TARGET_FORMAT (ResourceFormat::RGBA32_SFLOAT)
+#define FEATURE_ACCUM_LAYER_COUNT 4 //keep in sync with shader (denoiseFeatures.hlsl)
+#define FEATURE_ACCUM_FORMAT (ResourceFormat::RGBA32_SFLOAT)
+#define DENOISE_FEATURES_FORMAT (ResourceFormat::RGBA32_UINT)
 
 
 namespace YAPT
@@ -46,6 +49,15 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{ //accumulated feature moments
+				ResourceDimension::TEXTURE_2D_ARRAY,
+				FEATURE_ACCUM_FORMAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				FEATURE_ACCUM_LAYER_COUNT
 			}}
 			};
 
@@ -99,6 +111,33 @@ namespace YAPT
 				SHADERSTAGE_COMPUTE,
 				1,
 				1
+			}},
+			{{ //MATERIAL_PARAMS0, features of the new samples
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
+			{{ //MATERIAL_PARAMS1, features of the new samples
+				ResourceDimension::TEXTURE_2D,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
+			{{ //accumulated feature moments
+				ResourceDimension::TEXTURE_2D_ARRAY,
+				FEATURE_ACCUM_FORMAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_READ_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				FEATURE_ACCUM_LAYER_COUNT
 			}}
 			};
 
@@ -108,6 +147,46 @@ namespace YAPT
 					static_cast<CombineSamplesSubStage*>(usrData)->executeMergeToPrevious(execContext);
 				},
 				this, "MergeRtResultsNode");
+		}
+
+		{
+			RenderGraphNodeSlotDefinition slotdefsPrefilterFeaturesNode[] =
+			{
+			{{ //accumulated feature moments
+				ResourceDimension::TEXTURE_2D_ARRAY,
+				ResourceFormat::UNKNOWN,
+				RESOURCE_USAGE_SAMPLED_TEXTURE,
+				ACCESS_FLAGS_READ,
+				SHADERSTAGE_COMPUTE,
+				1,
+				FEATURE_ACCUM_LAYER_COUNT
+			}},
+			{{ //denoise features 0
+				ResourceDimension::TEXTURE_2D,
+				DENOISE_FEATURES_FORMAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}},
+			{{ //denoise features 1
+				ResourceDimension::TEXTURE_2D,
+				DENOISE_FEATURES_FORMAT,
+				RESOURCE_USAGE_STORAGE_TEXTURE,
+				ACCESS_FLAGS_WRITE,
+				SHADERSTAGE_COMPUTE,
+				1,
+				1
+			}}
+			};
+
+			m_prefilterFeaturesNode = m_graph->createComputeNode(countOf(slotdefsPrefilterFeaturesNode), slotdefsPrefilterFeaturesNode, []
+			(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+				{
+					static_cast<CombineSamplesSubStage*>(usrData)->executePrefilterFeatures(execContext);
+				},
+				this, "PrefilterDenoiseFeaturesNode");
 		}
 
 		{
@@ -149,7 +228,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{ //MATERIAL_PARAMS0
+			{{ //denoise features 0
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -158,7 +237,7 @@ namespace YAPT
 				1,
 				1
 			}},
-			{{ //MATERIAL_PARAMS1
+			{{ //denoise features 1
 				ResourceDimension::TEXTURE_2D,
 				ResourceFormat::UNKNOWN,
 				RESOURCE_USAGE_SAMPLED_TEXTURE,
@@ -198,8 +277,16 @@ namespace YAPT
 		}
 		m_graph->createEdge(m_clearNode, 0, m_mergeNode, 1);
 		m_graph->createEdge(m_clearNode, 1, m_mergeNode, 2);
+		m_graph->createEdge(m_clearNode, 2, m_mergeNode, 7);
 		m_graph->createEdge(m_mergeNode, 0, m_denoisePasses[0].m_denoiseNode, 2);
 		m_graph->createEdge(m_mergeNode, 3, m_denoisePasses[0].m_denoiseNode, 3);
+		m_graph->createEdge(m_mergeNode, 7, m_prefilterFeaturesNode, 0);
+
+		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+		{
+			m_graph->createEdge(m_prefilterFeaturesNode, 1, m_denoisePasses[i].m_denoiseNode, 4);
+			m_graph->createEdge(m_prefilterFeaturesNode, 2, m_denoisePasses[i].m_denoiseNode, 5);
+		}
 
 		for (uint32_t i = 0; i < m_denoisePasses.size() - 1; ++i)
 		{
@@ -226,20 +313,10 @@ namespace YAPT
 			
 			break;
 		case InputResource::MATERIAL_PARAMS0:
-		{
-			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
-			{
-				m_graph->createEdge(node, slot, m_denoisePasses[i].m_denoiseNode, 4);
-			}
-		}
-			
+			m_graph->createEdge(node, slot, m_mergeNode, 5);
 			break;
 		case InputResource::MATERIAL_PARAMS1:
-			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
-			{
-				m_graph->createEdge(node, slot, m_denoisePasses[i].m_denoiseNode, 5);
-			}
-			
+			m_graph->createEdge(node, slot, m_mergeNode, 6);
 			break;
 
 		default:
@@ -263,6 +340,7 @@ namespace YAPT
 	{
 		m_clearMergeBufferPass.deinit();
 		m_mergePass.deinit();
+		m_prefilterFeaturesPass.deinit();
 		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
 		{
 			m_denoisePasses[i].m_denoisePassUtility.deinit();
@@ -287,6 +365,12 @@ namespace YAPT
 		}
 
 		{
+			const ShaderLoader::ShaderPipelineInfo* prefilter = loader->getShaderPipeline("prefilterDenoiseFeatures");
+			m_prefilterFeaturesPass.init(m_renderer, prefilter, nullptr, 0);
+			m_prefilterFeaturesConstants.init(data.renderGraphLifetimeResources);
+		}
+
+		{
 			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
 			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
 			{
@@ -302,6 +386,7 @@ namespace YAPT
 
 		m_mergePass.createPipelineState();
 		m_clearMergeBufferPass.createPipelineState();
+		m_prefilterFeaturesPass.createPipelineState();
 
 		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
 		{
@@ -342,6 +427,23 @@ namespace YAPT
 		}
 
 		{
+			RenderGraphResourceId resId = m_mergeNode->getRenderGraphResourceIdForSlot(7);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, desc.arraySliceCount);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Accumulated Features");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
+
+		for (size_t slot = 1; slot <= 2; ++slot)
+		{
+			RenderGraphResourceId resId = m_prefilterFeaturesNode->getRenderGraphResourceIdForSlot(slot);
+			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
+			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
+			TextureHandle tex = data.resolutionDependantResourcesPool->requestTexture(textureDesc, slot == 1 ? "Denoise Features 0" : "Denoise Features 1");
+			m_graph->setRenderGraphResourceTexture(resId, tex);
+		}
+
+		{
 			RenderGraphResourceId resId = m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(0);
 			const RenderGraphResourceDescription& desc = m_graph->getRenderGraphResourceDescription(resId);
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderResolution.x, m_renderResolution.y, 1, 1);
@@ -363,6 +465,11 @@ namespace YAPT
 	{
 		bool haveTexturesChanged = m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(0));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(1));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(5));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(6));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_mergeNode->getRenderGraphResourceIdForSlot(7));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_prefilterFeaturesNode->getRenderGraphResourceIdForSlot(1));
+		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_prefilterFeaturesNode->getRenderGraphResourceIdForSlot(2));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(0));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(1));
 		haveTexturesChanged = haveTexturesChanged || m_graph->isResourceBoundThisFrame(m_denoisePasses[0].m_denoiseNode->getRenderGraphResourceIdForSlot(2));
@@ -377,6 +484,8 @@ namespace YAPT
 		float normalSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_NORMAL_SIGMA);
 		float matDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_MATERIAL_DIFFERENCE_SIGMA);
 		float colorDiffSigma = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_COLOR_DIFFERENCE_SIGMA);
+		float featureVarianceScale = config.getRendererVarValueInternal<float>(RVARNAME_DENOISE_FEATURE_VARIANCE_SCALE);
+		bool prefilterFeatures = config.getRendererVarValueInternal<int32_t>(RVARNAME_DENOISE_FEATURE_PREFILTER) != 0;
 		
 		float fireflyClampScale = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_SCALE);
 		float fireflyClampRelaxPower = config.getRendererVarValueInternal<float>(RVARNAME_FIREFLY_CLAMP_RELAX_POWER);
@@ -390,12 +499,14 @@ namespace YAPT
 			{
 				TextureViewHandle accumulationTargets = m_graph->getTextureViewFromNodeSlot(m_clearNode->getSortedIndex(), 0);
 				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_clearNode->getSortedIndex(), 1);
+				TextureViewHandle featureAccumTarget = m_graph->getTextureViewFromNodeSlot(m_clearNode->getSortedIndex(), 2);
 
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_clearMergeBufferConstants.getViewPtr())},
 					{1, 0, 1, DescriptorPtr(&accumulationTargets)},
-					{2, 0, 1, DescriptorPtr(&sampleCountTarget)}
+					{2, 0, 1, DescriptorPtr(&sampleCountTarget)},
+					{3, 0, 1, DescriptorPtr(&featureAccumTarget)}
 				};
 				m_clearMergeBufferPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
@@ -407,6 +518,9 @@ namespace YAPT
 				TextureViewHandle sampleCountTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 2);
 				TextureViewHandle varianceTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 3);
 				TextureViewHandle newSamples = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 4);
+				TextureViewHandle newFeatures0 = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 5);
+				TextureViewHandle newFeatures1 = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 6);
+				TextureViewHandle featureAccumTarget = m_graph->getTextureViewFromNodeSlot(m_mergeNode->getSortedIndex(), 7);
 
 				DescriptorSetUpdate updates[] = {
 					{0, 0, 1, DescriptorPtr(m_mergeSamplesConstants.getViewPtr())},
@@ -415,8 +529,26 @@ namespace YAPT
 					{3, 0, 1, DescriptorPtr(&sampleCountTarget)},
 					{4, 0, 1, DescriptorPtr(&varianceTarget) },
 					{5, 0, 1, DescriptorPtr(&newSamples)},
+					{6, 0, 1, DescriptorPtr(&newFeatures0)},
+					{7, 0, 1, DescriptorPtr(&newFeatures1)},
+					{8, 0, 1, DescriptorPtr(&featureAccumTarget)},
 				};
 				m_mergePass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
+			}
+
+			//prefilter features
+			{
+				TextureViewHandle featureMoments = m_graph->getTextureViewFromNodeSlot(m_prefilterFeaturesNode->getSortedIndex(), 0);
+				TextureViewHandle featuresOut0 = m_graph->getTextureViewFromNodeSlot(m_prefilterFeaturesNode->getSortedIndex(), 1);
+				TextureViewHandle featuresOut1 = m_graph->getTextureViewFromNodeSlot(m_prefilterFeaturesNode->getSortedIndex(), 2);
+
+				DescriptorSetUpdate updates[] = {
+					{0, 0, 1, DescriptorPtr(m_prefilterFeaturesConstants.getViewPtr())},
+					{1, 0, 1, DescriptorPtr(&featureMoments)},
+					{2, 0, 1, DescriptorPtr(&featuresOut0)},
+					{3, 0, 1, DescriptorPtr(&featuresOut1)},
+				};
+				m_prefilterFeaturesPass.reserveAndUpdateDescriptorSet(0, updates, countOf(updates));
 			}
 
 			//denoise
@@ -476,6 +608,14 @@ namespace YAPT
 				m_mergeSamplesConstants.flush();
 			}
 
+			{
+				PrefilterFeaturesParams* prefilterParams = m_prefilterFeaturesConstants.getData();
+				prefilterParams->textureDimensions = vec4p(m_renderResolution.x, m_renderResolution.y, targetPixelWidth, targetPixelHeight);
+				prefilterParams->weightParams = vec4p(normalSigma, matDiffSigma, depthSigmaScale, featureVarianceScale);
+				prefilterParams->miscParams = uvec4p(prefilterFeatures ? 1u : 0u, 0, 0, 0);
+				m_prefilterFeaturesConstants.flush();
+			}
+
 			vec4 camPos(0.f, 0.f, 0.f, 1.f);
 			mat4 worldToView = m_renderer->getCurrentRenderView().getView();
 			mat4 viewToWorld = glm::inverse(worldToView);
@@ -496,6 +636,7 @@ namespace YAPT
 				denoiseParams->cameraPositionWS = camPos;
 				denoiseParams->bilaterWeightParams = vec4p(depthSigmaScale, normalSigma, matDiffSigma, colorDiffSigma);
 				denoiseParams->miscParams = uvec4p(i == m_denoisePasses.size() - 1 ? 1: 0, 0, 0, 0);
+				denoiseParams->featureParams = vec4p(featureVarianceScale, 0.f, 0.f, 0.f);
 
 				m_denoisePasses[i].m_denoiseConstants.flush();
 			}
@@ -529,6 +670,17 @@ namespace YAPT
 		m_mergePass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
 	}
 
+
+	void CombineSamplesSubStage::executePrefilterFeatures(const RenderGraphNodeExecutionContext& exec)
+	{
+		uint32_t rtWidth = m_lastUpdateParams.targetTextureResolution.x;
+		uint32_t rtHeight = m_lastUpdateParams.targetTextureResolution.y;
+
+		uint32_t dispatchX = (rtWidth + DENOISE_WG_SIZE - 1) / DENOISE_WG_SIZE;
+		uint32_t dispatchY = (rtHeight + DENOISE_WG_SIZE - 1) / DENOISE_WG_SIZE;
+
+		m_prefilterFeaturesPass.dispatch(exec.cmdBuffer, dispatchX, dispatchY, 1);
+	}
 
 	void CombineSamplesSubStage::executeDenoise(DenoisePass& pass, const RenderGraphNodeExecutionContext& exec)
 	{

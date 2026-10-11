@@ -157,8 +157,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             uint materialIndex = getMaterialAndMeshIndicesForInstance(instId).x;
             camVertexContext.materialIndex = materialIndex;
 
-			bool outputShadingParams = firstBounceMaterialWriteEnabled();
-			if(camVertexIndex == 0 && outputShadingParams)
+			if(camVertexIndex == 0)
 			{
 				SurfaceDefinitionRGB surfaceDefRGB;
 				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
@@ -166,7 +165,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				transformNormal = transpose(transformNormal);
 
 
-				writeMaterialParamsForFirstBounce(sourceTextureIndices.xy, surfaceDefRGB, transformNormal, q.CommittedRayT(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+				writeMaterialParamsForFirstBounce(sourceTextureIndices.xy, surfaceDefRGB, transformNormal, calculateViewDepth(camVertexContext.posWS), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 				calculateCommonSurfaceParams(rayState, materialIndex, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
 			} 
 			else
@@ -311,8 +310,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 		else 
 		{
 
-			bool outputShadingParams = firstBounceMaterialWriteEnabled();
-			if (outputShadingParams && camVertexIndex == 0)
+			if (camVertexIndex == 0)
 			{
 				writeEmptyMaterialParamsForFirstBounce(sourceTextureIndices.xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
 			}

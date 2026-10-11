@@ -1,4 +1,5 @@
 #include "../globalDefinitions.hlsl"
+#include "denoiseFeatures.hlsl"
 
 struct ClearAccumulatedSamplesParams
 {
@@ -11,6 +12,7 @@ struct ClearAccumulatedSamplesParams
 ConstantBuffer<ClearAccumulatedSamplesParams> g_mergeParams : register(b0, space0);
 RWTexture2DArray<float4> g_targetTex : register(u1, space0);
 RWTexture2D<uint> g_sampleCountsTex : register(u2, space0);
+RWTexture2DArray<float4> g_featureAccumTex : register(u3, space0);
 
 
 [numthreads(8, 8, 1)]
@@ -25,6 +27,12 @@ void main( uint3 groupId : SV_GroupID,
         {
             uint3 texCoord = uint3(dispatchThreadId.x, dispatchThreadId.y, i);
             g_targetTex[texCoord] = g_mergeParams.clearValue;
+        }
+
+        //zero coverage, pixels without samples read as "no hits"
+        for (uint j = 0; j < FEATURE_ACCUM_LAYER_COUNT; ++j)
+        {
+            g_featureAccumTex[uint3(dispatchThreadId.x, dispatchThreadId.y, j)] = 0;
         }
             
         g_sampleCountsTex[dispatchThreadId.xy] = 0;

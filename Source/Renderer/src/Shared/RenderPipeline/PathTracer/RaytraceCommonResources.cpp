@@ -73,13 +73,6 @@ namespace YAPT
 
 		uint32_t flags = 0;
 
-		//first frame writes out material outputs for denoising (and disables subpixel jitter to get values from the center of the texel)
-		if (params.sampleOffset == 0)
-		{
-			flags |= CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS;
-			flags |= CONSTANTS_FLAG_DISABLE_TEXEL_JITTER;
-		}
-
 		rtConstants->maxRayDepth = 16;
 
 		{

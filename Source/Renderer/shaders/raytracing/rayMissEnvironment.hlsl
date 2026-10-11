@@ -13,10 +13,9 @@ SpectralSamples ToSpectralSamples(float3 color)
 void rayMissEnvironment(inout Payload payload)
 {
 	
-    bool outputShadingParams = firstBounceMaterialWriteEnabled();
-    if (outputShadingParams && payload.pathLength == 0)
+    if (payload.pathLength == 0)
     {
-        writeEmptyMaterialParamsForFirstBounce(dispatchIndicesToRayIndices(DispatchRaysIndex().xy), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+        writeEmptyMaterialParamsForFirstBounce(DispatchRaysIndex().xy, g_MaterialParamsOutput0, g_MaterialParamsOutput1);
     }
 	
     g_spectralMainSampleWavelength = payload.sampledWavelength;

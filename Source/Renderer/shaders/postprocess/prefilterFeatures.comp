@@ -1,0 +1,162 @@
+#include "../globalDefinitions.hlsl"
+#include "../common/common.hlsl"
+#include "../common/commonMath.hlsl"
+#include "denoiseFeatures.hlsl"
+
+//Resolves the accumulated feature moments into means and variances and prefilters them: at low sample counts the averaged features
+//are noisy themselves. The filter uses the same variance normalized weights as the denoiser, so in-focus features (~zero variance)
+//keep their edges and noisy defocused features get smoothed
+
+struct PrefilterFeaturesParams
+{
+    float4 textureDimensions;
+    float4 weightParams; //x: normal sigma, y: material sigma, z: depth sigma scale, w: variance scale
+    uint4 miscParams; //x: filtering enabled
+};
+
+ConstantBuffer<PrefilterFeaturesParams> g_prefilterParams : register(b0, space0);
+Texture2DArray<float4> g_featureMoments : register(t1, space0);
+RWTexture2D<uint4> g_featuresOut0 : register(u2, space0);
+RWTexture2D<uint4> g_featuresOut1 : register(u3, space0);
+
+#define g_prefilterTextureSize (g_prefilterParams.textureDimensions.xy)
+#define g_prefilterEnabled (g_prefilterParams.miscParams.x != 0)
+
+DenoiseFeatures loadFeatures(int2 loc)
+{
+    FeatureMoments m;
+    m.layer0 = g_featureMoments.Load(int4(loc, 0, 0));
+    m.layer1 = g_featureMoments.Load(int4(loc, 1, 0));
+    m.layer2 = g_featureMoments.Load(int4(loc, 2, 0));
+    m.layer3 = g_featureMoments.Load(int4(loc, 3, 0));
+    return featuresFromMoments(m);
+}
+
+FeatureWeightParams getWeightParams(float varianceScale)
+{
+    FeatureWeightParams p;
+    p.normalSigma = g_prefilterParams.weightParams.x;
+    p.materialSigma = g_prefilterParams.weightParams.y;
+    p.depthSigmaScale = g_prefilterParams.weightParams.z;
+    p.varianceScale = varianceScale;
+    return p;
+}
+
+float calculateRelativeDepthWeight(DenoiseFeatures center, DenoiseFeatures s, FeatureWeightParams p)
+{
+    if (center.depth <= 0.f || s.depth <= 0.f)
+    {
+        return 1.f; //albedo and normal (zeros for misses) handle coverage differences
+    }
+    float d = center.depth - s.depth;
+    return calculateVarianceNormalizedWeight(d * d, center.depth * p.depthSigmaScale, center.varDepth + s.varDepth, p.varianceScale);
+}
+
+DenoiseFeatures prefilterFeatures(int2 texCoord)
+{
+    const float precalculatedGaussian3tap[3] = { 3.0 / 8.0, 1.0 / 4.0, 1.0 / 16.0 };
+    const float precalculatedGaussian3x3tap[3] = { 1.0 / 4.0, 1.0 / 8.0, 1.0 / 16.0 };
+    const float EPS_MIN = 1e-6;
+
+    DenoiseFeatures center = loadFeatures(texCoord);
+
+    FeatureWeightParams relaxedParams = getWeightParams(g_prefilterParams.weightParams.w);
+    //variances are spread only between pixels with similar means, otherwise the variance of a pixel straddling a sharp edge would relax its in-focus neighbors
+    FeatureWeightParams strictParams = getWeightParams(0.f);
+
+    float3 sumAlbedo = 0;
+    float3 sumNormal = 0;
+    float4 sumMaterial = 0;
+    float sumIor = 0;
+    float sumWeight = 0;
+
+    float sumDepth = 0;
+    float sumDepthWeight = 0;
+
+    float sumVarAlbedo = 0;
+    float sumVarDepth = 0;
+    float sumVarMaterial = 0;
+    float sumVarWeight = 0;
+
+    for (int y = -2; y <= 2; y++)
+    {
+        for (int x = -2; x <= 2; x++)
+        {
+            int2 sampleLoc = texCoord + int2(x, y);
+            if (sampleLoc.x < 0 || sampleLoc.x > (g_prefilterTextureSize.x - 1) || sampleLoc.y < 0 || sampleLoc.y > (g_prefilterTextureSize.y - 1))
+                continue;
+
+            DenoiseFeatures s = loadFeatures(sampleLoc);
+            float kernelWeight = precalculatedGaussian3tap[abs(x)] * precalculatedGaussian3tap[abs(y)];
+
+            float w = kernelWeight * calculateFeatureWeight(center, s, relaxedParams) * calculateRelativeDepthWeight(center, s, relaxedParams);
+            sumAlbedo += s.albedo * w;
+            sumNormal += s.normal * w;
+            sumMaterial += getMaterialVector(s) * w;
+            sumIor += s.ior * w;
+            sumWeight += w;
+
+            if (s.depth > 0.f)
+            {
+                sumDepth += s.depth * w;
+                sumDepthWeight += w;
+            }
+
+            if (abs(x) <= 1 && abs(y) <= 1)
+            {
+                float wVar = precalculatedGaussian3x3tap[abs(x) + abs(y)] * calculateFeatureWeight(center, s, strictParams) * calculateRelativeDepthWeight(center, s, strictParams);
+                sumVarAlbedo += s.varAlbedo * wVar;
+                sumVarMaterial += s.varMaterial * wVar;
+                sumVarDepth += (s.depth > 0.f ? s.varDepth : center.varDepth) * wVar;
+                sumVarWeight += wVar;
+            }
+        }
+    }
+
+    DenoiseFeatures result = center;
+
+    //center always contributes with weight > 0, so the sums are well defined
+    float invWeight = 1.f / max(sumWeight, EPS_MIN);
+    result.albedo = sumAlbedo * invWeight;
+    result.normal = sumNormal * invWeight;
+    float4 mat = sumMaterial * invWeight;
+    result.roughness = mat.x;
+    result.metalness = mat.y;
+    result.transparency = mat.z;
+    result.anisotropy = mat.w;
+    result.ior = sumIor * invWeight;
+
+    if (center.depth > 0.f && sumDepthWeight > 0.f)
+    {
+        result.depth = sumDepth / sumDepthWeight;
+    }
+
+    float invVarWeight = 1.f / max(sumVarWeight, EPS_MIN);
+    result.varAlbedo = sumVarAlbedo * invVarWeight;
+    result.varMaterial = sumVarMaterial * invVarWeight;
+    result.varDepth = sumVarDepth * invVarWeight;
+
+    return result;
+}
+
+[numthreads(8, 8, 1)]
+void main(uint3 groupId : SV_GroupID,
+    uint3 groupThreadId : SV_GroupThreadID,
+    uint3 dispatchThreadId : SV_DispatchThreadID,
+    uint groupIndex : SV_GroupIndex)
+{
+    if (dispatchThreadId.x < g_prefilterTextureSize.x && dispatchThreadId.y < g_prefilterTextureSize.y)
+    {
+        DenoiseFeatures f;
+        if (g_prefilterEnabled)
+        {
+            f = prefilterFeatures(dispatchThreadId.xy);
+        }
+        else
+        {
+            f = loadFeatures(dispatchThreadId.xy);
+        }
+
+        writeDenoiseFeatures(dispatchThreadId.xy, f, g_featuresOut0, g_featuresOut1);
+    }
+}

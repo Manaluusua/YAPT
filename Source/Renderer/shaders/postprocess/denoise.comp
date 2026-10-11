@@ -1,7 +1,7 @@
 ﻿#include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
 #include "../common/commonMath.hlsl"
-#include "materialParameterTextures.hlsl"
+#include "denoiseFeatures.hlsl"
 #include "../common/colorSpaces.hlsl"
 
 
@@ -16,6 +16,7 @@ struct DenoiseParams
     uint4 modePassIndex;
     float4 bilaterWeightParams;
     uint4 miscParams;
+    float4 featureParams; //x: feature variance scale
 };
 
 
@@ -25,11 +26,12 @@ struct DenoiseParams
 #define DENOISE_MODE_MAT_PARAMS_DEBUG 2
 #define DENOISE_MODE_VARIANCE_DEBUG 3
 #define DENOISE_SHOW_SAMPLE_SOURCES 4
+#define DENOISE_MODE_FEATURE_VARIANCE_DEBUG 5
 
 ConstantBuffer<DenoiseParams> g_denoiseParams : register(b0, space0);
 Texture2D g_sourceTex : register(t1, space0);
-Texture2D<uint4> g_materialParams0 : register(t2, space0);
-Texture2D<uint4> g_materialParams1 : register(t3, space0);
+Texture2D<uint4> g_denoiseFeatures0 : register(t2, space0);
+Texture2D<uint4> g_denoiseFeatures1 : register(t3, space0);
 Texture2D<float> g_varianceTex : register(t4, space0);
 Texture2D g_lastSamples : register(t5, space0);
 RWTexture2D<float4> g_denoiseColor : register(u6, space0);
@@ -44,81 +46,62 @@ RWTexture2D<float> g_denoiseVariance : register(u7, space0);
 #define g_denoiseMaterialSigma (g_denoiseParams.bilaterWeightParams.z)
 #define g_denoiseColorSigma (g_denoiseParams.bilaterWeightParams.w)
 #define g_convert2RGB (g_denoiseParams.miscParams.x)
+#define g_denoiseFeatureVarianceScale (g_denoiseParams.featureParams.x)
 
-float4 calculateDebugMaterialParams(uint2 loc)
+float4 calculateDebugFeatures(uint2 loc, bool showVariances)
 {
     float2 scaledUv = (loc * g_denoiseParams.textureDimensions.zw) * 2.f;
     uint2 readLocation = frac(scaledUv) * g_denoiseParams.textureDimensions.xy;
     
-    MaterialParameters2Texture matParams = readMaterialParametersFromTextures(readLocation, g_materialParams0, g_materialParams1);
+    DenoiseFeatures f = readDenoiseFeatures(readLocation, g_denoiseFeatures0, g_denoiseFeatures1);
     
+    if (showVariances)
+    {
+        //standard deviations, depth relative to the depth itself
+        float relDepthStdDev = f.depth > 0.f ? sqrt(f.varDepth) / f.depth : 0.f;
+        float v = 0;
+        if (scaledUv.x < 1)
+        {
+            v = scaledUv.y < 1 ? sqrt(f.varAlbedo) : sqrt(getNormalVariance(f));
+        }
+        else
+        {
+            v = scaledUv.y < 1 ? relDepthStdDev : sqrt(f.varMaterial);
+        }
+        return float4(v, v, v, 1.f);
+    }
+
     if(scaledUv.x < 1)
     {
         if (scaledUv.y < 1)
         {
-            return float4(matParams.albedo, 1);
+            return float4(f.albedo, 1);
         } 
         else
         {
-            return float4(matParams.normal * 0.5f + 0.5f, 1);
+            return float4(f.normal * 0.5f + 0.5f, 1);
         }
     } 
     else
     {
         if (scaledUv.y < 1)
         {
-            return float4(matParams.anisotropy, matParams.ior, matParams.roughness, 1.f);
+            return float4(f.roughness, f.metalness, f.transparency, 1.f);
         }
         else
         {
-            return float4(matParams.metalness, matParams.depth, matParams.transparency, 1.f);
+            return float4(f.anisotropy, f.ior, f.depth / (1.f + f.depth), 1.f);
         }
     }
 }
 
-
-float calculateVisualDifferenceAlbedo(float3 a, float3 b)
-{
-    float3 delta = saturate(abs(a - b));
-    return (delta.x + delta.y + delta.z) * 0.3333f;
-
-}
 
 float calculatePerceptualLuminance(float3 c)
 {
     return dot(c, float3(0.2126, 0.7152, 0.0722));
 }
 
-float calculateMaterialParamsDiffWeight(MaterialParameters2Texture a, MaterialParameters2Texture b, float normalDeltaSigma, float matDeltaSigma)
-{
-    float roughnessDelta = abs(a.roughness - b.roughness);
-    float albedoDelta = calculateVisualDifferenceAlbedo(a.albedo, b.albedo);
-    float anisoDiff = abs(a.anisotropy - b.anisotropy);
-    float normalDot = saturate(dot(a.normal, b.normal));
-    float iorDelta = abs(a.ior - b.ior);
-    float metalnessDelta = abs(a.metalness - b.metalness);
-    float transparencyDelta = abs(a.transparency - b.transparency);
-
-    //TODO: flags and better weight calculation: this multiplicative weight is likely too aggressive
-    float wMat = 1.f;
-    wMat *= saturate(1.f - roughnessDelta);
-    wMat *= saturate(1.f - albedoDelta);
-    wMat *= saturate(1.f - anisoDiff);
-    wMat *= saturate(0.5f + 0.5f * (1.f - saturate(iorDelta))); //lessen effect of ior
-    wMat *= saturate(1.f - metalnessDelta);
-    wMat *= saturate(1.f - transparencyDelta);
-    
-    float wNormal = normalDot;
-    
-    
-    wMat = exp((-1.f + wMat) / max(matDeltaSigma, 1e-6));
-    wNormal = exp((-1.f + wNormal) / max(normalDeltaSigma, 1e-6));
-    
-    return wNormal * wMat;
-}
-
-
-
+//depth is planar view space depth, so in-focus points reconstruct exactly along the pinhole ray even with a thin lens camera
 float3 reconstructWorldPosition(uint2 loc, float depth)
 {
     float2 uv = (float2(loc) + 0.5f) * g_denoiseParams.textureDimensions.zw;
@@ -126,16 +109,29 @@ float3 reconstructWorldPosition(uint2 loc, float depth)
     float4 pointOnNearPlane = float4(uv, 0.0f, 1.0f);
     pointOnNearPlane = mul(g_denoiseParams.uvToView, pointOnNearPlane);
     pointOnNearPlane /= pointOnNearPlane.w;
-    pointOnNearPlane.w = 0;
 
-    float3 rayDir = normalize(mul(g_denoiseParams.viewToWorld, pointOnNearPlane).xyz);
-    return g_denoiseParams.cameraPosition.xyz + rayDir * depth;
+    float3 posVS = pointOnNearPlane.xyz * (depth / max(abs(pointOnNearPlane.z), 1e-8f));
+    return mul(g_denoiseParams.viewToWorld, float4(posVS, 1.f)).xyz;
 }
 
-float calculatePlaneDistanceWeight(float3 centerPos, float3 centerNormal, float3 samplePos, float sigma)
+float calculatePlaneDistanceWeight(float3 centerPos, DenoiseFeatures center, float3 samplePos, DenoiseFeatures s, FeatureWeightParams params)
 {
-    float planeDist = abs(dot(centerNormal, samplePos - centerPos));
-    return exp(-planeDist / max(sigma, 1e-4f));
+    if (s.depth <= 0.f)
+    {
+        return 1.f; //no hits in the sample pixel, albedo and normal (zeros for misses) handle the edge
+    }
+
+    float dist;
+    float normalLen = length(center.normal);
+    if (normalLen > 1e-3f)
+    {
+        dist = dot(center.normal / normalLen, samplePos - centerPos);
+    }
+    else
+    {
+        dist = center.depth - s.depth;
+    }
+    return calculateVarianceNormalizedWeight(dist * dist, center.depth * params.depthSigmaScale, center.varDepth + s.varDepth, params.varianceScale);
 }
 
 float calculateKernelDistanceWeight(float2 deltaFromCenter, float sigma)
@@ -189,9 +185,9 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     float centerVarFiltered = filteredVarSum / max(filteredVarWeight, EPS_MIN);
     float centerStdDev = sqrt(max(centerVarFiltered, EPS_MIN));
 
-    MaterialParameters2Texture centerMatParams = readMaterialParametersFromTextures(texCoord.xy, g_materialParams0, g_materialParams1);
+    DenoiseFeatures centerFeatures = readDenoiseFeatures(texCoord.xy, g_denoiseFeatures0, g_denoiseFeatures1);
     float4 centercolor = g_sourceTex.Load(uint3(texCoord.xy, 0));
-    if (all(centerMatParams.normal == 0.f))
+    if (centerFeatures.depth <= 0.f)
     {
         AtrousPassOutput output;
         output.color = centercolor;
@@ -199,7 +195,13 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
         return output;
     }
         
-    float3 centerPos = reconstructWorldPosition(texCoord.xy, centerMatParams.depth);
+    float3 centerPos = reconstructWorldPosition(texCoord.xy, centerFeatures.depth);
+
+    FeatureWeightParams featureWeightParams;
+    featureWeightParams.normalSigma = g_denoiseNormalSigma;
+    featureWeightParams.materialSigma = g_denoiseMaterialSigma;
+    featureWeightParams.depthSigmaScale = g_denoiseDepthSigmaScale;
+    featureWeightParams.varianceScale = g_denoiseFeatureVarianceScale;
     
     float4 sumColor = float4(0, 0, 0, 0);
     float  sumVarSq = 0.0;
@@ -210,11 +212,6 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
     float  sumChromaWeight = 0.0;
 #endif
 
-    float depthDistanceSigma = max(centerMatParams.depth * g_denoiseDepthSigmaScale, 0.001f);
-    
-    float materialDeltaWeight = 0.f;
-    float materialDeltaPow = 1.f;
-    
     int stepSize = 1u << passNumber;
 
     for (int y = -2; y <= 2; y++)
@@ -227,14 +224,14 @@ AtrousPassOutput denoiseAtrous(int2 texCoord, uint passNumber)
                 continue;
             
             float kernelWeight = precalculatedGaussian3tap[abs(x)] * precalculatedGaussian3tap[abs(y)];
-            MaterialParameters2Texture matParams = readMaterialParametersFromTextures(sampleLoc, g_materialParams0, g_materialParams1);
+            DenoiseFeatures sampleFeatures = readDenoiseFeatures(sampleLoc, g_denoiseFeatures0, g_denoiseFeatures1);
 
             float4 sampleColor = g_sourceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
             float sampleVar = g_varianceTex.Load(uint3(sampleLoc.x, sampleLoc.y, 0));
 
-            float3 samplePos = reconstructWorldPosition(sampleLoc, matParams.depth);
-            float wDepth = calculatePlaneDistanceWeight(centerPos, centerMatParams.normal, samplePos, depthDistanceSigma);
-            float wMat = calculateMaterialParamsDiffWeight(centerMatParams, matParams, g_denoiseNormalSigma, g_denoiseMaterialSigma);
+            float3 samplePos = reconstructWorldPosition(sampleLoc, sampleFeatures.depth);
+            float wDepth = calculatePlaneDistanceWeight(centerPos, centerFeatures, samplePos, sampleFeatures, featureWeightParams);
+            float wMat = calculateFeatureWeight(centerFeatures, sampleFeatures, featureWeightParams);
 
             float colorDiff = abs(sampleColor.y - centercolor.y);
             float wColor = exp(-colorDiff / (g_denoiseColorSigma * centerStdDev + EPS_MIN));
@@ -310,7 +307,12 @@ void main( uint3 groupId : SV_GroupID,
         }
         else if (g_denoiseMode == DENOISE_MODE_MAT_PARAMS_DEBUG)
         {
-            col = calculateDebugMaterialParams(dispatchThreadId.xy);
+            col = calculateDebugFeatures(dispatchThreadId.xy, false);
+            allowConversion = false;
+        }
+        else if (g_denoiseMode == DENOISE_MODE_FEATURE_VARIANCE_DEBUG)
+        {
+            col = calculateDebugFeatures(dispatchThreadId.xy, true);
             allowConversion = false;
         }
         else if (g_denoiseMode == DENOISE_MODE_VARIANCE_DEBUG)

@@ -128,6 +128,15 @@
 				}
 			]
 		},
+		"prefilterDenoiseFeatures": {
+			"stages": [
+				{
+					"type": "compute",
+					"sourceFile": "postProcess/prefilterFeatures.comp",
+					"entryPoint": "main"
+				}
+			]
+		},
 		"denoise": {
 			"stages": [
 				{

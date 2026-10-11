@@ -1,6 +1,7 @@
 #include "../globalDefinitions.hlsl"
 #include "../common/common.hlsl"
 #include "../common/colorSpaces.hlsl"
+#include "denoiseFeatures.hlsl"
 
 struct MergeNewSamplesParams
 {
@@ -23,6 +24,9 @@ RWTexture2DArray<float4> g_accumTex : register(u2, space0);
 RWTexture2D<uint> g_sampleCountsTex : register(u3, space0);
 RWTexture2D<float> g_varianceTex : register(u4, space0);
 Texture2D g_newSamples : register(t5, space0);
+Texture2D<uint4> g_newFeatures0 : register(t6, space0);
+Texture2D<uint4> g_newFeatures1 : register(t7, space0);
+RWTexture2DArray<float4> g_featureAccumTex : register(u8, space0);
 
 #define GET_RANDOM_NUMBER_SEQUENCE_1(dimOffset) (g_mergeParams.randomSequence.x)
 #define GET_RANDOM_NUMBER_SEQUENCE_2(dimOffset) (g_mergeParams.randomSequence.xy)
@@ -35,11 +39,12 @@ Texture2D g_newSamples : register(t5, space0);
 
 
 
-void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float weightOut)
+void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float weightOut, out uint2 samplePosOut)
 {
 #ifdef NEAREST_SAMPLE_MERGE
 	//TODO
     uint2 samplePos = g_mergeParams.targetTextureOffsetScaleBias.zw + targetPos / g_mergeParams.targetTextureOffsetScaleBias.xy;
+    samplePosOut = samplePos;
     weightOut = 1;
     if (all(samplePos == targetPos))
     {
@@ -52,6 +57,7 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 #else
 
 	//need random here, TODO
+    samplePosOut = targetPos;
     float4 colorSum = 0;
 	float2 toSrcTexMult = float2(1.f, 1.f) / g_mergeParams.targetTextureOffsetScaleBias.xy;
     float2 center = targetPos.xy + 0.5f;
@@ -82,6 +88,26 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 	
 }
 
+
+//features are accumulated as running means over all the samples of the pixel, like the radiance
+void accumulateFeatures(uint2 targetPos, uint2 samplePos, uint oldSamples, uint newSamples)
+{
+    MaterialParameters2Texture f = readMaterialParametersFromTextures(samplePos, g_newFeatures0, g_newFeatures1);
+    if (isNan(f.albedo) || isNan(f.normal) || isNan(f.depth))
+    {
+        f.materialFlags = 0; //treat as a miss
+    }
+
+    FeatureMoments m = featureSampleToMoments(f);
+    float4 newValues[FEATURE_ACCUM_LAYER_COUNT] = { m.layer0, m.layer1, m.layer2, m.layer3 };
+
+    float srcBlend = (float) newSamples / (float) (oldSamples + newSamples);
+    for (uint i = 0; i < FEATURE_ACCUM_LAYER_COUNT; ++i)
+    {
+        uint3 texCoord = uint3(targetPos, i);
+        g_featureAccumTex[texCoord] = oldSamples == 0 ? newValues[i] : lerp(g_featureAccumTex[texCoord], newValues[i], srcBlend);
+    }
+}
 
 float3 clampFireflySample(uint2 targetPos, float3 newColor, uint accumulatedSamples)
 {
@@ -152,7 +178,8 @@ void main( uint3 groupId : SV_GroupID,
         uint2 targetPosition = dispatchThreadId.xy;
         float4 srcColor;
         float weight;
-		calculateSampleContribution(targetPosition, srcColor, weight);
+        uint2 samplePosition;
+		calculateSampleContribution(targetPosition, srcColor, weight, samplePosition);
 
 		//a single NaN would stay in the accumulated result for good (and get spread around by the denoiser), so drop the sample altogether
         if (g_mergeParams.killNaNSamples != 0 && isNan(srcColor.xyz))
@@ -170,6 +197,7 @@ void main( uint3 groupId : SV_GroupID,
 		{
             oldSamples = g_sampleCountsTex[targetPosition];
             srcColor.xyz = clampFireflySample(targetPosition, srcColor.xyz, oldSamples);
+            accumulateFeatures(targetPosition, samplePosition, oldSamples, newSamples);
             g_sampleCountsTex[targetPosition] = newSamples + oldSamples;
         }
 #else
@@ -178,6 +206,7 @@ void main( uint3 groupId : SV_GroupID,
             newSamples = 1;
             oldSamples = g_mergeParams.sampleCount;
             srcColor.xyz = clampFireflySample(targetPosition, srcColor.xyz, oldSamples);
+            accumulateFeatures(targetPosition, samplePosition, oldSamples, newSamples);
 		}
 #endif
         uint accumLayer = g_mergeParams.sampleCount % g_mergeParams.accumulationTargetCount;

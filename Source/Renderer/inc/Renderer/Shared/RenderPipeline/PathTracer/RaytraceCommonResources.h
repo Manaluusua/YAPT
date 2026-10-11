@@ -16,7 +16,6 @@ namespace YAPT
 	constexpr size_t ENVIRONMENT_TYPE_CUBE = 1;
 	constexpr size_t ENVIRONMENT_TYPE_LONGLAT = 2;
 
-	constexpr uint32_t CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS = YAPTBIT(0);
 	constexpr uint32_t CONSTANTS_FLAG_DISABLE_TEXEL_JITTER = YAPTBIT(1);
 
 	struct RaytraceConstantData

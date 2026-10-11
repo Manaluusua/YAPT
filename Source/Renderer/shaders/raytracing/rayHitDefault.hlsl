@@ -322,12 +322,12 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
     
 
     
-    bool outputShadingParams = firstBounceMaterialWriteEnabled();
-    if (outputShadingParams && payload.pathLength == 0)
+    if (payload.pathLength == 0)
     {
         float3x3 transformNormal = (float3x3)WorldToObject3x4();
         transformNormal = transpose(transformNormal);
-        writeMaterialParamsForFirstBounce(dispatchIndicesToRayIndices(DispatchRaysIndex().xy), surfaceDefRGB, transformNormal, RayTCurrent(), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
+        float3 hitPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+        writeMaterialParamsForFirstBounce(DispatchRaysIndex().xy, surfaceDefRGB, transformNormal, calculateViewDepth(hitPosWS), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
     }
 
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);

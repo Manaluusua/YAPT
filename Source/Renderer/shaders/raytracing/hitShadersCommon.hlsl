@@ -86,7 +86,8 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	return surfDef;
 }
 
-void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, float3x3 normalTransform, float depth, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
+//features of the first camera vertex for the denoiser, written for every sample and accumulated like the radiance
+void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRGB rgb, float3x3 normalTransform, float viewDepth, RWTexture2D<uint4> materialOutput0, RWTexture2D<uint4> materialOutput1)
 {
     float coatingWeight = rgb.clearCoatAmount;
     float sheenWeight = rgb.sheenAmount;
@@ -114,9 +115,9 @@ void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRG
     output.ior = rgb.dielectricIOR * rgb.specularAmount + rgb.clearCoatIOR * rgb.clearCoatAmount;
     output.anisotropy = rgb.anisotropy;
     output.metalness = rgb.metalness;
-    output.depth = depth;
+    output.depth = viewDepth;
     output.transparency = rgb.transparency;
-    output.materialFlags = 0;
+    output.materialFlags = MATERIAL_PARAMS_FLAG_HIT;
 	
     writeMaterialParametersToTextures(outputLocation, output, materialOutput0, materialOutput1);
 

@@ -73,6 +73,14 @@ namespace YAPT
 			uvec4p modePassIndex;
 			vec4p bilaterWeightParams;
 			uvec4p miscParams;
+			vec4p featureParams; //x: feature variance scale
+		};
+
+		struct PrefilterFeaturesParams
+		{
+			vec4p textureDimensions;
+			vec4p weightParams; //x: normal sigma, y: material sigma, z: depth sigma scale, w: variance scale
+			uvec4p miscParams; //x: filtering enabled
 		};
 
 		struct ClearAccumulatedSamplesParams
@@ -93,6 +101,7 @@ namespace YAPT
 
 		void executeClear(const RenderGraphNodeExecutionContext& exec);
 		void executeMergeToPrevious(const RenderGraphNodeExecutionContext& exec);
+		void executePrefilterFeatures(const RenderGraphNodeExecutionContext& exec);
 		void executeDenoise(DenoisePass& pass, const RenderGraphNodeExecutionContext& exec);
 
 		void precalculateKernelWeights(uint32_t width, float tau, float* dataPtr);
@@ -104,12 +113,15 @@ namespace YAPT
 
 		ComputeNode* m_clearNode;
 		ComputeNode* m_mergeNode;
+		ComputeNode* m_prefilterFeaturesNode;
 		
 		PostProcessComputePassUtility m_clearMergeBufferPass;
 		PostProcessComputePassUtility m_mergePass;
+		PostProcessComputePassUtility m_prefilterFeaturesPass;
 		
 		FixedSizeGpuBufferHelper<ClearAccumulatedSamplesParams> m_clearMergeBufferConstants;
 		FixedSizeGpuBufferHelper<MergeNewSamplesParams> m_mergeSamplesConstants;
+		FixedSizeGpuBufferHelper<PrefilterFeaturesParams> m_prefilterFeaturesConstants;
 		UpdateParams m_lastUpdateParams;
 		uvec2 m_renderResolution;
 	};

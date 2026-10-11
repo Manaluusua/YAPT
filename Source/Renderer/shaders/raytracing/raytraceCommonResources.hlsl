@@ -37,7 +37,6 @@ StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : regist
 ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t4, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 
-#define CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS  (1 << 0)
 #define CONSTANTS_FLAG_DISABLE_TEXEL_JITTER  (1 << 1)
 
 //helper defines
@@ -70,10 +69,10 @@ bool isPixelJitterEnabled()
 
 }
 
-bool firstBounceMaterialWriteEnabled()
+//planar view space depth (distance along the view forward axis), independent of the lens sample unlike the ray length
+float calculateViewDepth(float3 posWS)
 {
-    return (g_constantsFlags & CONSTANTS_FLAG_WRITE_FIRST_BOUNCE_MATERIAL_PARAMS) != 0;
-
+    return mul(g_worldToViewTransform, float4(posWS, 1)).z * g_viewForwardZSign;
 }
 
 uint2 dispatchIndicesToRayIndices(uint2 dispatchInd)
