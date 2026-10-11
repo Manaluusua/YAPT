@@ -110,7 +110,8 @@ void writeMaterialParamsForFirstBounce(uint2 outputLocation, SurfaceDefinitionRG
 	
     MaterialParameters2Texture output;
     output.normal = normalize(normal);
-    output.albedo = rgb.emissive + rgb.albedo + rgb.sheenColor * rgb.sheenAmount;
+    //emission is compressed to [0, 1) so lights still separate from their surroundings without overflowing the half precision feature (and its variance)
+    output.albedo = rgb.emissive / (1.f + rgb.emissive) + rgb.albedo + rgb.sheenColor * rgb.sheenAmount;
     output.roughness = rgb.roughness * baseWeight + rgb.clearCoatRoughness * coatingWeight + rgb.sheenRoughness * sheenWeight;
     output.ior = rgb.dielectricIOR * rgb.specularAmount + rgb.clearCoatIOR * rgb.clearCoatAmount;
     output.anisotropy = rgb.anisotropy;

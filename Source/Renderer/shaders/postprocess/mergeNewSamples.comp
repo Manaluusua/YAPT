@@ -93,7 +93,10 @@ void calculateSampleContribution(uint2 targetPos, out float4 colorOut, out float
 void accumulateFeatures(uint2 targetPos, uint2 samplePos, uint oldSamples, uint newSamples)
 {
     MaterialParameters2Texture f = readMaterialParametersFromTextures(samplePos, g_newFeatures0, g_newFeatures1);
-    if (isNan(f.albedo) || isNan(f.normal) || isNan(f.depth))
+    //a single non-finite feature would end up as NaN edge stopping weights over the whole denoise footprint
+    bool finite = all(isfinite(f.albedo)) && all(isfinite(f.normal)) && isfinite(f.depth)
+        && all(isfinite(float4(f.roughness, f.metalness, f.transparency, f.anisotropy))) && isfinite(f.ior);
+    if (!finite)
     {
         f.materialFlags = 0; //treat as a miss
     }
