@@ -64,6 +64,16 @@ namespace YAPT
 		m_transform->setParent(transform != nullptr ? transform->m_transform : nullptr);
 	}
 
+	uintptr_t PyTransform::getId() const
+	{
+		return reinterpret_cast<uintptr_t>(m_transform);
+	}
+
+	uintptr_t PyTransform::getParentId() const
+	{
+		return reinterpret_cast<uintptr_t>(m_transform->getParent());
+	}
+
 	vec3p PyTransform::right()
 	{
 		return m_transform->right();
@@ -97,7 +107,9 @@ namespace YAPT
 			.def("right", &PyTransform::right)
 			.def("up", &PyTransform::up)
 			.def("forward", &PyTransform::forward)
-			.def("setParent", &PyTransform::setParent);
+			.def("setParent", &PyTransform::setParent)
+			.def("getId", &PyTransform::getId)
+			.def("getParentId", &PyTransform::getParentId);
 	}
 
 }

@@ -35,6 +35,7 @@ class InspectorView(QWidget):
         self_layout.addWidget(trans_group)
         self_layout.addWidget(mesh_group)
         self_layout.addWidget(mat_group)
+        self_layout.addStretch()
         
 
     def clear(self):

@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QDialog, QListWidget, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QGroupBox, QPushButton
 from yapt.inspector_view import InspectorView
 from yapt.objects_view import ObjectsView
+from yapt.ui_utility import VerticalScrollArea
 import gc
 
 class ObjectsDialog(QDialog):
@@ -38,12 +39,14 @@ class ObjectsDialog(QDialog):
         grp_box_inspector.setLayout(grp_box_inspector_layout)
 
         self._inspector_view = InspectorView(self)
-        grp_box_inspector_layout.addWidget(self._inspector_view)
+        inspector_scroll_area = VerticalScrollArea(grp_box_inspector)
+        inspector_scroll_area.setWidget(self._inspector_view)
+        grp_box_inspector_layout.addWidget(inspector_scroll_area)
 
         #compose dialog
         dialogLayout = QHBoxLayout(self)
         dialogLayout.addWidget(grp_box_objects)
-        dialogLayout.addWidget(grp_box_inspector)
+        dialogLayout.addWidget(grp_box_inspector, 1)
         self.setLayout(dialogLayout)
 
         self._objects_view.add_selection_listener(self.object_selected)

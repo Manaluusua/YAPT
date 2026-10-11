@@ -29,6 +29,10 @@ namespace YAPT
 
 		void setParent(PyTransform* transform);
 
+		// opaque identity of the wrapped transform and of its parent (0 if none), lets python rebuild the hierarchy
+		uintptr_t getId() const;
+		uintptr_t getParentId() const;
+
 		vec3p right();
 		vec3p up();
 		vec3p forward();

@@ -1,10 +1,10 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem, QSizePolicy
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QTreeWidget, QTreeWidgetItem, QSizePolicy
 
-class ObjectListItem(QListWidgetItem):
+class ObjectTreeItem(QTreeWidgetItem):
     def __init__(self, parent, obj):
         super().__init__(parent)
         self._obj = obj
-        self.setText(obj.getName())
+        self.setText(0, obj.getName())
 
     def get_object(self):
         return self._obj
@@ -21,9 +21,10 @@ class ObjectsView(QWidget):
 
         layout = QVBoxLayout(self)
         self._scene = scene
-        self.list_widget = QListWidget()
-        self.list_widget.currentItemChanged.connect(self.on_selection_change)
-        layout.addWidget(self.list_widget)
+        self.tree_widget = QTreeWidget()
+        self.tree_widget.setHeaderHidden(True)
+        self.tree_widget.currentItemChanged.connect(self.on_selection_change)
+        layout.addWidget(self.tree_widget)
 
         self._selection_listeners = set()
 
@@ -41,11 +42,26 @@ class ObjectsView(QWidget):
 
         objects_list = self._scene.get_all_objects_list()
 
-        self.list_widget.clear()
-
+        #group objects under their transform parent, objects whose parent isn't a listed object become roots
+        objects_by_id = {obj.getTransform().getId(): obj for obj in objects_list}
+        children = {}
+        roots = []
         for obj in objects_list:
-            list_item = ObjectListItem(self.list_widget, obj)
-            self.list_widget.addItem(list_item)
+            parent_id = obj.getTransform().getParentId()
+            if parent_id in objects_by_id:
+                children.setdefault(parent_id, []).append(obj)
+            else:
+                roots.append(obj)
+
+        sort_key = lambda obj : obj.getName().lower()
+
+        def add_items(parent_item, objs):
+            for obj in sorted(objs, key = sort_key):
+                item = ObjectTreeItem(parent_item, obj)
+                add_items(item, children.get(obj.getTransform().getId(), []))
+
+        self.tree_widget.clear()
+        add_items(self.tree_widget, roots)
 
 
     def on_selection_change(self, current, previous):
@@ -53,4 +69,3 @@ class ObjectsView(QWidget):
             self.notify_selection_listeners(current.get_object())
         else:
             self.notify_selection_listeners(None)
-        

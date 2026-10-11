@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QDoubleSpinBox, QPushButton, QComboBox
 from PySide6.QtGui import QAction
 from py_yapt import RendererVariableType, vec2, vec3, vec4, ivec2, ivec3, ivec4
-from yapt.ui_utility import NumericValuesUI
+from yapt.ui_utility import NumericValuesUI, VerticalScrollArea
 
 class RendererVariableUI(QWidget):
     def __init__(self, parent, name, renderervar):
@@ -120,15 +120,16 @@ class RendererVarsWindow(QDialog):
             QSizePolicy.MinimumExpanding
         )
 
-    def clear(self):
-        QWidget().setLayout(self.layout())
+        dialogLayout = QVBoxLayout(self)
+        self._scroll_area = VerticalScrollArea(self)
+        dialogLayout.addWidget(self._scroll_area)
+        self.setLayout(dialogLayout)
 
     def setup(self):
 
-        self.clear()
-
-        dialogLayout = QVBoxLayout(self)
-        self.setLayout(dialogLayout)
+        content = QWidget()
+        contentLayout = QVBoxLayout(content)
+        content.setLayout(contentLayout)
 
         all_renderer_var_names = self._renderer.getAllRendererVariableNames()
 
@@ -155,13 +156,18 @@ class RendererVarsWindow(QDialog):
         sorted_keys = sorted(categories.keys())
 
         for key in sorted_keys:
-            groupBox = QGroupBox(key, self)
+            groupBox = QGroupBox(key, content)
             groupBoxLayout = QVBoxLayout(groupBox)
             groupBox.setLayout(groupBoxLayout)
 
             for value in sorted(categories[key]):
-                renderer_var_ui = RendererVariableUI(self, value[0], value[1])
+                renderer_var_ui = RendererVariableUI(groupBox, value[0], value[1])
                 groupBoxLayout.addWidget(renderer_var_ui)
-            dialogLayout.addWidget(groupBox)
+            contentLayout.addWidget(groupBox)
+
+        contentLayout.addStretch()
+
+        #replaces (and deletes) the previously shown variables
+        self._scroll_area.setWidget(content)
 
             

@@ -1,5 +1,48 @@
-from PySide6.QtWidgets import QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QDoubleSpinBox, QPushButton, QComboBox
+from PySide6.QtWidgets import QDialog, QWidget, QGroupBox, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QDoubleSpinBox, QPushButton, QComboBox, QScrollArea, QFrame
 from PySide6.QtGui import QAction
+from PySide6.QtCore import Qt, QEvent, QSize
+
+
+class VerticalScrollArea(QScrollArea):
+    """Scroll area for long panels: scrolls vertically only and keeps itself wide enough
+    for its content, so rows never get squashed or need a horizontal scrollbar."""
+
+    def __init__(self, parent = None):
+        super().__init__(parent)
+        self.setWidgetResizable(True)
+        self.setFrameShape(QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+    def setWidget(self, widget):
+        #replaces (and deletes) the previous content widget
+        super().setWidget(widget)
+        widget.installEventFilter(self)
+        self._fit_width()
+
+    def eventFilter(self, obj, event):
+        #content was rebuilt/changed size, recompute the width needed for it
+        if obj is self.widget() and event.type() == QEvent.LayoutRequest:
+            self._fit_width()
+        return super().eventFilter(obj, event)
+
+    def sizeHint(self):
+        #prefer showing all of the content, but no taller than most of the screen
+        widget = self.widget()
+        if widget == None:
+            return super().sizeHint()
+
+        max_height = int(self.screen().availableGeometry().height() * 0.8)
+        height = min(widget.sizeHint().height() + 2 * self.frameWidth(), max_height)
+        return QSize(self.minimumWidth(), height)
+
+    def _fit_width(self):
+        widget = self.widget()
+        if widget == None:
+            return
+
+        width = widget.minimumSizeHint().width() + self.verticalScrollBar().sizeHint().width() + 2 * self.frameWidth()
+        self.setMinimumWidth(width)
+        self.updateGeometry()
 
 
 class CompactDoubleSpinBox(QDoubleSpinBox):
