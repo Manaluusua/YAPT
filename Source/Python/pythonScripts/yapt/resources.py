@@ -3,7 +3,7 @@ from yapt.conversions import ConvUtility
 from yapt.mesh_utils import MeshUtility, MeshLoader
 from pathlib import Path
 from yapt.texture_loader_ktx import TextureLoader, KtxToolInvocationError
-from yapt.settings import resolve_asset_path
+from yapt.settings import resolve_asset_path, OPTIMIZE_MESH_LAYOUT
 from cffi import FFI
 ffi = FFI()
 
@@ -19,6 +19,7 @@ class Resources:
         self._textures = {}
         self._texture_min_alpha = {}
         self._meshes = {}
+        self._optimize_mesh_layout = OPTIMIZE_MESH_LAYOUT
 
     def clear(self):
         self._textures = None
@@ -48,11 +49,21 @@ class Resources:
         gltf = GLTF2().load(path_str)
         return self.load_meshes_from_gltf(gltf, path_str, verbose)
 
+    #True: repack vertex data into one interleaved layout per mesh (slow), False: upload the gltf buffer views as is
+    def get_optimize_mesh_layout(self):
+        return self._optimize_mesh_layout
+
+    def set_optimize_mesh_layout(self, enabled):
+        self._optimize_mesh_layout = bool(enabled)
+
     def load_meshes_from_gltf(self, gltf, cache_name, verbose = False):
 
-        if cache_name in self._meshes:
+        #meshes loaded with the other layout mode are not reused, so toggling the mode and reloading takes effect
+        optimize_layout = self._optimize_mesh_layout
+        cache_key = (cache_name, optimize_layout)
+        if cache_key in self._meshes:
             print(f"found mesh {cache_name} from cache, reusing")
-            return self._meshes[cache_name]
+            return self._meshes[cache_key]
 
         # One entry per gltf mesh: (meshes, primitive_map) where primitive_map[i]
         # is (mesh_index, submesh_index) for gltf_mesh.primitives[i] or None.
@@ -60,10 +71,10 @@ class Resources:
         cache = {}
         for gltf_mesh in gltf.meshes:
             name = gltf_mesh.name
-            meshes, prim_map = self._mesh_loader.create_and_upload_from_gltf(gltf, name, gltf_mesh, cache, verbose, optimize_layout = True)
+            meshes, prim_map = self._mesh_loader.create_and_upload_from_gltf(gltf, name, gltf_mesh, cache, verbose, optimize_layout = optimize_layout)
             results.append((meshes, prim_map))
 
-        self._meshes[cache_name] = results
+        self._meshes[cache_key] = results
 
         return results
 

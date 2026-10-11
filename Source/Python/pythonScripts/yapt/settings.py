@@ -4,6 +4,8 @@ next to it (gitignored).
 
 ASSET_PATH is the root folder for models / textures. Relative asset paths given to the loaders (Resources,
 SceneLoader) are resolved against it via resolve_asset_path(), absolute paths are used as is.
+
+OPTIMIZE_MESH_LAYOUT is the initial value of Resources' mesh layout optimization toggle ([loading] optimize_mesh_layout).
 """
 
 import configparser
@@ -12,6 +14,7 @@ from pathlib import Path
 SETTINGS_FILE = "settings.cfg"
 SETTINGS_LOCAL_FILE = "settings_local.cfg"
 DEFAULT_ASSET_PATH = "../YAPTAssets"
+DEFAULT_OPTIMIZE_MESH_LAYOUT = False
 
 def find_project_root():
     """First folder above this file that holds settings.cfg, falls back to the repo root of the source tree."""
@@ -42,6 +45,8 @@ _settings = _load_settings(PROJECT_ROOT)
 ASSET_PATH = _resolve_against(PROJECT_ROOT, _settings.get("paths", "asset_path", fallback=DEFAULT_ASSET_PATH))
 if not ASSET_PATH.is_dir():
     print(f"settings: asset path {ASSET_PATH} does not exist, set [paths] asset_path in {SETTINGS_LOCAL_FILE}")
+
+OPTIMIZE_MESH_LAYOUT = _settings.getboolean("loading", "optimize_mesh_layout", fallback=DEFAULT_OPTIMIZE_MESH_LAYOUT)
 
 def resolve_asset_path(path):
     """Absolute paths are returned as is, relative ones are resolved against ASSET_PATH."""

@@ -295,6 +295,10 @@ class MeshLoader:
                 accessor_idx = getattr(primitive.attributes, n)
                 colors_arrays[n].append(self._extract_data_from_accessor(gltf, accessor_idx))
 
+        #primitives of the same mesh can mix 16 and 32 bit indices: promote everything to 32 bit in that case
+        if len({f[2] for f in faces_array}) > 1:
+            faces_array = [(f[0], f[1], 4, f[3].astype(np.uint32)) for f in faces_array]
+
         faces = self._try_prim_array_merge(faces_array)
         vertices = self._try_prim_array_merge(vertices_array)
         normals = self._try_prim_array_merge(normals_array)
@@ -307,6 +311,10 @@ class MeshLoader:
 
         if vertices is None:
             print(f"could not load mesh {mesh_name}, missing vertex positions")
+            return None
+
+        if faces is None:
+            print(f"could not load mesh {mesh_name}, could not merge primitive indices")
             return None
 
         if normals is None:
