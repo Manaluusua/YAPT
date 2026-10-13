@@ -35,7 +35,7 @@ float getSSMSAverageDirectionalAlbedo(float eta, float roughness)
 
 float getSSDirectionalAlbedoTranslucentLighter(float eta, float cosTheta, float roughness)
 {
-	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.7f));
+	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.69f));
 	return sampleLUT(g_lutSampler, g_dirAlbedoGGXTranslucentLighterLUT, float3(cosTheta, roughness, etaLUT)).x;
 }
 
@@ -48,7 +48,7 @@ float getSSDirectionalAlbedoTranslucentDenser(float eta, float cosTheta, float r
 
 float getSSAverageAlbedoTranslucentLighter(float eta, float roughness)
 {
-	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.7f));
+	float etaLUT = saturate( (eta - 0.3f) * (1.f/0.69f));
 	return sampleLUT(g_lutSampler, g_avgAlbedoGGXTranslucentLighterLUT, float2(roughness, etaLUT)).x;
 }
 
@@ -107,16 +107,18 @@ float getAvgFresnel(float etaR)
     return fAvg;
 }
 
-float getReflRatioScaling(float etaR, float linearRoughness)
+// (1 - r(eta)) (1 - Eavg(eta)) = eta^2 (1 - r(1/eta)) (1 - Eavg(1/eta))
+float getMsTransmissionRatio(float etaR, float linearRoughness)
 {
-    float a = getAvgFresnel(etaR);
-    float b = getAverageAlbedoTranslucent(1.f / etaR, linearRoughness);
-    float c = getAvgFresnel(1.f / etaR);
-    float d = getAverageAlbedoTranslucent(etaR, linearRoughness);
-    float e = etaR * etaR;
-    float h = safeDiv(1.f - d, 1.f - c) * (1.f / e);
-    float x = safeDiv(1.f - b, 1.f - a) * safeDiv(1.f, h) + 1.f;
-    return x;
+    float etaOut = max(etaR, 1.f / etaR);
+    float tOut = 1.f - getAvgFresnel(etaOut);
+    if (etaR >= 1.f)
+    {
+        return tOut;
+    }
+    float eAvgOut = getAverageAlbedoTranslucent(etaOut, linearRoughness);
+    float eAvgIn = getAverageAlbedoTranslucent(etaR, linearRoughness);
+    return saturate(safeDiv(tOut * (1.f - eAvgOut), etaOut * etaOut * (1.f - eAvgIn)));
 }
 
 //-------------------------------------- Fms -----------------------------------------------------//
@@ -192,28 +194,25 @@ float getEnergyCompensationTranslucentKulla(in float etaR, in float dotWo, in fl
     float dirAlbedoWo;
     float dirAlbedoWi;
     float eAvg;
-    float ratioScaling = getReflRatioScaling(etaR, linearRoughness);
-    float ratio = getAvgFresnel(etaR);
-	
+    float transmissionRatio = getMsTransmissionRatio(etaR, linearRoughness);
+    float ratio;
+
 	if(transmission)
     {
         float etaInv = 1.f / etaR;
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaInv, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaInv, linearRoughness);
-        ratio = 1.f - ratio;
-        //ratioScaling = 1.f - ratioScaling;
-        
-    } 
+        ratio = transmissionRatio;
+    }
 	else
     {
         dirAlbedoWo = getDirectionalAlbedoTranslucent(etaR, dotWo, linearRoughness);
         dirAlbedoWi = getDirectionalAlbedoTranslucent(etaR, dotWi, linearRoughness);
         eAvg = getAverageAlbedoTranslucent(etaR, linearRoughness);
+        ratio = 1.f - transmissionRatio;
     }
-    
-    //TODO: need to apply ratioScaling factor to make sure the adjoint btdf if reciprocal. So need to pull in information about ray direction (ie. from light or from camera)
-	
+
     float ems = ratio * safeDiv((1.f - dirAlbedoWo) * (1.f - dirAlbedoWi), (1.f - eAvg) * PI);
 	return ems;
 }

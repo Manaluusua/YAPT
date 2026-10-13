@@ -3,7 +3,7 @@
 
 static float g_spectralMainSampleWavelength;
 #define GET_SPECTRAL_SAMPLE_WAVELENGTH g_spectralMainSampleWavelength;
-
+#define RECIPROCAL_MULTISCATTER
 #include "../globalDefinitions.hlsl"
 #include "hitShadersCommon.hlsl"
 #include "materialSample.hlsl"

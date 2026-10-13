@@ -88,7 +88,18 @@ namespace YAPT
 		return (1.f - t) * a + t * b;
 	}
 
-
+	float integrateAverageAlbedo(const float* directionalAlbedo, uint32_t dimension)
+	{
+		float h = 1.f / float(dimension - 1);
+		float average = 0.f;
+		for (uint32_t x = 0; x + 1 < dimension; ++x)
+		{
+			float a = float(x) * h;
+			float b = float(x + 1) * h;
+			average += h * (directionalAlbedo[x] * (2.f * a + b) + directionalAlbedo[x + 1] * (a + 2.f * b)) / 6.f;
+		}
+		return 2.f * average;
+	}
 
 
 	vec3p getEnergyCompensationKulla(const vec3p& fms, const vec3p& singleScatterAlbedo, float dotWo, float dotWi, float linearRoughness, uint32_t lutDimensions, const float* singleScatteringAlbedoLut, const float* singleScatteringAverageAlbedoLut)

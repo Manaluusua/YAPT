@@ -323,8 +323,39 @@ struct SpecularLayer// : MaterialLayer
         return l;
     }
 
+    //Need a separate sampling strategy for Kulla multiscatter lobe (its a sphere, unlike the ggx sampler)
+    float getMsSamplingProbability(float3 wo)
+    {
+#ifdef RECIPROCAL_MULTISCATTER
+        if (!allowRefraction || isDeltaGGX(roughness2))
+        {
+            return 0.f;
+        }
+        return saturate(1.f - getDirectionalAlbedoTranslucent(etaR, wo.y, linearRoughness));
+#else
+        return 0.f;
+#endif
+    }
+
+    //probability of the ms lobe sending the sample to the other side, used to pick the hemisphere
+    float getMsRefractionSelectionProbability()
+    {
+        return allowReflection ? getMsTransmissionRatio(etaR, linearRoughness) : 1.f;
+    }
+
     float3 sampleWi(float3 wo, float2 rand, float fresnelSelectionRand)
     {
+        float msProb = getMsSamplingProbability(wo);
+        if (fresnelSelectionRand < msProb)
+        {
+			//instead of GGX sample, sample kullas multiscatter lobe
+            float sc = fresnelSelectionRand / msProb;
+            float3 wi = sampleCosineWeightedHemisphere(rand);
+            bool msRefract = sc < getMsRefractionSelectionProbability();
+            wi.y = (wo.y < 0) != msRefract ? -wi.y : wi.y;
+            return wi;
+        }
+        fresnelSelectionRand = (fresnelSelectionRand - msProb) / (1.f - msProb);
         return sampleDielectric(etaR, roughness2.x, roughness2.y, wo, rand, fresnelSelectionRand, allowReflection, allowRefraction);
     }
 
@@ -370,7 +401,15 @@ struct SpecularLayer// : MaterialLayer
 
     float pdf(float3 wo, float3 wi)
     {
-        return pdfDielectric(etaR, wo, wi, roughness2.x, roughness2.y, allowReflection, allowRefraction);
+        float pdfSS = pdfDielectric(etaR, wo, wi, roughness2.x, roughness2.y, allowReflection, allowRefraction);
+        float msProb = getMsSamplingProbability(wo);
+        if (msProb == 0.f)
+        {
+            return pdfSS;
+        }
+        float refrSelectionProb = getMsRefractionSelectionProbability();
+        float pdfMS = pdfCosineWeightedHemisphere(abs(wi.y)) * (onSameHemisphere(wo, wi) ? 1.f - refrSelectionProb : refrSelectionProb);
+        return lerp(pdfSS, pdfMS, msProb);
     }
 
     float getEnergyLeftAfterLayer(float3 wo, float3 wi, float layerWeight)

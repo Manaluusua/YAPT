@@ -206,8 +206,8 @@ float pdfGGXTransmitted(in float etaR, in float3 wo, in float3 wi, in float ax, 
 
 	float pdf = pdfWMGGX(wo, wm, ax, ay);
 
-	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
-	
+	if (dot(wo, wm) <= 0.f || dot(wi, wm) >= 0.f) return 0.f;
+
 	pdf *= jRefraction(etaR, wo, wm, wi);
 	return pdf;
 	
@@ -230,7 +230,8 @@ float evaluateGGXTransmitted(in float etaR, in float ax, in float ay, in float3 
 		return 0.f;
 	}
 	
-	if (dot(wo, wm) * dot(wi, wm) > 0) return 0.f;
+	//wm is on wo's side, so a valid refraction needs wo in front of the microfacet and wi behind it.
+	if (dot(wo, wm) <= 0.f || dot(wi, wm) >= 0.f) return 0.f;
 
 	float weight;
 
