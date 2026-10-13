@@ -29,6 +29,10 @@ namespace YAPT
 		m_materialParams.roughness = std::max(ROUGHNESS_MIN, m_materialParams.roughness); 
 		m_materialParams.emissionFocus = std::max(0.f, m_materialParams.emissionFocus);
 
+		m_materialParams.subsurfaceAmount = glm::clamp(m_materialParams.subsurfaceAmount, 0.f, 1.f);
+		m_materialParams.subsurfaceRadius = glm::max(m_materialParams.subsurfaceRadius, vec3p(0.f));
+		m_materialParams.subsurfaceRadiusScale = std::max(0.f, m_materialParams.subsurfaceRadiusScale);
+
 		//coating must sum to 1
 		float coatingSum = m_materialParams.clearCoatAmount + m_materialParams.sheenAmount;
 		if (coatingSum > 1)

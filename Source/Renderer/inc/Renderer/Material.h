@@ -107,6 +107,17 @@ namespace YAPT
 		virtual void setEnableDispersion(bool val) = 0;
 		virtual bool getEnableDispersion() const = 0;
 
+		//share of the diffuse layer that is scattered beneath the surface (Christensen-Burley profile, colored by albedo)
+		virtual void setSubsurfaceAmount(float val) = 0;
+		virtual float getSubsurfaceAmount() const = 0;
+
+		//per channel scattering distance, multiplied by the radius scale (world units)
+		virtual void setSubsurfaceRadius(const vec3p& v) = 0;
+		virtual const vec3p& getSubsurfaceRadius() const = 0;
+
+		virtual void setSubsurfaceRadiusScale(float val) = 0;
+		virtual float getSubsurfaceRadiusScale() const = 0;
+
 		virtual void setAlbedoTexture(const TextureParameter& tex) = 0;
 		virtual void setNormalTexture(const TextureParameter& tex) = 0;
 		virtual void setORMTexture(const TextureParameter& tex) = 0; //Occlusion, Roughness, Metalness

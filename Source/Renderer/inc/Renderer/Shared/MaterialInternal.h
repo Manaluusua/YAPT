@@ -64,6 +64,10 @@ namespace YAPT
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
+			subsurfaceRadius(1.f, 0.2f, 0.1f),
+			subsurfaceAmount(0.f),
+			subsurfaceRadiusScale(1.f),
+
 			albedoTex(TEX_UNBOUND_INDEX),
 			normalTex(TEX_UNBOUND_INDEX),
 			ormTex(TEX_UNBOUND_INDEX),
@@ -100,6 +104,10 @@ namespace YAPT
 
 			cauchysCoeffs(1.5046f, 0.00420f),
 
+			subsurfaceRadius(1.f, 0.2f, 0.1f),
+			subsurfaceAmount(0.f),
+			subsurfaceRadiusScale(1.f),
+
 			albedoTex(TEX_UNBOUND_INDEX),
 			normalTex(TEX_UNBOUND_INDEX),
 			ormTex(TEX_UNBOUND_INDEX),
@@ -134,6 +142,10 @@ namespace YAPT
 		float alphaCutoff; //0 = opaque, otherwise hits where the albedo texture alpha is below this are ignored
 
 		vec2p cauchysCoeffs;
+
+		vec3p subsurfaceRadius; //per channel scattering distance, scaled by subsurfaceRadiusScale
+		float subsurfaceAmount; //share of the diffuse layer that scatters beneath the surface
+		float subsurfaceRadiusScale;
 
 		MaterialParameterTexture albedoTex;
 		MaterialParameterTexture normalTex;

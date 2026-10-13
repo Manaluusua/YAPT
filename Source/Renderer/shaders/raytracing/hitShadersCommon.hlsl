@@ -17,6 +17,7 @@ struct SurfaceDefinition
     SpectralSamples absorption;
     SpectralSamples emissive;
     SpectralSamples sheenColor;
+    SpectralSamples subsurfaceRadius;
 	
     float3 coatingLayerNormal;
     float transparency;
@@ -40,6 +41,7 @@ struct SurfaceDefinition
 	float sheenRoughness;
 	float sheenAmount;
 	float emissionFocus;
+    float subsurfaceAmount;
     uint occlusionSpecDiffPacked;
 	uint flags;
 };
@@ -59,6 +61,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.absorption.setFromRGBUnboundedNoIlluminant(rgb.absorption); //absorption coefficients aren't limited to [0, 1]
 	surfDef.emissive.setFromRGBUnbounded(rgb.emissive);
 	surfDef.sheenColor.setFromRGB(rgb.sheenColor);
+	surfDef.subsurfaceRadius.setFromRGBUnboundedNoIlluminant(rgb.subsurfaceRadius); //distances aren't limited to [0, 1]
 
 	
 
@@ -81,6 +84,7 @@ SurfaceDefinition convertSurfaceDefinitionFromRGB(SurfaceDefinitionRGB rgb)
 	surfDef.sheenRoughness = rgb.sheenRoughness;
 	surfDef.sheenAmount = rgb.sheenAmount;
 	surfDef.emissionFocus = rgb.emissionFocus;
+	surfDef.subsurfaceAmount = rgb.subsurfaceAmount;
     surfDef.occlusionSpecDiffPacked = rgb.occlusionSpecDiffPacked;
 	surfDef.flags = rgb.flags;
 	return surfDef;
@@ -179,6 +183,31 @@ bool alphaTestPasses(uint instanceIndex, uint primitiveIndex, float2 barycentric
 }
 
 #define PROCEED_ALPHA_TESTED(q)     while (q.Proceed())     {         if (q.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE && alphaTestPasses(q.CandidateInstanceID(), q.CandidatePrimitiveIndex(), q.CandidateTriangleBarycentrics()))         {             q.CommitNonOpaqueTriangleHit();         }     }
+
+void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
+{
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+
+	//Initial surface setup
+    float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float3 geometryNormal = fetchMeshTriangleNormal(meshEntry.positionBuffer, indices, barycentrics);
+    float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
+    float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
+    float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
+
+
+	//fetch surface material parameters
+    MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
+    SurfaceDefinitionRGB surfaceDefRGB;
+    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, normal, normal, tangent);
+    setupSurfaceOrientation(surfaceDefRGB);
+    modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
+    
+    
+    surfaceDefOut = surfaceDefRGB;
+}
 
 template<typename RayState>
 void handleRayStartInsideMedium(inout RayState state, in SurfaceDefinition surfaceDef, uint materialIndex, float3 rayDir, float3 geometryNormal)

@@ -97,6 +97,7 @@ namespace YAPT
 			dst.normalTexIndexAndScale = uvec2p(matParams.normalTex.textureIndex, matParams.normalTex.packedScale);
 			dst.ormTexIndexAndScale = uvec2p(matParams.ormTex.textureIndex, matParams.ormTex.packedScale);
 			dst.emissiveTexIndexAndScale = uvec2p(matParams.emissiveTex.textureIndex, matParams.emissiveTex.packedScale);
+			dst.subsurfaceRadiusAmount = vec4p(matParams.subsurfaceRadius * matParams.subsurfaceRadiusScale, MathUtils::saturate(matParams.subsurfaceAmount));
 
 			memcpy(gpuBuffer + m_gpuBuffer.getAlignedEntrySize() * index, &dst, sizeof(MaterialEntryGPU));
 

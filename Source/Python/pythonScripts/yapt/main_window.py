@@ -82,15 +82,17 @@ class MainWindow(QMainWindow):
         screenshot_action = QAction("Screenshot", self)
         screenshot_action.triggered.connect(self.show_screenshot_dialog)
         options_menu.addAction(screenshot_action)
-        options_menu.addSeparator()
+
+        # Settings Menu
+        settings_menu = menu_bar.addMenu("Settings")
         optimize_mesh_layout_action = QAction("Optimize Mesh Layout", self)
         optimize_mesh_layout_action.setCheckable(True)
         #Resources doesn't exist yet when the menu is built, it starts from the same setting
         optimize_mesh_layout_action.setChecked(OPTIMIZE_MESH_LAYOUT)
         optimize_mesh_layout_action.setToolTip("Repack glTF vertex data into one interleaved layout per mesh when loading (slow for big scenes). Applies to scenes loaded after toggling.")
         optimize_mesh_layout_action.toggled.connect(self.set_optimize_mesh_layout)
-        options_menu.addAction(optimize_mesh_layout_action)
-        options_menu.setToolTipsVisible(True)
+        settings_menu.addAction(optimize_mesh_layout_action)
+        settings_menu.setToolTipsVisible(True)
 
     def setup_render_area(self):
         self._renderAreaWidget = QWidget()

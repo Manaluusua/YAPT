@@ -3,6 +3,7 @@
 #include "materialSample.hlsl"
 #include "payload.hlsl"
 #include "lightSampling.hlsl"
+#include "scatteringSample.hlsl"
 
 
 struct RayHitShaderTableConstantData
@@ -118,89 +119,171 @@ float weightMIS(float a, float b)
 
 }
 
-void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, in uint materialIndex, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, out SpectralSamples weightOut, out float3 nextSampleDirOut)
-{
-    float4 randomSamplesBRDF = rand.getRandom4();
-	
-    PrecalculatedSurfaceData precalculatedSurfData;
-    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), -rayDirObjSpace, triangleHitFrontFace, precalculatedSurfData);
-
-    float samplingProbabilities[LAYER_COUNT];
-    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, samplingProbabilities); 
-    
-	//Next Event Estimation (explicit light connections)
 #ifdef ENABLE_NEE
-    
-    if (g_lightCount > 0 && !isDeltaDistribution(precalculatedSurfData.a2, surfaceDef))
-    {
-        float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+//explicit light connection from posWS. At a subsurface exit point only the exit lobe is evaluated
+void connectToExplicitLight(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfData, in float samplingProbabilities[LAYER_COUNT], in float3 woOS, in float3 posWS, in float3 normalWS, in float3x3 worldToObj, in bool atSubsurfaceExit, inout Payload rayState, inout RandomSampler rand)
+{
+    float4 randomSamplesLight = rand.getRandom4();
+    SpectralSamples emission;
+    float lightSamplePdf;
+    float3 lightSamplePosWS;
+    uint lightInstanceIndex;
+    uint lightPrimIndex;
 
-        float4 randomSamplesLight = rand.getRandom4();
-        SpectralSamples emission;
-        float lightSamplePdf;
-        float3 lightSamplePosWS;
-        uint lightInstanceIndex;
-        uint lightPrimIndex;
-   
-        float3x3 transformNormal = (float3x3)WorldToObject3x4();
-        transformNormal = transpose(transformNormal);
-        float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
-    
-        sampleExplicitLight(currentPosWS, normalWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
-        
-        if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
+    sampleExplicitLight(posWS, normalWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
+
+    if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
+    {
+        float3 toLightWS = lightSamplePosWS - posWS;
+        float toLightWSLen = length(toLightWS);
+        toLightWS /= toLightWSLen;
+
+        float3 toLightDirOS = normalize(mul(worldToObj, toLightWS));
+
+        SpectralSamples weightSumLight = (SpectralSamples) 0.f;
+        float brdfPdf = 0;
+        if (atSubsurfaceExit)
         {
-            float3 toLightWS = lightSamplePosWS - currentPosWS;
-            float toLightWSLen = length(toLightWS);
-            toLightWS /= toLightWSLen; 
-    
-            float3x3 toOSLight = (float3x3)WorldToObject3x4();
-            float3 toLightDirOS = normalize(mul(toOSLight, toLightWS));
-            
-            SpectralSamples weightSumLight = (SpectralSamples) 0.f;
-            float brdfPdf = 0;
+            evaluateSubsurfaceExitLobe(surfaceDef, precalculatedSurfData, woOS, toLightDirOS, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf);
+        }
+        else
+        {
             TransmissionType transmissionTypeLight;
-            evaluateSurface(surfaceDef, -rayDirObjSpace, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeLight);
+            evaluateSurface(surfaceDef, woOS, toLightDirOS, samplingProbabilities, precalculatedSurfData, EVALUATE_FLAGS_NONE, weightSumLight, brdfPdf, transmissionTypeLight);
 
             if ((transmissionTypeLight & TRANSMISSION_TYPE_DISPERSED) != 0 && !rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED))
             {
                 weightSumLight.terminateSecondaryWavelengths();
             }
+        }
 
-            if (!weightSumLight.allSamplesEqual(0))
+        if (!weightSumLight.allSamplesEqual(0))
+        {
+		    float3 rayStart = spawnRayOrigin(posWS, normalWS, toLightWS);
+            if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
             {
-		    	float3 rayStart = spawnRayOrigin(currentPosWS, normalWS, toLightWS);
-                if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
-                {
-                    weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
-                    rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
-                }
+                weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
+                rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
             }
         }
     }
+}
 #endif
+
+//continues the path from a subsurface exit point: light connection (NEE) from the exit and the next direction from the exit lobe.
+//returns the exit lobe weight (already divided by the pdf), rayState.throughput must already contain the subsurface entry weight
+SpectralSamples continueFromSubsurfaceExit(in SubsurfaceExitSample exit, in float samplingProbabilities[LAYER_COUNT], inout Payload rayState, inout RandomSampler rand, out float3 nextRayDirWS, out float3 nextRayOriginWS)
+{
+    SurfacePoint exitPoint = exit.exitPoint;
+    RenderObjectTransformDataGPU exitTransform = getTransformDataForInstance(exitPoint.instanceIndex);
+    float3x3 exitWorldToObj = (float3x3)exitTransform.getWorldToObj();
+    float3x3 exitObjToWorld = (float3x3)exitTransform.getObjToWorld();
+
+    //there is no incoming direction at the exit, treat the outward normal as one so that the surface is set up for the outside
+    float3 woOS = normalize(mul(exitWorldToObj, exitPoint.geometryNormalWS));
+
+    SurfaceDefinitionRGB exitSurfaceRGB;
+    fillSurfaceDefRGB(exitPoint.instanceIndex, exitPoint.primitiveIndex, exitPoint.barycentrics, exitSurfaceRGB);
+    handleTwoSidedMaterialOrientation(exitSurfaceRGB, woOS);
+    if (rayState.hasFlags(RAYSTATE_FLAGS_REGULARIZE_PATH))
+    {
+        regularizeMaterial(exitSurfaceRGB);
+    }
+    SurfaceDefinition exitSurface = convertSurfaceDefinitionFromRGB(exitSurfaceRGB);
+
+    PrecalculatedSurfaceData exitPrecalculatedData;
+    getPrecalculatedSurfaceData(exitSurface, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, exitPoint.frontFace, exitPrecalculatedData);
+
+#ifdef ENABLE_NEE
+    if (g_lightCount > 0)
+    {
+        connectToExplicitLight(exitSurface, exitPrecalculatedData, samplingProbabilities, woOS, exitPoint.positionWS, exitPoint.geometryNormalWS, exitWorldToObj, true, rayState, rand);
+    }
+#endif
+
+    SpectralSamples weight;
+    weight.set(0);
+    float pdf = 0;
+    nextRayDirWS = 0;
+    nextRayOriginWS = exitPoint.positionWS;
+
+    ScatteringEvent ev = sampleScatteringEvent(exitSurface, exitPrecalculatedData, samplingProbabilities, true, woOS, rand.getRandom4(), exitPoint);
+    if (ev.type == SCATTERING_EVENT_SUBSURFACE_EXIT_LOBE)
+    {
+        evaluateSubsurfaceExitLobe(exitSurface, exitPrecalculatedData, woOS, ev.wiOS, EVALUATE_FLAGS_NONE, weight, pdf);
+        if (pdf > 0)
+        {
+            weight = weight / pdf;
+            nextRayDirWS = normalize(mul(exitObjToWorld, ev.wiOS));
+            nextRayOriginWS = spawnRayOrigin(exitPoint.positionWS, exitPoint.geometryNormalWS, nextRayDirWS);
+        }
+    }
+
+    rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
+    rayState.removeFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
+    rayState.pdfThisRay = pdf;
+    return weight;
+}
+
+void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceDef, in uint materialIndex, inout Payload rayState, inout RandomSampler rand, in float3 rayDirObjSpace, in bool triangleHitFrontFace, in float2 barycentrics, out SpectralSamples weightOut, out float3 nextRayDirWS, out float3 nextRayOriginWS)
+{
+    float4 randomSamplesBRDF = rand.getRandom4();
+
+    PrecalculatedSurfaceData precalculatedSurfData;
+    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), -rayDirObjSpace, triangleHitFrontFace, precalculatedSurfData);
+
+    float samplingProbabilities[LAYER_COUNT];
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfData, samplingProbabilities);
+
+    float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    float3x3 worldToObj = (float3x3)WorldToObject3x4();
+    float3 normalWS = normalize(mul(transpose(worldToObj), surfaceDef.geometryNormal));
+
+	//Next Event Estimation (explicit light connections)
+#ifdef ENABLE_NEE
+    if (g_lightCount > 0 && !isDeltaDistribution(precalculatedSurfData.a2, surfaceDef))
+    {
+        connectToExplicitLight(surfaceDef, precalculatedSurfData, samplingProbabilities, -rayDirObjSpace, currentPosWS, normalWS, worldToObj, false, rayState, rand);
+    }
+#endif
+
+    SurfacePoint vertexPoint;
+    vertexPoint.positionWS = currentPosWS;
+    vertexPoint.geometryNormalWS = orientToSameSide(-WorldRayDirection(), normalWS);
+    vertexPoint.instanceIndex = InstanceID();
+    vertexPoint.primitiveIndex = PrimitiveIndex();
+    vertexPoint.barycentrics = barycentrics;
+    vertexPoint.frontFace = triangleHitFrontFace;
+
+    ScatteringEvent ev = sampleScatteringEvent(surfaceDef, precalculatedSurfData, samplingProbabilities, false, -rayDirObjSpace, randomSamplesBRDF, vertexPoint);
+
+    if (ev.type == SCATTERING_EVENT_SUBSURFACE_ENTRY)
+    {
+        //the path continues from the exit point, so its light connection and next direction are handled here, with the entry weight already in the throughput
+        rayState.throughput = rayState.throughput * getSubsurfaceEntryWeight(surfaceDef, precalculatedSurfData, samplingProbabilities, ev.exit);
+        weightOut = continueFromSubsurfaceExit(ev.exit, samplingProbabilities, rayState, rand, nextRayDirWS, nextRayOriginWS);
+        return;
+    }
 
 	//evaluate next sample direction (BRDF)
     SpectralSamples weightSumBRDF;
     weightSumBRDF.set(0);
     float pdfBRDF = 0.f;
-    float pdfLightDir;
-    TransmissionType transmissionType;
-    bool isDiffuseBounce;
-    bool isDeltaDistr;
-    float3 wiObjSpace = getSampleDirectionOS(surfaceDef, precalculatedSurfData, randomSamplesBRDF.x, randomSamplesBRDF.y, randomSamplesBRDF.zw, samplingProbabilities, isDiffuseBounce, isDeltaDistr);
-    if (!isZero(wiObjSpace))
+    TransmissionType transmissionType = TRANSMISSION_TYPE_NONE;
+    bool isDeltaDistr = ev.isDeltaDistribution;
+    float3 wiObjSpace = ev.wiOS;
+    if (ev.type == SCATTERING_EVENT_LOCAL)
     {
         evaluateSurface(surfaceDef, -rayDirObjSpace, wiObjSpace, samplingProbabilities, precalculatedSurfData, isDeltaDistr ? EVALUATE_FLAGS_TREAT_AS_DELTA : EVALUATE_FLAGS_NONE, weightSumBRDF, pdfBRDF, transmissionType);
-        
-        if (isDiffuseBounce)
+
+        if (ev.isDiffuseBounce)
         {
             rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
         }
     }
-	
+
     rayState.pdfThisRay = pdfBRDF;
-    
+
     if (isDeltaDistr)
     {
         rayState.addFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
@@ -210,7 +293,7 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
     {
         rayState.removeFlags(RAYSTATE_FLAGS_SAMPLED_FROM_DELTA_DISTRIBUTION);
     }
-    
+
     if (pdfBRDF > 0.f)
     {
 
@@ -241,15 +324,24 @@ void evaluateSurfaceAndGenerateNextSampleDirection(in SurfaceDefinition surfaceD
 		            rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption, materialIndex);
 		        }
 		    }
-			
-		    
+
+
 		}
 
         weightSumBRDF = weightSumBRDF / pdfBRDF;
     }
     //weightSumBRDF.set(0);
     weightOut = weightSumBRDF;
-    nextSampleDirOut = wiObjSpace;
+
+    nextRayDirWS = 0;
+    nextRayOriginWS = currentPosWS;
+    if (!isZero(wiObjSpace))
+    {
+        float3x3 objToWorldLin = (float3x3)ObjectToWorld3x4();
+        float3 normalWorld = normalize(mul(objToWorldLin, surfaceDef.geometryNormal));
+        nextRayDirWS = normalize(mul(objToWorldLin, wiObjSpace));
+        nextRayOriginWS = spawnRayOrigin(currentPosWS, normalWorld, nextRayDirWS);
+    }
 }
 
 #ifdef WHITE_FURNACE_TEST
@@ -333,7 +425,6 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
 	SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
 	//surface setup done, do the rest
-	float3 nextSampleDirBRDF;
 	float rayDistance = RayTCurrent();
     
     handleRayStartInsideMedium(payload, surfaceDef, materialAndMeshIndices.x, rayDir, geometryNormal);
@@ -381,29 +472,22 @@ void rayHitDefault(inout Payload payload, in BuiltInTriangleIntersectionAttribut
         rand.dimensionOffsetAndSeed = payload.randomDimensionOffsetAndScramble;
         
         SpectralSamples w;
-        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, materialAndMeshIndices.x, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, w, nextSampleDirBRDF);
+        float3 nextSampleDirWS;
+        float3 nextRayOriginWS;
+        evaluateSurfaceAndGenerateNextSampleDirection(surfaceDef, materialAndMeshIndices.x, payload, rand, rayDir, HitKind() == HIT_KIND_TRIANGLE_FRONT_FACE, attr.barycentrics, w, nextSampleDirWS, nextRayOriginWS);
         payload.throughput = payload.throughput * w;
-        
+
         payload.randomDimensionOffsetAndScramble = rand.dimensionOffsetAndSeed;
-        
-        if (isZero(nextSampleDirBRDF) || payload.pdfThisRay == 0.0f)
+
+        if (isZero(nextSampleDirWS) || payload.pdfThisRay == 0.0f)
         {
             payload.rayState = RAY_STATE_CANCELLED;
         }
-    }
-
-	if(payload.rayState == RAY_STATE_ALIVE)
-	{
-		float3x3 objToWorldLin =  (float3x3)ObjectToWorld3x4();
-	
-		float3 normalWorld = mul(objToWorldLin, geometryNormal);
-		normalWorld = normalize(normalWorld);
-
-        nextSampleDirBRDF = mul(objToWorldLin, nextSampleDirBRDF);
-        nextSampleDirBRDF = normalize(nextSampleDirBRDF);
-
-        payload.rayDirection = nextSampleDirBRDF;
-        payload.rayOrigin = spawnRayOrigin(WorldRayOrigin() + WorldRayDirection() * RayTCurrent(), normalWorld, nextSampleDirBRDF);
+        else
+        {
+            payload.rayDirection = nextSampleDirWS;
+            payload.rayOrigin = nextRayOriginWS;
+        }
     }
 }
 

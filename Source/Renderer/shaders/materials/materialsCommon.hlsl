@@ -36,6 +36,9 @@ struct SurfaceDefinitionRGB
 	float3 sheenColor;
 	float sheenRoughness;
 	
+	float3 subsurfaceRadius; //already scaled, world units
+	float subsurfaceAmount;
+	
     float thinFilmThicknessNM;
 	float sheenAmount;
 	float emissionFocus;
@@ -334,6 +337,9 @@ void fetchSurfaceMaterialParameters(in MaterialEntryGPU matEntry, inout SurfaceD
 	surfaceDef.sheenColor = matEntry.sheenColorRoughness.rgb;
 	surfaceDef.sheenRoughness = matEntry.sheenColorRoughness.a;
 	surfaceDef.sheenAmount = matEntry.sheenAmount;
+	
+	surfaceDef.subsurfaceRadius = matEntry.subsurfaceRadiusAmount.xyz;
+	surfaceDef.subsurfaceAmount = matEntry.subsurfaceRadiusAmount.w;
 	
 	surfaceDef.sheenRoughness = max(surfaceDef.sheenRoughness, 0.07f); //minimum sheen roughness is 0.07
     surfaceDef.occlusionSpecDiffPacked = packOcclusion(1.0f, 1.0f);

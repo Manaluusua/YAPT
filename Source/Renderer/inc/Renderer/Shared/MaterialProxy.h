@@ -99,6 +99,15 @@ namespace YAPT
 		virtual void setEnableDispersion(bool val) final;
 		virtual bool getEnableDispersion() const final;
 
+		virtual void setSubsurfaceAmount(float val) final;
+		virtual float getSubsurfaceAmount() const final;
+
+		virtual void setSubsurfaceRadius(const vec3p& v) final;
+		virtual const vec3p& getSubsurfaceRadius() const final;
+
+		virtual void setSubsurfaceRadiusScale(float val) final;
+		virtual float getSubsurfaceRadiusScale() const final;
+
 		virtual void setAlbedoTexture(const TextureParameter& tex) final;
 		virtual void setNormalTexture(const TextureParameter& tex) final;
 		virtual void setORMTexture(const TextureParameter& tex) final;

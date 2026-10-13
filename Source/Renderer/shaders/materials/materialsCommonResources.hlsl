@@ -30,6 +30,8 @@ struct MaterialEntryGPU
 	uint2 ormTexIndexAndScale;
 	uint2 emissiveTexIndexAndScale;
 
+	float4 subsurfaceRadiusAmount; //xyz = radius * scale, w = amount
+
 	float alphaCutoff;
 	uint3 padding;
 };

@@ -268,6 +268,33 @@ namespace YAPT
         return m_material->getEnableDispersion();
     }
 
+    void PyMaterial::setSubsurfaceAmount(float val)
+    {
+        m_material->setSubsurfaceAmount(val);
+    }
+    float PyMaterial::getSubsurfaceAmount() const
+    {
+        return m_material->getSubsurfaceAmount();
+    }
+
+    void PyMaterial::setSubsurfaceRadius(const vec3p& v)
+    {
+        m_material->setSubsurfaceRadius(v);
+    }
+    const vec3p& PyMaterial::getSubsurfaceRadius() const
+    {
+        return m_material->getSubsurfaceRadius();
+    }
+
+    void PyMaterial::setSubsurfaceRadiusScale(float val)
+    {
+        m_material->setSubsurfaceRadiusScale(val);
+    }
+    float PyMaterial::getSubsurfaceRadiusScale() const
+    {
+        return m_material->getSubsurfaceRadiusScale();
+    }
+
     void PyMaterial::setAlbedoTexture(const PyTexture& tex, const vec2p& scale)
     {
         Material::TextureParameter texParam;
@@ -352,6 +379,12 @@ namespace YAPT
             .def("getCauchysCoefficients", &PyMaterial::getCauchysCoefficients)
             .def("setEnableDispersion", &PyMaterial::setEnableDispersion)
             .def("getEnableDispersion", &PyMaterial::getEnableDispersion)
+            .def("setSubsurfaceAmount", &PyMaterial::setSubsurfaceAmount)
+            .def("getSubsurfaceAmount", &PyMaterial::getSubsurfaceAmount)
+            .def("setSubsurfaceRadius", &PyMaterial::setSubsurfaceRadius)
+            .def("getSubsurfaceRadius", &PyMaterial::getSubsurfaceRadius, pybind11::return_value_policy::reference_internal)
+            .def("setSubsurfaceRadiusScale", &PyMaterial::setSubsurfaceRadiusScale)
+            .def("getSubsurfaceRadiusScale", &PyMaterial::getSubsurfaceRadiusScale)
             .def("setAlbedoTexture", &PyMaterial::setAlbedoTexture)
             .def("setNormalTexture", &PyMaterial::setNormalTexture)
             .def("setORMTexture", &PyMaterial::setORMTexture)

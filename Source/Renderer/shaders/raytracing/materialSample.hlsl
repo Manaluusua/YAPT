@@ -10,9 +10,11 @@
 #define LAYERIND_SPEC_CONDUCTOR 2
 #define LAYERIND_SPEC_DIELECTRIC 3
 #define LAYERIND_DIFFUSE_REFL 4
+//subsurface is not a local (wo, wi) lobe: it is only selected through sampleScatteringEvent and never contributes to evaluateSurface
+#define LAYERIND_SUBSURFACE 5
 
 
-#define LAYER_COUNT (LAYERIND_DIFFUSE_REFL + 1)
+#define LAYER_COUNT (LAYERIND_SUBSURFACE + 1)
 
 //Pulls the shading normals away from glancing angles so the sampled direction is less likely to disagree with the geometry normal.
 //KEEP THIS OFF: it breaks the white furnace test, transmissive materials lose noticeable energy and the loss grows with roughness.
@@ -76,6 +78,7 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
     bool comingFromInside = woBase.y < 0;
     float fromInsideMultiplier = comingFromInside ? 0.f : 1.f;
     float dielAmount = 1.f - surfaceDef.metalness;
+    float opaqueDielAmount = dielAmount * (1.f - surfaceDef.transparency);
 	
 	//explicit TIR handling (enable if Fresnel doesn't take TIR into account)
 	/*float3 wi = refract(-woBase, wm, fromIOR/toIOR);
@@ -92,7 +95,8 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_COATING_SHEEN, surfaceDef.sheenAmount * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_CONDUCTOR, surfaceDef.metalness * fromInsideMultiplier);
 	MAT_SAMPLING_ADD_LAYER(LAYERIND_SPEC_DIELECTRIC, dielAmount * (surfaceDef.specularAmount + surfaceDef.transparency));
-	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, dielAmount * (1.f - surfaceDef.transparency) * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_DIFFUSE_REFL, opaqueDielAmount * (1.f - surfaceDef.subsurfaceAmount) * fromInsideMultiplier);
+	MAT_SAMPLING_ADD_LAYER(LAYERIND_SUBSURFACE, opaqueDielAmount * surfaceDef.subsurfaceAmount * fromInsideMultiplier);
 
     sampleSum = max(0.000001f, sampleSum);
 	
@@ -109,10 +113,25 @@ void calculateNormalizedMaterialLayerSamplingProbabilities(in SurfaceDefinition 
 }
 
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
-{	
+uint selectMaterialLayer(in float randMaterialType, in float samplingProbabilities[LAYER_COUNT])
+{
 	float materialTypeRand = max(0, randMaterialType + 0.00001f);
 	
+	uint sampleLayer;
+	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
+	{
+		if(materialTypeRand < samplingProbabilities[sampleLayer] && samplingProbabilities[sampleLayer] > 0)
+		{
+			break;
+		}
+		materialTypeRand -= samplingProbabilities[sampleLayer];
+	}
+	return sampleLayer;
+}
+
+//samples a direction from the selected local layer. LAYERIND_SUBSURFACE (or no layer) returns a zero direction
+float3 getSampleDirectionOSForLayer(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in uint sampleLayer, in float randbsdfSelect, in float2 randSampleBrdf, out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
+{	
 	float3 wi = 0;
 	float allowTransmitted = surfaceDef.transparency > 0;
 	
@@ -124,16 +143,6 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
     bool exiting = preCalcData.exiting;
     bool isDiffuseBounce = false;
     bool isDeltaDistribution = false;
-    
-	uint sampleLayer;
-	for(sampleLayer = 0; sampleLayer < LAYER_COUNT; ++sampleLayer)
-	{
-		if(materialTypeRand < samplingProbabilities[sampleLayer] && samplingProbabilities[sampleLayer] > 0)
-		{
-			break;
-		}
-		materialTypeRand -= samplingProbabilities[sampleLayer];
-	}
 	
 	if(sampleLayer == LAYERIND_COATING_GGX)
 	{
@@ -229,6 +238,12 @@ float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSur
     isDeltaDistributionOut = isDeltaDistribution;
     
 	return wi;
+}
+
+float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
+{
+	uint sampleLayer = selectMaterialLayer(randMaterialType, samplingProbabilities);
+	return getSampleDirectionOSForLayer(surfaceDef, preCalcData, sampleLayer, randbsdfSelect, randSampleBrdf, isDiffuseBounceOut, isDeltaDistributionOut);
 }
 
 float compensateForShadingNormal(float absDotWoShading, float absDotWiShading, float absDotWoGeometry, float absDotWiGeometry)
@@ -452,7 +467,8 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 
 	//bottom layer (diffuse and transmittance)
 	{
-        float diffuseAmount = (1.f - surfaceDef.transparency) * dielAmount;
+        //the subsurface share of the diffuse layer is handled by the subsurface event, not here
+        float diffuseAmount = (1.f - surfaceDef.transparency) * dielAmount * (1.f - surfaceDef.subsurfaceAmount);
         if (diffuseAmount > 0 && !treatAsDelta)
         {
             DiffuseLayer diff = DiffuseLayer::init(surfaceDef.albedo, a2);
