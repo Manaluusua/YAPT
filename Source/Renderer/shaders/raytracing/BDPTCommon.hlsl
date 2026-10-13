@@ -458,16 +458,12 @@ SubsurfaceEdge makeSubsurfaceEdge(float3 exitPosWS, float3 exitNormalWS, float3 
     return edge;
 }
 
-//evaluation at a subsurface exit vertex, where only the exit lobe applies. dirs.woOS is the outward direction at the exit.
-//pdfBackward is the density of the reverse direction reaching the entry point: arriving from wi, taking the subsurface event here and exiting at the entry point.
-//it goes over the subsurface edge, so it is already an area density
 ScatteringEvaluation evaluateSubsurfaceExitAndPDFs(in SurfaceSamplingContext surface, in BDPTRayState rayState, in ScatteringDirections dirs, in SubsurfaceEdge edge)
 {
     ScatteringEvaluation result;
     result.dispersed = false;
     evaluateSubsurfaceExitLobe(surface.surfaceDef, surface.precalculatedSurfaceData, dirs.woOS, dirs.wiOS, dirs.isFromLightSource ? EVALUATE_FLAGS_LIGHT_PATH : EVALUATE_FLAGS_NONE, result.weight, result.pdfForward);
 
-    //wi is on the same side as wo, so the hit side doesn't change
     SurfaceSamplingContext reverseSurface = makeSurfaceSamplingContext(surface.surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), dirs.wiOS, dirs.triangleHitFrontFace);
     result.pdfBackward = reverseSurface.samplingProbabilities[LAYERIND_SUBSURFACE] * pdfSubsurfaceExit(surface.surfaceDef, edge.exitPosWS, edge.exitNormalWS, edge.entryPosWS, edge.entryNormalWS);
     return result;
@@ -534,9 +530,7 @@ SurfacePoint makeSurfacePoint(PathHit hit, float3 geometryNormalWS)
     return p;
 }
 
-//thin lens camera: directional pdf1/(A*cos^3) is independent of aperture and focus distance (density on focus plane converted to solid angle at the lens point),
-//so camToNodeWS must be the direction from the sampled lens point, not from the camera center.
-//lens position pdf is the same uniform disk pdf for camera paths and pure light paths so it cancels in MIS and is omitted
+
 float calculateCameraDirectionalPDF(float3 camToNodeWS)
 {
 	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));
@@ -549,11 +543,11 @@ float calculateCameraDirectionalPDF(float3 camToNodeWS)
 
 	float3 camToNodeVS = mul(g_worldToViewTransform, float4(camToNodeWS, 0)).xyz;
 	float cosTheta = abs(camToNodeVS.z) * rsqrt(max(0.0001f, dot(camToNodeVS, camToNodeVS)));
-
-	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+    //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  
 }
 
-//pdf ratio sum can overflow to inf when ratios become too big, which will become NaN when multiplied with 0, guard against that case here
+
 #define MAX_PDF_RATIO_SUM 1e16f
 
 float calculatePDFRatio(float nom, float denom)
@@ -563,8 +557,6 @@ float calculatePDFRatio(float nom, float denom)
     return min(safeDiv(nom, denom), MAX_PDF_RATIO_SUM);
 }
 
-//connectable is false when the vertex the ratio belongs to was reached through a subsurface edge: the strategy that would connect over that edge
-//doesn't exist, but the ratio still carries over to the strategies further along
 float accumulateRISum(float riSum, float nom, float denom, bool connectable)
 {
     float ri = calculatePDFRatio(nom, denom);

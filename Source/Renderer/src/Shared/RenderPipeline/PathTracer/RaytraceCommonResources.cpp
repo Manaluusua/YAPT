@@ -73,7 +73,7 @@ namespace YAPT
 
 		uint32_t flags = 0;
 
-		rtConstants->maxRayDepth = 16;
+		rtConstants->maxRayDepth = 32;
 
 		{
 			CRendererConfiguration& config = m_renderer->getConcreteRendererConfiguration();
