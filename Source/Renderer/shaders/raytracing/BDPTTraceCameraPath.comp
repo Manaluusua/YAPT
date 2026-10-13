@@ -190,17 +190,17 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 				fillSurfaceDefRGB(instId, primIndex, bary, surfaceDefRGB);
 
 				writeMaterialParamsForFirstBounce(sourceTextureIndices.xy, surfaceDefRGB, transformNormal, calculateViewDepth(camVertexContext.posWS), g_MaterialParamsOutput0, g_MaterialParamsOutput1);
-				calculateCommonSurfaceParams(rayState, materialIndex, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+				camVertexContext.surface = calculateCommonSurfaceParams(rayState, materialIndex, surfaceDefRGB, camVertexContext.woOS, camVertexContext.triangleHitFrontFace);
 			}
 			else
 			{
-				calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace, camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities);
+				camVertexContext.surface = calculateCommonSurfaceParams(rayState, instId, primIndex, bary, camVertexContext.woOS, camVertexContext.triangleHitFrontFace);
 			}
 
-            camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surfaceDef.geometryNormal));
+            camVertexContext.normalWS = normalize(mul(transformNormal, camVertexContext.surface.surfaceDef.geometryNormal));
 
 			//a subsurface exit only has the exit lobe
-			bool deltaDistr = !hit.isSubsurfaceExit && isDeltaDistribution(camVertexContext.precalculatedSurfaceData.a2, camVertexContext.surfaceDef);
+			bool deltaDistr = !hit.isSubsurfaceExit && isDeltaDistribution(camVertexContext.surface.precalculatedSurfaceData.a2, camVertexContext.surface.surfaceDef);
 			if(hit.isSubsurfaceExit)
 			{
 				//the subsurface edge pdf is already an area density
@@ -218,16 +218,16 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			}
 
 			//emission was already accounted for at the entry point
-            if (!hit.isSubsurfaceExit && !camVertexContext.surfaceDef.emissive.allSamplesEqual(0))
+            if (!hit.isSubsurfaceExit && !camVertexContext.surface.surfaceDef.emissive.allSamplesEqual(0))
             {
                 float misWeight = calculateMISWeightOnCameraPathHittingLight(camVertexIndex, instId, primIndex, bary, camVertexContext);
 				if(shouldPathContribute(camVertexIndex + 1, 0))
 				{
-					bool twoSided = isSurfaceTwoSided(camVertexContext.surfaceDef.flags);
-					if(twoSided || dot(camVertexContext.surfaceDef.geometryNormal, camVertexContext.woOS) > 0)
+					bool twoSided = isSurfaceTwoSided(camVertexContext.surface.surfaceDef.flags);
+					if(twoSided || dot(camVertexContext.surface.surfaceDef.geometryNormal, camVertexContext.woOS) > 0)
 					{
-						float emissionProfile = evaluateEmissionProfile(dot(camVertexContext.normalWS, -rayDir), camVertexContext.surfaceDef.emissionFocus);
-						totalLight = totalLight + camVertexContext.throughput * camVertexContext.surfaceDef.emissive * misWeight * emissionProfile;
+						float emissionProfile = evaluateEmissionProfile(dot(camVertexContext.normalWS, -rayDir), camVertexContext.surface.surfaceDef.emissionFocus);
+						totalLight = totalLight + camVertexContext.throughput * camVertexContext.surface.surfaceDef.emissive * misWeight * emissionProfile;
 					}
 					++pathCount;
 				}
@@ -283,7 +283,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			}
 
 			SurfacePoint vertexPoint = makeSurfacePoint(hit, camVertexContext.normalWS);
-			ScatteringEvent scatterEvent = sampleScatteringEvent(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, hit.isSubsurfaceExit, camVertexContext.woOS, randomSamples0, vertexPoint);
+			ScatteringEvent scatterEvent = sampleScatteringEvent(camVertexContext.surface, vertexPoint, camVertexContext.woOS, hit.isSubsurfaceExit, randomSamples0);
 
             if (scatterEvent.type == SCATTERING_EVENT_NONE)
             {
@@ -296,31 +296,27 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			}
 
 			bool sampledDeltaDir = scatterEvent.isDeltaDistribution;
-            SpectralSamples sampleWeight; //weight divided by the pdf
-            float pdfForward;
-            float pdfBackward;
+			ScatteringDirections dirs = makeScatteringDirections(camVertexContext.woOS, scatterEvent.wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir);
+			ScatteringEvaluation eval;
             bool pdfBackwardIsAreaDensity = false;
-            bool dispersed = false;
 			if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_ENTRY)
 			{
 				//pdfForward is an area density, it is used as is by the exit vertex
-				sampleWeight = getSubsurfaceEntryWeight(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, scatterEvent.exit);
-				calculateSubsurfaceEntryPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, camVertexContext.woOS, scatterEvent.exit, pdfForward, pdfBackward);
+				eval = evaluateSubsurfaceEntry(camVertexContext.surface, camVertexContext.woOS, scatterEvent.exit);
 			}
 			else if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_EXIT_LOBE)
 			{
-				SpectralSamples w;
-				evaluateSubsurfaceExitAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, rayState, camVertexContext.woOS, scatterEvent.wiOS, camVertexContext.triangleHitFrontFace,
-					camVertexContext.posWS, camVertexContext.normalWS, camVertexContext.prevNodePosWS, camVertexContext.prevNodeNormalWS, false, w, pdfForward, pdfBackward);
-				sampleWeight = w * safeDiv(1.f, pdfForward);
+				eval = evaluateSubsurfaceExitAndPDFs(camVertexContext.surface, rayState, dirs, makeSubsurfaceEdge(camVertexContext.posWS, camVertexContext.normalWS, camVertexContext.prevNodePosWS, camVertexContext.prevNodeNormalWS));
 				pdfBackwardIsAreaDensity = true;
 			}
 			else
 			{
-				SpectralSamples w;
-				evaluateSurfaceAndPDFs(camVertexContext.surfaceDef, camVertexContext.precalculatedSurfaceData, camVertexContext.samplingProbabilities, rayState, materialIndex, camVertexContext.woOS, scatterEvent.wiOS, camVertexContext.triangleHitFrontFace, false, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
-				sampleWeight = w * safeDiv(1.f, pdfForward);
+				eval = evaluateSurfaceAndPDFs(camVertexContext.surface, rayState, materialIndex, dirs);
 			}
+            float pdfForward = eval.pdfForward;
+            float pdfBackward = eval.pdfBackward;
+            bool dispersed = eval.dispersed;
+            SpectralSamples sampleWeight = eval.weight * safeDiv(1.f, pdfForward);
 
 			/*if(pdfForward == 0)
 			{

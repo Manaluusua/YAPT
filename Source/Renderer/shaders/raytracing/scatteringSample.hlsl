@@ -18,15 +18,23 @@ struct ScatteringEvent
 	bool isDeltaDistribution;
 };
 
+struct ScatteringEvaluation
+{
+	SpectralSamples weight;
+	float pdfForward;
+	float pdfBackward;
+	bool dispersed;
+};
 
-ScatteringEvent sampleScatteringEvent(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float samplingProbabilities[LAYER_COUNT], in bool atSubsurfaceExit, in float3 woOS, in float4 rand, in SurfacePoint vertexPoint)
+
+ScatteringEvent sampleScatteringEvent(in SurfaceSamplingContext surface, in SurfacePoint vertexPoint, in float3 woOS, in bool atSubsurfaceExit, in float4 rand)
 {
 	ScatteringEvent ev = (ScatteringEvent)0;
 	ev.type = SCATTERING_EVENT_NONE;
 
 	if (atSubsurfaceExit)
 	{
-		ev.wiOS = sampleSubsurfaceExitLobe(surfaceDef, preCalcData, woOS, rand.zw);
+		ev.wiOS = sampleSubsurfaceExitLobe(surface.surfaceDef, surface.precalculatedSurfaceData, woOS, rand.zw);
 		ev.isDiffuseBounce = true;
 		ev.isDeltaDistribution = false;
 		if (!isZero(ev.wiOS))
@@ -36,19 +44,19 @@ ScatteringEvent sampleScatteringEvent(in SurfaceDefinition surfaceDef, in Precal
 		return ev;
 	}
 
-	uint layer = selectMaterialLayer(rand.x, samplingProbabilities);
+	uint layer = selectMaterialLayer(rand.x, surface.samplingProbabilities);
 	if (layer == LAYERIND_SUBSURFACE)
 	{
 		ev.isDiffuseBounce = true;
 		ev.isDeltaDistribution = false;
-		if (sampleSubsurfaceExit(surfaceDef, vertexPoint, rand.yzw, ev.exit))
+		if (sampleSubsurfaceExit(surface.surfaceDef, vertexPoint, rand.yzw, ev.exit))
 		{
 			ev.type = SCATTERING_EVENT_SUBSURFACE_ENTRY;
 		}
 		return ev;
 	}
 
-	ev.wiOS = getSampleDirectionOSForLayer(surfaceDef, preCalcData, layer, rand.y, rand.zw, ev.isDiffuseBounce, ev.isDeltaDistribution);
+	ev.wiOS = getSampleDirectionOSForLayer(surface, layer, rand.y, rand.zw, ev.isDiffuseBounce, ev.isDeltaDistribution);
 	if (!isZero(ev.wiOS))
 	{
 		ev.type = SCATTERING_EVENT_LOCAL;
@@ -56,10 +64,17 @@ ScatteringEvent sampleScatteringEvent(in SurfaceDefinition surfaceDef, in Precal
 	return ev;
 }
 
-SpectralSamples getSubsurfaceEntryWeight(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float samplingProbabilities[LAYER_COUNT], in SubsurfaceExitSample exit)
+//pdfForward is an area density over the subsurface edge, pdfBackward the exit lobe density of wo (the reverse path would leave here)
+ScatteringEvaluation evaluateSubsurfaceEntry(in SurfaceSamplingContext surface, in float3 woOS, in SubsurfaceExitSample exit)
 {
-	float entryFactor = getSubsurfaceEntryFactor(surfaceDef, preCalcData);
-	return exit.weight * safeDiv(entryFactor, samplingProbabilities[LAYERIND_SUBSURFACE]);
+	ScatteringEvaluation eval;
+	eval.weight = exit.weight * (getSubsurfaceEntryFactor(surface.surfaceDef, surface.precalculatedSurfaceData) * exit.pdfPosition);
+	eval.pdfForward = surface.samplingProbabilities[LAYERIND_SUBSURFACE] * exit.pdfPosition;
+	eval.dispersed = false;
+
+	SpectralSamples weightDummy;
+	evaluateSubsurfaceExitLobe(surface.surfaceDef, surface.precalculatedSurfaceData, woOS, woOS, EVALUATE_FLAGS_PDF_ONLY, weightDummy, eval.pdfBackward);
+	return eval;
 }
 
 #endif

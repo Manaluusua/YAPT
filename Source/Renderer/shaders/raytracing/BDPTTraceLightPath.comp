@@ -35,15 +35,16 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	{
 		float4 randomSamples0 = rand.getRandom4();
 		float4 randomSamples1 = rand.getRandom4();
-		bool sampledEnvironment;
-		float3 lightNormal;
-		float lightSamplePDF;
-		float lightPosPDF;
-		float lightDirPDF;
-		uint InstanceID;
-		uint primitiveIndex;
-		float emissionProfileWeight;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex, emissionProfileWeight);
+		LightOrEnvSample lightSample = sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight);
+		radiance = lightSample.sample.radiance;
+		lightPos = lightSample.sample.positionWS;
+		lightDir = lightSample.sample.directionWS;
+		float3 lightNormal = lightSample.sample.normalWS;
+		float lightPosPDF = lightSample.sample.pdfPos;
+		float lightDirPDF = lightSample.sample.pdfDir;
+		float lightSamplePDF = lightSample.pdfLightSelection;
+		bool sampledEnvironment = lightSample.sampledEnvironment;
+		float emissionProfileWeight = lightSample.sample.emissionProfileWeight;
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
@@ -52,8 +53,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		maxRadiance = radiance.getMaxSampleValue();
 
-		nodes[0].instanceIndex = InstanceID;
-		nodes[0].primitiveIndex = primitiveIndex;
+		nodes[0].instanceIndex = lightSample.sample.instanceIndex;
+		nodes[0].primitiveIndex = lightSample.sample.primitiveIndex;
 		nodes[0].barycentrics = -1;
 		nodes[0].normalWS = lightNormal;
 		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
@@ -139,10 +140,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
 			}
 
-            SurfaceDefinition surfaceDef;
-            PrecalculatedSurfaceData precalculatedSurfaceData;
-            float samplingProbabilities[LAYER_COUNT];
-            bool triangleHitFrontFace = hit.frontFace;
+bool triangleHitFrontFace = hit.frontFace;
             float3 woOS = hit.woOS;
             uint instId = hit.instanceIndex;
             uint primIndex = hit.primitiveIndex;
@@ -157,9 +155,9 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			lightNodeFlags |= hit.isSubsurfaceExit ? LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT : 0;
 
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+            SurfaceSamplingContext surface = calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace);
 			//a subsurface exit only has the exit lobe
-			bool deltaDistr = !hit.isSubsurfaceExit && isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
+			bool deltaDistr = !hit.isSubsurfaceExit && isDeltaDistribution(surface.precalculatedSurfaceData.a2, surface.surfaceDef);
 			if(deltaDistr)
 			{
                 lightNodeFlags |= LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION;
@@ -169,7 +167,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
             float3x3 transformNormal = (float3x3)hit.worldToObject;
             transformNormal = transpose(transformNormal);
 
-            float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
+            float3 normalWS = normalize(mul(transformNormal, surface.surfaceDef.geometryNormal));
 			if(hit.isSubsurfaceExit)
 			{
 				//exit nodes store the outward normal, connections use it to set up the surface for the outside
@@ -209,7 +207,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].flags = lightNodeFlags;
 
 			SurfacePoint vertexPoint = makeSurfacePoint(hit, normalWS);
-			ScatteringEvent scatterEvent = sampleScatteringEvent(surfaceDef, precalculatedSurfaceData, samplingProbabilities, hit.isSubsurfaceExit, woOS, randomSamples0, vertexPoint);
+			ScatteringEvent scatterEvent = sampleScatteringEvent(surface, vertexPoint, woOS, hit.isSubsurfaceExit, randomSamples0);
             if (scatterEvent.type == SCATTERING_EVENT_NONE)
             {
                 break;
@@ -223,30 +221,27 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			}
 
 			bool sampledDeltaDir = scatterEvent.isDeltaDistribution;
-            SpectralSamples sampleWeight; //weight divided by the pdf
-            float pdfBackward;
+			ScatteringDirections dirs = makeScatteringDirections(woOS, scatterEvent.wiOS, triangleHitFrontFace, true, sampledDeltaDir);
+			ScatteringEvaluation eval;
             bool pdfBackwardIsAreaDensity = false;
-            bool dispersed = false;
 			if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_ENTRY)
 			{
 				//pdfForward is an area density, it is used as is by the exit vertex
-				sampleWeight = getSubsurfaceEntryWeight(surfaceDef, precalculatedSurfaceData, samplingProbabilities, scatterEvent.exit);
-				calculateSubsurfaceEntryPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, woOS, scatterEvent.exit, pdfForward, pdfBackward);
+				eval = evaluateSubsurfaceEntry(surface, woOS, scatterEvent.exit);
 			}
 			else if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_EXIT_LOBE)
 			{
-				SpectralSamples w;
-				evaluateSubsurfaceExitAndPDFs(surfaceDef, precalculatedSurfaceData, rayState, woOS, scatterEvent.wiOS, triangleHitFrontFace,
-					posWS, normalWS, nodes[previousNodeIndex].positionWS, nodes[previousNodeIndex].normalWS, true, w, pdfForward, pdfBackward);
-				sampleWeight = w * safeDiv(1.f, pdfForward);
+				eval = evaluateSubsurfaceExitAndPDFs(surface, rayState, dirs, makeSubsurfaceEdge(posWS, normalWS, nodes[previousNodeIndex].positionWS, nodes[previousNodeIndex].normalWS));
 				pdfBackwardIsAreaDensity = true;
 			}
 			else
 			{
-				SpectralSamples w;
-	            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, materialIndex, woOS, scatterEvent.wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
-				sampleWeight = w * safeDiv(1.f, pdfForward);
+				eval = evaluateSurfaceAndPDFs(surface, rayState, materialIndex, dirs);
 			}
+            pdfForward = eval.pdfForward;
+            float pdfBackward = eval.pdfBackward;
+            bool dispersed = eval.dispersed;
+            SpectralSamples sampleWeight = eval.weight * safeDiv(1.f, pdfForward);
 
 			/*if(pdfBackward == 0)
 			{

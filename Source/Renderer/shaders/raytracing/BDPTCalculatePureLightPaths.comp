@@ -51,10 +51,10 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 		return;
 	}
 
-	SpectralSamples s;
+	ScatteringEvaluation eval;
 	float pdfForwardMISUnused;
 	//connecting straight to the camera, so there is no camera subpath state, only what the light node itself carries
-	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, prevNormal, camPos, false,pdfForwardOut, pdfBackwardOut, s, pdfForwardMISUnused))
+	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, prevNormal, camPos, false, eval, pdfForwardMISUnused))
 	{
 		radianceOut = 0;
 		pdfForwardOut = 0;
@@ -62,7 +62,9 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 		return;
 	}
 
-	radianceOut = s.toFloat4();
+	radianceOut = eval.weight.toFloat4();
+	pdfForwardOut = eval.pdfForward;
+	pdfBackwardOut = eval.pdfBackward;
 }
 	
 bool checkVisibility(float3 from, float3 to)

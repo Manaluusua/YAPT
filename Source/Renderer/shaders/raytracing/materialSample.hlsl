@@ -61,6 +61,20 @@ typedef uint TransmissionType;
 #define EVALUATE_FLAGS_TREAT_AS_DELTA (1 << 3)
 #define EVALUATE_FLAGS_DONT_PROJECT_SOLID_ANGLE (1 << 4)
 
+struct SurfaceSamplingContext
+{
+    SurfaceDefinition surfaceDef;
+    PrecalculatedSurfaceData precalculatedSurfaceData;
+    float samplingProbabilities[LAYER_COUNT];
+};
+
+struct SurfaceEvaluation
+{
+    SpectralSamples weight;
+    float pdf;
+    TransmissionType transmissionType;
+};
+
 bool isConsideredDiffuseGGX(float2 roughness)
 {
     return min(roughness.x, roughness.y) > 0.05f;
@@ -130,8 +144,10 @@ uint selectMaterialLayer(in float randMaterialType, in float samplingProbabiliti
 }
 
 //samples a direction from the selected local layer. LAYERIND_SUBSURFACE (or no layer) returns a zero direction
-float3 getSampleDirectionOSForLayer(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in uint sampleLayer, in float randbsdfSelect, in float2 randSampleBrdf, out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
-{	
+float3 getSampleDirectionOSForLayer(in SurfaceSamplingContext surface, in uint sampleLayer, in float randbsdfSelect, in float2 randSampleBrdf, out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
+{
+	SurfaceDefinition surfaceDef = surface.surfaceDef;
+	PrecalculatedSurfaceData preCalcData = surface.precalculatedSurfaceData;
 	float3 wi = 0;
 	float allowTransmitted = surfaceDef.transparency > 0;
 	
@@ -240,20 +256,18 @@ float3 getSampleDirectionOSForLayer(in SurfaceDefinition surfaceDef, in Precalcu
 	return wi;
 }
 
-float3 getSampleDirectionOS(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData preCalcData, in float randMaterialType, in float randbsdfSelect,in float2 randSampleBrdf, in float samplingProbabilities[LAYER_COUNT], out bool isDiffuseBounceOut, out bool isDeltaDistributionOut)
-{
-	uint sampleLayer = selectMaterialLayer(randMaterialType, samplingProbabilities);
-	return getSampleDirectionOSForLayer(surfaceDef, preCalcData, sampleLayer, randbsdfSelect, randSampleBrdf, isDiffuseBounceOut, isDeltaDistributionOut);
-}
-
 float compensateForShadingNormal(float absDotWoShading, float absDotWiShading, float absDotWoGeometry, float absDotWiGeometry)
 {
     return (absDotWoShading * absDotWiGeometry) / (absDotWoGeometry * absDotWiShading);
 }
 
-void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in float3 wiObjSpace, in float samplingProbabilities[LAYER_COUNT], in PrecalculatedSurfaceData precalculatedSurfData, in uint evaluateFlags, out SpectralSamples weightOut, out float pdfOut, out TransmissionType transmissionTypeOut)
+SurfaceEvaluation evaluateSurface(in SurfaceSamplingContext surface, in float3 woObjSpace, in float3 wiObjSpace, in uint evaluateFlags)
 {
-	float2 a2 = precalculatedSurfData.a2;
+	SurfaceDefinition surfaceDef = surface.surfaceDef;
+	PrecalculatedSurfaceData precalculatedSurfData = surface.precalculatedSurfaceData;
+	SurfaceEvaluation result;
+
+float2 a2 = precalculatedSurfData.a2;
     float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
 
 	float3 woCoating = precalculatedSurfData.woCoating;
@@ -276,7 +290,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
 	wiCoating = normalize(wiCoating);
 	wiBase = normalize(wiBase);
 
-    transmissionTypeOut = TRANSMISSION_TYPE_NONE;
+    result.transmissionType = TRANSMISSION_TYPE_NONE;
     
     bool onlyPDF = (evaluateFlags &  EVALUATE_FLAGS_PDF_ONLY) != 0;
     bool lightPath = (evaluateFlags & EVALUATE_FLAGS_LIGHT_PATH) != 0;
@@ -337,7 +351,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     }
                     if(isDeltaGGX(a2CC) == treatAsDelta)
                     {
-                        pdfSum += samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
+                        pdfSum += surface.samplingProbabilities[LAYERIND_COATING_GGX] * pdf;
                     }
                     
                 }
@@ -360,7 +374,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                         weightSum = weightSum + evaluateLayer(sheen, woBase, wiBase, surfaceDef.sheenAmount * energyLeft) * shadingNormalCompensationMultiplierBase * specOcclusion;
                         
                     }
-                    pdfSum += samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
+                    pdfSum += surface.samplingProbabilities[LAYERIND_COATING_SHEEN] * pdf;
                 }
             }
             
@@ -402,7 +416,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     }
                     if (isDeltaGGX(a2) == treatAsDelta)
                     {
-                        pdfSum += samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
+                        pdfSum += surface.samplingProbabilities[LAYERIND_SPEC_CONDUCTOR] * pdf;
                     }
                     
                 }
@@ -453,7 +467,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     
                     if (isDeltaGGX(a2) == treatAsDelta)
                     {
-                        pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
+                        pdfSum += surface.samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
                     }
                     
                 }
@@ -482,7 +496,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                     weightSum = weightSum + evaluateLayer(diff, woBase, wiBase, diffuseAmount * energyLeft) * shadingNormalCompensationMultiplierBase * diffOcclusion;
                     energyLeftFromLayer *= diff.getEnergyLeftAfterLayer(woBase, wiBase, diffuseAmount);
                 }
-                pdfSum += samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf;
+                pdfSum += surface.samplingProbabilities[LAYERIND_DIFFUSE_REFL] * pdf;
             }
 
         }
@@ -500,7 +514,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                 {
                     toIOR = getRefractiveIndexForWavelength(surfaceDef.cauchysCoeffs, getHeroSpectralLambda());
                 }
-                transmissionTypeOut |= TRANSMISSION_TYPE_DISPERSED;
+                result.transmissionType |= TRANSMISSION_TYPE_DISPERSED;
             }
         
             float etaR = toIOR / fromIOR;
@@ -508,7 +522,7 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
             float pdf = specLayer.pdf(woBase, wiBase);
             if (pdf > 0 )
             {
-                pdfSum += samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
+                pdfSum += surface.samplingProbabilities[LAYERIND_SPEC_DIELECTRIC] * pdf;
 
                 bool twoSided = isSurfaceTwoSided(surfaceDef.flags);
                 bool wasTransmitted = !twoSided;
@@ -524,12 +538,12 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
                         solidAngleCompression *= sqr(1.f / etaR);
                     }
 				    
-                    transmissionTypeOut |= exiting ? TRANSMISSION_TYPE_EXITED : TRANSMISSION_TYPE_ENTERED;
+                    result.transmissionType |= exiting ? TRANSMISSION_TYPE_EXITED : TRANSMISSION_TYPE_ENTERED;
 
                 }
                 else if (twoSided)
                 {
-                    transmissionTypeOut |= TRANSMISSION_TYPE_ENTERED | TRANSMISSION_TYPE_EXITED;
+                    result.transmissionType |= TRANSMISSION_TYPE_ENTERED | TRANSMISSION_TYPE_EXITED;
 
                 }
 
@@ -542,8 +556,9 @@ void evaluateSurface(in SurfaceDefinition surfaceDef, in float3 woObjSpace, in f
         }
     }
     
-	pdfOut = pdfSum;
-	weightOut = weightSum;
+	result.pdf = pdfSum;
+	result.weight = weightSum;
+	return result;
 }
 
 void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace, out PrecalculatedSurfaceData surfaceDataOut)
@@ -584,6 +599,15 @@ void getPrecalculatedSurfaceData(in SurfaceDefinition surfaceDef, in float curre
     surfaceDataOut.woCoating = woCoating;
 
 
+}
+
+SurfaceSamplingContext makeSurfaceSamplingContext(in SurfaceDefinition surfaceDef, in float currentIOR, in float previousIOR, in float3 woObjSpace, in bool triangleHitFrontFace)
+{
+    SurfaceSamplingContext surface;
+    surface.surfaceDef = surfaceDef;
+    getPrecalculatedSurfaceData(surfaceDef, currentIOR, previousIOR, woObjSpace, triangleHitFrontFace, surface.precalculatedSurfaceData);
+    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, surface.precalculatedSurfaceData, surface.samplingProbabilities);
+    return surface;
 }
 
 
