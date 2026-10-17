@@ -267,7 +267,7 @@ SurfaceEvaluation evaluateSurface(in SurfaceSamplingContext surface, in float3 w
 	PrecalculatedSurfaceData precalculatedSurfData = surface.precalculatedSurfaceData;
 	SurfaceEvaluation result;
 
-float2 a2 = precalculatedSurfData.a2;
+    float2 a2 = precalculatedSurfData.a2;
     float2 a2CC = calculateRoughnessParams(surfaceDef.clearCoatRoughness, 0.f);
 
 	float3 woCoating = precalculatedSurfData.woCoating;
