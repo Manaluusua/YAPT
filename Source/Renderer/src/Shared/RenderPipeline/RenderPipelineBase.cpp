@@ -151,15 +151,29 @@ namespace YAPT
 			return {};
 		}
 	}
-	void RenderPipelineBase::execute(const ExecuteContext& cntx)
+	void RenderPipelineBase::prepareExecute(const ExecuteContext& cntx)
 	{
+		m_graph->prepareExecution(cntx.executeTasksPool);
+	}
+
+	void RenderPipelineBase::execute(const ExecuteContext& cntx, ExecuteOutput& output)
+	{
+		RenderStage::ExecuteData stageExecuteData;
+		stageExecuteData.commandBuffersOut = &output.commandBuffers;
 		for (size_t i = 0; i < m_stages.size(); ++i)
 		{
-			m_stages[i]->beforeExecute();
+			m_stages[i]->beforeExecute(stageExecuteData);
 		}
 
-		m_graph->execute(cntx.executeTasksPool);
-		
+		const CommandBufferHandle* buffers = nullptr;
+		size_t bufferCount = 0;
+		m_graph->recordCommandBuffers(buffers, bufferCount);
+		output.commandBuffers.insert(output.commandBuffers.end(), buffers, buffers + bufferCount);
+	}
+
+	void RenderPipelineBase::afterSubmit()
+	{
+		m_graph->afterSubmit();
 	}
 
 	void RenderPipelineBase::addRenderStage(RenderStage* stage)

@@ -2,11 +2,22 @@
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h>
 #include <Renderer/Shared/RenderPipeline/DebugDrawPipeline.h>
 #include <Renderer/Shared/CRenderer.h>
+#include <algorithm>
 namespace YAPT
 {
 	const size_t PIPELINE_INDEX_PT = 0;
 	const size_t PIPELINE_INDEX_BDPT = 1;
 	const size_t PIPELINE_INDEX_DEBUG = 2;
+
+	const int32_t MAIN_PIPELINE_PRIORITY = 0;
+
+	RenderPipelineManager::RenderPipelineManager()
+		:m_mainPipeline(nullptr),
+		m_renderer(nullptr),
+		m_lastSelectedRenderPipelineIndex(-1)
+	{
+
+	}
 
 	void RenderPipelineManager::initialize(const RenderPipeline::InitializeContext& cntx)
 	{
@@ -23,7 +34,11 @@ namespace YAPT
 	}
 	void RenderPipelineManager::shutdown()
 	{
-		deactivatePipeline(m_activePipeline);
+		while (!m_activePipelines.empty())
+		{
+			deactivatePipeline(m_activePipelines.back().pipeline);
+		}
+		m_mainPipeline = nullptr;
 
 		for (auto pipeline : m_pipelines)
 		{
@@ -73,24 +88,24 @@ namespace YAPT
 
 		if (pipelineIndex == size_t(-1)) return;
 
-		if (m_pipelines[pipelineIndex] == m_activePipeline)
+		if (m_pipelines[pipelineIndex] == m_mainPipeline)
 		{
-			
+
 			if (pipelineIndex == PIPELINE_INDEX_DEBUG)
 			{
 				//TODO: setup debug pipeline
 			}
-			
+
 		}
 		else
 		{
-			if (m_activePipeline != nullptr)
+			if (m_mainPipeline != nullptr)
 			{
 				Gfx::waitForDeviceIdle(m_renderer->getGfxHandle());
-				deactivatePipeline(m_activePipeline);
+				deactivatePipeline(m_mainPipeline);
 			}
-			m_activePipeline = m_pipelines[pipelineIndex];
-			activatePipeline(m_activePipeline);
+			m_mainPipeline = m_pipelines[pipelineIndex];
+			activatePipeline(m_mainPipeline, MAIN_PIPELINE_PRIORITY);
 		}
 
 		
@@ -101,29 +116,76 @@ namespace YAPT
 	JobHandle RenderPipelineManager::prepare(const RenderPipeline::PrepareContext& cntx)
 	{
 		checkPipelineChange();
-		JobHandle handle{};
-		if (m_activePipeline)
+		m_jobHandles.clear();
+		for (ActivePipeline& active : m_activePipelines)
 		{
-			handle = m_activePipeline->prepare(cntx);
+			JobHandle h = active.pipeline->prepare(cntx);
+			if (h.isValid())
+			{
+				m_jobHandles.push_back(h);
+			}
 		}
-		return handle;
+		return combineCollectedJobHandles(cntx.prepareTasksPool);
 	}
 
 	JobHandle RenderPipelineManager::update(const RenderPipeline::UpdateContext& cntx)
 	{
-		JobHandle handle{};
-		if (m_activePipeline)
+		m_jobHandles.clear();
+		for (ActivePipeline& active : m_activePipelines)
 		{
-			handle = m_activePipeline->update(cntx);
+			JobHandle h = active.pipeline->update(cntx);
+			if (h.isValid())
+			{
+				m_jobHandles.push_back(h);
+			}
 		}
-		return handle;
+		return combineCollectedJobHandles(cntx.updateTasksPool);
 	}
 
 	void RenderPipelineManager::execute(const RenderPipeline::ExecuteContext& cntx)
 	{
-		if (m_activePipeline)
+		if (m_activePipelines.empty()) return;
+
+		for (ActivePipeline& active : m_activePipelines)
 		{
-			m_activePipeline->execute(cntx);
+			active.output.commandBuffers.clear();
+			active.pipeline->prepareExecute(cntx);
+		}
+
+		if (m_activePipelines.size() == 1)
+		{
+			m_activePipelines[0].pipeline->execute(cntx, m_activePipelines[0].output);
+		}
+		else
+		{
+			auto executeJob = [](void* usrData)
+			{
+				ExecuteJobData* data = static_cast<ExecuteJobData*>(usrData);
+				data->pipeline->execute(*data->cntx, *data->output);
+			};
+
+			m_executeJobData.resize(m_activePipelines.size());
+			m_jobHandles.clear();
+			for (size_t i = 0; i < m_activePipelines.size(); ++i)
+			{
+				m_executeJobData[i] = { m_activePipelines[i].pipeline, &cntx, &m_activePipelines[i].output };
+				m_jobHandles.push_back(cntx.executeTasksPool->submit(executeJob, &m_executeJobData[i]));
+			}
+			cntx.executeTasksPool->wait(combineCollectedJobHandles(cntx.executeTasksPool));
+		}
+
+		GfxApiHandle gfxHandle = m_renderer->getGfxHandle();
+		for (ActivePipeline& active : m_activePipelines)
+		{
+			if (!active.output.commandBuffers.empty())
+			{
+				Gfx::submitCommandBuffers(gfxHandle, active.output.commandBuffers.data(), active.output.commandBuffers.size());
+			}
+		}
+
+		for (ActivePipeline& active : m_activePipelines)
+		{
+			active.pipeline->afterSubmit();
 		}
 	}
 
@@ -133,9 +195,9 @@ namespace YAPT
 	}
 	TextureHandle RenderPipelineManager::getReadbackTextureResource(ReadbackTarget target)
 	{
-		if (m_activePipeline)
+		if (m_mainPipeline)
 		{
-			return m_activePipeline->getNamedResource(RenderPipeline::NamedRenderPipelineTexture::FinalColor);
+			return m_mainPipeline->getNamedResource(RenderPipeline::NamedRenderPipelineTexture::FinalColor);
 		}
 		return YAPT_NULL_HANDLE;
 	}
@@ -145,17 +207,37 @@ namespace YAPT
 		return YAPT_NULL_HANDLE;
 	}
 
-	void RenderPipelineManager::activatePipeline(RenderPipeline* p)
+	void RenderPipelineManager::activatePipeline(RenderPipeline* p, int32_t priority)
 	{
 
 		RenderPipeline::InitializeContext cntx;
 		cntx.renderer = m_renderer;
 		p->initialize(cntx);
 
+		ActivePipeline active;
+		active.pipeline = p;
+		active.priority = priority;
+
+		auto insertPos = std::upper_bound(m_activePipelines.begin(), m_activePipelines.end(), priority,
+			[](int32_t prio, const ActivePipeline& a) { return prio < a.priority; });
+		m_activePipelines.insert(insertPos, std::move(active));
 	}
 	void RenderPipelineManager::deactivatePipeline(RenderPipeline* p)
 	{
 		if (!p) return;
+
+		auto iter = std::find_if(m_activePipelines.begin(), m_activePipelines.end(),
+			[p](const ActivePipeline& a) { return a.pipeline == p; });
+		if (iter == m_activePipelines.end()) return;
+
 		p->shutdown();
+		m_activePipelines.erase(iter);
+	}
+
+	JobHandle RenderPipelineManager::combineCollectedJobHandles(JobSystem* jobSystem)
+	{
+		if (m_jobHandles.empty()) return {};
+		if (m_jobHandles.size() == 1) return m_jobHandles[0];
+		return jobSystem->combineDependencies(m_jobHandles.data(), m_jobHandles.size());
 	}
 }

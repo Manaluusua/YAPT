@@ -17,7 +17,8 @@ namespace YAPT
 	RenderGraph::RenderGraph(GfxApiHandle h)
 		:m_gfxHandle(h),
 		m_cmdBufferPool(YAPT_NULL_HANDLE),
-		m_numberOfCmdBuffersPerFrame(0)
+		m_numberOfCmdBuffersPerFrame(0),
+		m_executionPhase(ExecutionPhase::IDLE)
 	{
 
 	}
@@ -501,8 +502,10 @@ namespace YAPT
 
 	}
 
-	void RenderGraph::execute(JobSystem* threadPool)
+	void RenderGraph::prepareExecution(JobSystem* threadPool)
 	{
+		assert(m_executionPhase == ExecutionPhase::IDLE);
+
 		//sync barriers and resource states
 		{
 			m_barriersJob.rg = this;
@@ -543,6 +546,15 @@ namespace YAPT
 			threadPool->wait(threadPool->combineDependencies(deps.data(), deps.size()));
 		}
 
+		afterPrepareExecution();
+
+		m_executionPhase = ExecutionPhase::PREPARED;
+	}
+
+	void RenderGraph::recordCommandBuffers(const CommandBufferHandle*& buffersOut, size_t& countOut)
+	{
+		assert(m_executionPhase == ExecutionPhase::PREPARED);
+
 		m_commandBuffersRecording.resize(m_numberOfCmdBuffersPerFrame);
 		RenderGraphNode** nodes = getNodes();
 		size_t nodeCount = getNodeCount();
@@ -572,12 +584,21 @@ namespace YAPT
 
 		endExecution();
 
-		Gfx::submitCommandBuffers(m_gfxHandle, m_commandBuffersRecording.data(), m_commandBuffersRecording.size());
+		buffersOut = m_commandBuffersRecording.data();
+		countOut = m_commandBuffersRecording.size();
+
+		m_executionPhase = ExecutionPhase::RECORDED;
+	}
+
+	void RenderGraph::afterSubmit()
+	{
+		assert(m_executionPhase == ExecutionPhase::RECORDED);
 
 		afterRenderGraphSubmit();
 
 		m_commandBuffersRecording.clear();
 
+		m_executionPhase = ExecutionPhase::IDLE;
 	}
 
 	void RenderGraph::endExecution()

@@ -18,7 +18,9 @@ namespace YAPT
 		virtual void shutdown() override;
 		virtual JobHandle prepare(const PrepareContext& cntx) override;
 		virtual JobHandle update(const UpdateContext& cntx) override;
-		virtual void execute(const ExecuteContext& cntx) override;
+		virtual void prepareExecute(const ExecuteContext& cntx) override;
+		virtual void execute(const ExecuteContext& cntx, ExecuteOutput& output) override;
+		virtual void afterSubmit() override;
 
 		virtual TextureHandle getNamedResource(NamedRenderPipelineTexture tex) override;
 		virtual BufferHandle getNamedResource(NamedRenderPipelineBuffer buff) override;

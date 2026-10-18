@@ -232,7 +232,7 @@ namespace YAPT
 	}
 
 
-	void RenderGraphVk::beginExecution()
+	void RenderGraphVk::afterPrepareExecution()
 	{
 		VkSemaphore waitSemaphore = m_gfxHandle->getResourceManager()->getLastSignaledSemaphore();
 		VkSemaphore semaphoreOut;
@@ -241,11 +241,14 @@ namespace YAPT
 		{
 			m_gfxHandle->getResourceManager()->overrideLastSignaledSemaphore(semaphoreOut);
 		}
-		
+	}
+	void RenderGraphVk::beginExecution()
+	{
+		RenderGraph::beginExecution();
 	}
 	void RenderGraphVk::endExecution()
 	{
-
+		RenderGraph::endExecution();
 	}
 	void RenderGraphVk::afterRenderGraphSubmit()
 	{

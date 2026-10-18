@@ -95,8 +95,10 @@ namespace YAPT
 		size_t getNodeCount() const { return m_nodes.size(); }
 		RenderGraphNode** getNodes() { return m_nodes.data(); }
 
-		void execute(JobSystem* threadpool);
-		
+		void prepareExecution(JobSystem* jobSystem);
+		void recordCommandBuffers(const CommandBufferHandle*& buffersOut, size_t& countOut);
+		void afterSubmit();
+
 		GfxApiHandle getGfxApiHandle() const { return m_gfxHandle; }
 
 		bool isResourceBoundThisFrame(RenderGraphResourceId id) const;
@@ -156,7 +158,15 @@ namespace YAPT
 
 		void registerCustomNode(CustomNode* node);
 
+		enum class ExecutionPhase
+		{
+			IDLE,
+			PREPARED,
+			RECORDED
+		};
+
 		virtual void createNodeSchedule();
+		virtual void afterPrepareExecution() {};
 		virtual void beginExecution();
 		virtual void endExecution();
 		virtual void afterRenderGraphSubmit();
@@ -215,6 +225,7 @@ namespace YAPT
 		std::vector<ClearsPerNode> m_clearsPerNode;
 
 		ResolveBarriersJob m_barriersJob;
+		ExecutionPhase m_executionPhase;
 	};
 }
 

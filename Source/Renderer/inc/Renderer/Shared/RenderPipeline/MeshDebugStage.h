@@ -27,7 +27,7 @@ namespace YAPT
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
 		virtual JobHandle prepare(const PrepareData& data) override;
 		virtual JobHandle update(const UpdateData& data) override;
-		virtual void beforeExecute() override {};
+		virtual void beforeExecute(const ExecuteData& data) override {};
 
 		virtual RenderStageConnection getOutputConnection(size_t id) override;
 		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) override;

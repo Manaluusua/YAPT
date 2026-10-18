@@ -4,6 +4,7 @@
 #include <Gfx/GfxApi.h>
 #include <Gfx/RenderGraph/RenderGraphCommon.h>
 #include <Common/JobSystem.h>
+#include <vector>
 
 namespace YAPT
 {
@@ -45,6 +46,11 @@ namespace YAPT
 			JobSystem* updateTasksPool;
 		};
 
+		struct ExecuteData
+		{
+			std::vector<CommandBufferHandle>* commandBuffersOut;
+		};
+
 		void setup(CRenderer* renderer, RenderGraph* renderGraph)
 		{
 			m_renderer = renderer;
@@ -61,7 +67,7 @@ namespace YAPT
 
 		virtual JobHandle prepare(const PrepareData& data) = 0;
 		virtual JobHandle update(const UpdateData& data) = 0;
-		virtual void beforeExecute() = 0;
+		virtual void beforeExecute(const ExecuteData& data) = 0;
 
 		CRenderer* getRenderer() { return m_renderer; }
 		RenderGraph* getGraph() { return m_renderGraph; }

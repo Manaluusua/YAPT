@@ -39,6 +39,7 @@ namespace YAPT
 		uint32_t m_height;
 		uint32_t m_currentImageIndex;
 		ResourceFormat m_yaptFormat;
+		bool m_imageAcquired;
 	};
 
 	

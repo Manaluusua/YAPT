@@ -81,6 +81,7 @@ namespace YAPT
 		virtual SwapChainNode* createSwapChainNodeInternal(const char* name) final;
 		virtual void executeNodesInternal(RenderGraphNode** nodes, size_t nodeCount, const RenderGraphNodeExecutionContext& context) final;
 
+		virtual void afterPrepareExecution() final;
 		virtual void beginExecution() final;
 		virtual void endExecution() final;
 		virtual void afterRenderGraphSubmit() final;

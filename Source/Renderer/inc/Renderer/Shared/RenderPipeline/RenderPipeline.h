@@ -3,6 +3,7 @@
 
 #include <Gfx/GfxApi.h>
 #include <Common/JobSystem.h>
+#include <vector>
 
 namespace YAPT
 {
@@ -45,13 +46,20 @@ namespace YAPT
 			JobSystem* executeTasksPool;
 		};
 
+		struct ExecuteOutput
+		{
+			std::vector<CommandBufferHandle> commandBuffers;
+		};
+
 		virtual ~RenderPipeline() {}
 
 		virtual void initialize(const InitializeContext& cntx) = 0;
 		virtual void shutdown() = 0;
 		virtual JobHandle prepare(const PrepareContext& cntx) = 0;
 		virtual JobHandle update(const UpdateContext& cntx) = 0;
-		virtual void execute(const ExecuteContext& cntx) = 0;
+		virtual void prepareExecute(const ExecuteContext& cntx) = 0;
+		virtual void execute(const ExecuteContext& cntx, ExecuteOutput& output) = 0;
+		virtual void afterSubmit() = 0;
 		
 		virtual TextureHandle getNamedResource(NamedRenderPipelineTexture tex) { return YAPT_NULL_HANDLE; };
 		virtual BufferHandle getNamedResource(NamedRenderPipelineBuffer buff) { return YAPT_NULL_HANDLE; };

@@ -160,7 +160,8 @@ namespace YAPT
 		m_width(width),
 		m_height(height),
 		m_currentImageIndex(0),
-		m_yaptFormat(yaptFormat)
+		m_yaptFormat(yaptFormat),
+		m_imageAcquired(false)
 	{
 		uint32_t imageCount;
 		vkGetSwapchainImagesKHR(m_device, swapChain, &imageCount, nullptr);
@@ -236,15 +237,19 @@ namespace YAPT
 		m_afterUsageSemaphores.nextFrame();
 
 		VkResult res = vkAcquireNextImageKHR(m_device, m_swapChain, UINT64_MAX, m_beforeUsageSemaphores.getSemaphoreForThisFrame(), VK_NULL_HANDLE, &m_currentImageIndex);
-		checkForVkError(res);
+		m_imageAcquired = res == VK_SUCCESS || res == VK_SUBOPTIMAL_KHR;
+		if (!m_imageAcquired && res != VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			checkForVkError(res);
+		}
 	}
 	VkSemaphore SwapChainVk::getBeforeUsageSemaphoreCurrentFrame() const
 	{
-		return m_beforeUsageSemaphores.getSemaphoreForThisFrame();
+		return m_imageAcquired ? m_beforeUsageSemaphores.getSemaphoreForThisFrame() : VK_NULL_HANDLE;
 	}
 	VkSemaphore SwapChainVk::getAfterUsageSemaphoreCurrentFrame() const
 	{
-		return m_afterUsageSemaphores.getSemaphoreForThisFrame();
+		return m_imageAcquired ? m_afterUsageSemaphores.getSemaphoreForThisFrame() : VK_NULL_HANDLE;
 	}
 	TextureHandle SwapChainVk::getTextureHandleCurrentFrame() const
 	{
@@ -253,6 +258,8 @@ namespace YAPT
 
 	void SwapChainVk::present(VkQueue presentQueue)
 	{
+		if (!m_imageAcquired) return;
+
 		VkSemaphore waitBeforePresentSem = getAfterUsageSemaphoreCurrentFrame();
 		VkPresentInfoKHR presentInfo{};
 		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -264,6 +271,10 @@ namespace YAPT
 		presentInfo.pWaitSemaphores = &waitBeforePresentSem;
 		presentInfo.waitSemaphoreCount = 1;
 
-		checkForVkError(vkQueuePresentKHR(presentQueue, &presentInfo));
+		VkResult res = vkQueuePresentKHR(presentQueue, &presentInfo);
+		if (res != VK_SUBOPTIMAL_KHR && res != VK_ERROR_OUT_OF_DATE_KHR)
+		{
+			checkForVkError(res);
+		}
 	}
 }

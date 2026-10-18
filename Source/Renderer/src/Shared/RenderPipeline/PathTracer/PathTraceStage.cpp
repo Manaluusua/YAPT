@@ -199,7 +199,7 @@ namespace YAPT
 		return h;
 	}
 
-	void PathTraceStage::beforeExecute()
+	void PathTraceStage::beforeExecute(const ExecuteData& data)
 	{
 		if (m_accelerationStructureNeedsRebuild || m_firstTimeUpdate)
 		{
@@ -230,7 +230,7 @@ namespace YAPT
 			m_accStructureHelper.updateTopLevelStructures(buff, assignPerInstanceParams);
 
 			Gfx::stopRecording(getRenderer()->getGfxHandle(), buff);
-			Gfx::submitCommandBuffers(getRenderer()->getGfxHandle(), &buff, 1);
+			data.commandBuffersOut->push_back(buff);
 
 			m_firstTimeUpdate = false;
 			m_accelerationStructureNeedsRebuild = false;
