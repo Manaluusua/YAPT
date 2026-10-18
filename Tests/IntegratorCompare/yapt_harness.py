@@ -37,7 +37,8 @@ def find_repo_root():
 
 REPO_ROOT = find_repo_root()
 CONFIG = os.environ.get("YAPT_CONFIG", "Debug")
-BIN_DIR = REPO_ROOT / "Build" / "Bin" / CONFIG
+#YAPT_BIN_DIR points at another build tree's Build/Bin/<Config>, e.g. the smoke test's per backend builds
+BIN_DIR = Path(os.environ["YAPT_BIN_DIR"]).resolve() if os.environ.get("YAPT_BIN_DIR") else REPO_ROOT / "Build" / "Bin" / CONFIG
 SCRIPTS_DIR = REPO_ROOT / "Source" / "Python" / "pythonScripts"
 TEST_DIR = Path(__file__).resolve().parent
 
@@ -63,6 +64,29 @@ def setup_import_paths():
 
 
 setup_import_paths()
+
+
+def disable_crt_dialogs():
+    """Send debug CRT asserts / aborts to stderr instead of a modal dialog.
+
+    A failed assert in a Debug build otherwise pops up an "Abort / Retry / Ignore" box and an
+    unattended run just looks hung."""
+    import ctypes
+    ctypes.windll.kernel32.SetErrorMode(0x0001 | 0x0002)  #SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX
+    for crt_name in ("ucrtbased.dll", "ucrtbase.dll"):
+        try:
+            crt = ctypes.CDLL(crt_name)
+        except OSError:
+            continue
+        crt._set_error_mode(1)  #_OUT_TO_STDERR
+        crt._set_abort_behavior(0, 0x3)  #clear _WRITE_ABORT_MSG | _CALL_REPORTFAULT
+        if crt_name == "ucrtbased.dll":
+            for report_type in (0, 1, 2):  #_CRT_WARN, _CRT_ERROR, _CRT_ASSERT
+                crt._CrtSetReportMode(report_type, 0x1)  #_CRTDBG_MODE_FILE
+                crt._CrtSetReportFile(report_type, ctypes.c_void_p(-5))  #_CRTDBG_FILE_STDERR
+
+
+disable_crt_dialogs()
 
 
 # ---------------------------------------------------------------- frame capture
@@ -154,6 +178,21 @@ class TestHarness:
         context = {"yapt_instance": self._app}
         exec(source, context, context)
         return context
+
+    def resize(self, width, height):
+        self._window.resize(width, height)
+
+    def render_size(self):
+        widget = self._window.get_render_area_widget()
+        return widget.width(), widget.height()
+
+    def process_events(self, seconds):
+        """Pump the Qt event loop (and with it the render loop) for a while from inside a step."""
+        qt_app = self._app.get_qt_app()
+        end = time.monotonic() + seconds
+        while time.monotonic() < end:
+            qt_app.processEvents()
+            time.sleep(0.002)
 
     def set_pipeline(self, index):
         """0 = BPT, 1 = BPT_WITH_NEE, 2 = BDPT, 3.. = debug pipelines."""
@@ -281,4 +320,7 @@ class TestHarness:
         except Exception:
             self._failed = True
             traceback.print_exc()
+        #quit outside the except block, the live traceback would keep the step's locals (readbacks, scene objects)
+        #alive through the renderer shutdown that closing the window triggers
+        if self._failed:
             self._app.get_qt_app().quit()

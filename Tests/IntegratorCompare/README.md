@@ -41,7 +41,8 @@ Results land in `results/<run>/`: the individual captures, per pair difference i
 a `comparison.png` / `sweep.png` montage. The pairwise table is printed to stdout.
 
 Shared environment variables: `EMISSION_FOCUS`, `TWO_SIDED`, `ACCUM_S` (seconds of
-accumulation per capture), `OUT_DIR`, `YAPT_CONFIG`, `YAPT_ROOT`, `YAPT_ASSET_ROOT`.
+accumulation per capture), `OUT_DIR`, `YAPT_CONFIG`, `YAPT_ROOT`, `YAPT_ASSET_ROOT`,
+`YAPT_BIN_DIR` (a build's `Bin/<Config>` folder, overrides `Build/Bin/$YAPT_CONFIG`).
 `focus_sweep.py` also takes `FOCI` and `INTEGRATOR`.
 
 ## Reading the output

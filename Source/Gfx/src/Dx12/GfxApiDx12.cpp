@@ -1,4 +1,5 @@
 #include <Gfx/GfxApi.h>
+#include <algorithm>
 #include <Gfx/Dx12/RendererDx12.h>
 #include <Gfx/Dx12/ResourceManagerDx12.h>
 #include <Gfx/Dx12/YaptToDx12Conversions.h>
@@ -101,6 +102,13 @@ namespace YAPT
 				textureHandle->numRows.resize(subresourceCount);
 				UINT64 totalSizeInBytes = 0;
 				h->getResourceManager().getDevice().GetCopyableFootprints(&textureHandle->textureDesc, 0, subresourceCount, 0, textureHandle->footprints.data(), textureHandle->numRows.data(), nullptr, &totalSizeInBytes);
+				//the reported total ends at the last row's texels, pad it so every subresource spans whole row pitches as getMappedSubresourceLayout reports them
+				for (UINT i = 0; i < subresourceCount; ++i)
+				{
+					const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& footprint = textureHandle->footprints[i];
+					const UINT64 paddedEnd = footprint.Offset + UINT64(footprint.Footprint.RowPitch) * textureHandle->numRows[i] * footprint.Footprint.Depth;
+					totalSizeInBytes = std::max(totalSizeInBytes, paddedEnd);
+				}
 
 				const D3D12_RESOURCE_STATES stagingState = textureHandle->heapType == D3D12_HEAP_TYPE_READBACK ? D3D12_RESOURCE_STATE_COPY_DEST : D3D12_RESOURCE_STATE_GENERIC_READ;
 				textureHandle->lastSeenState.init(stagingState, 1);

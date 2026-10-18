@@ -2,6 +2,7 @@
 #include <Renderer/ReadbackHandle.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/RenderPipeline/RenderPipelineManager.h>
+#include <Common/Logger.h>
 
 
 namespace YAPT
@@ -22,7 +23,17 @@ namespace YAPT
 	}
 	ReadbackManager::~ReadbackManager()
 	{
-
+		const uint32_t objectsCount = m_activeReadbackObjectCount.load();
+		for (uint32_t i = 0; i < objectsCount; ++i)
+		{
+			uint32_t index = m_activeReadbackObjects[i];
+			if (m_readbackObjectPool[index].getStateNonAtomic() != ReadbackState::Freed)
+			{
+				YAPT_LOG_WARNING("Readback %u is still referenced at shutdown, freeing its resources anyway", index);
+			}
+			freeResource(index, m_readbackObjectPool[index].getReadbackTarget());
+		}
+		m_activeReadbackObjectCount.store(0);
 	}
 
 	void ReadbackManager::onBeforeRender(RenderPipelineManager* mngr)
@@ -183,7 +194,7 @@ namespace YAPT
 
 		obj.setResource(target);
 		obj._readbackGroup = group;
-		obj.setState(ReadbackState::Pending);
+		obj.markPending();
 	}
 	void ReadbackManager::issueReadback(CReadbackObject& obj, BufferHandle src, BufferHandle target, ReadbackGroup* group, BufferReadbackDefinition& defOut)
 	{
@@ -197,6 +208,6 @@ namespace YAPT
 
 		obj.setResource(target);
 		obj._readbackGroup = group;
-		obj.setState(ReadbackState::Pending);
+		obj.markPending();
 	}
 }

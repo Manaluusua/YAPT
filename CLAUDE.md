@@ -19,11 +19,23 @@ cmake --build Build --config Debug
 - Graphics backend is chosen via the `GRAPHICS_API` cache variable in `Source/Gfx/CMakeLists.txt`: `DirectX12` (default) or `Vulkan`. Set with `-DGRAPHICS_API=Vulkan` at configure time; this defines `RENDERER_DX12`/`RENDERER_VK` for the whole `Gfx` target.
 - `Source/Python/CMakeLists.txt` requires Python3 + pip and will `pip install` `pybind11`, `pyside6`, `pygltflib`, `pyktx` into the environment during configure.
 - All binaries/DLLs land in `Build/Bin/<Config>/`; shaders are copied to `Build/Bin/<Config>/shaders/` and Python scripts run from `Source/Python/pythonScripts/` (see `Source/Python/pythonScripts/.vscode/launch.json` for a debug entry point).
-- There are no unit tests or lint targets in this repo currently.
+- There are no unit tests or lint targets; the smoke test below is the regression check.
 
 ### Running
 
 The `YAPT` executable loads `Source/Python/pythonScripts/default_bootstrap.py` (falling back to a relative path from `Build/Bin/<Config>/`), which launches a PySide6 `QApplication` (`yapt.app.Application`). Example scenes to load from the Python console/scripts live in `Source/Python/pythonScripts/examples/`.
+
+### Smoke test (always run after making changes)
+
+**After any change to C++, shaders or the Python app, run the smoke test and make sure both backends pass before calling the work done:**
+
+```
+python Tests/Smoke/run_smoke_tests.py
+```
+
+It builds DirectX12 and Vulkan into their own trees (`Build/SmokeTest/DirectX12`, `Build/SmokeTest/Vulkan`; the first build of each is a full build, after that they are incremental), then runs `Tests/Smoke/smoke_test.py` once per backend in its own process. The smoke test loads `examples/load_random_shapes_scene.py` with a fixed seed, switches between BPT / BPT_WITH_NEE / BDPT, resizes the window (including a burst of rapid resizes), reads back a frame after every step to check that rendering is still alive at the right resolution, and then shuts down. A crash, failed assert, hang or failed check fails that backend. `--backends Vulkan`, `--skip-build` and `--config Release` narrow it down. Captures and the renderer's `OutputDebugString` log go to `Tests/Smoke/results/<api>/`; the last log lines are printed on failure.
+
+The app runs fine from an agent shell this way: the harness (`Tests/IntegratorCompare/yapt_harness.py`) boots the `Application` from plain `python` against a build's `Bin/<Config>` (`YAPT_BIN_DIR`), and switches debug CRT assert dialogs to stderr so a failed `assert` exits with code 3 instead of hanging on a modal box. The Vulkan backend logs any VMA allocations still alive at shutdown by name before VMA asserts on them.
 
 ### Assets
 

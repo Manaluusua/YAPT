@@ -71,6 +71,8 @@ namespace YAPT
 			m_readbackData.data = nullptr;
 			m_readbackData.rowPitchInBytes = 0;
 			m_readbackData.depthPitchInBytes = 0;
+			//drop the reference RCObject starts out with, pool objects are only owned through the handles readback() hands out
+			Release();
 		}
 
 		virtual ReadbackState getState() final
@@ -160,6 +162,13 @@ namespace YAPT
 				m_state.store(state);
 			}
 			
+		}
+
+		//released while the render thread was issuing it: stays Freed, commitChanges frees the resource that was just attached
+		void markPending()
+		{
+			ReadbackState expected = ReadbackState::Created;
+			m_state.compare_exchange_strong(expected, ReadbackState::Pending, std::memory_order_acq_rel);
 		}
 
 		void setIndex(uint32_t index)

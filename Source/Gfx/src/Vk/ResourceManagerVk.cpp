@@ -8,6 +8,8 @@
 #include <Gfx/Vk/AccelerationStructureBuilderVk.h>
 
 #include <assert.h>
+#include <cstring>
+#include <string>
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
@@ -105,8 +107,45 @@ namespace YAPT
 			}
 
 		}
+		logLeakedAllocations();
 		vmaDestroyAllocator(m_allocator);
 
+	}
+
+	void ResourceManagerVk::logLeakedAllocations()
+	{
+		VmaTotalStatistics stats;
+		vmaCalculateStatistics(m_allocator, &stats);
+		if (stats.total.statistics.allocationCount == 0)
+		{
+			return;
+		}
+
+		YAPT_LOG_ERROR("VMA: %u allocations (%llu bytes) still alive at shutdown:", stats.total.statistics.allocationCount, (unsigned long long)stats.total.statistics.allocationBytes);
+
+		//the detailed stats json is the only way VMA lists individual allocations, dedicated ones included
+		char* statsJson = nullptr;
+		vmaBuildStatsString(m_allocator, &statsJson, VK_TRUE);
+		auto readStringValue = [](const char* key, const char* begin, const char* end) -> std::string
+		{
+			const char* found = std::strstr(begin, key);
+			if (found == nullptr || found >= end) return {};
+			const char* valueBegin = std::strchr(found + std::strlen(key), '"');
+			if (valueBegin == nullptr || valueBegin >= end) return {};
+			const char* valueEnd = std::strchr(valueBegin + 1, '"');
+			return valueEnd ? std::string(valueBegin + 1, valueEnd) : std::string();
+		};
+		for (const char* cursor = std::strstr(statsJson, "\"Type\": \""); cursor != nullptr; cursor = std::strstr(cursor + 1, "\"Type\": \""))
+		{
+			const char* objectEnd = std::strchr(cursor, '}');
+			if (objectEnd == nullptr) break;
+			std::string type = readStringValue("\"Type\":", cursor, objectEnd);
+			if (type == "FREE") continue;
+			std::string name = readStringValue("\"Name\":", cursor, objectEnd);
+			const char* size = std::strstr(cursor, "\"Size\": ");
+			YAPT_LOG_ERROR("  leaked %s %s, %llu bytes", type.c_str(), name.empty() ? "<unnamed>" : name.c_str(), (size && size < objectEnd) ? std::strtoull(size + 8, nullptr, 10) : 0ull);
+		}
+		vmaFreeStatsString(m_allocator, statsJson);
 	}
 
 	void ResourceManagerVk::prepare()
@@ -495,6 +534,10 @@ namespace YAPT
 		createInfo.usage = VMA_MEMORY_USAGE_AUTO;
 		createInfo.flags = desc.memoryType == MemoryType::DEFAULT ? 0 : VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 		bool res = createBufferVk(buffHandle->createInfo, createInfo, owningQueueFamily, &buffHandle->buffer, &buffHandle->alloc, nullptr);
+		if (res && name)
+		{
+			vmaSetAllocationName(m_allocator, buffHandle->alloc, name);
+		}
 
 		buffHandle->owningQueueFamily = owningQueueFamily;
 		buffHandle->lastUsedStages = VK_PIPELINE_STAGE_NONE;
@@ -529,6 +572,10 @@ namespace YAPT
 		createInfo.usage = VMA_MEMORY_USAGE_AUTO;
 		createInfo.flags = desc.memoryType == MemoryType::DEFAULT ? 0 : VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
 		bool res = createTextureVk(texHandle->createInfo, createInfo, owningQueueFamily, &texHandle->image, &texHandle->alloc, nullptr);
+		if (res && name)
+		{
+			vmaSetAllocationName(m_allocator, texHandle->alloc, name);
+		}
 		if (!res)
 		{
 			delete texHandle;

@@ -198,6 +198,7 @@ namespace YAPT
 		
 		
 		void deinitialize();	
+		void logLeakedAllocations();
 		
 		SubmissionThreadVk& m_submissionThread;
 		const QueueDefinitionVk& m_copyQueue;
