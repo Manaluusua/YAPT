@@ -3,8 +3,9 @@ from yapt.utility import *
 from PySide6.QtGui import QQuaternion, QVector3D
 import math
 
-#Spheres with the same albedo, from left to right: plain diffuse, full subsurface with a tiny radius (should look like the plain diffuse one),
+#Stanford dragons with the same albedo, from left to right: plain diffuse, full subsurface with a tiny radius (should look like the plain diffuse one),
 #half subsurface, full subsurface and full subsurface with a large radius (soft, translucent, red scattering furthest).
+#The thin horns, claws and spines show the translucency most clearly.
 #The unidirectional and bidirectional integrators should agree.
 
 resources = yapt_instance.get_resources()
@@ -35,17 +36,18 @@ def createLight():
     obj, mesh, mat = createObject("lightPlane", "models/plane.glb", v3(0, 150, 100), 40)
     mat.setEmission(v3(20, 20, 20))
 
-    #plane normal is +y, tilt it down towards the spheres
+    #plane normal is +y, tilt it down towards the dragons
     rot = QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), -150)
     obj.getTransform().setOrientation(vec4([rot.x(), rot.y(), rot.z(), rot.scalar()]))
 
-def createSpheres():
+def createDragons():
     #(subsurface amount, radius scale)
     settings = [(0.0, 5.0), (1.0, 0.01), (0.5, 5.0), (1.0, 5.0), (1.0, 20.0)]
     spacing = 70
     for i, (amount, radius_scale) in enumerate(settings):
         x = (i - (len(settings) - 1) * 0.5) * spacing
-        obj, mesh, mat = createObject(f"sssSphere{i}", "models/Sphere.glb", v3(x, 0, 0), 30)
+        #dragon.glb is ~0.2 units long with its base at y = 0, scale it up and stand it on the ground
+        obj, mesh, mat = createObject(f"sssDragon{i}", "models/dragon.glb", v3(x, -30, 0), 300)
         mat.setAlbedo(v3(0.8, 0.35, 0.25))
         mat.setRoughness(0.3)
         mat.setSubsurfaceAmount(amount)
@@ -58,7 +60,7 @@ if(env_map != None):
 
 createGround()
 createLight()
-createSpheres()
+createDragons()
 
 cam_transform = scene.get_main_camera().getTransform()
 cam_transform.setTranslation(vec3([0, 40, 330]))
