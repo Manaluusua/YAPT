@@ -29,6 +29,8 @@ namespace YAPT
 		uvec2p ormTexIndexAndScale;
 		uvec2p emissiveTexIndexAndScale;
 
+		vec4p subsurfaceRadiusAmount; //xyz = radius * scale, w = amount
+
 		float alphaCutoff;
 		uint32_t padding[3];
 	};

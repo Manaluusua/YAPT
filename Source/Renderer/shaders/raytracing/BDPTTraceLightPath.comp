@@ -35,15 +35,16 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 	{
 		float4 randomSamples0 = rand.getRandom4();
 		float4 randomSamples1 = rand.getRandom4();
-		bool sampledEnvironment;
-		float3 lightNormal;
-		float lightSamplePDF;
-		float lightPosPDF;
-		float lightDirPDF;
-		uint InstanceID;
-		uint primitiveIndex;
-		float emissionProfileWeight;
-        sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight, radiance, lightPos, lightDir, lightNormal,  lightPosPDF, lightDirPDF, lightSamplePDF, sampledEnvironment, InstanceID, primitiveIndex, emissionProfileWeight);
+		LightOrEnvSample lightSample = sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight);
+		radiance = lightSample.sample.radiance;
+		lightPos = lightSample.sample.positionWS;
+		lightDir = lightSample.sample.directionWS;
+		float3 lightNormal = lightSample.sample.normalWS;
+		float lightPosPDF = lightSample.sample.pdfPos;
+		float lightDirPDF = lightSample.sample.pdfDir;
+		float lightSamplePDF = lightSample.pdfLightSelection;
+		bool sampledEnvironment = lightSample.sampledEnvironment;
+		float emissionProfileWeight = lightSample.sample.emissionProfileWeight;
 
 		if (radiance.allSamplesEqual(0.f) || lightPosPDF == 0 || lightDirPDF == 0 || lightSamplePDF == 0)
         return;
@@ -52,8 +53,8 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 		maxRadiance = radiance.getMaxSampleValue();
 
-		nodes[0].instanceIndex = InstanceID;
-		nodes[0].primitiveIndex = primitiveIndex;
+		nodes[0].instanceIndex = lightSample.sample.instanceIndex;
+		nodes[0].primitiveIndex = lightSample.sample.primitiveIndex;
 		nodes[0].barycentrics = -1;
 		nodes[0].normalWS = lightNormal;
 		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
@@ -84,32 +85,53 @@ void traceLightRays( uint3 groupId : SV_GroupID,
     rayState.numberVolumesEntered = 0;
     rayState.volumeMaterial = VOLUME_MATERIAL_NONE;
 
+	//set when the previous vertex took the subsurface event, the next vertex is then its exit point instead of a ray hit
+	bool pendingSubsurfaceExit = false;
+	SubsurfaceExitSample pendingExit = (SubsurfaceExitSample)0;
+
 	for(uint i = 1; i < g_maxVerticesPerLightPath; ++i)
 	{
 		float4 randomSamples0 = rand.getRandom4();
 
-		uint rayFlags = RAY_FLAG_NONE;
-		uint InstanceInclusionMask = ~0;
-
-		RayQuery<RAY_FLAG_NONE> q;
-
-		RayDesc ray;
-		ray.Origin = rayOrigin;
-		ray.Direction = rayDir;
-		ray.TMin = DEFAULT_RAY_MIN_T;
-		ray.TMax = DEFAULT_RAY_MAX_T;
-
-		q.TraceRayInline(
-		    g_accelerationStructure,
-		    rayFlags, 
-		    InstanceInclusionMask,
-		    ray);
-
-		PROCEED_ALPHA_TESTED(q)
-
-		if(q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
+		PathHit hit = (PathHit)0;
+		bool hasHit;
+		if(pendingSubsurfaceExit)
 		{
-			
+			hit = makePathHitFromSubsurfaceExit(pendingExit.exitPoint);
+			hasHit = true;
+			pendingSubsurfaceExit = false;
+		}
+		else
+		{
+			uint rayFlags = RAY_FLAG_NONE;
+			uint InstanceInclusionMask = ~0;
+
+			RayQuery<RAY_FLAG_NONE> q;
+
+			RayDesc ray;
+			ray.Origin = rayOrigin;
+			ray.Direction = rayDir;
+			ray.TMin = DEFAULT_RAY_MIN_T;
+			ray.TMax = DEFAULT_RAY_MAX_T;
+
+			q.TraceRayInline(
+			    g_accelerationStructure,
+			    rayFlags,
+			    InstanceInclusionMask,
+			    ray);
+
+			PROCEED_ALPHA_TESTED(q)
+
+			hasHit = q.CommittedStatus() == COMMITTED_TRIANGLE_HIT;
+			if(hasHit)
+			{
+				hit = MAKE_PATH_HIT_FROM_RAY_QUERY(q);
+			}
+		}
+
+		if(hasHit)
+		{
+
 			uint currentNodeIndex = i & 0x1;
 			uint previousNodeIndex = ((i-1)) & 0x1;
 
@@ -118,14 +140,11 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
 			}
 
-            SurfaceDefinition surfaceDef;
-            PrecalculatedSurfaceData precalculatedSurfaceData;
-            float samplingProbabilities[LAYER_COUNT];
-            bool triangleHitFrontFace = q.CommittedTriangleFrontFace();
-            float3 woOS = normalize(-q.CommittedObjectRayDirection());
-            uint instId = q.CommittedInstanceID();
-            uint primIndex = q.CommittedPrimitiveIndex();
-            float2 bary = q.CommittedTriangleBarycentrics();
+bool triangleHitFrontFace = hit.frontFace;
+            float3 woOS = hit.woOS;
+            uint instId = hit.instanceIndex;
+            uint primIndex = hit.primitiveIndex;
+            float2 bary = hit.barycentrics;
             uint materialIndex = getMaterialAndMeshIndicesForInstance(instId).x;
 
 			uint lightNodeFlags = triangleHitFrontFace ? LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE : 0;
@@ -134,28 +153,44 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 			lightNodeFlags |= (rayState.getStateFlags() & RAYSTATE_FLAGS_REGULARIZE_PATH) != 0 ? LIGHT_PATH_NODE_FLAG_REGULARIZED : 0;
 
-            calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-			bool deltaDistr = isDeltaDistribution(precalculatedSurfaceData.a2, surfaceDef);
+			lightNodeFlags |= hit.isSubsurfaceExit ? LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT : 0;
+
+            SurfaceSamplingContext surface = calculateCommonSurfaceParams(rayState, instId, primIndex, bary, woOS, triangleHitFrontFace);
+			//a subsurface exit only has the exit lobe
+			bool deltaDistr = !hit.isSubsurfaceExit && isDeltaDistribution(surface.precalculatedSurfaceData.a2, surface.surfaceDef);
 			if(deltaDistr)
 			{
                 lightNodeFlags |= LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION;
 
             }
-			
-            float3x3 transformNormal = (float3x3)q.CandidateWorldToObject3x4();
+
+            float3x3 transformNormal = (float3x3)hit.worldToObject;
             transformNormal = transpose(transformNormal);
-			
-            float3 normalWS = normalize(mul(transformNormal, surfaceDef.geometryNormal));
-            float3 posWS = q.WorldRayOrigin() + q.WorldRayDirection() * q.CommittedRayT();
-			
-			//TODO: store some of the ray state (dispersion,volumes(?))
-            float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - rayOrigin, normalWS);
-			
+
+            float3 normalWS = normalize(mul(transformNormal, surface.surfaceDef.geometryNormal));
+			if(hit.isSubsurfaceExit)
 			{
+				//exit nodes store the outward normal, connections use it to set up the surface for the outside
+				normalWS = orientToSameSide(hit.woWS, normalWS);
+			}
+            float3 posWS = hit.posWS;
+
+			float currentNodePDFForwardMIS;
+			if(hit.isSubsurfaceExit)
+			{
+				//the subsurface edge pdf is already an area density
+				currentNodePDFForwardMIS = pdfForward;
+			}
+			else
+			{
+				//TODO: store some of the ray state (dispersion,volumes(?))
+	            float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - rayOrigin, normalWS);
+				currentNodePDFForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+
 				SpectralSamples abs = rayState.getAbsorption();
 				if(!abs.allSamplesEqual(0))
 				{
-					radiance = radiance * calculateTransmittance(q.CommittedRayT(), abs);
+					radiance = radiance * calculateTransmittance(hit.rayT, abs);
 				}
 			}
 
@@ -166,38 +201,55 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].normalWS = normalWS;
 			nodes[currentNodeIndex].radiance = radiance.toFloat4();
 			nodes[currentNodeIndex].positionWS = posWS;
-			nodes[currentNodeIndex].pdfForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+			nodes[currentNodeIndex].pdfForwardMIS = currentNodePDFForwardMIS;
 			nodes[currentNodeIndex].iorPrevious = rayState.getPreviousIOR();
 			nodes[currentNodeIndex].iorCurrent = rayState.getCurrentIOR();
 			nodes[currentNodeIndex].flags = lightNodeFlags;
-			
-			bool isDiffuseBounce;
-			bool sampledDeltaDir;
-			float3 wiOS = getSampleDirectionOS(surfaceDef, precalculatedSurfaceData, randomSamples0.x, randomSamples0.y, randomSamples0.zw, samplingProbabilities, isDiffuseBounce, sampledDeltaDir);
-            if (isZero(wiOS))
+
+			SurfacePoint vertexPoint = makeSurfacePoint(hit, normalWS);
+			ScatteringEvent scatterEvent = sampleScatteringEvent(surface, vertexPoint, woOS, hit.isSubsurfaceExit, randomSamples0);
+            if (scatterEvent.type == SCATTERING_EVENT_NONE)
             {
                 break;
             }
 
 			//mirrors the camera subpath, otherwise light subpaths are never regularized and MIS combines the two sides
 			//describing the same vertex with different roughness
-			if(isDiffuseBounce)
+			if(scatterEvent.isDiffuseBounce)
 			{
 				rayState.addFlags(RAYSTATE_FLAGS_REGULARIZE_PATH);
 			}
 
-            SpectralSamples w;
-            float pdfBackward;
-            bool dispersed;
-            evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, materialIndex, woOS, wiOS, triangleHitFrontFace, true, sampledDeltaDir, w, pdfForward, pdfBackward, dispersed);
+			bool sampledDeltaDir = scatterEvent.isDeltaDistribution;
+			ScatteringDirections dirs = makeScatteringDirections(woOS, scatterEvent.wiOS, triangleHitFrontFace, true, sampledDeltaDir);
+			ScatteringEvaluation eval;
+            bool pdfBackwardIsAreaDensity = false;
+			if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_ENTRY)
+			{
+				//pdfForward is an area density, it is used as is by the exit vertex
+				eval = evaluateSubsurfaceEntry(surface, woOS, scatterEvent.exit);
+			}
+			else if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_EXIT_LOBE)
+			{
+				eval = evaluateSubsurfaceExitAndPDFs(surface, rayState, dirs, makeSubsurfaceEdge(posWS, normalWS, nodes[previousNodeIndex].positionWS, nodes[previousNodeIndex].normalWS));
+				pdfBackwardIsAreaDensity = true;
+			}
+			else
+			{
+				eval = evaluateSurfaceAndPDFs(surface, rayState, materialIndex, dirs);
+			}
+            pdfForward = eval.pdfForward;
+            float pdfBackward = eval.pdfBackward;
+            bool dispersed = eval.dispersed;
+            SpectralSamples sampleWeight = eval.weight * safeDiv(1.f, pdfForward);
 
 			/*if(pdfBackward == 0)
 			{
 				break;
 			}*/
 
-            nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - posWS, nodes[previousNodeIndex].normalWS.xyz); //TODO: special case for ENV light
-			
+            nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : (pdfBackwardIsAreaDensity ? pdfBackward : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - posWS, nodes[previousNodeIndex].normalWS.xyz)); //TODO: special case for ENV light
+
 			//store previous vertex
 			{
 				uint vOffset, vCount;
@@ -212,7 +264,7 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 			nodes[currentNodeIndex].nextIndex = lastVertexOffset;
 
 			//integrating in path space: G * toAreaDensity mostly cancel and we are left with just dot(normalFrom, toNext), which is included in material sample. So just divide with solid angle pdf
-			radiance = radiance * w * safeDiv(1.f, pdfForward);
+			radiance = radiance * sampleWeight;
 
 			if(dispersed)
 			{
@@ -229,16 +281,24 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 				break;
 			}
 
-			rayDir = normalize(mul(transformNormal, wiOS));
-			rayOrigin = spawnRayOrigin(posWS, normalWS, rayDir);
+			if(scatterEvent.type == SCATTERING_EVENT_SUBSURFACE_ENTRY)
+			{
+				pendingSubsurfaceExit = true;
+				pendingExit = scatterEvent.exit;
+			}
+			else
+			{
+				rayDir = normalize(mul(transformNormal, scatterEvent.wiOS));
+				rayOrigin = spawnRayOrigin(posWS, normalWS, rayDir);
+			}
 			previousWasDeltaDistr = sampledDeltaDir;
         }
-		else 
+		else
 		{
 		    break;
 		}
 	}
-	
+
 	if(lightNodeCount > 0)
 	{
 		//store last node

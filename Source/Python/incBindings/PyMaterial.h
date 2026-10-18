@@ -93,6 +93,15 @@ namespace YAPT
 		void setEnableDispersion(bool val);
 		bool getEnableDispersion() const;
 
+		void setSubsurfaceAmount(float val);
+		float getSubsurfaceAmount() const;
+
+		void setSubsurfaceRadius(const vec3p& v);
+		const vec3p& getSubsurfaceRadius() const;
+
+		void setSubsurfaceRadiusScale(float val);
+		float getSubsurfaceRadiusScale() const;
+
 		void setAlbedoTexture(const PyTexture& tex, const vec2p& scale);
 		void setNormalTexture(const PyTexture& tex, const vec2p& scale);
 		void setORMTexture(const PyTexture& tex, const vec2p& scale);

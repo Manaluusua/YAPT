@@ -3,7 +3,7 @@
 
 static float g_spectralMainSampleWavelength;
 #define GET_SPECTRAL_SAMPLE_WAVELENGTH g_spectralMainSampleWavelength;
-
+#define RECIPROCAL_MULTISCATTER
 #include "../globalDefinitions.hlsl"
 #include "hitShadersCommon.hlsl"
 #include "materialSample.hlsl"
@@ -17,6 +17,8 @@ static float g_spectralMainSampleWavelength;
 #define LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION (1 << 3)
 //set if the path has already been regularized
 #define LIGHT_PATH_NODE_FLAG_REGULARIZED (1 << 4)
+//the node is a subsurface exit point: the path arrived through the subsurface from the previous node (no ray between them), so only the exit lobe applies here
+#define LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT (1 << 5)
 
 struct BidirectionalPathTraceConstants
 {
@@ -188,6 +190,8 @@ ConstantBuffer<BidirectionalPathTraceConstants> g_bdptConstants : register(b0, s
 
 RaytracingAccelerationStructure g_accelerationStructure : register(t1, space3);
 
+#include "scatteringSample.hlsl"
+
 #ifdef WRITABLE_LIGHT_DATA
 RWByteAddressBuffer g_lightPathHeaders : register(u2, space3);
 RWStructuredBuffer<LightPathNodePacked> g_lightPathVertices : register(u3, space3);
@@ -348,64 +352,81 @@ LightPathHeader getLightPathHeader(uint index)
     return h;
 }
 
-void evaluateSurfaceAndPDFs(in SurfaceDefinition surfaceDef, in PrecalculatedSurfaceData precalculatedSurfaceData, in float samplingProbabilities[LAYER_COUNT], inout BDPTRayState rayState, in uint materialIndex, in float3 woOS, in float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta,
-out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out bool dispersedOut)
+struct ScatteringDirections
 {
+    float3 woOS;
+    float3 wiOS;
+    bool triangleHitFrontFace;
+    bool isFromLightSource;
+    bool treatAsDelta;
+};
 
-    SpectralSamples weightDummy;
-    dispersedOut = false;
+ScatteringDirections makeScatteringDirections(float3 woOS, float3 wiOS, bool triangleHitFrontFace, bool isFromLightSource, bool treatAsDelta)
+{
+    ScatteringDirections dirs;
+    dirs.woOS = woOS;
+    dirs.wiOS = wiOS;
+    dirs.triangleHitFrontFace = triangleHitFrontFace;
+    dirs.isFromLightSource = isFromLightSource;
+    dirs.treatAsDelta = treatAsDelta;
+    return dirs;
+}
 
-    TransmissionType transmissionType;
-    
+ScatteringEvaluation evaluateSurfaceAndPDFs(in SurfaceSamplingContext surface, inout BDPTRayState rayState, in uint materialIndex, in ScatteringDirections dirs)
+{
+    ScatteringEvaluation result;
+    result.dispersed = false;
+
+    SurfaceDefinition surfaceDef = surface.surfaceDef;
+
     uint flags = EVALUATE_FLAGS_NONE;
-    if (isFromLightSource)
+    if (dirs.isFromLightSource)
     {
         flags |= EVALUATE_FLAGS_LIGHT_PATH;
     }
-    if (treatAsDelta)
+    if (dirs.treatAsDelta)
     {
         flags |= EVALUATE_FLAGS_TREAT_AS_DELTA;
     }
-    
-    evaluateSurface(surfaceDef, woOS, wiOS, samplingProbabilities, precalculatedSurfaceData, flags, weightOut, pdfForward, transmissionType);
-    
+
+    SurfaceEvaluation forward = evaluateSurface(surface, dirs.woOS, dirs.wiOS, flags);
+    result.weight = forward.weight;
+    result.pdfForward = forward.pdf;
+    TransmissionType transmissionType = forward.transmissionType;
+
     //This is silly but surface data is not the same when flippiing wo/wi so have to recalculate it here. TODO: recalculate only things that are independant of the direction and calculate wo/wi dependant things only later on
     {
-        TransmissionType transmissionTypeDummy;
-        bool triangleHitFrontfaceReverseDir = triangleHitFrontFace;
-        bool transmittedPair = dot(woOS, surfaceDef.geometryNormal) * dot(wiOS, surfaceDef.geometryNormal) < 0;
+        bool triangleHitFrontfaceReverseDir = dirs.triangleHitFrontFace;
+        bool transmittedPair = dot(dirs.woOS, surfaceDef.geometryNormal) * dot(dirs.wiOS, surfaceDef.geometryNormal) < 0;
         if (transmittedPair)
         {
             triangleHitFrontfaceReverseDir = !triangleHitFrontfaceReverseDir;
 
         }
 
-		//keep these before precalculatedSurfaceData is overwritten below
-        float fromIORForward = precalculatedSurfaceData.fromIOR;
-        float toIORForward = precalculatedSurfaceData.toIOR;
-
-        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), wiOS, triangleHitFrontfaceReverseDir, precalculatedSurfaceData);
+        SurfaceSamplingContext reverseSurface;
+        reverseSurface.surfaceDef = surfaceDef;
+        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), dirs.wiOS, triangleHitFrontfaceReverseDir, reverseSurface.precalculatedSurfaceData);
 
         if (transmittedPair)
         {
-            precalculatedSurfaceData.fromIOR = toIORForward;
-            precalculatedSurfaceData.toIOR = fromIORForward;
+            reverseSurface.precalculatedSurfaceData.fromIOR = surface.precalculatedSurfaceData.toIOR;
+            reverseSurface.precalculatedSurfaceData.toIOR = surface.precalculatedSurfaceData.fromIOR;
         }
 
-        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData.woBase, precalculatedSurfaceData.woCoating, precalculatedSurfaceData.fromIOR, precalculatedSurfaceData.toIOR, precalculatedSurfaceData.a2, samplingProbabilities);
-        evaluateSurface(surfaceDef, wiOS, woOS, samplingProbabilities, precalculatedSurfaceData, EVALUATE_FLAGS_PDF_ONLY, weightDummy, pdfBackward, transmissionTypeDummy); //generate pdf for reversed order
+        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, reverseSurface.precalculatedSurfaceData, reverseSurface.samplingProbabilities);
+        result.pdfBackward = evaluateSurface(reverseSurface, dirs.wiOS, dirs.woOS, EVALUATE_FLAGS_PDF_ONLY).pdf; //generate pdf for reversed order
     }
-    
-    
+
 
     if (transmissionType != TRANSMISSION_TYPE_NONE)
     {
         if ((transmissionType & TRANSMISSION_TYPE_DISPERSED) != 0)
         {
-            dispersedOut = (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) == 0;
+            result.dispersed = (rayState.getStateFlags() & RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED) == 0;
             rayState.setStateFlags(rayState.getStateFlags() | RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
         }
-			
+
         if ((transmissionType & TRANSMISSION_TYPE_EXITED) != 0)
         {
             rayState.exitedVolume(materialIndex);
@@ -416,11 +437,100 @@ out SpectralSamples weightOut, out float pdfForward, out float pdfBackward, out 
             rayState.enteredVolume(surfaceDef.dielectricIOR, surfaceDef.absorption, materialIndex);
         }
     }
+    return result;
 }
 
-//thin lens camera: directional pdf 1/(A*cos^3) is independent of aperture and focus distance (density on focus plane converted to solid angle at the lens point),
-//so camToNodeWS must be the direction from the sampled lens point, not from the camera center.
-//lens position pdf is the same uniform disk pdf for camera paths and pure light paths so it cancels in MIS and is omitted
+struct SubsurfaceEdge
+{
+    float3 exitPosWS;
+    float3 exitNormalWS;
+    float3 entryPosWS;
+    float3 entryNormalWS;
+};
+
+SubsurfaceEdge makeSubsurfaceEdge(float3 exitPosWS, float3 exitNormalWS, float3 entryPosWS, float3 entryNormalWS)
+{
+    SubsurfaceEdge edge;
+    edge.exitPosWS = exitPosWS;
+    edge.exitNormalWS = exitNormalWS;
+    edge.entryPosWS = entryPosWS;
+    edge.entryNormalWS = entryNormalWS;
+    return edge;
+}
+
+ScatteringEvaluation evaluateSubsurfaceExitAndPDFs(in SurfaceSamplingContext surface, in BDPTRayState rayState, in ScatteringDirections dirs, in SubsurfaceEdge edge)
+{
+    ScatteringEvaluation result;
+    result.dispersed = false;
+    evaluateSubsurfaceExitLobe(surface.surfaceDef, surface.precalculatedSurfaceData, dirs.woOS, dirs.wiOS, dirs.isFromLightSource ? EVALUATE_FLAGS_LIGHT_PATH : EVALUATE_FLAGS_NONE, result.weight, result.pdfForward);
+
+    SurfaceSamplingContext reverseSurface = makeSurfaceSamplingContext(surface.surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), dirs.wiOS, dirs.triangleHitFrontFace);
+    result.pdfBackward = reverseSurface.samplingProbabilities[LAYERIND_SUBSURFACE] * pdfSubsurfaceExit(surface.surfaceDef, edge.exitPosWS, edge.exitNormalWS, edge.entryPosWS, edge.entryNormalWS);
+    return result;
+}
+
+//a path vertex, either found by a ray or the exit point of a subsurface event (in which case there is no ray, and wo is the outward normal)
+struct PathHit
+{
+    float3x4 worldToObject;
+    float3 posWS;
+    uint instanceIndex;
+    float3 woOS;
+    uint primitiveIndex;
+    float3 woWS;
+    float rayT;
+    float2 barycentrics;
+    bool frontFace;
+    bool isSubsurfaceExit;
+};
+
+PathHit makePathHit(float3 rayOriginWS, float3 rayDirWS, float rayT, uint instanceIndex, uint primitiveIndex, float2 barycentrics, bool frontFace, float3 objectRayDir, float3x4 worldToObject)
+{
+    PathHit hit;
+    hit.worldToObject = worldToObject;
+    hit.posWS = rayOriginWS + rayDirWS * rayT;
+    hit.instanceIndex = instanceIndex;
+    hit.woOS = normalize(-objectRayDir);
+    hit.primitiveIndex = primitiveIndex;
+    hit.woWS = normalize(-rayDirWS);
+    hit.rayT = rayT;
+    hit.barycentrics = barycentrics;
+    hit.frontFace = frontFace;
+    hit.isSubsurfaceExit = false;
+    return hit;
+}
+
+#define MAKE_PATH_HIT_FROM_RAY_QUERY(q) makePathHit(q.WorldRayOrigin(), q.WorldRayDirection(), q.CommittedRayT(), q.CommittedInstanceID(), q.CommittedPrimitiveIndex(), q.CommittedTriangleBarycentrics(), q.CommittedTriangleFrontFace(), q.CommittedObjectRayDirection(), q.CommittedWorldToObject3x4())
+
+PathHit makePathHitFromSubsurfaceExit(SurfacePoint exitPoint)
+{
+    PathHit hit;
+    hit.worldToObject = getTransformDataForInstance(exitPoint.instanceIndex).getWorldToObj();
+    hit.posWS = exitPoint.positionWS;
+    hit.instanceIndex = exitPoint.instanceIndex;
+    hit.woOS = normalize(mul((float3x3) hit.worldToObject, exitPoint.geometryNormalWS));
+    hit.primitiveIndex = exitPoint.primitiveIndex;
+    hit.woWS = exitPoint.geometryNormalWS;
+    hit.rayT = 0;
+    hit.barycentrics = exitPoint.barycentrics;
+    hit.frontFace = exitPoint.frontFace;
+    hit.isSubsurfaceExit = true;
+    return hit;
+}
+
+SurfacePoint makeSurfacePoint(PathHit hit, float3 geometryNormalWS)
+{
+    SurfacePoint p;
+    p.positionWS = hit.posWS;
+    p.instanceIndex = hit.instanceIndex;
+    p.geometryNormalWS = orientToSameSide(hit.woWS, geometryNormalWS);
+    p.primitiveIndex = hit.primitiveIndex;
+    p.barycentrics = hit.barycentrics;
+    p.frontFace = hit.frontFace;
+    return p;
+}
+
+
 float calculateCameraDirectionalPDF(float3 camToNodeWS)
 {
 	float4 planeMin = mul(g_uvToViewTransform, float4(0, 0, 0, 1));
@@ -433,11 +543,11 @@ float calculateCameraDirectionalPDF(float3 camToNodeWS)
 
 	float3 camToNodeVS = mul(g_worldToViewTransform, float4(camToNodeWS, 0)).xyz;
 	float cosTheta = abs(camToNodeVS.z) * rsqrt(max(0.0001f, dot(camToNodeVS, camToNodeVS)));
-
-	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+    //omit one costheta because it would cancel with cameras geometry term costheta (and the lightnode already has one from Surface eval)
+	return safeDiv(g_targetTexDimensions.x * g_targetTexDimensions.y, planeArea * cosTheta * cosTheta * cosTheta);  
 }
 
-//pdf ratio sum can overflow to inf when ratios become too big, which will become NaN when multiplied with 0, guard against that case here
+
 #define MAX_PDF_RATIO_SUM 1e16f
 
 float calculatePDFRatio(float nom, float denom)
@@ -447,10 +557,10 @@ float calculatePDFRatio(float nom, float denom)
     return min(safeDiv(nom, denom), MAX_PDF_RATIO_SUM);
 }
 
-float accumulateRISum(float riSum, float nom, float denom)
+float accumulateRISum(float riSum, float nom, float denom, bool connectable)
 {
     float ri = calculatePDFRatio(nom, denom);
-    bool accumulateRI = nom > 0 && denom > 0;
+    bool accumulateRI = connectable && nom > 0 && denom > 0;
     riSum = ri * riSum;
     if(accumulateRI)
     {
@@ -459,29 +569,9 @@ float accumulateRISum(float riSum, float nom, float denom)
     return min(riSum, MAX_PDF_RATIO_SUM);
 }
 
-void fillSurfaceDefRGB(in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, out SurfaceDefinitionRGB surfaceDefOut)
+float accumulateRISum(float riSum, float nom, float denom)
 {
-    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
-    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
-
-	//Initial surface setup
-    float3 barycentrics = float3(1 - barycentrics2.x - barycentrics2.y, barycentrics2.x, barycentrics2.y);
-    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
-    float3 geometryNormal = fetchMeshTriangleNormal(meshEntry.positionBuffer, indices, barycentrics);
-    float3 normal = fetchMeshNormal(meshEntry.normalBuffer, indices, barycentrics);
-    float3 tangent = meshHasValidTangents(meshEntry.tangentBuffer) ? fetchMeshTangent(meshEntry.tangentBuffer, indices, barycentrics) : float3(1.f, 0.f, 0.f);
-    float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshUV(meshEntry.uvBuffer, indices, barycentrics) : float2(0.5f, 0.5f);
-
-
-	//fetch surface material parameters
-    MaterialEntryGPU matEntry = getMaterialEntry(matMeshIndices.x);
-    SurfaceDefinitionRGB surfaceDefRGB;
-    fetchSurfaceMaterialParameters(matEntry, surfaceDefRGB, geometryNormal, normal, normal, tangent);
-    setupSurfaceOrientation(surfaceDefRGB);
-    modifySurfaceMaterialParametersWithTextures(matEntry, uv, normal, tangent, surfaceDefRGB);
-    
-    
-    surfaceDefOut = surfaceDefRGB;
+    return accumulateRISum(riSum, nom, denom, true);
 }
 
 ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
@@ -493,8 +583,7 @@ ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
     return data;
 }
 
-void calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint materialIndex, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace,
-out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+SurfaceSamplingContext calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint materialIndex, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace)
 {
 
     handleTwoSidedMaterialOrientation(surfaceDefRGB, woOS);
@@ -504,23 +593,21 @@ out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurf
         regularizeMaterial(surfaceDefRGB);
     }
 
-    surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
+    SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
 
     //must happen before the precalculated data is set up so that the IORs (and the absorption applied by the caller) account for the medium the ray started in
     handleRayStartInsideMedium(rayState, surfaceDef, materialIndex, -woOS, surfaceDef.geometryNormal);
 
-    getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace, precalculatedSurfaceData);
-    calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+    return makeSurfaceSamplingContext(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace);
 }
 
 
-void calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace,
-out SurfaceDefinition surfaceDef, out PrecalculatedSurfaceData precalculatedSurfaceData, out float samplingProbabilities[LAYER_COUNT])
+SurfaceSamplingContext calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint instanceIndex, in uint primitiveIndex, in float2 barycentrics2, in float3 woOS, bool triangleHitFrontFace)
 {
     SurfaceDefinitionRGB surfaceDefRGB;
     fillSurfaceDefRGB(instanceIndex, primitiveIndex, barycentrics2, surfaceDefRGB);
 
-    calculateCommonSurfaceParams(rayState, getMaterialAndMeshIndicesForInstance(instanceIndex).x, surfaceDefRGB, woOS, triangleHitFrontFace, surfaceDef, precalculatedSurfaceData, samplingProbabilities);
+    return calculateCommonSurfaceParams(rayState, getMaterialAndMeshIndicesForInstance(instanceIndex).x, surfaceDefRGB, woOS, triangleHitFrontFace);
 }
 
 
@@ -529,57 +616,53 @@ void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float e
     pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
 }
 
-void sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability, out SpectralSamples radianceOut, out float3 posOut, out float3 dirOut, out float3 normalOut, out float pdfPosOut, out float pdfDirOut, out float pdflightSelection, out bool sampledEnvironment, out uint instanceOut, out uint primitiveOut, out float emissionProfileWeightOut)
+struct LightOrEnvSample
+{
+    LightSampleOutput sample;
+    float pdfLightSelection;
+    bool sampledEnvironment;
+};
+
+LightOrEnvSample sampleEnvironmentAsLight(float4 lightSampleRand0, float pdfLightSelection)
+{
+    LightOrEnvSample result = (LightOrEnvSample)0;
+    sampleEnvironmentLighting(lightSampleRand0, result.sample.radiance, result.sample.positionWS, result.sample.directionWS, result.sample.pdfPos, result.sample.pdfDir);
+    result.sample.normalWS = 0;
+    result.sample.instanceIndex = -1;
+    result.sample.primitiveIndex = -1;
+    result.sample.emissionProfileWeight = 1.f;
+    result.pdfLightSelection = pdfLightSelection;
+    result.sampledEnvironment = true;
+    return result;
+}
+
+LightOrEnvSample sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability)
 {
     if (g_lightCount == 0)
     {
-        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
-        pdflightSelection = 1.f;
-        sampledEnvironment = true;
-        normalOut = 0;
-        instanceOut = -1;
-        primitiveOut = -1;
-        emissionProfileWeightOut = 1.f;
-        return;
+        return sampleEnvironmentAsLight(lightSampleRand0, 1.f);
     }
 
     float lightProb = g_lightCount + envSampleRelativeProbability;
     float s = lightPickRand * lightProb;
     if (s > g_lightCount)
     {
-        sampleEnvironmentLighting(lightSampleRand0, radianceOut, posOut, dirOut, pdfPosOut, pdfDirOut);
-        pdflightSelection = envSampleRelativeProbability / lightProb;
-        sampledEnvironment = true;
-        normalOut = 0;
-        instanceOut = -1;
-        primitiveOut = -1;
-        emissionProfileWeightOut = 1.f;
-
+        return sampleEnvironmentAsLight(lightSampleRand0, envSampleRelativeProbability / lightProb);
     }
-    else
-    {
-        uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
-        LightSampleOutput output;
-        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, output);
-        
-        radianceOut = output.radiance;
-        posOut = output.positionWS;
-        dirOut = output.directionWS;
-        normalOut = output.normalWS;
-        pdfPosOut = output.pdfPos;
-        pdfDirOut = output.pdfDir;
-        instanceOut = output.instanceIndex;
-        primitiveOut = output.primitiveIndex;
-        pdflightSelection = 1 / lightProb;
-        sampledEnvironment = false;
-        emissionProfileWeightOut = output.emissionProfileWeight;
 
-    }
+    uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
+    LightOrEnvSample result;
+    sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, result.sample);
+    result.pdfLightSelection = 1 / lightProb;
+    result.sampledEnvironment = false;
+    return result;
 }
 
 
-bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 nextVertexPos, bool secondaryWavelengthsAlreadyTerminated, out float pdfForwardOut, out float pdfBackwardOut, out SpectralSamples weightOut, out float pdfForwardMISOut)
+//for a subsurface exit node evalOut.pdfBackward is an area density (see evaluateSubsurfaceExitAndPDFs)
+bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData lightNodeData, uint lightNodeIndex, float3 prevVertexPos, float3 prevVertexNormal, float3 nextVertexPos, bool secondaryWavelengthsAlreadyTerminated, out ScatteringEvaluation evalOut, out float pdfForwardMISOut)
 {
+    evalOut = (ScatteringEvaluation)0;
 
     SurfaceDefinitionRGB surfaceDefRGB = lightNodeData.surfaceDefRGB;
     float3x4 toLocalFrame = lightNodeData.worldToObjSpace;
@@ -592,26 +675,53 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         float3 fromLightWS = nextVertexPos - lightNode.positionWS;
         if (dot(fromLightWS, lightNode.normalWS) <= 0 && !twoSided)
         {
-            pdfForwardOut = 0;
-            pdfBackwardOut = 0;
             pdfForwardMISOut = 0;
-            weightOut.fromFloat4(float4(0, 0, 0, 0));
             return false;
         }
 
 		//for first node, this is just pdf for selecting light, ie 1.f/probLightPick*probPos
         float pdf = lightNode.pdfForwardMIS;
-        pdfForwardOut = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
-
-        pdfBackwardOut = 0;
+        evalOut.pdfForward = pdf * areaDensityToSolidAngleMultiplier(-fromLightWS, lightNode.normalWS);
 
         float cosLightEmit = dot(lightNode.normalWS, normalize(fromLightWS));
         float emissionFocus = ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0) ? 0.f : surfaceDefRGB.emissionFocus;
-        weightOut.set(safeDiv(evaluateEmissionProfile(cosLightEmit, emissionFocus), pdfForwardOut));
+        evalOut.weight.set(safeDiv(evaluateEmissionProfile(cosLightEmit, emissionFocus), evalOut.pdfForward));
 
         pdfForwardMISOut = twoSided ? pdfCosinePowerWeightedSphere(cosLightEmit, emissionFocus) : (cosLightEmit >= 0 ? pdfCosinePowerWeightedHemisphere(cosLightEmit, emissionFocus) : 0);
 
 
+    }
+    else if ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0)
+    {
+        float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
+        float3 camNodePosOS = mul(toLocalFrame, float4(nextVertexPos, 1)).xyz;
+        float3 wiOS = normalize(camNodePosOS - lightPosOS);
+        //exit nodes store the outward normal
+        float3 woOS = normalize(mul((float3x3) toLocalFrame, lightNode.normalWS));
+
+        handleTwoSidedMaterialOrientation(surfaceDefRGB, woOS);
+        if ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_REGULARIZED) != 0)
+        {
+            regularizeMaterial(surfaceDefRGB);
+        }
+
+        BDPTRayState rayState;
+        rayState.ior[0] = lightNode.iorPrevious;
+        rayState.ior[1] = lightNode.iorCurrent;
+        rayState.volumeMaterial = VOLUME_MATERIAL_NONE;
+        rayState.numberVolumesEntered = 2;
+        rayState.setStateFlags(0);
+
+        SurfaceSamplingContext surface = makeSurfaceSamplingContext(convertSurfaceDefinitionFromRGB(surfaceDefRGB), rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, triangleHitFrontFace);
+        evalOut = evaluateSubsurfaceExitAndPDFs(surface, rayState, makeScatteringDirections(woOS, wiOS, triangleHitFrontFace, true, false),
+            makeSubsurfaceEdge(lightNode.positionWS, lightNode.normalWS, prevVertexPos, prevVertexNormal));
+
+        pdfForwardMISOut = evalOut.pdfForward;
+
+        if (evalOut.pdfBackward == 0 || evalOut.weight.allSamplesEqual(0))
+        {
+            return false;
+        }
     }
     else
     {
@@ -629,11 +739,8 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
             regularizeMaterial(surfaceDefRGB);
         }
 
-        SurfaceDefinition surfaceDef = convertSurfaceDefinitionFromRGB(surfaceDefRGB);
-        PrecalculatedSurfaceData precalculatedSurfaceData;
-        float samplingProbabilities[LAYER_COUNT];
 
-		//for now just initialize with node data. maybe needs a better way (update during light node traversal?)
+//for now just initialize with node data. maybe needs a better way (update during light node traversal?)
         BDPTRayState rayState;
         rayState.ior[0] = lightNode.iorPrevious;
         rayState.ior[1] = lightNode.iorCurrent;
@@ -643,19 +750,17 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
         bool alreadyTerminated = secondaryWavelengthsAlreadyTerminated || ((lightNodeFlags & LIGHT_PATH_NODE_FLAG_SECONDARY_WAVELENGTHS_TERMINATED) != 0);
         rayState.setStateFlags(alreadyTerminated ? RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED : 0);
 
-        bool dispersed;
-        getPrecalculatedSurfaceData(surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace, precalculatedSurfaceData);
-        calculateNormalizedMaterialLayerSamplingProbabilities(surfaceDef, precalculatedSurfaceData, samplingProbabilities);
-        evaluateSurfaceAndPDFs(surfaceDef, precalculatedSurfaceData, samplingProbabilities, rayState, VOLUME_MATERIAL_NONE, woOSLightConnection, wiOS, triangleHitFrontFace, true, false, weightOut, pdfForwardOut, pdfBackwardOut, dispersed);
+        SurfaceSamplingContext surface = makeSurfaceSamplingContext(convertSurfaceDefinitionFromRGB(surfaceDefRGB), rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOSLightConnection, triangleHitFrontFace);
+        evalOut = evaluateSurfaceAndPDFs(surface, rayState, VOLUME_MATERIAL_NONE, makeScatteringDirections(woOSLightConnection, wiOS, triangleHitFrontFace, true, false));
 
-        if (dispersed)
+        if (evalOut.dispersed)
         {
-            weightOut.terminateSecondaryWavelengths();
+            evalOut.weight.terminateSecondaryWavelengths();
         }
 
-        pdfForwardMISOut = pdfForwardOut;
+        pdfForwardMISOut = evalOut.pdfForward;
 
-        if (pdfBackwardOut == 0 || weightOut.allSamplesEqual(0))
+        if (evalOut.pdfBackward == 0 || evalOut.weight.allSamplesEqual(0))
         {
             return false;
         }
@@ -666,10 +771,8 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
 
 struct CameraVertexContext
 {
-    SurfaceDefinition surfaceDef;
-    PrecalculatedSurfaceData precalculatedSurfaceData;
+    SurfaceSamplingContext surface;
     SpectralSamples throughput;
-    float samplingProbabilities[LAYER_COUNT];
     float3 posWS;
     float pdfRatioSum;
     float3 normalWS;
@@ -682,6 +785,8 @@ struct CameraVertexContext
     float currentNodeForwardPDFMIS;
     bool triangleHitFrontFace;
     uint materialIndex;
+    bool isSubsurfaceExit; //reached through the subsurface from the previous vertex
+    bool prevIsSubsurfaceExit;
 };
 
 struct LightVertexContext
@@ -691,24 +796,34 @@ struct LightVertexContext
     float3 prevNodeNormalWS;
     uint originatingNodeFlags;
     float riSum;
+    uint prevNodeFlags;
 };
 
 
+//pdfs of the vertices on both ends of the connection, evaluated for the connected path
+struct ConnectionPDFs
+{
+    float pdfForwardLastCameraNode;
+    float pdfBackwardLastCameraNode;
+    float pdfForwardLastLightNode;
+    float pdfBackwardLastLightNode;
+};
+
 float calculateMISWeight(uint cameraVertexIndex, in CameraVertexContext camVertex,
-uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode,
-float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwardLastLightNode, float pdfForwardLastLightNode)
+uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode lightNode, in ConnectionPDFs pdfs)
 {
 
     float riSumCam = camVertex.pdfRatioSum;
 	//TODO: the actual first node would be the origina of the ray from camera but its not considered (and can never be hit by path from light). Revisit if its correct to just ignore it here
     if (cameraVertexIndex > 1)
     {
-        float pdfBackwardPrevNodeCam = pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
-        riSumCam = accumulateRISum(riSumCam, pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS);
+        //from a subsurface exit the backward pdf is already an area density
+        float pdfBackwardPrevNodeCam = camVertex.isSubsurfaceExit ? pdfs.pdfBackwardLastCameraNode : pdfs.pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
+        riSumCam = accumulateRISum(riSumCam, pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS, !camVertex.prevIsSubsurfaceExit);
     }
     if (cameraVertexIndex > 0)
     {
-        riSumCam = accumulateRISum(riSumCam, pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS);
+        riSumCam = accumulateRISum(riSumCam, pdfs.pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS, !camVertex.isSubsurfaceExit);
     }
 
 	
@@ -728,12 +843,12 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
         if (isEnvLight)
         {
             pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
-            misWeightToLight = pdfForwardLastCameraNode;
+            misWeightToLight = pdfs.pdfForwardLastCameraNode;
         }
         else
         {
             pdfForSamplingLightNode(lightNode, lightToCam, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
-            misWeightToLight = pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
+            misWeightToLight = pdfs.pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
         riSumLight = calculatePDFRatio(misWeightToLight, (lightPickPDF * lightPosPDF));
@@ -741,16 +856,18 @@ float pdfBackwardLastCameraNode, float pdfForwardLastCameraNode, float pdfBackwa
     }
     else
     {
-        float pdfBackwardPrevNodeLight = pdfBackwardLastLightNode;
+        float pdfBackwardPrevNodeLight = pdfs.pdfBackwardLastLightNode;
 
+        bool lightNodeIsSubsurfaceExit = (lightNode.flags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0;
+        bool prevNodeIsSubsurfaceExit = (lightVertex.prevNodeFlags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0;
         bool prevNodeIsEnvLight = (lightVertexIndex == 1) && ((lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
-        if (!prevNodeIsEnvLight)
+        if (!prevNodeIsEnvLight && !lightNodeIsSubsurfaceExit)
         {
             pdfBackwardPrevNodeLight *= solidAngleToAreaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
         }
-		
-        riSumLight = accumulateRISum(riSumLight, pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS);
-        riSumLight = accumulateRISum(riSumLight, pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS);
+
+        riSumLight = accumulateRISum(riSumLight, pdfBackwardPrevNodeLight, lightVertex.previousPDFForwardMIS, !prevNodeIsSubsurfaceExit);
+        riSumLight = accumulateRISum(riSumLight, pdfs.pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(lightNode.positionWS.xyz - camVertex.posWS, lightNode.normalWS), lightNode.pdfForwardMIS, !lightNodeIsSubsurfaceExit);
     }
 	
     float misWeight = 1.f / (1 + riSumCam + riSumLight);
@@ -778,7 +895,7 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
    
     if (cameraVertexIndex > 1)
     {
-        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS);
+        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS, !camVertexContext.prevIsSubsurfaceExit);
     }
 
     riSumCam = accumulateRISum(riSumCam, lightPickPDF * lightPosPDF, camVertexContext.currentNodeForwardPDFMIS);
@@ -808,7 +925,7 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
    
     if (cameraVertexIndex > 1)
     {
-        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS);
+        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS, !context.prevIsSubsurfaceExit);
     }
 
     riSumCam = accumulateRISum(riSumCam, lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
@@ -837,43 +954,47 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         rayState.addFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED);
     }
 
+    ConnectionPDFs connectionPDFs;
     SpectralSamples weightLastCameraNode;
-    float pdfForwardLastCameraNode;
-    float pdfBackwardLastCameraNode;
 	//evaluate weight PDFs for connecting camera node
 	{
-
-        float pdfForward;
-        float pdfBackward;
-        bool dispersed;
-        evaluateSurfaceAndPDFs(camVertex.surfaceDef, camVertex.precalculatedSurfaceData, camVertex.samplingProbabilities, rayState, camVertex.materialIndex, camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false, weightLastCameraNode, pdfForward, pdfBackward, dispersed);
-
-        if (dispersed)
+        ScatteringDirections dirs = makeScatteringDirections(camVertex.woOS, camVertex.wiOS, camVertex.triangleHitFrontFace, false, false);
+        ScatteringEvaluation eval;
+        if (camVertex.isSubsurfaceExit)
         {
-            weightLastCameraNode.terminateSecondaryWavelengths();
+            eval = evaluateSubsurfaceExitAndPDFs(camVertex.surface, rayState, dirs, makeSubsurfaceEdge(camVertex.posWS, camVertex.normalWS, camVertex.prevNodePosWS, camVertex.prevNodeNormalWS));
+        }
+        else
+        {
+            eval = evaluateSurfaceAndPDFs(camVertex.surface, rayState, camVertex.materialIndex, dirs);
         }
 
-        if (pdfForward == 0 || weightLastCameraNode.allSamplesEqual(0))
+        if (eval.dispersed)
+        {
+            eval.weight.terminateSecondaryWavelengths();
+        }
+
+        if (eval.pdfForward == 0 || eval.weight.allSamplesEqual(0))
         {
             return retVal;
         }
 
-        pdfForwardLastCameraNode = pdfForward;
-        pdfBackwardLastCameraNode = pdfBackward;
+        weightLastCameraNode = eval.weight;
+        connectionPDFs.pdfForwardLastCameraNode = eval.pdfForward;
+        connectionPDFs.pdfBackwardLastCameraNode = eval.pdfBackward;
     }
 
-    SpectralSamples weightLastLightNode = (SpectralSamples) 0;
-    float pdfForwardLastLightNode;
-    float pdfBackwardLastLightNode;
-    float pdfForwardLastLightNodeMIS;
+    SpectralSamples weightLastLightNode;
 	//evaluate weight PDFs for connecting light node
 	{
-        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, camVertex.posWS, rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED), pdfForwardLastLightNode, pdfBackwardLastLightNode, weightLastLightNode, pdfForwardLastLightNodeMIS);
+        ScatteringEvaluation eval;
+        bool connectionValid = calculateConnectingLightNodeWeightsAndPDFs(lightNodeData, lightNodeIndex, lightVertex.prevNodePosWS, lightVertex.prevNodeNormalWS, camVertex.posWS, rayState.hasFlags(RAYSTATE_FLAGS_SECONDARY_LAMBDAS_TERMINATED), eval, connectionPDFs.pdfForwardLastLightNode);
         if (!connectionValid)
         {
             return retVal;
         }
-
+        weightLastLightNode = eval.weight;
+        connectionPDFs.pdfBackwardLastLightNode = eval.pdfBackward;
     }
     
     float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
@@ -930,7 +1051,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
 					
 	//can connect, evaluate connection and accumulate total light
 	{
-        float misWeight = calculateMISWeight(cameraVertexIndex, camVertex, lightVertexIndex, lightVertex, lightNode, pdfBackwardLastCameraNode, pdfForwardLastCameraNode, pdfBackwardLastLightNode, pdfForwardLastLightNodeMIS);
+        float misWeight = calculateMISWeight(cameraVertexIndex, camVertex, lightVertexIndex, lightVertex, lightNode, connectionPDFs);
 
         SpectralSamples radianceFromLight;
         radianceFromLight.fromFloat4(lightNode.radiance);

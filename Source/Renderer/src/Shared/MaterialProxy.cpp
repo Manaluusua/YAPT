@@ -321,6 +321,36 @@ namespace YAPT
 		return (m_materialParams.materialMask & MaterialMask_Dispersion) != 0;
 	}
 
+	void MaterialProxy::setSubsurfaceAmount(float val)
+	{
+		m_materialParams.subsurfaceAmount = val;
+		setDirty();
+	}
+	float MaterialProxy::getSubsurfaceAmount() const
+	{
+		return m_materialParams.subsurfaceAmount;
+	}
+
+	void MaterialProxy::setSubsurfaceRadius(const vec3p& v)
+	{
+		m_materialParams.subsurfaceRadius = v;
+		setDirty();
+	}
+	const vec3p& MaterialProxy::getSubsurfaceRadius() const
+	{
+		return m_materialParams.subsurfaceRadius;
+	}
+
+	void MaterialProxy::setSubsurfaceRadiusScale(float val)
+	{
+		m_materialParams.subsurfaceRadiusScale = val;
+		setDirty();
+	}
+	float MaterialProxy::getSubsurfaceRadiusScale() const
+	{
+		return m_materialParams.subsurfaceRadiusScale;
+	}
+
 	void MaterialProxy::setAlbedoTexture(const TextureParameter& tex)
 	{
 		assignMaterialTextureParam(tex, m_materialParams.albedoTex);

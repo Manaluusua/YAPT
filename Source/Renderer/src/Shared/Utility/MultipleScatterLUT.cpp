@@ -121,16 +121,7 @@ namespace YAPT
 
 				for (size_t y = items->from; y < items->to; ++y)
 				{
-					float average = 0.f;
-					for (size_t x = 0; x < SS_ALBEDO_LUT_DIM; ++x)
-					{
-						size_t srcIndex = y * SS_ALBEDO_LUT_DIM + x;
-						float cosTheta = float(x) / (SS_ALBEDO_LUT_DIM - 1);
-						cosTheta = max(cosTheta, MIN_COS_THETA);
-						float dirAlbedo = singleScatterAlbedo[srcIndex];
-						average += dirAlbedo * cosTheta;
-					}
-					singleScatterAvgAlbedo[y] = 2 * average / SS_ALBEDO_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
+					singleScatterAvgAlbedo[y] = integrateAverageAlbedo(singleScatterAlbedo + y * SS_ALBEDO_LUT_DIM, SS_ALBEDO_LUT_DIM); // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			};
@@ -210,18 +201,8 @@ namespace YAPT
 			{
 				for (size_t y = 0; y < SSMS_ALBEDO_LUT_DIM; ++y)
 				{
-					float average = 0.f;
-					for (size_t x = 0; x < SSMS_ALBEDO_LUT_DIM; ++x)
-					{
-						float cosTheta = float(x) / (SSMS_ALBEDO_LUT_DIM - 1);
-						cosTheta = max(cosTheta, MIN_COS_THETA);
-						size_t srcIndex = z * SSMS_ALBEDO_LUT_DIM * SSMS_ALBEDO_LUT_DIM + (y * SSMS_ALBEDO_LUT_DIM) + x;
-						float dirAlbedo = fullScatteringAlbedo[srcIndex];
-
-						average += dirAlbedo * cosTheta;
-					}
-
-					fullScatteringAvgAlbedo[z * SSMS_ALBEDO_LUT_DIM + y] = 2 * average / SSMS_ALBEDO_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
+					size_t srcIndex = z * SSMS_ALBEDO_LUT_DIM * SSMS_ALBEDO_LUT_DIM + (y * SSMS_ALBEDO_LUT_DIM);
+					fullScatteringAvgAlbedo[z * SSMS_ALBEDO_LUT_DIM + y] = integrateAverageAlbedo(fullScatteringAlbedo + srcIndex, SSMS_ALBEDO_LUT_DIM); // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			}
@@ -356,18 +337,8 @@ namespace YAPT
 			{
 				for (size_t y = 0; y < SS_ALBEDO_TRANSLUCENT_LUT_DIM; ++y)
 				{
-					float average = 0.f;
-					for (size_t x = 0; x < SS_ALBEDO_TRANSLUCENT_LUT_DIM; ++x)
-					{
-						float cosTheta = float(x) / (SS_ALBEDO_TRANSLUCENT_LUT_DIM - 1);
-						size_t srcIndex = z * SS_ALBEDO_TRANSLUCENT_LUT_DIM * SS_ALBEDO_TRANSLUCENT_LUT_DIM + (y * SS_ALBEDO_TRANSLUCENT_LUT_DIM) + x;
-						float dirAlbedo = translucentScatterAlbedo[srcIndex];
-						cosTheta = max(cosTheta, MIN_COS_THETA);
-
-						average += dirAlbedo * cosTheta;
-					}
-
-					AvgAlbedo[z * SS_ALBEDO_TRANSLUCENT_LUT_DIM + y] = 2 * average / SS_ALBEDO_TRANSLUCENT_LUT_DIM; // multiply by PI intentionally omitted (done in the shader)
+					size_t srcIndex = z * SS_ALBEDO_TRANSLUCENT_LUT_DIM * SS_ALBEDO_TRANSLUCENT_LUT_DIM + (y * SS_ALBEDO_TRANSLUCENT_LUT_DIM);
+					AvgAlbedo[z * SS_ALBEDO_TRANSLUCENT_LUT_DIM + y] = integrateAverageAlbedo(translucentScatterAlbedo + srcIndex, SS_ALBEDO_TRANSLUCENT_LUT_DIM); // multiply by PI intentionally omitted (done in the shader)
 				}
 
 			}

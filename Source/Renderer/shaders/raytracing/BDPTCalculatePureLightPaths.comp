@@ -40,7 +40,7 @@ bool getProjectedPositionOnScreen(in LightPathNode node, float3 lensPosVS, out u
 }
 
 
-void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
+void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uint lightNodeIndex, float3 camPos, float3 prevPos, float3 prevNormal, out float4 radianceOut, out float pdfForwardOut, out float pdfBackwardOut)
 {
 	bool lightNodeIsDelta = (nodeData.node.flags & LIGHT_PATH_NODE_FLAG_IS_DELTA_DISTRIBUTION) != 0;
 	if(lightNodeIsDelta)
@@ -51,10 +51,10 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 		return;
 	}
 
-	SpectralSamples s;
+	ScatteringEvaluation eval;
 	float pdfForwardMISUnused;
 	//connecting straight to the camera, so there is no camera subpath state, only what the light node itself carries
-	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, camPos, false, pdfForwardOut, pdfBackwardOut, s, pdfForwardMISUnused))
+	if(!calculateConnectingLightNodeWeightsAndPDFs(nodeData, lightNodeIndex, prevPos, prevNormal, camPos, false, eval, pdfForwardMISUnused))
 	{
 		radianceOut = 0;
 		pdfForwardOut = 0;
@@ -62,7 +62,9 @@ void calculateWeightTowardsCamera(in ExtractedLightPathNodeData nodeData, in uin
 		return;
 	}
 
-	radianceOut = s.toFloat4();
+	radianceOut = eval.weight.toFloat4();
+	pdfForwardOut = eval.pdfForward;
+	pdfBackwardOut = eval.pdfBackward;
 }
 	
 bool checkVisibility(float3 from, float3 to)
@@ -132,7 +134,8 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 	float3 prevPos;
 	float3 prevNormal;
 	float prevPDFForwardMIS;
-	
+	uint prevFlags;
+
 	uint originatingLightFlags;
 	{
 		LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x));
@@ -140,6 +143,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 		prevPos = node.positionWS;
 		prevPDFForwardMIS = node.pdfForwardMIS;
 		originatingLightFlags = node.flags;
+		prevFlags = node.flags;
 
 		deferredRISum = accumulateRISum(deferredRISum, node.pdfBackwardMIS, node.pdfForwardMIS);
 	}
@@ -148,6 +152,7 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
     {
         LightPathNode node = decompressLightPathNode(getLightPathVertex(header.offsetAndCount.x + i));
 		ExtractedLightPathNodeData nodeData = getExtractedLightPathNodeData(node);
+		bool nodeIsSubsurfaceExit = (node.flags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0;
 		uint2 targetTexel;
 
         if(getProjectedPositionOnScreen(nodeData.node, lensPosVS, targetTexel) && shouldPathContribute(0, i + 1))
@@ -156,20 +161,21 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 			float pdfForward;
 			float pdfBackward;
 
-			calculateWeightTowardsCamera(nodeData, i, lensPosWS, prevPos, w, pdfForward, pdfBackward);
+			calculateWeightTowardsCamera(nodeData, i, lensPosWS, prevPos, prevNormal, w, pdfForward, pdfBackward);
 			if(any(w))
 			{
 				if(checkVisibility(nodeData.node.positionWS, lensPosWS))
 				{
 					bool prevNodeIsEnvLight = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
-					float pdfBackwardPrevNode = pdfBackward * (prevNodeIsEnvLight ? 1 : solidAngleToAreaDensityMultiplier(prevPos - nodeData.node.positionWS, prevNormal));
+					//from a subsurface exit the backward pdf is already an area density
+					float pdfBackwardPrevNode = pdfBackward * ((prevNodeIsEnvLight || nodeIsSubsurfaceExit) ? 1 : solidAngleToAreaDensityMultiplier(prevPos - nodeData.node.positionWS, prevNormal));
 
 					//lens area pdf cancels with the lens area in camera importance, so this is the same as for a pinhole when measured from the lens point
 					float3 camToNode = nodeData.node.positionWS - lensPosWS;
 					float pdfCameraDirection = calculateCameraDirectionalPDF(camToNode);
 
-					float riSumCurrent = accumulateRISum(riSum, pdfBackwardPrevNode, prevPDFForwardMIS);
-					riSumCurrent = accumulateRISum(riSumCurrent, pdfCameraDirection * solidAngleToAreaDensityMultiplier(camToNode, nodeData.node.normalWS), nodeData.node.pdfForwardMIS);
+					float riSumCurrent = accumulateRISum(riSum, pdfBackwardPrevNode, prevPDFForwardMIS, (prevFlags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) == 0);
+					riSumCurrent = accumulateRISum(riSumCurrent, pdfCameraDirection * solidAngleToAreaDensityMultiplier(camToNode, nodeData.node.normalWS), nodeData.node.pdfForwardMIS, !nodeIsSubsurfaceExit);
 
 					float misWeight = 1.f / (1 + riSumCurrent);
 					float geomTerm = 1.f / max(0.0001f, dot(camToNode, camToNode));
@@ -186,7 +192,8 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 
 		riSum = deferredRISum;
 
-		deferredRISum = accumulateRISum(deferredRISum, nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS);
+		deferredRISum = accumulateRISum(deferredRISum, nodeData.node.pdfBackwardMIS, nodeData.node.pdfForwardMIS, !nodeIsSubsurfaceExit);
+		prevFlags = nodeData.node.flags;
 		prevNormal = nodeData.node.normalWS;
 		prevPos = nodeData.node.positionWS;
 		prevPDFForwardMIS = nodeData.node.pdfForwardMIS;

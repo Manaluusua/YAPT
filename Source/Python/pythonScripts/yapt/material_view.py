@@ -41,6 +41,11 @@ class MaterialView(QWidget):
         layout.addWidget(self.create_material_property_float("SheenRoughness", 1))
         layout.addWidget(self.create_material_property_float("SheenTint", 3))
 
+        layout.addWidget(QLabel("Subsurface"))
+        layout.addWidget(self.create_material_property_float("SubsurfaceAmount", 1))
+        layout.addWidget(self.create_material_property_float("SubsurfaceRadius", 3, limit_max = max_float))
+        layout.addWidget(self.create_material_property_float("SubsurfaceRadiusScale", 1, limit_max = max_float))
+
         layout.addWidget(QLabel("Misc"))
         layout.addWidget(self.create_material_property_bool("TwoSided"))
         layout.addWidget(self.create_material_property_bool("EnableDispersion"))
