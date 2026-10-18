@@ -20,7 +20,8 @@ namespace YAPT
 		BackwardsPathIntegratorSubStage(bool useNextEventEstimation);
 		virtual ~BackwardsPathIntegratorSubStage();
 
-		virtual void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr) final;
+		virtual void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, const RenderStage::InitializeData& data) final;
+		virtual void createNodes() final;
 		virtual void shutdown() final;
 		virtual void onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data) final;
 		virtual void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution) final;

@@ -2,7 +2,6 @@
 #include <Gfx/GfxBasicTypesUtility.h>
 
 #include <algorithm>
-#include <unordered_map>
 #include <bitset>
 
 #include <Common/JobSystem.h>
@@ -18,6 +17,7 @@ namespace YAPT
 		:m_gfxHandle(h),
 		m_cmdBufferPool(YAPT_NULL_HANDLE),
 		m_numberOfCmdBuffersPerFrame(0),
+		m_cmdBufferPoolSize(0),
 		m_executionPhase(ExecutionPhase::IDLE)
 	{
 
@@ -27,19 +27,29 @@ namespace YAPT
 	{
 		m_resourceRequirements.reset();
 
-		for (size_t i = 0; i < m_edges.size(); ++i)
-		{
-			delete m_edges[i];
-		}
-		m_edges.clear();
-
-		for (size_t i = 0; i < m_nodes.size(); ++i)
-		{
-			delete m_nodes[i];
-		}
-		m_nodes.clear();
+		destroyNodesAndEdges();
 
 		Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
+	}
+
+	void RenderGraph::destroyNodesAndEdges()
+	{
+		for (size_t i = 0; i < m_nodes.size(); ++i)
+		{
+			m_nodes[i]->~RenderGraphNode();
+		}
+		m_nodes.clear();
+		m_customNodes.clear();
+
+		m_graphArena.reset();
+	}
+
+	void RenderGraph::reset()
+	{
+		assert(m_executionPhase == ExecutionPhase::IDLE);
+
+		destroyNodesAndEdges();
+		m_resourceRequirements.reset();
 	}
 
 
@@ -50,7 +60,7 @@ namespace YAPT
 #endif
 		RenderNode* node = createRenderNodeInternal(name, numberOfConnectionSlots, slotDefinitions);
 		node->setCallback(callback, usrData);
-		m_nodes.push_back(node);
+		registerNode(node);
 		return node;
 	}
 	ComputeNode* RenderGraph::createComputeNode(size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions, RenderGraphNodeExecutionCallback callback, void* usrData, const char* name)
@@ -61,7 +71,7 @@ namespace YAPT
 #endif
 		ComputeNode* node = createComputeNodeInternal(name, numberOfConnectionSlots, slotDefinitions);
 		node->setCallback(callback, usrData);
-		m_nodes.push_back(node);
+		registerNode(node);
 		return node;
 	}
 	RaytraceNode* RenderGraph::createRayTraceNode(size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions, RenderGraphNodeExecutionCallback callback, void* usrData, const char* name)
@@ -72,7 +82,7 @@ namespace YAPT
 #endif
 		RaytraceNode* node = createRayTraceNodeInternal(name, numberOfConnectionSlots, slotDefinitions);
 		node->setCallback(callback, usrData);
-		m_nodes.push_back(node);
+		registerNode(node);
 		return node;
 	}
 
@@ -82,7 +92,7 @@ namespace YAPT
 		assert(!containsRenderTargets(numberOfConnectionSlots, slotDefinitions));
 		assert(areRenderGraphNodeDefinitionsSane(numberOfConnectionSlots, slotDefinitions));
 #endif
-		GenericExecuteNode* node = new GenericExecuteNode(name, this, numberOfConnectionSlots, slotDefinitions);
+		GenericExecuteNode* node = new (allocateNodeMemory<GenericExecuteNode>()) GenericExecuteNode(name, this, numberOfConnectionSlots, slotDefinitions);
 		node->setCallback(callback, usrData);
 		registerCustomNode(node);
 		return node;
@@ -95,9 +105,15 @@ namespace YAPT
 		return sn;
 	}
 
+	void RenderGraph::registerNode(RenderGraphNode* node)
+	{
+		node->setCreationIndex(m_nodes.size());
+		m_nodes.push_back(node);
+	}
+
 	void RenderGraph::registerCustomNode(CustomNode* node)
 	{
-		m_nodes.push_back(node);
+		registerNode(node);
 		m_customNodes.push_back(node);
 	}
 
@@ -123,7 +139,7 @@ namespace YAPT
 			return false;
 		}
 #endif
-		RenderGraphNodeEdge* edge = new RenderGraphNodeEdge;
+		RenderGraphNodeEdge* edge = m_graphArena.create<RenderGraphNodeEdge>();
 		edge->fromNode = fromNode;
 		edge->fromSlot = fromSlot;
 		edge->toNode = toNode;
@@ -131,10 +147,11 @@ namespace YAPT
 		edge->toArrayOffset = toArrayOffset;
 		edge->toMipOffset = toMipOffset;
 
+		edge->nextInToSlot = nullptr;
+		edge->nextOutFromSlot = nullptr;
+
 		fromNode->addEdge(edge);
 		toNode->addEdge(edge);
-
-		m_edges.push_back(edge);
 
 		return true;
 	}
@@ -365,7 +382,14 @@ namespace YAPT
 
 	void RenderGraph::compile()
 	{
-		sortNodes(m_nodes);
+		assert(m_executionPhase == ExecutionPhase::IDLE);
+
+		for (size_t i = 0; i < m_nodes.size(); ++i)
+		{
+			m_nodes[i]->flattenEdges();
+		}
+
+		sortNodes();
 
 		for (size_t i = 0; i < m_nodes.size(); ++i)
 		{
@@ -373,7 +397,15 @@ namespace YAPT
 		}
 		
 		m_resourceRequirements.resolve(m_nodes.data(), m_nodes.size());
+
 		m_boundRenderGraphResources.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());
+		for (RenderGraphResourceBindings& bindings : m_boundRenderGraphResources)
+		{
+			bindings.type = BoundResourceType::UNASSIGNED;
+			bindings.textureHandles.clear();
+			bindings.bufferHandles.clear();
+			bindings.boundInThisFrame = true;
+		}
 
 		m_lastStateInGraph.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());
 		for (size_t resourceId = 0; resourceId < m_lastStateInGraph.size(); ++resourceId)
@@ -395,7 +427,14 @@ namespace YAPT
 		m_resourceDataPerNodeSlot.resize(m_nodes.size());
 		for (size_t i = 0; i < m_resourceDataPerNodeSlot.size(); ++i)
 		{
-			m_resourceDataPerNodeSlot[i].resourceViewPerSlot.resize(m_nodes[i]->getNumberOfSlots());
+			std::vector<RenderGraphResourceView>& views = m_resourceDataPerNodeSlot[i].resourceViewPerSlot;
+			views.resize(m_nodes[i]->getNumberOfSlots());
+			for (RenderGraphResourceView& view : views)
+			{
+				view.type = BoundResourceType::UNASSIGNED;
+				view.textureViews.clear();
+				view.bufferHandles.clear();
+			}
 		}
 
 		//clears
@@ -403,6 +442,7 @@ namespace YAPT
 		for(size_t i = 0; i < m_nodes.size(); ++i)
 		{
 			RenderGraphNode* node = m_nodes[i];
+			m_clearsPerNode[i].slotsToClear.clear();
 			for (size_t slotIndex = 0; slotIndex < node->getNumberOfSlots(); ++slotIndex)
 			{
 				const RenderGraphNodeSlotDefinition& def = node->getNodeSlotResourceDefinition(slotIndex);
@@ -485,18 +525,20 @@ namespace YAPT
 
 	void RenderGraph::setupScheduling(size_t numberOfCommandBuffers)
 	{
-		if (m_cmdBufferPool != YAPT_NULL_HANDLE)
+		if (m_cmdBufferPool == YAPT_NULL_HANDLE || m_cmdBufferPoolSize != numberOfCommandBuffers)
 		{
-			Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
-		}
+			if (m_cmdBufferPool != YAPT_NULL_HANDLE)
+			{
+				Gfx::destroyCommandBufferPool(m_gfxHandle, m_cmdBufferPool);
+			}
 
-		size_t queueIndex = Gfx::getQueueId(getGfxApiHandle(), QueueType::QUEUE_TYPE_GRAPHICS);
+			size_t queueIndex = Gfx::getQueueId(getGfxApiHandle(), QueueType::QUEUE_TYPE_GRAPHICS);
+			m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfCommandBuffers, queueIndex, nullptr);
+			m_cmdBufferPoolSize = numberOfCommandBuffers;
+		}
 
 		size_t nodeCount = getNodeCount();
 		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers > nodeCount ? nodeCount : numberOfCommandBuffers;
-
-		m_cmdBufferPool = Gfx::createCommandBufferPool(m_gfxHandle, numberOfCommandBuffers, queueIndex, nullptr);
-		m_numberOfCmdBuffersPerFrame = numberOfCommandBuffers;
 
 		createNodeSchedule();
 
@@ -622,22 +664,19 @@ namespace YAPT
 		}
 	}
 
-	void RenderGraph::sortNodes(std::vector<RenderGraphNode*>& nodesToSort)
+	void RenderGraph::sortNodes()
 	{
-		//sort nodes (For no just use simple kahns algorithm without parallelization)
-		std::vector<RenderGraphNode*> roots;
-		roots.reserve(nodesToSort.size());
+		const size_t nodeCount = m_nodes.size();
 
-		std::vector<RenderGraphNode*> sortedNodes;
-		sortedNodes.reserve(nodesToSort.size());
-
-		std::unordered_map<RenderGraphNode*, size_t> numberOfInputConnectionsPerNode;
-		numberOfInputConnectionsPerNode.reserve(nodesToSort.size());
+		m_sortScratchRoots.clear();
+		m_sortScratchSorted.clear();
+		m_sortScratchInputCounts.assign(nodeCount, 0);
 
 		//find roots
-		for (size_t i = 0; i < nodesToSort.size(); ++i)
+		for (size_t i = 0; i < nodeCount; ++i)
 		{
-			RenderGraphNode* node = nodesToSort[i];
+			RenderGraphNode* node = m_nodes[i];
+			assert(node->getCreationIndex() < nodeCount);
 
 			size_t numberOfInputConnections = 0;
 
@@ -646,21 +685,21 @@ namespace YAPT
 				numberOfInputConnections += node->getNumberOfInputEdges(slotIndex);
 			}
 
-			numberOfInputConnectionsPerNode[node] = numberOfInputConnections;
+			m_sortScratchInputCounts[node->getCreationIndex()] = numberOfInputConnections;
 
 			if (numberOfInputConnections == 0)
 			{
-				roots.push_back(node);
+				m_sortScratchRoots.push_back(node);
 			}
 		}
 
 
-		while (roots.size() > 0)
+		while (m_sortScratchRoots.size() > 0)
 		{
-			RenderGraphNode* node = roots.back();
-			roots.pop_back();
+			RenderGraphNode* node = m_sortScratchRoots.back();
+			m_sortScratchRoots.pop_back();
 			
-			sortedNodes.push_back(node);
+			m_sortScratchSorted.push_back(node);
 
 			for (size_t slotIndex = 0; slotIndex < node->getNumberOfSlots(); ++slotIndex)
 			{
@@ -668,12 +707,12 @@ namespace YAPT
 				{
 					const RenderGraphNodeEdge* edge = node->getOutputEdge(slotIndex, outputIndex);
 					
-					size_t& connectionsCount = numberOfInputConnectionsPerNode[edge->toNode];
+					size_t& connectionsCount = m_sortScratchInputCounts[edge->toNode->getCreationIndex()];
 					assert(connectionsCount > 0);
 					--connectionsCount;
 					if (connectionsCount == 0)
 					{
-						roots.push_back(edge->toNode);
+						m_sortScratchRoots.push_back(edge->toNode);
 					}
 				}
 
@@ -682,15 +721,15 @@ namespace YAPT
 		}
 
 #ifdef ENABLE_GRAPH_SANITY_CHECKS
-		for (auto iter = numberOfInputConnectionsPerNode.begin(); iter != numberOfInputConnectionsPerNode.end(); ++iter)
+		for (size_t i = 0; i < nodeCount; ++i)
 		{
-			assert(iter->second == 0);
+			assert(m_sortScratchInputCounts[i] == 0 && "cycle in the render graph");
 		}
 #endif
 
 
-		assert(sortedNodes.size() == nodesToSort.size());
-		nodesToSort.swap(sortedNodes);
+		assert(m_sortScratchSorted.size() == nodeCount);
+		m_nodes.swap(m_sortScratchSorted);
 	}
 
 	size_t RenderGraph::getNumberOfBoundResources(RenderGraphResourceId id) const

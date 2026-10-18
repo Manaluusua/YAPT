@@ -23,6 +23,11 @@ namespace YAPT
 	{
 	public:
 
+		struct InitializeData
+		{
+			RenderResourcesPool* pipelineLifetimeResources;
+		};
+
 		struct RenderGraphLifetimeData
 		{
 			RenderResourcesPool* renderGraphLifetimeResources;
@@ -33,6 +38,7 @@ namespace YAPT
 			uint32_t newRenderResolutionWidth;
 			uint32_t newRenderResolutionHeight;
 			RenderResourcesPool* resolutionDependantResourcesPool;
+			bool resolutionChanged;
 		};
 
 		struct PrepareData
@@ -57,11 +63,14 @@ namespace YAPT
 			m_renderGraph = renderGraph;
 		}
 
-		virtual void initialize() = 0;
+		virtual void initialize(const InitializeData& data) = 0;
+		virtual void createNodes() = 0;
+		virtual bool needsRecompile() { return false; }
 
 		virtual RenderStageConnection getOutputConnection(size_t id) = 0;
 		virtual void setInputConnection(size_t id, const RenderStageConnection& connection) = 0;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) {};
+		//also called after every recompile (resolutionChanged == false) since resource ids change
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) {};
 		virtual void shutdown() = 0;
 

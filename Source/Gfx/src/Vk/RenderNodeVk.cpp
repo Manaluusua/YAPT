@@ -6,11 +6,13 @@ namespace YAPT
 
 
 	RenderNodeVk::RenderNodeVk(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
-		:RenderNode(name, graph, numberOfConnectionSlots, slotDefinitions)
+		:RenderNode(name, graph, numberOfConnectionSlots, slotDefinitions),
+		m_renderPassHandle{},
+		m_renderGraphResourcesIndex(0)
 	{
-		size_t clearValueCount = 0;
 		size_t numberOfAttachments = getNumberOfColorTargets() + (hasDepthStencil() ? 1 : 0);
-		m_clearValues.resize(numberOfAttachments);
+		m_clearValueCount = (uint32_t)numberOfAttachments;
+		m_clearValues = getArena().allocateArray<VkClearValue>(numberOfAttachments);
 		for (size_t i = 0; i < numberOfAttachments; ++i)
 		{
 			size_t slotIndex;

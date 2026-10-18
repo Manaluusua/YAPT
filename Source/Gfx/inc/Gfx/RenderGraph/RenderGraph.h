@@ -18,6 +18,7 @@ namespace YAPT
 	class JobSystem;
 	class RenderGraph
 	{
+		friend class RenderGraphNode;
 	public:
 		YAPT_NOCOPY(RenderGraph);
 
@@ -90,6 +91,9 @@ namespace YAPT
 
 		void compile();
 
+		//invalidates all node/edge pointers and resource ids
+		virtual void reset();
+
 		void setupScheduling(size_t numberOfCommandBuffers);
 
 		size_t getNodeCount() const { return m_nodes.size(); }
@@ -156,7 +160,13 @@ namespace YAPT
 			RenderGraph* rg;
 		};
 
+		void registerNode(RenderGraphNode* node);
 		void registerCustomNode(CustomNode* node);
+		void destroyNodesAndEdges();
+
+		ChunkedArenaAllocator& getArena() { return m_graphArena; }
+		template<typename T>
+		void* allocateNodeMemory() { return m_graphArena.allocate(sizeof(T), alignof(T)); }
 
 		enum class ExecutionPhase
 		{
@@ -195,7 +205,7 @@ namespace YAPT
 		{
 			node->invokeCallback(execContext);
 		}
-		void sortNodes(std::vector<RenderGraphNode*>& nodesToSort);
+		void sortNodes();
 		const ResourceStateDescription& getLastStateForResource(RenderGraphResourceId resourceId);
 
 		void resolveResourcesBound(RenderGraphResourceId id);
@@ -215,11 +225,18 @@ namespace YAPT
 		CommandBufferPoolHandle m_cmdBufferPool;
 		std::vector<CommandBufferHandle> m_commandBuffersRecording;
 		size_t m_numberOfCmdBuffersPerFrame;
+		size_t m_cmdBufferPoolSize;
 		std::vector<ScheduledRenderNodesPerBuffer> m_scheduledRenderGraphNodeGroups;
+
+		ChunkedArenaAllocator m_graphArena;
 
 		std::vector<RenderGraphNode*> m_nodes;
 		std::vector<CustomNode*> m_customNodes;
-		std::vector<RenderGraphNodeEdge*> m_edges;
+
+		std::vector<size_t> m_sortScratchInputCounts;
+		std::vector<RenderGraphNode*> m_sortScratchRoots;
+		std::vector<RenderGraphNode*> m_sortScratchSorted;
+
 		std::vector<RenderGraphResourceBindings> m_boundRenderGraphResources;
 		std::vector<RenderGraphResourceDataPerNodeSlot> m_resourceDataPerNodeSlot;
 		std::vector<ClearsPerNode> m_clearsPerNode;

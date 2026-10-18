@@ -50,7 +50,13 @@ namespace YAPT
 		void setNamedResourceMapping(NamedRenderPipelineBuffer buff, size_t nodeIndex, size_t slotIndex);
 
 		void addRenderStage(RenderStage* stage);
-		virtual void setupRenderPipeline() = 0;
+
+		virtual void createStages() = 0;
+		virtual void connectStages() = 0;
+		virtual void afterRenderGraphCompiled() {}
+
+		bool anyStageNeedsRecompile();
+		void compileRenderGraph();
 
 		RenderGraph* m_graph;
 		CRenderer* m_renderer;
@@ -61,6 +67,9 @@ namespace YAPT
 
 		RenderResourcesPool* m_renderResolutionDependantResources;
 		RenderResourcesPool* m_renderGraphLifetimeResources;
+		RenderResourcesPool* m_pipelineLifetimeResources;
+
+		size_t m_numberOfCommandBuffers;
 
 		std::vector<RenderStage*> m_stages;
 		std::vector<JobHandle> m_jobsToWait;
@@ -69,6 +78,7 @@ namespace YAPT
 		std::vector<NamedRenderPipelineBufferMapping> m_namedBufferMappings;
 
 		bool m_firstPrepareAfterInit;
+		bool m_resolutionDependantResourcesNeedRebind;
 
 	};
 }

@@ -45,7 +45,9 @@ namespace YAPT
 	RenderGraphDx12::RenderGraphDx12(GfxApiHandle h)
 		:RenderGraph(h),
 		m_rtvHeap(nullptr),
-		m_dsvHeap(nullptr)
+		m_dsvHeap(nullptr),
+		m_rtvHeapCapacity(0),
+		m_dsvHeapCapacity(0)
 	{
 
 	}
@@ -76,15 +78,15 @@ namespace YAPT
 
 	RenderNode* RenderGraphDx12::createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new RenderNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<RenderNodeDx12>()) RenderNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 	ComputeNode* RenderGraphDx12::createComputeNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new ComputeNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<ComputeNodeDx12>()) ComputeNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 	RaytraceNode* RenderGraphDx12::createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new RaytraceNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<RaytraceNodeDx12>()) RaytraceNodeDx12(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 
 	SwapChainNode* RenderGraphDx12::createSwapChainNodeInternal(const char* name)
@@ -98,7 +100,7 @@ namespace YAPT
 			1
 		};
 
-		return new SwapChainNodeDx12(name, this, &slotDef, 1);
+		return new (allocateNodeMemory<SwapChainNodeDx12>()) SwapChainNodeDx12(name, this, &slotDef, 1);
 	}
 
 	void RenderGraphDx12::issuePreBarriers(size_t nodeIndex, CommandBufferHandle cmdList)
@@ -388,19 +390,29 @@ namespace YAPT
 			requiredDsvHeapEntries += (hasDepthStencil ? 1 : 0) * pipelineLength;
 		}
 
-		if (requiredRtvHeapEntries > 0)
+		if (requiredRtvHeapEntries > m_rtvHeapCapacity)
 		{
+			if (m_rtvHeap)
+			{
+				m_rtvHeap->destroy();
+			}
 			m_rtvHeap = m_gfxHandle->getResourceManager().createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_RTV, requiredRtvHeapEntries);
+			m_rtvHeapCapacity = requiredRtvHeapEntries;
 		}
-		if (requiredDsvHeapEntries > 0)
+		if (requiredDsvHeapEntries > m_dsvHeapCapacity)
 		{
+			if (m_dsvHeap)
+			{
+				m_dsvHeap->destroy();
+			}
 			m_dsvHeap = m_gfxHandle->getResourceManager().createDescriptorHeap(D3D12_DESCRIPTOR_HEAP_TYPE_DSV, requiredDsvHeapEntries);
-		}		
+			m_dsvHeapCapacity = requiredDsvHeapEntries;
+		}
 	}
 
 	void RenderGraphDx12::calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut)
 	{
-		uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount + usage.resourceDescription.mipCount;
+		uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount * usage.resourceDescription.mipCount;
 		for (uint32_t i = 0; i < subResourcesCount; ++i)
 		{
 			uint32_t arraySlice = usage.arraySliceOffset + i / usage.resourceDescription.mipCount;
@@ -461,12 +473,9 @@ namespace YAPT
 		};
 
 
-		std::vector<D3D12_RESOURCE_STATES> subResourceStates;
-		subResourceStates.reserve(512);
-		std::vector<size_t> subResourceIndices;
-		subResourceIndices.reserve(512);
-		std::vector<size_t> subResourceIndicesToTransition;
-		subResourceIndices.reserve(512);
+		std::vector<D3D12_RESOURCE_STATES>& subResourceStates = m_scratchSubResourceStates;
+		std::vector<size_t>& subResourceIndices = m_scratchSubResourceIndices;
+		std::vector<size_t>& subResourceIndicesToTransition = m_scratchSubResourceIndicesToTransition;
 
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
@@ -474,6 +483,17 @@ namespace YAPT
 		{
 			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
 			perNodeBarriers.perSlotDesc.resize(getNodes()[nodeIndex]->getNumberOfSlots());
+			for (ResourceSlotBarrierDescription& slotDesc : perNodeBarriers.perSlotDesc)
+			{
+				slotDesc.preGeneratedBeforeBarriersPerResource.clear();
+				slotDesc.preGeneratedAfterBarriersPerResource.clear();
+				slotDesc.currentBeforeBarriers.clear();
+				slotDesc.currentAfterBarriers.clear();
+				slotDesc.numberOfTransitionBarriers = 0;
+				slotDesc.transitionedToState = D3D12_RESOURCE_STATE_COMMON;
+				slotDesc.hasUavBarrier = false;
+				slotDesc.isFirstUsageForResource = false;
+			}
 		}
 
 		m_perResourceBarrierInfo.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());
@@ -630,17 +650,7 @@ namespace YAPT
 			return canMerge;
 		};
 
-		struct BarriersMerged
-		{
-			size_t fromNode;
-			size_t fromSlot;
-
-			size_t toNode;
-			size_t toSlot;
-		};
-
-		std::vector<BarriersMerged> mergedBarriers;
-		mergedBarriers.reserve(128);
+		std::vector<BarriersMerged>& mergedBarriers = m_scratchMergedBarriers;
 
 		for (size_t resourceIndex = 0; resourceIndex < m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions(); ++resourceIndex)
 		{

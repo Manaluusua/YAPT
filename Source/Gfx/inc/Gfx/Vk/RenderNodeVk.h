@@ -11,8 +11,8 @@ namespace YAPT
 	public:
 		virtual RenderPassHandle getRenderPassHandle() final;
 		uint32_t getRenderGraphInternalRenderNodeResourcesIndex() const { return m_renderGraphResourcesIndex; }
-		const VkClearValue* getClearValues() const { return m_clearValues.data(); }
-		const uint32_t getClearValueCount() const { return (uint32_t)m_clearValues.size(); }
+		const VkClearValue* getClearValues() const { return m_clearValues; }
+		const uint32_t getClearValueCount() const { return m_clearValueCount; }
 
 	private:
 		RenderNodeVk(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);
@@ -31,6 +31,7 @@ namespace YAPT
 
 		RenderPassHandleVk m_renderPassHandle;
 		uint32_t m_renderGraphResourcesIndex;
-		std::vector<VkClearValue> m_clearValues;
+		VkClearValue* m_clearValues;
+		uint32_t m_clearValueCount;
 	};
 }

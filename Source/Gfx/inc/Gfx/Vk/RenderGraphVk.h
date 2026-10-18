@@ -15,6 +15,8 @@ namespace YAPT
 		RenderGraphVk(GfxApiHandle h);
 		virtual ~RenderGraphVk() override;
 
+		virtual void reset() override;
+
 	private:
 		
 		enum GeneratedBarrierTypeBit
@@ -109,6 +111,7 @@ namespace YAPT
 		void fillAttachmentDescription(RenderNode* node, size_t slot, VkImageLayout initialLayout, VkImageLayout finalLayout, VkAttachmentDescription& descOut) const;
 
 		void generateBarriersAndRenderPasses();
+		void releaseRenderPassesAndFrameBuffers();
 
 		static bool isUsingFullResource(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& to);
 		static void calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut);
@@ -132,6 +135,8 @@ namespace YAPT
 		std::vector<VkFramebuffer> m_frameBuffers;
 
 		std::vector<uint32_t> m_queueFamilyIndexPerNode;
+
+		std::vector<VkImageLayout> m_scratchImageLayouts;
 		QueueTransitionHelperVk m_queueTransitionHelper;
 
 

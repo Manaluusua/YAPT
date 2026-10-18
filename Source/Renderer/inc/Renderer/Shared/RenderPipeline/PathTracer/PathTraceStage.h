@@ -38,7 +38,8 @@ namespace YAPT
 		virtual ~PathTraceStage();
 
 		//RenderStage
-		virtual void initialize() override;
+		virtual void initialize(const InitializeData& data) override;
+		virtual void createNodes() override;
 		virtual void shutdown() override;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) override;
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;

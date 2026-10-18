@@ -50,9 +50,56 @@ namespace YAPT
 		m_isFirstRun = false;
 	}
 
-	void TonemapStage::initialize()
+	void TonemapStage::initialize(const InitializeData& data)
+	{		
+		ShaderLoader* loader = getRenderer()->getShaderLoader();
+		//<pipeline layouts>
+		//clear histogram
+		{
+			const ShaderLoader::ShaderPipelineInfo* clear = loader->getShaderPipeline("clearLuminanceHistogram");
+			m_clearHistogramPass.init(getRenderer(), clear, nullptr, 0);
+			m_clearHistogramPass.createPipelineState();
+			 
+
+		}
+		//generate histogram
+		{
+			const ShaderLoader::ShaderPipelineInfo* generate = loader->getShaderPipeline("gatherLuminanceHistogram");
+			m_generateHistogramPass.init(getRenderer(),  generate, nullptr, 0);
+			m_generateHistogramPass.createPipelineState();
+		}
+		
+
+		//analyze histogram
+		{
+			const ShaderLoader::ShaderPipelineInfo* analyze = loader->getShaderPipeline("analyzeLuminanceHistogram");
+			m_analyzeHistogramPass.init(getRenderer(),  analyze, nullptr, 0);
+			m_analyzeHistogramPass.createPipelineState();
+		}
+
+		//prepareTonemap data
+		{
+			const ShaderLoader::ShaderPipelineInfo* prepare = loader->getShaderPipeline("PrepareTonemapData");
+			m_preparetonemapDataPass.init(getRenderer(),  prepare, nullptr, 0);
+			m_preparetonemapDataPass.createPipelineState();
+		}
+		
+		    
+		//tonemap
+		{
+			const ShaderLoader::ShaderPipelineInfo* aces = loader->getShaderPipeline("tonemapAces");
+			StaticSamplerEntry samplers[] = { {"colorSampler", getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
+			m_tonemapPass.init(getRenderer(), aces, samplers, countOf(samplers));
+
+		}
+		 
+		m_tonemapConstants.init(data.pipelineLifetimeResources, "Tonemap Constants");
+
+		m_isFirstRun = true;
+	}
+
+	void TonemapStage::createNodes()
 	{
-		//nodes
 		{
 			RenderGraphNodeSlotDefinition slotdefs[] =
 			{
@@ -174,50 +221,6 @@ namespace YAPT
 		getGraph()->createEdge(m_generateHistogramNode, 0, m_analyzeHistogramNode, 1);
 		getGraph()->createEdge(m_analyzeHistogramNode, 0, m_preparetonemapDataNode, 1);
 		getGraph()->createEdge(m_preparetonemapDataNode, 0, m_tonemapNode, 2);
-		
-		ShaderLoader* loader = getRenderer()->getShaderLoader();
-		//<pipeline layouts>
-		//clear histogram
-		{
-			const ShaderLoader::ShaderPipelineInfo* clear = loader->getShaderPipeline("clearLuminanceHistogram");
-			m_clearHistogramPass.init(getRenderer(), clear, nullptr, 0);
-			m_clearHistogramPass.createPipelineState();
-			 
-
-		}
-		//generate histogram
-		{
-			const ShaderLoader::ShaderPipelineInfo* generate = loader->getShaderPipeline("gatherLuminanceHistogram");
-			m_generateHistogramPass.init(getRenderer(),  generate, nullptr, 0);
-			m_generateHistogramPass.createPipelineState();
-		}
-		
-
-		//analyze histogram
-		{
-			const ShaderLoader::ShaderPipelineInfo* analyze = loader->getShaderPipeline("analyzeLuminanceHistogram");
-			m_analyzeHistogramPass.init(getRenderer(),  analyze, nullptr, 0);
-			m_analyzeHistogramPass.createPipelineState();
-		}
-
-		//prepareTonemap data
-		{
-			const ShaderLoader::ShaderPipelineInfo* prepare = loader->getShaderPipeline("PrepareTonemapData");
-			m_preparetonemapDataPass.init(getRenderer(),  prepare, nullptr, 0);
-			m_preparetonemapDataPass.createPipelineState();
-		}
-		
-		    
-		//tonemap
-		{
-			const ShaderLoader::ShaderPipelineInfo* aces = loader->getShaderPipeline("tonemapAces");
-			StaticSamplerEntry samplers[] = { {"colorSampler", getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
-			m_tonemapPass.init(getRenderer(), m_tonemapNode->getRenderPassHandle(), aces, samplers, countOf(samplers));
-
-		}
-		 
-		m_isFirstRun = true;
-		 
 	}
 	   
 	void TonemapStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
@@ -246,9 +249,7 @@ namespace YAPT
 			getGraph()->setRenderGraphResourceBuffer(prepareDataId, m_exposureInfo);
 		}
 
-		
-		m_tonemapConstants.init(data.renderGraphLifetimeResources);
-		
+		m_tonemapPass.setRenderPass(m_tonemapNode);
 	}
 
 	void TonemapStage::shutdown()
@@ -284,10 +285,15 @@ namespace YAPT
 		}
 		
 		
+		if (data.resolutionChanged)
 		{
 			GraphicsPipelineStateDescHelper& psoState = m_tonemapPass.getPipelineStateHelper();
 			psoState.setDefaults((float)data.newRenderResolutionWidth, (float)data.newRenderResolutionHeight);
 			m_tonemapPass.createPso();
+		}
+		else
+		{
+			m_tonemapPass.createPsoIfRenderPassChanged();
 		}
 
 	}

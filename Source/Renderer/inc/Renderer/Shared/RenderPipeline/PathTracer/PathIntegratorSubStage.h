@@ -56,7 +56,8 @@ namespace YAPT
 			virtual ~AccelerationStructureProvider() {}
 		};
 
-		virtual void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr) = 0;
+		virtual void initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, const RenderStage::InitializeData& data) = 0;
+		virtual void createNodes() = 0;
 		virtual void shutdown() = 0;
 		virtual void onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data) = 0;
 		virtual void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution) = 0;

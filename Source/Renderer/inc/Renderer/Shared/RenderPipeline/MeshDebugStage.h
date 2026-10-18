@@ -21,7 +21,8 @@ namespace YAPT
 		MeshDebugStage(bool outputDirectlyToSwapchain);
 		~MeshDebugStage();
 
-		virtual void initialize() override;
+		virtual void initialize(const InitializeData& data) override;
+		virtual void createNodes() override;
 		virtual void shutdown() override;
 		virtual void onRenderGraphCompiled(const RenderGraphLifetimeData& data) override;
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
@@ -68,6 +69,7 @@ namespace YAPT
 		std::vector<AttributeSemantic> m_vertexInputSemantics;
 		std::vector<std::vector<size_t>> m_renderObjectBuckets;
 		size_t m_renderDataIndex;
+		uint64_t m_psoRenderPassSignature;
 		bool m_refreshAllRenderObjects;
 		bool m_outputToSwapchain;
 

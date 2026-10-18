@@ -6,6 +6,8 @@ namespace YAPT
 {
 
 	DebugDrawPipeline::DebugDrawPipeline()
+		:m_meshDebugStage(nullptr),
+		m_swapChainStage(nullptr)
 	{
 
 	}
@@ -15,20 +17,19 @@ namespace YAPT
 	}
 
 
-	void DebugDrawPipeline::setupRenderPipeline()
+	void DebugDrawPipeline::createStages()
 	{
-		MeshDebugStage* meshDbg = new MeshDebugStage(true);
-		SwapChainStage* scStage = new SwapChainStage;
+		m_meshDebugStage = new MeshDebugStage(true);
+		m_swapChainStage = new SwapChainStage;
 
-		addRenderStage(meshDbg);
-		addRenderStage(scStage);
+		addRenderStage(m_meshDebugStage);
+		addRenderStage(m_swapChainStage);
 
-
-		scStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, meshDbg->getOutputConnection(MeshDebugStage::MESHDEBUG_STAGE_CONNECTION_COLOR));
-
-		getRenderGraph()->compile();
-		getRenderGraph()->setupScheduling(1);
+		m_numberOfCommandBuffers = 1;
 	}
 
-
+	void DebugDrawPipeline::connectStages()
+	{
+		m_swapChainStage->setInputConnection(SwapChainStage::SWAPCHAIN_STAGE_CONNECTION_COLOR, m_meshDebugStage->getOutputConnection(MeshDebugStage::MESHDEBUG_STAGE_CONNECTION_COLOR));
+	}
 }

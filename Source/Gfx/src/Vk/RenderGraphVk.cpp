@@ -44,22 +44,38 @@ namespace YAPT
 	RenderGraphVk::~RenderGraphVk()
 	{
 		m_queueTransitionHelper.deinitialize();
+		releaseRenderPassesAndFrameBuffers();
+	}
+
+	void RenderGraphVk::releaseRenderPassesAndFrameBuffers()
+	{
 		for (size_t i = 0; i < m_frameBuffers.size(); ++i)
 		{
-			m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_frameBuffers[i]);
+			if (m_frameBuffers[i] != VK_NULL_HANDLE)
+			{
+				m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_frameBuffers[i]);
+			}
 		}
+		m_frameBuffers.clear();
 
 		for (size_t i = 0; i < m_renderPasses.size(); ++i)
 		{
 			m_gfxHandle->getResourceManager()->deferredDestroyVkResource(m_renderPasses[i]);
 		}
+		m_renderPasses.clear();
+	}
+
+	void RenderGraphVk::reset()
+	{
+		RenderGraph::reset();
+		releaseRenderPassesAndFrameBuffers();
 	}
 
 	void RenderGraphVk::resolveGraphDependenciesInternal()
 	{
 		uint32_t queueFamily = getGfxApiHandle()->getGraphicsQueue().queueFamilyIndex;
 
-		m_queueFamilyIndexPerNode.resize(getNodeCount(), queueFamily);
+		m_queueFamilyIndexPerNode.assign(getNodeCount(), queueFamily);
 
 		generateBarriersAndRenderPasses();
 
@@ -67,15 +83,15 @@ namespace YAPT
 
 	RenderNode* RenderGraphVk::createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new RenderNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<RenderNodeVk>()) RenderNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 	ComputeNode* RenderGraphVk::createComputeNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new ComputeNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<ComputeNodeVk>()) ComputeNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 	RaytraceNode* RenderGraphVk::createRayTraceNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions)
 	{
-		return new RaytraceNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
+		return new (allocateNodeMemory<RaytraceNodeVk>()) RaytraceNodeVk(name, this, numberOfConnectionSlots, slotDefinitions);
 	}
 
 	SwapChainNode* RenderGraphVk::createSwapChainNodeInternal(const char* name)
@@ -89,7 +105,7 @@ namespace YAPT
 			1
 		};
 
-		return new SwapChainNodeVk(name, this, &slotDef, 1);
+		return new (allocateNodeMemory<SwapChainNodeVk>()) SwapChainNodeVk(name, this, &slotDef, 1);
 	}
 
 	void RenderGraphVk::issueBarriers(size_t nodeIndex, CommandBufferHandle buffer)
@@ -598,7 +614,7 @@ namespace YAPT
 
 	void RenderGraphVk::calcUsedSubresourceIndices(const RenderGraphResourceDescription& resourceDesc, const RenderGraphResourceUsage& usage, size_t* indicesOut)
 	{
-		uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount + usage.resourceDescription.mipCount;
+		uint32_t subResourcesCount = usage.resourceDescription.arraySliceCount * usage.resourceDescription.mipCount;
 		for (uint32_t i = 0; i < subResourcesCount; ++i)
 		{
 			uint32_t arraySlice = usage.arraySliceOffset + i / usage.resourceDescription.mipCount;
@@ -614,6 +630,9 @@ namespace YAPT
 	{
 		const size_t nodeCount = getNodeCount();
 		m_barriers.resize(nodeCount);
+
+		releaseRenderPassesAndFrameBuffers();
+
 		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
 			if (m_nodes[nodeIndex]->getType() == RenderGraphNode::Type::RENDER)
@@ -631,13 +650,26 @@ namespace YAPT
 		//framebuffer per renderpass
 		m_frameBuffers.resize(m_renderPasses.size(), VK_NULL_HANDLE);
 
-		std::vector<VkImageLayout> imageLayouts;
-		imageLayouts.reserve(512);
+		std::vector<VkImageLayout>& imageLayouts = m_scratchImageLayouts;
 
 		for (size_t nodeIndex = 0; nodeIndex != nodeCount; ++nodeIndex)
 		{
 			BarriersPerNode& perNodeBarriers = m_barriers[nodeIndex];
 			perNodeBarriers.perSlotDesc.resize(getNodes()[nodeIndex]->getNumberOfSlots());
+			for (ResourceSlotBarrierDescription& slotDesc : perNodeBarriers.perSlotDesc)
+			{
+				slotDesc.srcStages = 0;
+				slotDesc.dstStages = 0;
+				slotDesc.preGeneratedMemoryBarriers.clear();
+				slotDesc.preGeneratedBufferBarriers.clear();
+				slotDesc.preGeneratedImageBarriers.clear();
+				slotDesc.currentMemoryBarriers.clear();
+				slotDesc.currentBufferBarriers.clear();
+				slotDesc.currentImageBarriers.clear();
+				slotDesc.hasUavBarrier = false;
+				slotDesc.isFirstUsageForResource = false;
+				slotDesc.hasValidBarriers = false;
+			}
 		}
 
 		m_perResourceBarrierInfo.resize(m_resourceRequirements.getNumberOfRenderGraphResourceDescriptions());

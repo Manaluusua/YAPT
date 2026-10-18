@@ -3,6 +3,8 @@
 
 #include "RenderPipelineBase.h"
 #include <Gfx/RenderGraph/RenderGraph.h>
+#include <Renderer/Shared/RenderPipeline/MeshDebugStage.h>
+#include <Renderer/Shared/RenderPipeline/SwapChainStage.h>
 
 namespace YAPT
 {
@@ -13,7 +15,11 @@ namespace YAPT
 		virtual ~DebugDrawPipeline();
 
 	protected:
-		virtual void setupRenderPipeline() override;
+		virtual void createStages() override;
+		virtual void connectStages() override;
+
+		MeshDebugStage* m_meshDebugStage;
+		SwapChainStage* m_swapChainStage;
 
 
 	};

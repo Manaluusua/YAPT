@@ -42,6 +42,15 @@ namespace YAPT
 		{
 			std::vector<ResourceSlotBarrierDescription> perSlotDesc;
 		};
+
+		struct BarriersMerged
+		{
+			size_t fromNode;
+			size_t fromSlot;
+
+			size_t toNode;
+			size_t toSlot;
+		};
 		
 		virtual void resolveGraphDependenciesInternal() override;
 		virtual RenderNode* createRenderNodeInternal(const char* name, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions) final;
@@ -88,6 +97,13 @@ namespace YAPT
 
 		DescriptorHeapDx12* m_rtvHeap;
 		DescriptorHeapDx12* m_dsvHeap;
+		size_t m_rtvHeapCapacity;
+		size_t m_dsvHeapCapacity;
+
+		std::vector<D3D12_RESOURCE_STATES> m_scratchSubResourceStates;
+		std::vector<size_t> m_scratchSubResourceIndices;
+		std::vector<size_t> m_scratchSubResourceIndicesToTransition;
+		std::vector<BarriersMerged> m_scratchMergedBarriers;
 	};
 	
 }

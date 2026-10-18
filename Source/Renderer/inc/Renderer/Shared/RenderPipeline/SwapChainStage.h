@@ -18,7 +18,8 @@ namespace YAPT
 		SwapChainStage();
 		~SwapChainStage();
 
-		virtual void initialize() override;
+		virtual void initialize(const InitializeData& data) override;
+		virtual void createNodes() override;
 		virtual void shutdown() override;
 		virtual void onRenderResolutionChanged(const RenderResolutionDependantResourcesData& data) override;
 		virtual JobHandle prepare(const PrepareData& data) override;

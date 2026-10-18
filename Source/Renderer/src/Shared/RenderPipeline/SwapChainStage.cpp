@@ -12,7 +12,11 @@ namespace YAPT
 
 	}
 
-	void SwapChainStage::initialize()
+	void SwapChainStage::initialize(const InitializeData& data)
+	{
+
+	}
+	void SwapChainStage::createNodes()
 	{
 		m_swapChainNode = getGraph()->createSwapChainNode();
 	}

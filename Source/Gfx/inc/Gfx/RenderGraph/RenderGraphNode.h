@@ -2,6 +2,7 @@
 #define YAPT_SHARED_RENDERGRAPHNODE_H
 
 #include "RenderGraphCommon.h"
+#include <Common/ChunkedArenaAllocator.h>
 
 namespace YAPT
 {
@@ -88,7 +89,7 @@ namespace YAPT
 			CUSTOM
 		};
 
-		size_t getNumberOfSlots() const { return m_slotDefinitions.size(); }
+		size_t getNumberOfSlots() const { return m_numberOfSlots; }
 		Type getType() const { return m_type; }
 
 		RenderGraph* getGraph() { return m_graph; }
@@ -104,13 +105,21 @@ namespace YAPT
 
 		RenderGraphResourceId getRenderGraphResourceIdForSlot(size_t slotIndex);
 
-		const char* getName() const { return m_name.c_str(); }
+		const char* getName() const { return m_name; }
 
 	protected:
 		struct SlotEdges
 		{
-			std::vector<const RenderGraphNodeEdge*> fromEdges;
-			std::vector<const RenderGraphNodeEdge*> toEdges;
+			RenderGraphNodeEdge* inHead = nullptr;
+			RenderGraphNodeEdge* inTail = nullptr;
+			RenderGraphNodeEdge* outHead = nullptr;
+			RenderGraphNodeEdge* outTail = nullptr;
+
+			const RenderGraphNodeEdge** in = nullptr;
+			const RenderGraphNodeEdge** out = nullptr;
+
+			uint32_t inCount = 0;
+			uint32_t outCount = 0;
 		};
 
 
@@ -118,29 +127,35 @@ namespace YAPT
 		virtual ~RenderGraphNode();
 
 		void setCallback(RenderGraphNodeExecutionCallback callback, void* usrData);
-		
+
 		void invokeCallback(const RenderGraphNodeExecutionContext& execContext);
 
 		void setSortedIndex(size_t index) { m_sortedIndex = index; }
+		void setCreationIndex(size_t index) { m_creationIndex = index; }
+		size_t getCreationIndex() const { return m_creationIndex; }
 		void setResolvedResourceFormat(size_t slot, ResourceFormat format);
-		void addEdge(const RenderGraphNodeEdge* edge);
+		void addEdge(RenderGraphNodeEdge* edge);
+		void flattenEdges();
+
+		ChunkedArenaAllocator& getArena();
 
 		virtual void renderGraphCompilationComplete() {}
 
 		const Type m_type;
 		RenderGraph* m_graph;
-		
-		std::vector<RenderGraphNodeSlotDefinition> m_slotDefinitions;
-		std::vector<SlotEdges> m_slotConnections;
 
-		
+		RenderGraphNodeSlotDefinition* m_slotDefinitions;
+		SlotEdges* m_slotConnections;
+		size_t m_numberOfSlots;
 
 		size_t m_sortedIndex;
+		size_t m_creationIndex;
+		bool m_edgesFlattened;
 
 		RenderGraphNodeExecutionCallback m_callback;
 		void* m_usrData;
 
-		std::string m_name;
+		const char* m_name;
 	};
 
 

@@ -7,7 +7,9 @@ namespace YAPT
 	////////////////////////////////////////////////////////////////////////////// PostProcessGraphicsPassUtility Impl //////////////////////////////////////////////////////////////////////////////
 	PostProcessGraphicsPassUtility::PostProcessGraphicsPassUtility()
 		:m_renderer(nullptr),
-		m_pso(YAPT_NULL_HANDLE)
+		m_pso(YAPT_NULL_HANDLE),
+		m_renderPassSignature(0),
+		m_psoRenderPassSignature(0)
 
 	{
 
@@ -16,7 +18,7 @@ namespace YAPT
 	{
 		deinit();
 	}
-	void PostProcessGraphicsPassUtility::init(CRenderer* r, RenderPassHandle renderPass, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs , size_t numberOfExplicitDescSetDefs)
+	void PostProcessGraphicsPassUtility::init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs , size_t numberOfExplicitDescSetDefs)
 	{
 		m_renderer = r;
 		m_layout.initFromShaderReflection(m_renderer->getGfxHandle(), pipelineInfo->reflection);
@@ -44,7 +46,7 @@ namespace YAPT
 
 		m_psoDesc.setupShaderStages(pipelineInfo)
 			.setVertexBufferDefinitions(m_renderer->getCoreResources()->getDefaultVertexBufferDefinition(DefaultBufferType::FULLSCREEN_PRIMITIVE_POS_UV), 1);
-		m_psoDesc.pipelineDesc.renderPass = renderPass;
+		m_psoDesc.pipelineDesc.renderPass = nullptr;
 		m_psoDesc.pipelineDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
 
 		m_descSetHandles.resize(m_layout.getDescriptorSetCount());
@@ -54,14 +56,30 @@ namespace YAPT
 		}
 	}
 
+	void PostProcessGraphicsPassUtility::setRenderPass(RenderNode* node)
+	{
+		m_psoDesc.pipelineDesc.renderPass = node->getRenderPassHandle();
+		m_renderPassSignature = node->getAttachmentSignature();
+	}
+
 	void PostProcessGraphicsPassUtility::createPso()
 	{
+		assert(m_psoDesc.pipelineDesc.renderPass != nullptr);
 
 		if (m_pso != YAPT_NULL_HANDLE)
 		{
 			Gfx::destroyGraphicsPipelineState(m_renderer->getGfxHandle(), m_pso);
 		}
 		m_pso = Gfx::createGraphicsPipelineState(m_renderer->getGfxHandle(), m_psoDesc.pipelineDesc);
+		m_psoRenderPassSignature = m_renderPassSignature;
+	}
+
+	void PostProcessGraphicsPassUtility::createPsoIfRenderPassChanged()
+	{
+		if (m_pso == YAPT_NULL_HANDLE || m_psoRenderPassSignature != m_renderPassSignature)
+		{
+			createPso();
+		}
 	}
 
 	void PostProcessGraphicsPassUtility::deinit()

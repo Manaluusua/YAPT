@@ -19,6 +19,7 @@ set(HEADERS
 	inc/Common/StructureOfArrays.h
 	inc/Common/CommonWindowsUtility.h
 	inc/Common/ArenaAllocator.h
+	inc/Common/ChunkedArenaAllocator.h
 	inc/Common/JobSystem.h
 
 	inc/Math/Math.h
@@ -41,6 +42,7 @@ set(SOURCE
 	src/DeferredFreeArrayIndexAllocator.cpp
 	src/RangeAllocator.cpp
 	src/ArenaAllocator.cpp
+	src/ChunkedArenaAllocator.cpp
 	src/JobSystem.cpp
 
 	src/MathUtility.cpp

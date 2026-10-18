@@ -33,7 +33,7 @@ namespace YAPT
 
 	}
 
-	void BackwardsPathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
+	void BackwardsPathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, const RenderStage::InitializeData& data)
 	{
 		m_graph = graph;
 		m_renderer = rend;
@@ -41,52 +41,6 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
-		RenderGraphNodeSlotDefinition slotdefsRtNode[] =
-		{ {ResourceDimension::TEXTURE_2D,
-			PathIntegratorSubStage::SampleImageFormat,
-			RESOURCE_USAGE_STORAGE_TEXTURE,
-			ACCESS_FLAGS_READ_WRITE,
-			SHADERSTAGE_RT_RAYGENERATION,
-			1,
-			1},
-			{ResourceDimension::TEXTURE_2D,
-			ResourceFormat::RGBA32_UINT,
-			RESOURCE_USAGE_STORAGE_TEXTURE,
-			ACCESS_FLAGS_WRITE,
-			SHADERSTAGE_RT_CLOSEST_HIT,
-			1,
-			1},
-			{ResourceDimension::TEXTURE_2D,
-			ResourceFormat::RGBA32_UINT,
-			RESOURCE_USAGE_STORAGE_TEXTURE,
-			ACCESS_FLAGS_WRITE,
-			SHADERSTAGE_RT_CLOSEST_HIT,
-			1,
-			1}
-
-		};
-
-
-		m_rtNode = m_graph->createRayTraceNode(countOf(slotdefsRtNode), slotdefsRtNode, []
-		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
-			{
-				static_cast<BackwardsPathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
-			},
-			this, "RaytraceNode");
-	}
-	void BackwardsPathIntegratorSubStage::shutdown()
-	{
-		m_raytraceCommon.shutdown();
-		if (m_raytracePso != YAPT_NULL_HANDLE)
-		{
-			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
-			m_raytracePso = YAPT_NULL_HANDLE;
-		}
-
-		m_shaderTableHelper.deinit();
-	}
-	void BackwardsPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
-	{
 		ShaderLoader* loader = m_renderer->getShaderLoader();
 		const ShaderLoader::ShaderPipelineInfo* rayGen = loader->getShaderPipeline("rayGenPrimaryRays");
 		const ShaderLoader::ShaderPipelineInfo* rayHit = loader->getShaderPipeline(m_useNEE ? "rayHitDefaultWithNEE" : "rayHitDefault");
@@ -117,10 +71,6 @@ namespace YAPT
 		m_rtLayout.compile();
 
 
-		if (m_raytracePso != YAPT_NULL_HANDLE)
-		{
-			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
-		}
 		RaytracePipelineStateDesc desc;
 		RayTraceShaderConfig config;
 
@@ -168,9 +118,61 @@ namespace YAPT
 		m_shaderTableHelper.init(m_renderer, m_raytracePso, desc.rayGenShaderTableConstantsSizeInBytes,
 			desc.missShaderTableConstantsSizeInBytes, desc.hitGroupShaderTableConstantsSizeInBytes);
 
-		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
+		m_raytraceCommon.initialize(m_renderer, data.pipelineLifetimeResources, m_materialMngr, m_meshMngr);
+	}
+
+	void BackwardsPathIntegratorSubStage::createNodes()
+	{
+		RenderGraphNodeSlotDefinition slotdefsRtNode[] =
+		{ {ResourceDimension::TEXTURE_2D,
+			PathIntegratorSubStage::SampleImageFormat,
+			RESOURCE_USAGE_STORAGE_TEXTURE,
+			ACCESS_FLAGS_READ_WRITE,
+			SHADERSTAGE_RT_RAYGENERATION,
+			1,
+			1},
+			{ResourceDimension::TEXTURE_2D,
+			ResourceFormat::RGBA32_UINT,
+			RESOURCE_USAGE_STORAGE_TEXTURE,
+			ACCESS_FLAGS_WRITE,
+			SHADERSTAGE_RT_CLOSEST_HIT,
+			1,
+			1},
+			{ResourceDimension::TEXTURE_2D,
+			ResourceFormat::RGBA32_UINT,
+			RESOURCE_USAGE_STORAGE_TEXTURE,
+			ACCESS_FLAGS_WRITE,
+			SHADERSTAGE_RT_CLOSEST_HIT,
+			1,
+			1}
+
+		};
+
+
+		m_rtNode = m_graph->createRayTraceNode(countOf(slotdefsRtNode), slotdefsRtNode, []
+		(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
+			{
+				static_cast<BackwardsPathIntegratorSubStage*>(usrData)->executeRaytrace(execContext);
+			},
+			this, "RaytraceNode");
+	}
+
+	void BackwardsPathIntegratorSubStage::shutdown()
+	{
+		m_raytraceCommon.shutdown();
+		if (m_raytracePso != YAPT_NULL_HANDLE)
+		{
+			Gfx::destroyRaytracePipelineState(m_renderer->getGfxHandle(), m_raytracePso);
+			m_raytracePso = YAPT_NULL_HANDLE;
+		}
+
+		m_shaderTableHelper.deinit();
+	}
+	void BackwardsPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
+	{
 
 	}
+
 	void BackwardsPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 		m_renderResolution = newResolution;

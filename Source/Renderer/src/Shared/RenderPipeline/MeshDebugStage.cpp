@@ -16,7 +16,8 @@ namespace YAPT
 		:m_outputToSwapchain(outputDirectlyToSwapchain),
 		m_renderMeshesNode(nullptr),
 		m_colorTarget(YAPT_NULL_HANDLE),
-		m_descSet(YAPT_NULL_HANDLE)
+		m_descSet(YAPT_NULL_HANDLE),
+		m_psoRenderPassSignature(0)
 	{
 		  
 	}
@@ -30,9 +31,29 @@ namespace YAPT
 
 	}
 
-	void MeshDebugStage::initialize()
+	void MeshDebugStage::initialize(const InitializeData& data)
 	{
-		
+		m_renderDataIndex = getRenderer()->getRenderObjectManager().acquireRenderDataIndex();
+		assert(getRenderer()->getRenderObjectManager().isValidRenderDataIndex(m_renderDataIndex));
+
+		ShaderLoader* loader = getRenderer()->getShaderLoader();
+		const ShaderLoader::ShaderPipelineInfo* dbg = loader->getShaderPipeline("meshDebug");
+
+		m_vertexInputSemantics.assign(dbg->reflection->getInputAttributes(), dbg->reflection->getInputAttributes() + dbg->reflection->getNumberOfInputAttributes());
+
+		m_layout.initFromShaderReflection(getRenderer()->getGfxHandle(), dbg->reflection);
+		m_layout.setDynamic(0, 0);
+		m_layout.compile();
+		m_psoDescHelper.setupShaderStages(dbg);
+		m_psoDescHelper.pipelineDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
+
+		m_descSet = YAPT_NULL_HANDLE;
+		m_refreshAllRenderObjects = true;
+		m_psoRenderPassSignature = 0;
+	}
+
+	void MeshDebugStage::createNodes()
+	{
 		{
 			RenderGraphNodeSlotDefinition slotdefs[] =
 			{
@@ -68,34 +89,19 @@ namespace YAPT
 				this, "meshDebugNode");
 
 		}
-
-		
-		m_renderDataIndex = getRenderer()->getRenderObjectManager().acquireRenderDataIndex();
-		assert(getRenderer()->getRenderObjectManager().isValidRenderDataIndex(m_renderDataIndex));
-
-		
-		m_descSet = YAPT_NULL_HANDLE;
-
-		m_refreshAllRenderObjects = true;
 	}
 
 	void MeshDebugStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
 	{
-
-
-		ShaderLoader* loader = getRenderer()->getShaderLoader();
-		const ShaderLoader::ShaderPipelineInfo* dbg = loader->getShaderPipeline("meshDebug");
-		 
-		m_vertexInputSemantics.assign(dbg->reflection->getInputAttributes(), dbg->reflection->getInputAttributes() + dbg->reflection->getNumberOfInputAttributes());
-
-		m_layout.initFromShaderReflection(getRenderer()->getGfxHandle(), dbg->reflection);
-		m_layout.setDynamic(0, 0);
-		m_layout.compile();
-		m_psoDescHelper.setupShaderStages(dbg);
-
 		m_psoDescHelper.pipelineDesc.renderPass = m_renderMeshesNode->getRenderPassHandle();
-		m_psoDescHelper.pipelineDesc.pipelineLayout = m_layout.getPipelineLayoutHandle();
 
+		uint64_t signature = m_renderMeshesNode->getAttachmentSignature();
+		if (signature != m_psoRenderPassSignature)
+		{
+			clearPSOs();
+			m_refreshAllRenderObjects = true;
+			m_psoRenderPassSignature = signature;
+		}
 	}
 
 	void MeshDebugStage::shutdown()
@@ -148,6 +154,7 @@ namespace YAPT
 		}
 
 
+		if (data.resolutionChanged)
 		{
 			clearPSOs();
 			m_refreshAllRenderObjects = true;

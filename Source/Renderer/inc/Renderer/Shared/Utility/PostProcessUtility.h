@@ -29,8 +29,10 @@ namespace YAPT
 	public:
 		PostProcessGraphicsPassUtility();
 		~PostProcessGraphicsPassUtility();
-		void init(CRenderer* r, RenderPassHandle renderPass, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs = nullptr, size_t numberOfExplicitDescSetDefs = 0 );
+		void init(CRenderer* r, const ShaderLoader::ShaderPipelineInfo* pipelineInfo, const StaticSamplerEntry* staticSamplers, size_t numberOfStaticSamplers, const ExplicitDescriptorSetDefinition* explicitDescSetDefs = nullptr, size_t numberOfExplicitDescSetDefs = 0 );
+		void setRenderPass(RenderNode* node);
 		void createPso();
+		void createPsoIfRenderPassChanged();
 		void deinit();
 
 		void reserveNewDescriptorSet(size_t index);
@@ -51,6 +53,8 @@ namespace YAPT
 		PipelineLayoutHelper m_layout;
 		GraphicsPipelineStateDescHelper m_psoDesc;
 		GraphicsPipelineStateHandle m_pso;
+		uint64_t m_renderPassSignature;
+		uint64_t m_psoRenderPassSignature;
 		std::vector<DescriptorSetHandle> m_descSetHandles;
 		uint64_t m_externallyOwnedDescSets;
 	};

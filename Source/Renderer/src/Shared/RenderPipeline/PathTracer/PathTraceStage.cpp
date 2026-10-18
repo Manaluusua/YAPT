@@ -57,12 +57,22 @@ namespace YAPT
 		delete m_rtStage;
 	}
 
-	void PathTraceStage::initialize()
+	void PathTraceStage::initialize(const InitializeData& data)
 	{
 		m_cmdBufferPool = Gfx::createCommandBufferPool(getRenderer()->getGfxHandle(), 1, Gfx::getQueueId(getRenderer()->getGfxHandle(), QueueType::QUEUE_TYPE_GRAPHICS), nullptr);
 
-		m_rtStage->initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr);
-		m_mergeStage.initialize(getRenderer(), getGraph());
+		m_rtStage->initialize(this, getRenderer(), getGraph(), m_matMngr, m_meshMngr, data);
+		m_mergeStage.initialize(getRenderer(), getGraph(), data);
+
+		m_accStructureHelper.init(getRenderer());
+
+		m_firstTimeUpdate = true;
+	}
+
+	void PathTraceStage::createNodes()
+	{
+		m_rtStage->createNodes();
+		m_mergeStage.createNodes();
 
 		auto setupNodeConnection = [this](PathIntegratorSubStage::OutputResource outputId, CombineSamplesSubStage::InputResource inputId)
 			{
@@ -75,11 +85,8 @@ namespace YAPT
 		setupNodeConnection(PathIntegratorSubStage::OutputResource::COLOR, CombineSamplesSubStage::InputResource::COLOR);
 		setupNodeConnection(PathIntegratorSubStage::OutputResource::MATERIAL_PARAMS0, CombineSamplesSubStage::InputResource::MATERIAL_PARAMS0);
 		setupNodeConnection(PathIntegratorSubStage::OutputResource::MATERIAL_PARAMS1, CombineSamplesSubStage::InputResource::MATERIAL_PARAMS1);
+	}
 
-		m_accStructureHelper.init(getRenderer());
-
-		m_firstTimeUpdate = true;
-	} 
 	void PathTraceStage::shutdown()
 	{
 		Gfx::destroyCommandBufferPool(getRenderer()->getGfxHandle(), m_cmdBufferPool);
@@ -101,8 +108,11 @@ namespace YAPT
 		m_rtStage->onRenderResolutionChanged(data, newRes);
 		m_mergeStage.onRenderResolutionChanged(data, newRes);
 
-		clearAccumulatedFrames();
-		updateEffectiveRaytraceResolution();
+		if (data.resolutionChanged)
+		{
+			clearAccumulatedFrames();
+			updateEffectiveRaytraceResolution();
+		}
 	}
 
 	bool PathTraceStage::hasCameraMoved()

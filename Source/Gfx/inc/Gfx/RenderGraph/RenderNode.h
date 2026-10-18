@@ -17,11 +17,14 @@ namespace YAPT
 		size_t getNodeSlotIndexForRenderTargetIndex(size_t renderTargetIndex) const;
 		size_t getNodeSlotIndexForDepthStencil() const;
 
+		uint64_t getAttachmentSignature() const;
+
 	protected:
 		RenderNode(const char* name, RenderGraph* graph, size_t numberOfConnectionSlots, const RenderGraphNodeSlotDefinition* slotDefinitions);
 		virtual ~RenderNode();
 
-		std::vector<size_t> m_renderTargetSlotIndices;
+		size_t* m_renderTargetSlotIndices;
+		size_t m_numberOfRenderTargets;
 		size_t m_depthStencilSlot;
 	};
 }

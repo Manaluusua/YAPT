@@ -23,7 +23,15 @@ namespace YAPT
 
 	}
 
-	void CopyTextureStage::initialize()
+	void CopyTextureStage::initialize(const InitializeData& data)
+	{
+		ShaderLoader* loader = getRenderer()->getShaderLoader();
+		const ShaderLoader::ShaderPipelineInfo* copy = loader->getShaderPipeline("copyTexture");
+		StaticSamplerEntry samplers[] = { {"colorSampler", getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
+		m_copyPass.init(getRenderer(), copy, samplers, countOf(samplers));
+	}
+
+	void CopyTextureStage::createNodes()
 	{
 		{
 			RenderGraphNodeSlotDefinition slotdefs[] =
@@ -51,11 +59,11 @@ namespace YAPT
 				},
 				this, "copyTextureNode");
 		}
+	}
 
-		ShaderLoader* loader = getRenderer()->getShaderLoader();
-		const ShaderLoader::ShaderPipelineInfo* copy = loader->getShaderPipeline("copyTexture");
-		StaticSamplerEntry samplers[] = { {"colorSampler", getRenderer()->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
-		m_copyPass.init(getRenderer(), m_copyNode->getRenderPassHandle(), copy, samplers, countOf(samplers));
+	void CopyTextureStage::onRenderGraphCompiled(const RenderGraphLifetimeData& data)
+	{
+		m_copyPass.setRenderPass(m_copyNode);
 	}
 
 	void CopyTextureStage::shutdown()
@@ -74,13 +82,20 @@ namespace YAPT
 			const RenderGraphResourceDescription& desc = getGraph()->getRenderGraphResourceDescription(destinationResId);
 
 			TextureDesc textureDesc(desc.resourceDimensions, desc.resourceFormat, desc.resourceUsage, m_renderWidth, m_renderHeight, 1, 1);
-			m_destinationTexture = data.resolutionDependantResourcesPool->requestTexture(textureDesc);
+			m_destinationTexture = data.resolutionDependantResourcesPool->requestTexture(textureDesc, "Copy Destination");
 			getGraph()->setRenderGraphResourceTexture(destinationResId, m_destinationTexture);
 		}
 
-		GraphicsPipelineStateDescHelper& psoState = m_copyPass.getPipelineStateHelper();
-		psoState.setDefaults((float)m_renderWidth, (float)m_renderHeight);
-		m_copyPass.createPso();
+		if (data.resolutionChanged)
+		{
+			GraphicsPipelineStateDescHelper& psoState = m_copyPass.getPipelineStateHelper();
+			psoState.setDefaults((float)m_renderWidth, (float)m_renderHeight);
+			m_copyPass.createPso();
+		}
+		else
+		{
+			m_copyPass.createPsoIfRenderPassChanged();
+		}
 	}
 
 	JobHandle CopyTextureStage::prepare(const PrepareData& cntx)

@@ -8,6 +8,7 @@
 #define MERGE_SAMPLES_WG_SIZE 8
 #define DENOISE_WG_SIZE 8
 #define ACCUMULATION_TARGET_COUNT 2
+#define DENOISE_PASSES_COUNT 5
 #define ACCUMULATION_TARGET_FORMAT (ResourceFormat::RGBA32_SFLOAT)
 #define FEATURE_ACCUM_LAYER_COUNT 4 //keep in sync with shader (denoiseFeatures.hlsl)
 #define FEATURE_ACCUM_FORMAT (ResourceFormat::RGBA32_SFLOAT)
@@ -25,10 +26,54 @@ namespace YAPT
 
 	}
 
-	void CombineSamplesSubStage::initialize(CRenderer* rend, RenderGraph* graph)
+	void CombineSamplesSubStage::initialize(CRenderer* rend, RenderGraph* graph, const RenderStage::InitializeData& data)
 	{
 		m_graph = graph;
 		m_renderer = rend;
+
+		m_denoisePasses.resize(DENOISE_PASSES_COUNT);
+		for (uint32_t i = 0; i < DENOISE_PASSES_COUNT; ++i)
+		{
+			m_denoisePasses[i].passIndex = i;
+			m_denoisePasses[i].subStage = this;
+		}
+
+		ShaderLoader* loader = m_renderer->getShaderLoader();
+		{
+			const ShaderLoader::ShaderPipelineInfo* merge = loader->getShaderPipeline("mergeRaytraceResults");
+			StaticSamplerEntry samplers[] = { {"colorSampler", m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
+			m_mergePass.init(m_renderer, merge, samplers, countOf(samplers));
+			m_mergePass.createPipelineState();
+			m_mergeSamplesConstants.init(data.pipelineLifetimeResources);
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* clearMergeBuffer = loader->getShaderPipeline("clearRaytraceMergeTarget");
+			m_clearMergeBufferPass.init(m_renderer, clearMergeBuffer, nullptr, 0);
+			m_clearMergeBufferPass.createPipelineState();
+			m_clearMergeBufferConstants.init(data.pipelineLifetimeResources);
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* prefilter = loader->getShaderPipeline("prefilterDenoiseFeatures");
+			m_prefilterFeaturesPass.init(m_renderer, prefilter, nullptr, 0);
+			m_prefilterFeaturesPass.createPipelineState();
+			m_prefilterFeaturesConstants.init(data.pipelineLifetimeResources);
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
+			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
+			{
+				m_denoisePasses[i].m_denoisePassUtility.init(m_renderer, denoise, nullptr, 0);
+				m_denoisePasses[i].m_denoisePassUtility.createPipelineState();
+				m_denoisePasses[i].m_denoiseConstants.init(data.pipelineLifetimeResources);
+			}
+		}
+	}
+
+	void CombineSamplesSubStage::createNodes()
+	{
 		
 
 		{
@@ -257,13 +302,8 @@ namespace YAPT
 			}}
 			};
 
-			static constexpr int DENOISE_PASSES_COUNT = 5;
-			m_denoisePasses.resize(DENOISE_PASSES_COUNT);
-
 			for (uint32_t i = 0; i < DENOISE_PASSES_COUNT; ++i)
 			{
-				m_denoisePasses[i].passIndex = i;
-				m_denoisePasses[i].subStage = this;
 				m_denoisePasses[i].m_denoiseNode = m_graph->createComputeNode(countOf(slotdefsDenoiseNode), slotdefsDenoiseNode, []
 				(RenderGraphNode* node, const RenderGraphNodeExecutionContext& execContext, void* usrData)
 					{
@@ -349,49 +389,13 @@ namespace YAPT
 	}
 	void CombineSamplesSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
 	{
-		//mergepass init (properly setup later)
-		ShaderLoader* loader = m_renderer->getShaderLoader();
-		{
-			const ShaderLoader::ShaderPipelineInfo* merge = loader->getShaderPipeline("mergeRaytraceResults");
-			StaticSamplerEntry samplers[] = { {"colorSampler", m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT)} };
-			m_mergePass.init(m_renderer, merge, samplers, countOf(samplers));
-			m_mergeSamplesConstants.init(data.renderGraphLifetimeResources);
-		}
-		
-		{
-			const ShaderLoader::ShaderPipelineInfo* clearMergeBuffer = loader->getShaderPipeline("clearRaytraceMergeTarget");
-			m_clearMergeBufferPass.init(m_renderer, clearMergeBuffer, nullptr, 0);
-			m_clearMergeBufferConstants.init(data.renderGraphLifetimeResources);
-		}
 
-		{
-			const ShaderLoader::ShaderPipelineInfo* prefilter = loader->getShaderPipeline("prefilterDenoiseFeatures");
-			m_prefilterFeaturesPass.init(m_renderer, prefilter, nullptr, 0);
-			m_prefilterFeaturesConstants.init(data.renderGraphLifetimeResources);
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* denoise = loader->getShaderPipeline("denoise");
-			for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
-			{
-				m_denoisePasses[i].m_denoisePassUtility.init(m_renderer, denoise, nullptr, 0);
-				m_denoisePasses[i].m_denoiseConstants.init(data.renderGraphLifetimeResources);
-			}
-		}
 	}
+
 	void CombineSamplesSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 
 		m_renderResolution = newResolution;
-
-		m_mergePass.createPipelineState();
-		m_clearMergeBufferPass.createPipelineState();
-		m_prefilterFeaturesPass.createPipelineState();
-
-		for (uint32_t i = 0; i < m_denoisePasses.size(); ++i)
-		{
-			m_denoisePasses[i].m_denoisePassUtility.createPipelineState();
-		}
 
 		
 		{

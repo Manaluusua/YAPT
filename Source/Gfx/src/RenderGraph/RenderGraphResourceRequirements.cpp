@@ -30,9 +30,6 @@ namespace YAPT
 	void RenderGraphResourceRequirements::reset()
 	{
 		m_requiredRenderGraphResourceDescriptions.clear();
-		m_resourceIndexToNodeSlots.clear();
-		m_perNodeResourceUsages.clear();
-		m_nodeSlotToResourceIndex.clear();
 	}
 
 	void RenderGraphResourceRequirements::addExtraUsageFlagsforResource(size_t resourceIndex, ResourceUsage usage)
@@ -53,6 +50,7 @@ namespace YAPT
 
 	void RenderGraphResourceRequirements::getNodeSlotsUsingResource(size_t resourceIndex,const NodeSlotIdentifier*& nodeSlotIdsOut, size_t& numberOfNodeSlotIds)
 	{
+		assert(resourceIndex < m_requiredRenderGraphResourceDescriptions.size());
 		nodeSlotIdsOut = m_resourceIndexToNodeSlots[resourceIndex].usedInNodeSlotIdentifiers.data();
 		numberOfNodeSlotIds = m_resourceIndexToNodeSlots[resourceIndex].usedInNodeSlotIdentifiers.size();
 	}
@@ -242,20 +240,24 @@ namespace YAPT
 
 	void RenderGraphResourceRequirements::resolveResourcesRequired(RenderGraphNode** sortedNodes, size_t nodeCount)
 	{
-		//initialize structures
-		m_perNodeResourceUsages.resize(nodeCount);
-		m_nodeSlotToResourceIndex.resize(nodeCount);
+		reset();
+
+		if (m_perNodeResourceUsages.size() < nodeCount)
+		{
+			m_perNodeResourceUsages.resize(nodeCount);
+			m_nodeSlotToResourceIndex.resize(nodeCount);
+		}
 
 		for (size_t nodeIndex = 0; nodeIndex < nodeCount; ++nodeIndex)
 		{
 			RenderGraphNode* node = sortedNodes[nodeIndex];
 			size_t slotCount = node->getNumberOfSlots();
 
-			RenderGraphResourceUsage defaultUsage;
+			RenderGraphResourceUsage defaultUsage = {};
 			defaultUsage.arraySliceOffset = uint32_t(-1);
 			defaultUsage.mipOffset = uint32_t(-1);
-			m_perNodeResourceUsages[nodeIndex].renderGraphResourceUsage.resize(slotCount, defaultUsage);
-			m_nodeSlotToResourceIndex[nodeIndex].resourceIndexPerSlot.resize(slotCount, size_t(-1)); //initialize with unspecified resourceindex
+			m_perNodeResourceUsages[nodeIndex].renderGraphResourceUsage.assign(slotCount, defaultUsage);
+			m_nodeSlotToResourceIndex[nodeIndex].resourceIndexPerSlot.assign(slotCount, size_t(-1)); //initialize with unspecified resourceindex
 
 		}
 
@@ -273,7 +275,11 @@ namespace YAPT
 				{
 					index = m_requiredRenderGraphResourceDescriptions.size();
 					m_requiredRenderGraphResourceDescriptions.resize(index + 1);
-					m_resourceIndexToNodeSlots.resize(m_requiredRenderGraphResourceDescriptions.size());
+					if (m_resourceIndexToNodeSlots.size() <= index)
+					{
+						m_resourceIndexToNodeSlots.resize(index + 1);
+					}
+					m_resourceIndexToNodeSlots[index].usedInNodeSlotIdentifiers.clear();
 					replicateRenderGraphResourceIndexToAllConnectedSlots(node, slotIndex, index);
 				}
 

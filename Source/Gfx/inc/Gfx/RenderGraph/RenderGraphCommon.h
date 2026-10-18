@@ -45,6 +45,9 @@ namespace YAPT
 
 		uint32_t toArrayOffset;
 		uint32_t toMipOffset;
+
+		RenderGraphNodeEdge* nextInToSlot;
+		RenderGraphNodeEdge* nextOutFromSlot;
 	};
 
 	inline bool tryToMergeRenderGraphResourceDescriptions(const RenderGraphResourceDescription& desc1, const RenderGraphResourceDescription& desc2, RenderGraphResourceDescription& descOut)

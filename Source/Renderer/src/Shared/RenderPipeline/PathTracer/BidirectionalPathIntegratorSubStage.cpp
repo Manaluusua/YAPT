@@ -33,7 +33,8 @@ namespace YAPT
 		m_pureLightPathHeadersGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_pureLightPathNodesGPU(RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_maxVerticesPerLightPath(MAX_VERTICES_PER_LIGHT_PATH),
-		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH)
+		m_pixelsPerLightPath(TEXELS_PER_LIGHTPATH),
+		m_texelRemapTexture(YAPT_NULL_HANDLE)
 
 	{
 
@@ -43,7 +44,7 @@ namespace YAPT
 
 	}
 
-	void BidirectionalPathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr)
+	void BidirectionalPathIntegratorSubStage::initialize(AccelerationStructureProvider* accStructProvider, CRenderer* rend, RenderGraph* graph, BindlessMaterialManager* matMngr, BindlessMeshManager* meshMngr, const RenderStage::InitializeData& data)
 	{
 		m_graph = graph;
 		m_renderer = rend;
@@ -51,6 +52,111 @@ namespace YAPT
 		m_materialMngr = matMngr;
 		m_meshMngr = meshMngr;
 
+		ShaderLoader* loader = m_renderer->getShaderLoader();
+
+		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
+		BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
+		const DescriptorSetLayoutBinding& bindingTex = texMngr->getBindingDefinition();
+		const DescriptorSetLayoutBinding& bindingBuff = buffMngr->getBindingDefinition();
+
+		SamplerHandle samplerHandleLinRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
+		SamplerHandle samplerHandleNearestRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
+		SamplerHandle samplerHandleLinClamp = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
+
+		ExplicitDescriptorSetDefinition explicitDescSetDefs[] =
+		{
+			{
+				1,
+				&bindingTex,
+				1,
+				texMngr->getLayout()
+			},
+			{
+				2,
+				&bindingBuff,
+				1,
+				buffMngr->getLayout()
+			}
+		};
+
+
+		StaticSamplerEntry staticSamplers[] =
+		{
+			{
+				"g_colorSampler",
+				samplerHandleLinRep
+			},
+			{
+				"g_pointSampler",
+				samplerHandleNearestRep
+			},
+			{
+				"g_lutSampler",
+				samplerHandleLinClamp
+			},
+		};
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* shd = loader->getShaderPipeline("resetCountersBDPT");
+			m_resetCountersNodeUtility.init(m_renderer, shd, nullptr, 0, nullptr, 0);
+			m_resetCountersNodeUtility.createPipelineState();
+			
+		}
+		
+		{
+			const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
+			m_lightPathHelperUtility.init(m_renderer, lightRays,staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_lightPathHelperUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* sortLightPaths = loader->getShaderPipeline("sortLightVertices");
+			m_lightPathSortHelperUtility.init(m_renderer, sortLightPaths, nullptr);
+			m_lightPathSortHelperUtility.createPipelineState();
+			
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
+			m_cameraPathHelperUtility.init(m_renderer, cameraRays, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_cameraPathHelperUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath0 = loader->getShaderPipeline("initializePureLightPathsBDPT");
+			m_initPureLightPathsUtility.init(m_renderer, pureLightPath0, nullptr);
+			m_initPureLightPathsUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath1 = loader->getShaderPipeline("calculatePureLightPathsBDPT");
+			m_calculatePureLightPathsUtility.init(m_renderer, pureLightPath1, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
+			m_calculatePureLightPathsUtility.createPipelineState();
+		}
+
+		{
+			const ShaderLoader::ShaderPipelineInfo* pureLightPath2 = loader->getShaderPipeline("accumulatePureLightPathsBDPT");
+			m_accumulatePathHelperUtility.init(m_renderer, pureLightPath2, nullptr);
+			m_accumulatePathHelperUtility.createPipelineState();
+		}
+
+		m_constantsGPU.init(data.pipelineLifetimeResources);
+
+		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
+		for (size_t i = 0; i < 2; ++i)
+		{
+			m_lightPathsGPU[i].init(m_renderer->getGfxHandle());
+		}
+		m_countersGPU.init(data.pipelineLifetimeResources, "LightPathCountersBuffer");
+
+		m_pureLightPathHeadersGPU.init(m_renderer->getGfxHandle());
+		m_pureLightPathNodesGPU.init(m_renderer->getGfxHandle());
+
+		m_raytraceCommon.initialize(m_renderer, data.pipelineLifetimeResources, m_materialMngr, m_meshMngr);
+	}
+
+	void BidirectionalPathIntegratorSubStage::createNodes()
+	{
 		//RESET COUNTERS
 		{
 			RenderGraphNodeSlotDefinition slotdefsResetCounters[] =
@@ -298,6 +404,7 @@ namespace YAPT
 		m_graph->createEdge(m_calculatePureLightPathResourcesNode, 0, m_accumulatePureLightPathResourcesNode, 1); //pure light path headers
 		m_graph->createEdge(m_calculatePureLightPathResourcesNode, 2, m_accumulatePureLightPathResourcesNode, 2); //pure light path nodes
 	}
+
 	void BidirectionalPathIntegratorSubStage::shutdown()
 	{
 		m_raytraceCommon.shutdown();
@@ -325,109 +432,9 @@ namespace YAPT
 	}
 	void BidirectionalPathIntegratorSubStage::onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data)
 	{
-		ShaderLoader* loader = m_renderer->getShaderLoader();
-
-		BindlessTextureManager* texMngr = m_renderer->getTextureManager();
-		BindlessBufferManager* buffMngr = m_renderer->getBufferManager();
-		const DescriptorSetLayoutBinding& bindingTex = texMngr->getBindingDefinition();
-		const DescriptorSetLayoutBinding& bindingBuff = buffMngr->getBindingDefinition();
-
-		SamplerHandle samplerHandleLinRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_REPEAT);
-		SamplerHandle samplerHandleNearestRep = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::NEAREST_REPEAT);
-		SamplerHandle samplerHandleLinClamp = m_renderer->getCoreResources()->getDefaultSampler(DefaultSamplerType::LINEAR_CLAMP);
-
-		ExplicitDescriptorSetDefinition explicitDescSetDefs[] =
-		{
-			{
-				1,
-				&bindingTex,
-				1,
-				texMngr->getLayout()
-			},
-			{
-				2,
-				&bindingBuff,
-				1,
-				buffMngr->getLayout()
-			}
-		};
-
-
-		StaticSamplerEntry staticSamplers[] =
-		{
-			{
-				"g_colorSampler",
-				samplerHandleLinRep
-			},
-			{
-				"g_pointSampler",
-				samplerHandleNearestRep
-			},
-			{
-				"g_lutSampler",
-				samplerHandleLinClamp
-			},
-		};
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* shd = loader->getShaderPipeline("resetCountersBDPT");
-			m_resetCountersNodeUtility.init(m_renderer, shd, nullptr, 0, nullptr, 0);
-			m_resetCountersNodeUtility.createPipelineState();
-			
-		}
-		
-		{
-			const ShaderLoader::ShaderPipelineInfo* lightRays = loader->getShaderPipeline("lightRaysBDPT");
-			m_lightPathHelperUtility.init(m_renderer, lightRays,staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
-			m_lightPathHelperUtility.createPipelineState();
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* sortLightPaths = loader->getShaderPipeline("sortLightVertices");
-			m_lightPathSortHelperUtility.init(m_renderer, sortLightPaths, nullptr);
-			m_lightPathSortHelperUtility.createPipelineState();
-			
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* cameraRays = loader->getShaderPipeline("cameraRaysBDPT");
-			m_cameraPathHelperUtility.init(m_renderer, cameraRays, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
-			m_cameraPathHelperUtility.createPipelineState();
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* pureLightPath0 = loader->getShaderPipeline("initializePureLightPathsBDPT");
-			m_initPureLightPathsUtility.init(m_renderer, pureLightPath0, nullptr);
-			m_initPureLightPathsUtility.createPipelineState();
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* pureLightPath1 = loader->getShaderPipeline("calculatePureLightPathsBDPT");
-			m_calculatePureLightPathsUtility.init(m_renderer, pureLightPath1, staticSamplers, countOf(staticSamplers), explicitDescSetDefs, countOf(explicitDescSetDefs));
-			m_calculatePureLightPathsUtility.createPipelineState();
-		}
-
-		{
-			const ShaderLoader::ShaderPipelineInfo* pureLightPath2 = loader->getShaderPipeline("accumulatePureLightPathsBDPT");
-			m_accumulatePathHelperUtility.init(m_renderer, pureLightPath2, nullptr);
-			m_accumulatePathHelperUtility.createPipelineState();
-		}
-
-		m_constantsGPU.init(data.renderGraphLifetimeResources);
-
-		m_lightPathHeadersGPU.init(m_renderer->getGfxHandle());
-		for (size_t i = 0; i < 2; ++i)
-		{
-			m_lightPathsGPU[i].init(m_renderer->getGfxHandle());
-		}
-		m_countersGPU.init(data.renderGraphLifetimeResources, "LightPathCountersBuffer");
-
-		m_pureLightPathHeadersGPU.init(m_renderer->getGfxHandle());
-		m_pureLightPathNodesGPU.init(m_renderer->getGfxHandle());
-
-		m_raytraceCommon.initialize(m_renderer, data.renderGraphLifetimeResources, m_materialMngr, m_meshMngr);
 
 	}
+
 	void BidirectionalPathIntegratorSubStage::onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution)
 	{
 		m_renderResolution = newResolution;
@@ -481,15 +488,18 @@ namespace YAPT
 			m_constantsGPU.getData()->lightPathsPerDim = lightPathCountPerDim;
 			m_constantsGPU.getData()->maxAllocatedVertices = allocatedVertices;
 
-			m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y * 4, "lightPathHeaders");
-
-			for (size_t i = 0; i < 2; ++i)
+			if (data.resolutionChanged)
 			{
-				m_lightPathsGPU[i].allocate(allocatedVertices, "lightPathNodes");
-			}
+				m_lightPathHeadersGPU.allocate(lightPathCountPerDim.x * lightPathCountPerDim.y * 4, "lightPathHeaders");
 
-			m_pureLightPathHeadersGPU.allocate(m_renderResolution.x * m_renderResolution.y, "pureLightPathHeaders");
-			m_pureLightPathNodesGPU.allocate(allocatedVertices, "pureLightPathNodes");
+				for (size_t i = 0; i < 2; ++i)
+				{
+					m_lightPathsGPU[i].allocate(allocatedVertices, "lightPathNodes");
+				}
+
+				m_pureLightPathHeadersGPU.allocate(m_renderResolution.x * m_renderResolution.y, "pureLightPathHeaders");
+				m_pureLightPathNodesGPU.allocate(allocatedVertices, "pureLightPathNodes");
+			}
 
 			m_graph->setRenderGraphResourceBuffer(lightPathHeadersId, m_lightPathHeadersGPU.getBufferHandle());
 			m_graph->setRenderGraphResourceBuffer(lightPathsNodesId0, m_lightPathsGPU[0].getBufferHandle());
@@ -539,7 +549,9 @@ namespace YAPT
 	void BidirectionalPathIntegratorSubStage::recreateTexelCoordinatePermutationTexture(const RenderStage::RenderResolutionDependantResourcesData& data)
 	{
 		TextureDesc texDesc(ResourceDimension::TEXTURE_2D, ResourceFormat::R32_UINT, RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_TEXTURE | RESOURCE_USAGE_SAMPLED_TEXTURE, m_renderResolution.x, m_renderResolution.y, 1, 1);
-		m_texelRemapTexture = data.resolutionDependantResourcesPool->requestTexture(texDesc);
+		TextureHandle texelRemapTexture = data.resolutionDependantResourcesPool->requestTexture(texDesc, "Texel Remap");
+		if (texelRemapTexture == m_texelRemapTexture) return;
+		m_texelRemapTexture = texelRemapTexture;
 
 		TextureViewDesc texViewDesc;
 		texViewDesc.resourceUsage = RESOURCE_USAGE_SAMPLED_TEXTURE;

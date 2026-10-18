@@ -37,7 +37,8 @@ namespace YAPT
 		CombineSamplesSubStage();
 		~CombineSamplesSubStage();
 
-		 void initialize(CRenderer* rend, RenderGraph* graph);
+		 void initialize(CRenderer* rend, RenderGraph* graph, const RenderStage::InitializeData& data);
+		 void createNodes();
 		 void shutdown();
 		 void onRenderGraphCompiled(const RenderStage::RenderGraphLifetimeData& data);
 		 void onRenderResolutionChanged(const RenderStage::RenderResolutionDependantResourcesData& data, uvec2 newResolution);
