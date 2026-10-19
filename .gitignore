@@ -2,3 +2,4 @@ build/
 /CMakeLists.txt.user
 __pycache__/
 /settings_local.cfg
+/Source/Python/pythonScripts/examples/local/

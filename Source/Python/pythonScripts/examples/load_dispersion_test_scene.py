@@ -102,7 +102,7 @@ def createLight():
     global renderer
     global scene
 
-    #small sphere light in the middle of the goblet groups, so it shines on every group the same way
+    #small sphere light in the middle of the dragon groups, so it shines on every group the same way
     emission_val = 200000
 
     obj, mesh, mat = createObject("lightSphere", "models/sphere.glb", v3(*LIGHT_POS), LIGHT_RADIUS)
@@ -116,15 +116,15 @@ def absorptionForColor(color, distance):
 def loadObjects():
 
     #one group per glass tint, each in its own direction around the light. A group is two arcs facing the light:
-    #no dispersion on the inner arc, dispersion on the outer one, and along each arc the goblets go from smooth to rough.
-    #The caustics fall away from the light, so the outer arc is shifted by half a step to put its goblets between
+    #no dispersion on the inner arc, dispersion on the outer one, and along each arc the dragons go from smooth to rough.
+    #The caustics fall away from the light, so the outer arc is shifted by half a step to put its dragons between
     #the caustics (and shadows) of the inner arc instead of on top of them
     columns = 5
     innerRadius = 130                   #distance of the no dispersion arc from the light
     outerRadius = 230                   #distance of the dispersion arc from the light
     groupGap = 20                       #degrees of empty floor between groups
     firstGroupAngle = 0                 #degrees, 0 = +x (towards the default camera), counter clockwise seen from above
-    absorptionDistance = 10             #goblets are ~50 units tall and ~24 wide
+    absorptionDistance = 10             #dragons are ~50 units long, ~23 tall and ~34 wide
     cauchy = [1.5046, 0.00420]
     #IOR of the dispersive glass at 589 nm, so the rows of a pair differ only in dispersion
     plainIOR = cauchy[0] + cauchy[1] / (0.589 * 0.589)
@@ -136,7 +136,7 @@ def loadObjects():
     ]
 
     groupSpan = 360 / len(tints)
-    columnStep = (groupSpan - groupGap) / columns     #degrees between the goblets of an arc
+    columnStep = (groupSpan - groupGap) / columns     #degrees between the dragons of an arc
 
     for groupIndex, (tintName, tintColor) in enumerate(tints):
         groupCenter = firstGroupAngle + groupIndex * groupSpan
@@ -147,8 +147,11 @@ def loadObjects():
                 angle = math.radians(groupCenter + (i - (columns - 1) / 2 - 0.25 + stagger) * columnStep)
                 x = LIGHT_POS[0] + math.cos(angle) * radius
                 z = LIGHT_POS[2] - math.sin(angle) * radius
-                name = f"Goblet_{tintName}_{'dispersion' if dispersion else 'plain'}_{i}"
-                obj, mesh, mat = createObject(name, "models/Goblet/Goblet.gltf", v3(x, -50, z), 300)
+                name = f"Dragon_{tintName}_{'dispersion' if dispersion else 'plain'}_{i}"
+                obj, mesh, mat = createObject(name, "models/xyzrgb_dragon.glb", v3(x, -50, z), 250)
+                #long axis (x) pointing away from the light
+                rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))
+                obj.getTransform().setOrientation(vec4([rot.x(), rot.y(), rot.z(), rot.scalar()]))
 
                 r = i / (columns - 1) if columns > 1 else 1
                 r = r * r
@@ -172,7 +175,7 @@ if(env_map != None):
 createSurrounding()
 createLight()
 loadObjects()
-#from high up on the +x side, steep enough that the caustics of the groups on the far side show between the goblets
+#from high up on the +x side, steep enough that the caustics of the groups on the far side show between the dragons
 cam_pos = (480, 480, 0)
 cam_target = (0, -50, 0)
 dx, dy, dz = (cam_target[i] - cam_pos[i] for i in range(3))

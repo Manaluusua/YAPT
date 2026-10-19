@@ -42,12 +42,12 @@ def createLight():
 
 def createDragons():
     #(subsurface amount, radius scale)
-    settings = [(0.0, 5.0), (1.0, 0.01), (0.5, 5.0), (1.0, 5.0), (1.0, 20.0)]
+    settings = [(0.0, 5.0), (1.0, 0.01), (0.5, 5.0), (1.0, 5.0), (1.0, 10.0)]
     spacing = 70
     for i, (amount, radius_scale) in enumerate(settings):
         x = (i - (len(settings) - 1) * 0.5) * spacing
         #dragon.glb is ~0.2 units long with its base at y = 0, scale it up and stand it on the ground
-        obj, mesh, mat = createObject(f"sssDragon{i}", "models/dragon.glb", v3(x, -30, 0), 300)
+        obj, mesh, mat = createObject(f"sssDragon{i}", "models/xyzrgb_dragon.glb", v3(x, -30, 0), 300)
         mat.setAlbedo(v3(0.8, 0.35, 0.25))
         mat.setRoughness(0.3)
         mat.setSubsurfaceAmount(amount)

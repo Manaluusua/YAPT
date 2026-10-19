@@ -19,15 +19,15 @@ cmake --build Build --config Debug
 - Graphics backend is chosen via the `GRAPHICS_API` cache variable in `Source/Gfx/CMakeLists.txt`: `DirectX12` (default) or `Vulkan`. Set with `-DGRAPHICS_API=Vulkan` at configure time; this defines `RENDERER_DX12`/`RENDERER_VK` for the whole `Gfx` target.
 - `Source/Python/CMakeLists.txt` requires Python3 + pip and will `pip install` `pybind11`, `pyside6`, `pygltflib`, `pyktx` into the environment during configure.
 - All binaries/DLLs land in `Build/Bin/<Config>/`; shaders are copied to `Build/Bin/<Config>/shaders/` and Python scripts run from `Source/Python/pythonScripts/` (see `Source/Python/pythonScripts/.vscode/launch.json` for a debug entry point).
-- There are no unit tests or lint targets; the smoke test below is the regression check.
+- There are no unit tests or lint targets; the smoke test below is the regression check for C++/shader changes.
 
 ### Running
 
 The `YAPT` executable loads `Source/Python/pythonScripts/default_bootstrap.py` (falling back to a relative path from `Build/Bin/<Config>/`), which launches a PySide6 `QApplication` (`yapt.app.Application`). Example scenes to load from the Python console/scripts live in `Source/Python/pythonScripts/examples/`.
 
-### Smoke test (always run after making changes)
+### Smoke test
 
-**After any change to C++, shaders or the Python app, run the smoke test and make sure both backends pass before calling the work done:**
+Don't run the smoke test yourself. When a change touches C++ or shader code, suggest that the user run it (both backends) in the summary; Python-only changes don't need it.
 
 ```
 python Tests/Smoke/run_smoke_tests.py
