@@ -160,11 +160,7 @@ namespace YAPT
         }
 
         m_parent = parent;
-        if (m_parent)
-        {
-            m_parent->addChild(this);
-        }
-        
+        m_childIndex = m_parent ? m_parent->addChild(this) : CHILD_INDEX_INVALID;
 
         setDirty();
     }
@@ -181,14 +177,10 @@ namespace YAPT
     }
     inline void Transform::removeChild(size_t index)
     {
-        if (m_children.size() > 1)
-        {
-            Transform* s = m_children.back();
-            std::swap(m_children[index], s);
-            s->setChildIndex(index);
-        }
+        Transform* last = m_children.back();
+        m_children[index] = last;
+        last->setChildIndex(index);
         m_children.pop_back();
-        
     }
 
     inline void Transform::removeFromParentChain()
@@ -203,5 +195,6 @@ namespace YAPT
             m_children[0]->setParent(m_parent);
         }
         m_parent = nullptr;
+        m_childIndex = CHILD_INDEX_INVALID;
     }
 }

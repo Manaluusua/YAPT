@@ -8,8 +8,22 @@ resources = yapt_instance.get_resources()
 renderer = yapt_instance.get_renderer()
 scene = yapt_instance.get_scene()
 
-LIGHT_POS = (0, 20, 0)
-LIGHT_RADIUS = 2
+ROW_CENTER = (0, -50, 0)       #on the floor
+OBJECT_COUNT = 4
+OBJECT_SPACING = 100           #goblets are ~27 units tall and ~14 wide
+OBJECT_RADIUS = 17             #what the light cone has to cover
+GOBLET_SCALE = 150             #goblet.glb is in meters, 0.18 tall
+LIGHT_DISTANCE = 100           #from the goblet
+LIGHT_ELEVATION = 50           #degrees above the floor, seen from the goblet
+LIGHT_SIZE = 3                 #edge length of the square panels
+LIGHT_EDGE_FALLOFF = 0.25      #emission at the edge of the goblet relative to the center of the cone
+LIGHT_EMISSION = 8000
+ENV_INTENSITY = 0.1
+#Cauchy coefficients of SF10 dense flint, about 3x the dispersion of BK7
+CAUCHY = [1.7280, 0.01342]
+
+CAM_POS = (-178, -11, 54)
+CAM_TARGET = (-122, -50, 5)
 
 def createObject(name, meshPath, pos, scale):
     global resources
@@ -96,75 +110,62 @@ def createSurrounding():
             roof.getTransform().setTranslation(pos)
             roof.getTransform().setScale(vec3(roofScale));
 
-def createLight():
+def createSpotLight(name, target, awayFromCamera):
 
-    global resources
-    global renderer
-    global scene
+    #small panel behind the goblet (seen from the camera) and above it, shining at it with a cone that barely covers it
+    elevation = math.radians(LIGHT_ELEVATION)
+    offset = awayFromCamera * (math.cos(elevation) * LIGHT_DISTANCE) + QVector3D(0, 1, 0) * (math.sin(elevation) * LIGHT_DISTANCE)
+    pos = QVector3D(*target) + offset
 
-    #small sphere light in the middle of the dragon groups, so it shines on every group the same way
-    emission_val = 200000
+    #plane.glb is 2x2 units with its front (emitting) side towards +y
+    obj, mesh, mat = createObject(name, "models/plane.glb", v3(pos.x(), pos.y(), pos.z()), LIGHT_SIZE * 0.5)
+    mat.setAlbedo(v3(0, 0, 0))
+    mat.setEmission(v3(LIGHT_EMISSION, LIGHT_EMISSION, LIGHT_EMISSION))
+    coneHalfAngle = math.atan(OBJECT_RADIUS / LIGHT_DISTANCE)
+    mat.setEmissionFocus(math.log(LIGHT_EDGE_FALLOFF) / math.log(math.cos(coneHalfAngle)))
 
-    obj, mesh, mat = createObject("lightSphere", "models/sphere.glb", v3(*LIGHT_POS), LIGHT_RADIUS)
-    mat.setEmission(v3(emission_val, emission_val, emission_val))
+    rot = QQuaternion.rotationTo(QVector3D(0, 1, 0), -offset.normalized())
+    obj.getTransform().setOrientation(vec4([rot.x(), rot.y(), rot.z(), rot.scalar()]))
 
+def createGoblet(name, pos, glassMat, rimMat):
 
-#absorption coefficient (per world unit) that leaves `color` after travelling `distance` through the glass
-def absorptionForColor(color, distance):
-    return v3(*[-math.log(max(c, 1e-4)) / distance for c in color])
+    #goblet.glb has the glass body as its first primitive and the gold rim as its second
+    mesh_array, prim_mapping = resources.load_meshes_from_path("models/goblet.glb")[0]
+    objects = []
+    for mesh_index, mesh in enumerate(mesh_array):
+        obj = scene.create_render_object(f"{name}_obj_{mesh_index}")
+        obj.setMesh(mesh)
+        obj.getTransform().setScale(vec3(GOBLET_SCALE))
+        obj.getTransform().setTranslation(pos)
+        objects.append(obj)
+
+    for prim_index, mat in enumerate((glassMat, rimMat)):
+        mesh_index, submesh_index = prim_mapping[prim_index]
+        objects[mesh_index].setMaterial(mat, submesh_index)
 
 def loadObjects():
 
-    #one group per glass tint, each in its own direction around the light. A group is two arcs facing the light:
-    #no dispersion on the inner arc, dispersion on the outer one, and along each arc the dragons go from smooth to rough.
-    #The caustics fall away from the light, so the outer arc is shifted by half a step to put its dragons between
-    #the caustics (and shadows) of the inner arc instead of on top of them
-    columns = 5
-    innerRadius = 130                   #distance of the no dispersion arc from the light
-    outerRadius = 230                   #distance of the dispersion arc from the light
-    groupGap = 20                       #degrees of empty floor between groups
-    firstGroupAngle = 0                 #degrees, 0 = +x (towards the default camera), counter clockwise seen from above
-    absorptionDistance = 10             #dragons are ~50 units long, ~23 tall and ~34 wide
-    cauchy = [1.5046, 0.00420]
-    #IOR of the dispersive glass at 589 nm, so the rows of a pair differ only in dispersion
-    plainIOR = cauchy[0] + cauchy[1] / (0.589 * 0.589)
+    rimMat = renderer.createMaterial("GobletRim_mat")
+    rimMat.setFromMaterialPreset(Material.MaterialPreset.METAL_GOLD)
+    rimMat.setRoughness(0.15)
 
-    tints = [
-        ("clear", None),
-        ("turquoise", (0.55, 0.92, 0.85)),   #color after absorptionDistance
-        ("green", (0.12, 0.55, 0.10)),
-    ]
+    #clear dispersive glass goblets in a row along x, roughness going from fully smooth to fully rough
+    for i in range(OBJECT_COUNT):
+        x = ROW_CENTER[0] + (i - (OBJECT_COUNT - 1) / 2) * OBJECT_SPACING
+        pos = (x, ROW_CENTER[1], ROW_CENTER[2])
 
-    groupSpan = 360 / len(tints)
-    columnStep = (groupSpan - groupGap) / columns     #degrees between the dragons of an arc
+        r = i / (OBJECT_COUNT - 1) if OBJECT_COUNT > 1 else 1
 
-    for groupIndex, (tintName, tintColor) in enumerate(tints):
-        groupCenter = firstGroupAngle + groupIndex * groupSpan
-        for dispersion in (False, True):
-            radius = outerRadius if dispersion else innerRadius
-            stagger = 0.5 if dispersion else 0.0
-            for i in range(columns):
-                angle = math.radians(groupCenter + (i - (columns - 1) / 2 - 0.25 + stagger) * columnStep)
-                x = LIGHT_POS[0] + math.cos(angle) * radius
-                z = LIGHT_POS[2] - math.sin(angle) * radius
-                name = f"Dragon_{tintName}_{'dispersion' if dispersion else 'plain'}_{i}"
-                obj, mesh, mat = createObject(name, "models/xyzrgb_dragon.glb", v3(x, -50, z), 250)
-                #long axis (x) pointing away from the light
-                rot = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), math.degrees(angle))
-                obj.getTransform().setOrientation(vec4([rot.x(), rot.y(), rot.z(), rot.scalar()]))
+        mat = renderer.createMaterial(f"Goblet_{i}_mat")
+        mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
+        mat.setRoughness(r)
+        mat.setEnableDispersion(True)
+        mat.setCauchysCoefficients(vec2(CAUCHY))
+        createGoblet(f"Goblet_{i}", v3(*pos), mat, rimMat)
 
-                r = i / (columns - 1) if columns > 1 else 1
-                r = r * r
-
-                mat.setFromMaterialPreset(Material.MaterialPreset.GLASS)
-                mat.setRoughness(r)
-                mat.setEnableDispersion(dispersion)
-                if dispersion:
-                    mat.setCauchysCoefficients(vec2(cauchy))
-                else:
-                    mat.setDielectricIOR(plainIOR)
-                if tintColor is not None:
-                    mat.setAbsorption(absorptionForColor(tintColor, absorptionDistance))
+        toCamera = QVector3D(CAM_POS[0] - pos[0], 0, CAM_POS[2] - pos[2]).normalized()
+        center = (pos[0], pos[1] + 0.09 * GOBLET_SCALE, pos[2])
+        createSpotLight(f"Goblet_{i}_light", center, -toCamera)
 
 #envmap
 env_map = resources.load_texture_2D("textures/envmaps/photo_studio_loft_hall_4k.exr", "R16G16B16A16_SFLOAT")
@@ -172,19 +173,19 @@ env_map = resources.load_texture_2D("textures/envmaps/photo_studio_loft_hall_4k.
 if(env_map != None):
     renderer.getRendererVariable("World.Skycube").setTexture(env_map)
 
+env_var = renderer.getRendererVariable("World.EnvIntensityScale")
+if(env_var != None):
+    env_var.setFromFloatArray([ENV_INTENSITY])
+
 createSurrounding()
-createLight()
 loadObjects()
-#from high up on the +x side, steep enough that the caustics of the groups on the far side show between the dragons
-cam_pos = (480, 480, 0)
-cam_target = (0, -50, 0)
-dx, dy, dz = (cam_target[i] - cam_pos[i] for i in range(3))
+dx, dy, dz = (CAM_TARGET[i] - CAM_POS[i] for i in range(3))
 #camera looks down -z: yaw about y, then pitch about x
 yaw = math.degrees(math.atan2(-dx, -dz))
 pitch = math.degrees(math.atan2(dy, math.hypot(dx, dz)))
 
 cam_transform = scene.get_main_camera().getTransform()
-cam_transform.setTranslation(v3(*cam_pos))
+cam_transform.setTranslation(v3(*CAM_POS))
 
 cam_rot_q = QQuaternion.fromAxisAndAngle(QVector3D(0, 1, 0), yaw) * QQuaternion.fromAxisAndAngle(QVector3D(1, 0, 0), pitch)
 quat = vec4([cam_rot_q.x(), cam_rot_q.y(), cam_rot_q.z(), cam_rot_q.scalar()])

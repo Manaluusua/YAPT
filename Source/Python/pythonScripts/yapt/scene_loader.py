@@ -53,35 +53,10 @@ class SceneLoader:
         for mat in gltf.materials:
             self._materials.append(self._load_material_gltf(mat))
 
-        gltf_scene = gltf.scenes[gltf.scene]
-        loaded_objects = [None] * len(gltf.nodes)
+        gltf_scene = gltf.scenes[gltf.scene or 0]
 
-        #create nodes
-        root_objects = []
-        for node_index in gltf_scene.nodes:
-            node = gltf.nodes[node_index]
-            obj = self._create_object(node)
-            if(obj != None):
-                loaded_objects[node_index] = obj
-            root_objects.append(obj)
-
-        #parenting
-        for node_index in gltf_scene.nodes:
-            node = gltf.nodes[node_index]
-            if(node.children != None):
-                parent = loaded_objects[node_index]
-                if(parent == None):
-                    print(f"parent node {node.name} is not loaded")
-                    continue
-                for child in node.children:
-                    obj = loaded_objects[child]
-                    if(obj == None):
-                        print(f"child node {child} is not loaded for parent {node.name}")
-                        continue
-                    loaded_objects[child].setParent(parent)
-
-        #objects created for the gltf scene's root nodes, in gltf_scene.nodes order (None if a node failed to load)
-        return root_objects
+        #objects created for the gltf scene's root nodes, in gltf_scene.nodes order, with their child nodes parented under them
+        return [self._create_node_tree(node_index) for node_index in gltf_scene.nodes]
 
     def get_gltf(self):
         return self._gltf
@@ -352,6 +327,14 @@ class SceneLoader:
             created_objects[mesh_index].setMaterial(mat, submesh_index)
         
         return parent
+
+    def _create_node_tree(self, node_index):
+        node = self._gltf.nodes[node_index]
+        obj = self._create_object(node)
+        for child_index in node.children or []:
+            child = self._create_node_tree(child_index)
+            child.getTransform().setParent(obj.getTransform())
+        return obj
 
     def _create_scene_object(self, node):
         obj = self._scene.create_scene_object(node.name)
