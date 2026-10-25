@@ -51,11 +51,20 @@ def transfer_function_args(vk_format: str | None) -> tuple[str, ...]:
 
 
 def default_cache_stem(kind: str, sources: Sequence[Path], options: Mapping[str, Any]) -> str:
-    """Build `{kind}_{sha256}.ktx2` stem from sources and conversion options."""
+    """Build `{kind}_{sha256}.ktx2` stem from sources and conversion options. The size and modification time
+    of the sources are part of it, so a source that is rewritten in place gets converted again."""
+
+    def stamp(p: Path) -> list[int]:
+        try:
+            st = p.stat()
+            return [st.st_size, st.st_mtime_ns]
+        except OSError:
+            return []
 
     payload = {
         "kind": kind,
         "sources": [str(p.resolve()) for p in sources],
+        "source_stamps": [stamp(p) for p in sources],
         "vk_format": options.get("vk_format"),
         "extra_ktx_args": list(options.get("extra_ktx_args") or ()),
         "ktx_version": options.get("ktx_version") or "",

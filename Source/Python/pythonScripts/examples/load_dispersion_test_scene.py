@@ -19,6 +19,8 @@ LIGHT_SIZE = 3                 #edge length of the square panels
 LIGHT_EDGE_FALLOFF = 0.25      #emission at the edge of the goblet relative to the center of the cone
 LIGHT_EMISSION = 8000
 ENV_INTENSITY = 0.1
+RIM_REFLECTANCE_SCALE = 0.05   #the gold rim reflects the light panels hundreds of times brighter than white
+RIM_IS_GLASS = True            #give the rim the goblet's glass material instead of gold
 #Cauchy coefficients of SF10 dense flint, about 3x the dispersion of BK7
 CAUCHY = [1.7280, 0.01342]
 
@@ -148,6 +150,11 @@ def loadObjects():
     rimMat = renderer.createMaterial("GobletRim_mat")
     rimMat.setFromMaterialPreset(Material.MaterialPreset.METAL_GOLD)
     rimMat.setRoughness(0.15)
+    #metal fresnel goes from albedo at normal incidence to specular tint at grazing, scale both to dim the rim
+    albedo = rimMat.getAlbedo()
+    tint = rimMat.getSpecularTint()
+    rimMat.setAlbedo(v3(*(albedo[i] * RIM_REFLECTANCE_SCALE for i in range(3))))
+    rimMat.setSpecularTint(v3(*(tint[i] * RIM_REFLECTANCE_SCALE for i in range(3))))
 
     #clear dispersive glass goblets in a row along x, roughness going from fully smooth to fully rough
     for i in range(OBJECT_COUNT):
@@ -161,7 +168,7 @@ def loadObjects():
         mat.setRoughness(r)
         mat.setEnableDispersion(True)
         mat.setCauchysCoefficients(vec2(CAUCHY))
-        createGoblet(f"Goblet_{i}", v3(*pos), mat, rimMat)
+        createGoblet(f"Goblet_{i}", v3(*pos), mat, mat if RIM_IS_GLASS else rimMat)
 
         toCamera = QVector3D(CAM_POS[0] - pos[0], 0, CAM_POS[2] - pos[2]).normalized()
         center = (pos[0], pos[1] + 0.09 * GOBLET_SCALE, pos[2])
