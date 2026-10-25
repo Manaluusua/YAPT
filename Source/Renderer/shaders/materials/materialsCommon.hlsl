@@ -511,20 +511,21 @@ float getRefractiveIndexForWavelength(float2 cauchysCoeffs, float waveLengthNM)
 }
 
 //assume that the incident surface is aligned with the surface beneath the film
+//etaR = nFilm / nIncident
 float calculateOpticalPathDifference(float etaR, float cosIncident, float nFilm, float filmThickness)
 {
-    float cos2 = 1.f - etaR * etaR * (1.f - cosIncident * cosIncident);
-    if (cos2 < 0)
+    float cosRefractedSqr = 1.f - (1.f - cosIncident * cosIncident) / (etaR * etaR);
+    if (cosRefractedSqr < 0)
     {
         return 0;
     }
-	
-    return 2 * nFilm * filmThickness * cos2;
+
+    return 2 * nFilm * filmThickness * sqrt(cosRefractedSqr);
 }
-//-1 fully destructive, 1 fully constructive
+//-1 fully destructive, 1 fully constructive. phaseShift is in wavelengths
 float calculateThinFilmInferenceWithOPD(float waveLambda, float opd, float phaseShift)
 {
-    float m = (opd + phaseShift) / waveLambda;
+    float m = opd / waveLambda + phaseShift;
     return cos(2 * m * PI);
 	
 	//faster (incorrect) inference approx
@@ -538,7 +539,7 @@ float4 calculateThinFilmInference(float4 waveLength, float nFilm, float etaRTop,
     const float INCOHERENCE_FADE = 200;
     const float INCOHERENCE_FADE_INV = 1.f / 200;
     if (filmThickness > INCOHERENCE_THRESHOLD)
-        return 1.f;
+        return 0.f;
 	
     float opd = calculateOpticalPathDifference(etaRTop, cosIncident, nFilm, filmThickness);
     float4 v = float4(calculateThinFilmInferenceWithOPD(waveLength.x, opd, phaseShift),
@@ -550,6 +551,7 @@ float4 calculateThinFilmInference(float4 waveLength, float nFilm, float etaRTop,
 
 }
 
+//A1 and A2 are the reflected intensities of the top and bottom of the film, combined as two coherent beams
 float4 applyThinFilmInference(float4 waveLength, float4 A1, float4 A2, float nFilm, float etaRTop, float phaseShift, float cosIncident, float filmThickness)
 {
     if (!any(A1))
@@ -562,7 +564,7 @@ float4 applyThinFilmInference(float4 waveLength, float4 A1, float4 A2, float nFi
     }
 	
     float4 m = calculateThinFilmInference(waveLength, nFilm, etaRTop, phaseShift, cosIncident, filmThickness);
-    return max(float4(0, 0, 0, 0), sqrt(A1 * A1 + A2 * A2 + 2 * A1 * A2 * m));
+    return max(float4(0, 0, 0, 0), A1 + A2 + 2 * sqrt(max(0, A1 * A2)) * m);
 }
 
 

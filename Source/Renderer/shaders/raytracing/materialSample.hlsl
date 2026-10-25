@@ -406,7 +406,7 @@ SurfaceEvaluation evaluateSurface(in SurfaceSamplingContext surface, in float3 w
                             float etaRCoating = surfaceDef.clearCoatIOR / fromIOR;
                             float3 wm = normalize(woCoating + wiCoating);
                             float4 w = weight.toFloat4();
-                            float phaseShift = etaRCoating > 1 ? 0.5f : 0.f; //with metal, always assuming that the substrate (metal) is denser than film
+                            float phaseShift = etaRCoating > 1 ? 0.f : 0.5f; //with metal, always assuming that the substrate (metal) is denser than film
                             float4 m = applyThinFilmInference(getSpectralSampleLambdas(), coatingAmplitude, w, surfaceDef.clearCoatIOR, etaRCoating, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
                             weight.fromFloat4(m);
 
@@ -456,7 +456,7 @@ SurfaceEvaluation evaluateSurface(in SurfaceSamplingContext surface, in float3 w
                             float etaRCoating = surfaceDef.clearCoatIOR / fromIOR;
                             float3 wm = normalize(woCoating + wiCoating);
                             float4 w = weight.toFloat4();
-                            float phaseShift = (etaRCoating > 1 && toIOR < surfaceDef.clearCoatIOR) ? 0.5f : 0.f;
+                            float phaseShift = ((etaRCoating > 1) != (toIOR > surfaceDef.clearCoatIOR)) ? 0.5f : 0.f;
                             float4 m = applyThinFilmInference(getSpectralSampleLambdas(), coatingAmplitude, w, surfaceDef.clearCoatIOR, etaRCoating, phaseShift, dot(woCoating, wm), surfaceDef.thinFilmThicknessNM);
                             weight.fromFloat4(m);
 
