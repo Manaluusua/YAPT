@@ -194,9 +194,9 @@ namespace YAPT
 		switch (s)
 		{
 		case YAPT::SpectralUtility::ColorSpace::SRGB:
-			return "sRGBToSPD";
+			return "sRGBToSPD_D65";
 		case YAPT::SpectralUtility::ColorSpace::REC2020:
-			return "rec2020ToSPD";
+			return "rec2020ToSPD_D65";
 		default:
 			return "unknown_colorspace";
 		}
@@ -266,6 +266,7 @@ namespace YAPT
 				size_t resolution;
 				const double* rgbSpace;
 				dvec3* output;
+				double d65YSumInv;
 			};
 
 			constexpr size_t BATCHES_COUNT = 8;
@@ -287,6 +288,20 @@ namespace YAPT
 			}
 			
 
+			//the spectra are fitted to give the rgb value under D65, the illuminant the renderer lights everything with
+			//(emitters are multiplied by it). Normalized so that a constant reflectance of 1 has Y = 1, i.e. white
+			double d65YSum = 0.0;
+			for (size_t i = 0; i < CIE_LUT_RESOLUTION; ++i)
+			{
+				size_t index = CIE_LUT_ARRAY_OFFSET + i;
+				d65YSum += c_cieDeg2Y[index] * c_cieD65StandardIllum[index];
+			}
+
+			for (uint32_t i = 0; i < BATCHES_COUNT; ++i)
+			{
+				batches[i].d65YSumInv = 1.0 / d65YSum;
+			}
+
 			auto calculateToRGBMapping = [](void* usrData)
 			{
 				Batch* item = static_cast<Batch*>(usrData);
@@ -295,13 +310,12 @@ namespace YAPT
 				size_t batchSize = item->batchSize;
 
 				dmat3x3 xyzToRGB = toMatrix(item->rgbSpace);
-				
+
 
 				for (size_t i = offset; i < min(offset + batchSize, resolution); ++i)
 				{
 					size_t index = CIE_LUT_ARRAY_OFFSET + i;
-					//dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * c_cieD65StandardIllum[index] / CIE_D65_SUM; //TODO: add different illuminant lookups and have this information also in shader so the SPD -> XYZ -> RGB resolve gets correctly done
-					dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * CIE_Y_SUM_INV;
+					dvec3 xyz = dvec3(c_cieDeg2X[index], c_cieDeg2Y[index], c_cieDeg2Z[index]) * c_cieD65StandardIllum[index] * item->d65YSumInv;
 					dvec3 rgb = xyzToRGB * xyz;
 
 					item->output[i] = rgb;
