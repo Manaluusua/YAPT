@@ -546,9 +546,49 @@ namespace YAPT
 			h->getResourceManager()->getVkExtFuncs().vkCmdTraceRaysKHR(buff, &raygen, &miss, &hit, &callable, x, y, z);
 		
 		}
+		void draw(GfxApiHandle h, CommandBufferHandle buff, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+		{
+			vkCmdDraw(buff, vertexCount, instanceCount, firstVertex, firstInstance);
+		}
 		void drawIndexed(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 		{
 			vkCmdDrawIndexed(buff, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+		}
+
+		static_assert(sizeof(DrawIndirectArguments) == sizeof(VkDrawIndirectCommand), "DrawIndirectArguments must match VkDrawIndirectCommand");
+		static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(VkDrawIndexedIndirectCommand), "DrawIndexedIndirectArguments must match VkDrawIndexedIndirectCommand");
+
+		void drawIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes, BufferHandle countBuffer, size_t countOffsetInBytes)
+		{
+			assert(argumentBuffer != YAPT_NULL_HANDLE);
+			assert(strideInBytes >= sizeof(DrawIndirectArguments) && (strideInBytes % 4) == 0);
+			assert((argumentOffsetInBytes % 4) == 0 && (countOffsetInBytes % 4) == 0);
+
+			if (countBuffer != YAPT_NULL_HANDLE)
+			{
+				vkCmdDrawIndirectCount(buff, argumentBuffer->buffer, (VkDeviceSize)argumentOffsetInBytes, countBuffer->buffer, (VkDeviceSize)countOffsetInBytes, maxDrawCount, strideInBytes);
+			}
+			else
+			{
+				vkCmdDrawIndirect(buff, argumentBuffer->buffer, (VkDeviceSize)argumentOffsetInBytes, maxDrawCount, strideInBytes);
+			}
+		}
+		void drawIndexedIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes, BufferHandle countBuffer, size_t countOffsetInBytes)
+		{
+			assert(argumentBuffer != YAPT_NULL_HANDLE);
+			assert(strideInBytes >= sizeof(DrawIndexedIndirectArguments) && (strideInBytes % 4) == 0);
+			assert((argumentOffsetInBytes % 4) == 0 && (countOffsetInBytes % 4) == 0);
+
+			if (countBuffer != YAPT_NULL_HANDLE)
+			{
+				vkCmdDrawIndexedIndirectCount(buff, argumentBuffer->buffer, (VkDeviceSize)argumentOffsetInBytes, countBuffer->buffer, (VkDeviceSize)countOffsetInBytes, maxDrawCount, strideInBytes);
+			}
+			else
+			{
+				vkCmdDrawIndexedIndirect(buff, argumentBuffer->buffer, (VkDeviceSize)argumentOffsetInBytes, maxDrawCount, strideInBytes);
+			}
 		}
 
 	}

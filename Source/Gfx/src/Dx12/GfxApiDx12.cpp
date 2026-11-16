@@ -631,9 +631,44 @@ namespace YAPT
 			buff->cmdList->DispatchRays(&rayDesc);
 		
 		}
+		void draw(GfxApiHandle h, CommandBufferHandle buff, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
+		{
+			buff->cmdList->DrawInstanced(vertexCount, instanceCount, firstVertex, firstInstance);
+		}
 		void drawIndexed(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
 		{
 			buff->cmdList->DrawIndexedInstanced(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+		}
+
+		static_assert(sizeof(DrawIndirectArguments) == sizeof(D3D12_DRAW_ARGUMENTS), "DrawIndirectArguments must match D3D12_DRAW_ARGUMENTS");
+		static_assert(sizeof(DrawIndexedIndirectArguments) == sizeof(D3D12_DRAW_INDEXED_ARGUMENTS), "DrawIndexedIndirectArguments must match D3D12_DRAW_INDEXED_ARGUMENTS");
+
+		static void executeIndirectDraw(GfxApiHandle h, CommandBufferHandle buff, bool indexed, size_t argumentSize, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes, BufferHandle countBuffer, size_t countOffsetInBytes)
+		{
+			assert(argumentBuffer != YAPT_NULL_HANDLE);
+			assert(strideInBytes >= argumentSize && (strideInBytes % 4) == 0);
+			assert((argumentOffsetInBytes % 4) == 0 && (countOffsetInBytes % 4) == 0);
+
+			ID3D12CommandSignature* signature = h->getDrawCommandSignature(indexed, strideInBytes);
+			if (signature == nullptr)
+			{
+				return;
+			}
+
+			ID3D12Resource* countResource = countBuffer != YAPT_NULL_HANDLE ? countBuffer->resource.get() : nullptr;
+			buff->cmdList->ExecuteIndirect(signature, maxDrawCount, argumentBuffer->resource.get(), argumentOffsetInBytes, countResource, countOffsetInBytes);
+		}
+
+		void drawIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes, BufferHandle countBuffer, size_t countOffsetInBytes)
+		{
+			executeIndirectDraw(h, buff, false, sizeof(DrawIndirectArguments), argumentBuffer, argumentOffsetInBytes, maxDrawCount, strideInBytes, countBuffer, countOffsetInBytes);
+		}
+		void drawIndexedIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes, BufferHandle countBuffer, size_t countOffsetInBytes)
+		{
+			executeIndirectDraw(h, buff, true, sizeof(DrawIndexedIndirectArguments), argumentBuffer, argumentOffsetInBytes, maxDrawCount, strideInBytes, countBuffer, countOffsetInBytes);
 		}
 
 	}

@@ -9,8 +9,10 @@
 #include <thread>
 #include <condition_variable>
 #include <mutex>
+#include <shared_mutex>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 
 struct IDXGIFactory4;
@@ -51,10 +53,13 @@ namespace YAPT
 
 		ResourceManagerDx12& getResourceManager() const { return *m_resourceManager; }
 		AccelerationStructureBuilder& getAccelerationStructureBuilder() const { return *m_accStructureBuilder; }
+
+		ID3D12CommandSignature* getDrawCommandSignature(bool indexed, uint32_t strideInBytes);
 	private:
 
 		bool createDevice();
 		bool createCoreResources();
+		RCPtr<ID3D12CommandSignature> createDrawCommandSignature(bool indexed, uint32_t strideInBytes);
 
 		void deinitialize();
 
@@ -76,6 +81,12 @@ namespace YAPT
 		std::vector<ID3D12CommandList*> m_submittedCommandLists;
 
 		std::vector<SwapChainDx12*> m_swapChainsToPresentAfterFrameEnd;
+
+		RCPtr<ID3D12CommandSignature> m_defaultDrawCommandSignature;
+		RCPtr<ID3D12CommandSignature> m_defaultDrawIndexedCommandSignature;
+
+		std::shared_mutex m_customStrideCommandSignatureMutex;
+		std::unordered_map<uint64_t, RCPtr<ID3D12CommandSignature>> m_customStrideCommandSignatures;
 
 		SubmissionThreadDx12::SubmissionId m_lastSubmitId;
 		GfxApiInitConfig m_config;

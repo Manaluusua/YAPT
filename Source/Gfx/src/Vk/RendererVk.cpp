@@ -744,11 +744,14 @@ namespace YAPT
 		f.baseFeatures.features.shaderStorageImageReadWithoutFormat = VK_TRUE;
 		f.baseFeatures.features.shaderFloat64 = VK_TRUE;
 		f.baseFeatures.features.shaderInt64 = VK_TRUE;
+		f.baseFeatures.features.multiDrawIndirect = VK_TRUE;
+		f.baseFeatures.features.drawIndirectFirstInstance = VK_TRUE;
 
 
 
 		//Vk 1.2 features
 		f.physicalDeviceVk12Features.bufferDeviceAddress = VK_TRUE;
+		f.physicalDeviceVk12Features.drawIndirectCount = VK_TRUE;
 		f.physicalDeviceVk12Features.shaderInputAttachmentArrayDynamicIndexing = VK_TRUE;
 		f.physicalDeviceVk12Features.shaderUniformTexelBufferArrayDynamicIndexing = VK_TRUE;
 		f.physicalDeviceVk12Features.shaderStorageTexelBufferArrayDynamicIndexing = VK_TRUE;
@@ -793,6 +796,9 @@ namespace YAPT
 			features.baseFeatures.features.shaderStorageImageArrayDynamicIndexing &&
 			features.baseFeatures.features.shaderUniformBufferArrayDynamicIndexing &&
 			features.baseFeatures.features.shaderStorageImageReadWithoutFormat &&
+			features.baseFeatures.features.multiDrawIndirect &&
+			features.baseFeatures.features.drawIndirectFirstInstance &&
+			features.physicalDeviceVk12Features.drawIndirectCount &&
 			features.rayQueryFeatures.rayQuery &&
 			features.rayTracePipelineFeatures.rayTracingPipeline &&
 			features.physicalDeviceVk12Features.bufferDeviceAddress &&

@@ -115,6 +115,13 @@ namespace YAPT
 		m_copyQueue->SetName(L"Copy Queue");
 #endif
 
+		m_defaultDrawCommandSignature = createDrawCommandSignature(false, sizeof(DrawIndirectArguments));
+		m_defaultDrawIndexedCommandSignature = createDrawCommandSignature(true, sizeof(DrawIndexedIndirectArguments));
+		if (m_defaultDrawCommandSignature.get() == nullptr || m_defaultDrawIndexedCommandSignature.get() == nullptr)
+		{
+			return false;
+		}
+
 		//synchronization
 		return m_fenceHelper.initialize(m_device.get(), m_config.pipelineLength);
 	}
@@ -129,6 +136,62 @@ namespace YAPT
 	{
 		m_commandListPoolers.erase(std::remove(m_commandListPoolers.begin(), m_commandListPoolers.end(), pooler), m_commandListPoolers.end());
 		delete pooler;
+	}
+
+	ID3D12CommandSignature* RendererDx12::getDrawCommandSignature(bool indexed, uint32_t strideInBytes)
+	{
+		if (indexed && strideInBytes == sizeof(DrawIndexedIndirectArguments))
+		{
+			return m_defaultDrawIndexedCommandSignature.get();
+		}
+		if (!indexed && strideInBytes == sizeof(DrawIndirectArguments))
+		{
+			return m_defaultDrawCommandSignature.get();
+		}
+
+		const uint64_t key = (uint64_t(indexed) << 32) | uint64_t(strideInBytes);
+		{
+			std::shared_lock<std::shared_mutex> readLock(m_customStrideCommandSignatureMutex);
+			auto it = m_customStrideCommandSignatures.find(key);
+			if (it != m_customStrideCommandSignatures.end())
+			{
+				return it->second.get();
+			}
+		}
+
+		std::unique_lock<std::shared_mutex> writeLock(m_customStrideCommandSignatureMutex);
+		auto it = m_customStrideCommandSignatures.find(key);
+		if (it != m_customStrideCommandSignatures.end())
+		{
+			return it->second.get();
+		}
+
+		RCPtr<ID3D12CommandSignature> signature = createDrawCommandSignature(indexed, strideInBytes);
+		if (signature.get() != nullptr)
+		{
+			m_customStrideCommandSignatures.emplace(key, signature);
+		}
+		return signature.get();
+	}
+
+	RCPtr<ID3D12CommandSignature> RendererDx12::createDrawCommandSignature(bool indexed, uint32_t strideInBytes)
+	{
+		D3D12_INDIRECT_ARGUMENT_DESC argDesc = {};
+		argDesc.Type = indexed ? D3D12_INDIRECT_ARGUMENT_TYPE_DRAW_INDEXED : D3D12_INDIRECT_ARGUMENT_TYPE_DRAW;
+
+		D3D12_COMMAND_SIGNATURE_DESC sigDesc = {};
+		sigDesc.ByteStride = strideInBytes;
+		sigDesc.NumArgumentDescs = 1;
+		sigDesc.pArgumentDescs = &argDesc;
+		sigDesc.NodeMask = 0;
+
+		RCPtr<ID3D12CommandSignature> signature;
+		if (FAILED(m_device->CreateCommandSignature(&sigDesc, nullptr, IID_PPV_ARGS(&signature))))
+		{
+			YAPT_LOG_ERROR("Failed to create draw command signature (indexed: %d, stride: %u)", (int)indexed, strideInBytes);
+			return RCPtr<ID3D12CommandSignature>();
+		}
+		return signature;
 	}
 
 	bool RendererDx12::initialize()
@@ -171,6 +234,10 @@ namespace YAPT
 
 		m_mainGraphicsQueue = nullptr;
 		m_copyQueue = nullptr;
+
+		m_defaultDrawCommandSignature = nullptr;
+		m_defaultDrawIndexedCommandSignature = nullptr;
+		m_customStrideCommandSignatures.clear();
 
 		m_accStructureBuilder.reset();
 		m_resourceManager.reset();

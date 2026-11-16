@@ -135,7 +135,13 @@ namespace YAPT
 
 		void dispatch(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z);
 		void dispatchRays(GfxApiHandle h, CommandBufferHandle buff, uint32_t x, uint32_t y, uint32_t z, ShaderTableHandle shaderTable);
+		void draw(GfxApiHandle h, CommandBufferHandle buff, uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 		void drawIndexed(GfxApiHandle h, CommandBufferHandle buff, uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
+		//issues maxDrawCount draws, or min(countBuffer value, maxDrawCount) if countBuffer is given
+		void drawIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes = sizeof(DrawIndirectArguments), BufferHandle countBuffer = YAPT_NULL_HANDLE, size_t countOffsetInBytes = 0);
+		void drawIndexedIndirect(GfxApiHandle h, CommandBufferHandle buff, BufferHandle argumentBuffer, size_t argumentOffsetInBytes, uint32_t maxDrawCount,
+			uint32_t strideInBytes = sizeof(DrawIndexedIndirectArguments), BufferHandle countBuffer = YAPT_NULL_HANDLE, size_t countOffsetInBytes = 0);
 
 	}
 	
