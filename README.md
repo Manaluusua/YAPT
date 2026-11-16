@@ -36,6 +36,7 @@ Expect rough edges everywhere outside whatever I'm currently interested in.
 | ![](images/pic3.png) | ![](images/pic4.png) |
 | ![](images/pic5.png) | ![](images/pic6.png) |
 | ![](images/pic7.png) | ![](images/pic8.png) |
+| ![](images/pic9.png) | ![](images/pic10.png) |
 
 ## Future plans
 
