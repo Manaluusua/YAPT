@@ -839,7 +839,7 @@ namespace YAPT
 		out.DepthBias = desc.depthBiasEnable ? INT(desc.depthBiasConstantFactor * DEPTH_BIAS_MULTIPLIER) : 0;
 		out.DepthBiasClamp = desc.depthBiasEnable ? desc.depthBiasClamp : 0;
 		out.SlopeScaledDepthBias = desc.depthBiasEnable ? desc.depthBiasSlopeFactor : 0;
-		out.DepthClipEnable = desc.depthClampEnable;
+		out.DepthClipEnable = !desc.depthClampEnable;
 		out.MultisampleEnable = enableMultiSample;
 		out.AntialiasedLineEnable = false;
 		out.ForcedSampleCount = 0;

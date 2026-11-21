@@ -194,6 +194,16 @@ void fetchMeshPositions(in uint2 posBuffer, in uint3 indices, out float3 p1, out
 	p3 = bbLoadFloat3(bufferIndex, bufferOffset + indices.z * bufferStride);
 }
 
+float3 fetchMeshVertexPosition(in uint2 posBuffer, in uint vertexIndex)
+{
+	uint bufferIndex;
+	uint bufferStride;
+	uint bufferOffset;
+
+	unpackBufferInfo(posBuffer, bufferIndex, bufferStride, bufferOffset);
+	return bbLoadFloat3(bufferIndex, bufferOffset + vertexIndex * bufferStride);
+}
+
 float3 fetchMeshPosition(in uint2 posBuffer, in uint3 indices, in float3 barycentrics)
 {
 	
@@ -287,6 +297,16 @@ void fetchMeshUVs(in uint2 uvBuffer, in uint3 indices, out float2 uv1, out float
 	uv1 = bbLoadFloat2(bufferIndex, bufferOffset + indices.x * bufferStride);
 	uv2 = bbLoadFloat2(bufferIndex, bufferOffset + indices.y * bufferStride);
 	uv3 = bbLoadFloat2(bufferIndex, bufferOffset + indices.z * bufferStride);
+}
+
+float2 fetchMeshVertexUV(in uint2 uvBuffer, in uint vertexIndex)
+{
+	uint bufferIndex;
+	uint bufferStride;
+	uint bufferOffset;
+
+	unpackBufferInfo(uvBuffer, bufferIndex, bufferStride, bufferOffset);
+	return bbLoadFloat2(bufferIndex, bufferOffset + vertexIndex * bufferStride);
 }
 
 float2 fetchMeshUV(in uint2 uvBuffer, in uint3 indices, in float3 barycentrics)

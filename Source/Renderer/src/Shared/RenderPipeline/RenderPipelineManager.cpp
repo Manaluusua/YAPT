@@ -1,6 +1,7 @@
 #include <Renderer/Shared/RenderPipeline/RenderPipelineManager.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathTracerPipeline.h>
 #include <Renderer/Shared/RenderPipeline/DebugDrawPipeline.h>
+#include <Renderer/Shared/RenderPipeline/Realtime/RealtimePipeline.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <algorithm>
 namespace YAPT
@@ -8,6 +9,7 @@ namespace YAPT
 	const size_t PIPELINE_INDEX_PT = 0;
 	const size_t PIPELINE_INDEX_BDPT = 1;
 	const size_t PIPELINE_INDEX_DEBUG = 2;
+	const size_t PIPELINE_INDEX_REALTIME = 4;
 
 	const int32_t MAIN_PIPELINE_PRIORITY = 0;
 
@@ -25,6 +27,7 @@ namespace YAPT
 		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BACKWARDS_WITH_NEE));
 		m_pipelines.push_back(new PathTracerPipeline(PathTraceStage::PathIntegratorType::BIDIRECTIONAL));
 		m_pipelines.push_back(new DebugDrawPipeline());
+		m_pipelines.push_back(new RealtimePipeline());
 
 		m_renderer = cntx.renderer;
 		m_lastSelectedRenderPipelineIndex = -1;
@@ -84,6 +87,10 @@ namespace YAPT
 		else if (std::strcmp(pipelineToActivate, "DBG_UV") == 0)
 		{
 			pipelineIndex = 3;
+		}
+		else if (std::strcmp(pipelineToActivate, "Realtime (WIP)") == 0)
+		{
+			pipelineIndex = PIPELINE_INDEX_REALTIME;
 		}
 
 		if (pipelineIndex == size_t(-1)) return;

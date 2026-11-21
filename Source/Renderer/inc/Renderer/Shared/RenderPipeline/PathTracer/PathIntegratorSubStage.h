@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Renderer/Shared/CRenderer.h>
+#include <Renderer/Shared/SceneInstanceData.h>
 #include <Renderer/Shared/RenderPipeline/RenderStage.h>
 #include <Gfx/RenderGraph/RenderNode.h>
 #include <spectralConstants.h>
@@ -35,17 +36,7 @@ namespace YAPT
 			uvec2p raysPerFrame;
 		};
 
-		struct SceneData
-		{
-			const RenderObjectId* ids;
-			const MaterialPerSubmeshArray* materials;
-			const MeshIndex* meshes;
-			const size_t* instanceOffsetPerRenderObject;
-			const mat4* objToWorldMatrices;
-			const mat4* worldToObjMatrices;
-			size_t objectCount;
-			size_t instancesCount;
-		};
+		using SceneData = SceneInstanceData::SceneData;
 
 		class AccelerationStructureProvider
 		{

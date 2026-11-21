@@ -3,6 +3,7 @@
 
 #include "raytraceCommon.hlsl"
 #include "../materials/materialsCommonResources.hlsl"
+#include "../common/sceneInstanceData.hlsl"
 //data structs, keep in sync with raytracestage
 
 struct RaytraceConstantData
@@ -33,8 +34,6 @@ struct RaytraceConstantData
 //uniforms
 ConstantBuffer<RaytraceConstantData> g_rayGenConstants : register(b1, space0);
 ByteAddressBuffer g_randomSampleLocations : register(t2, space0);
-StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : register(t3, space0);
-ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t4, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 
 #define CONSTANTS_FLAG_DISABLE_TEXEL_JITTER  (1 << 1)
@@ -78,19 +77,6 @@ float calculateViewDepth(float3 posWS)
 uint2 dispatchIndicesToRayIndices(uint2 dispatchInd)
 {
     return dispatchInd.xy * g_targetOffsetScaleBias.xy + g_targetOffsetScaleBias.zw;
-
-}
-
-uint2 getMaterialAndMeshIndicesForInstance(uint instanceIndex)
-{
-    uint readOffset = instanceIndex << 3;
-    uint2 matMeshIndices = g_renderObjectMatAndMeshIndices.Load2(readOffset);
-    return matMeshIndices;
-}
-
-RenderObjectTransformDataGPU getTransformDataForInstance(uint instanceIndex)
-{
-    return g_renderObjectTransforms[instanceIndex];
 
 }
 

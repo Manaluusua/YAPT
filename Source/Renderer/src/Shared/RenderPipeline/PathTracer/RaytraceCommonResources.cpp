@@ -16,9 +16,7 @@ namespace YAPT
 	
 
 	RaytraceCommonResources::RaytraceCommonResources()
-		:m_renderObjectMaterialAndMeshIndices(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
-		m_renderObjectTransformData(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
-		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
+		:m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
 		m_randomSamples(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true)
 	{
 
@@ -38,15 +36,13 @@ namespace YAPT
 		m_rayTraceConstants.init(resourcesPool);
 		m_randomSamples.init(resourcesPool);
 
-		m_renderObjectMaterialAndMeshIndices.init(m_renderer->getGfxHandle());
-		m_renderObjectTransformData.init(m_renderer->getGfxHandle());
+		m_instanceData.init(m_renderer, matMngr, meshMngr);
 		m_lightDataGPU.init(m_renderer->getGfxHandle());
 
 	}
 	void RaytraceCommonResources::shutdown()
 	{
-		m_renderObjectMaterialAndMeshIndices.free();
-		m_renderObjectTransformData.free();
+		m_instanceData.shutdown();
 		m_lightDataGPU.free();
 	}
 
@@ -148,8 +144,8 @@ namespace YAPT
 	{
 		BufferViewHandle meshEntriesBuffer = m_meshMngr->getBufferViewHandle();
 		BufferViewHandle materialEntriesBuffer = m_materialMngr->getBufferViewHandle();
-		BufferViewHandle renderObjectsMatMeshBufferHandle = m_renderObjectMaterialAndMeshIndices.getBufferViewHandle();
-		BufferViewHandle renderObjectsTransformBufferHandle = m_renderObjectTransformData.getBufferViewHandle();
+		BufferViewHandle renderObjectsMatMeshBufferHandle = m_instanceData.getMaterialAndMeshIndicesBufferView();
+		BufferViewHandle renderObjectsTransformBufferHandle = m_instanceData.getTransformsBufferView();
 		BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
 
 		TextureViewHandle noiseTex = m_renderer->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
@@ -205,69 +201,7 @@ namespace YAPT
 
 	void RaytraceCommonResources::sceneChanged(const PathIntegratorSubStage::SceneData& sceneData)
 	{
-		bool emptyScene = sceneData.instancesCount == 0;
-		size_t numberOfEntriesNeeded = max((size_t)1, sceneData.instancesCount);
-		MeshManager& meshMngr = m_renderer->getMeshManager();
-
-		m_renderObjectMaterialAndMeshIndices.allocate(numberOfEntriesNeeded, "RenderObjectsMaterialAndMeshIndicesBuffer");
-		m_renderObjectTransformData.allocate(numberOfEntriesNeeded, "RenderObjectsTransformsBuffer");
-		char* matAndMeshData = m_renderObjectMaterialAndMeshIndices.map(0, numberOfEntriesNeeded);
-		char* transformsData = m_renderObjectTransformData.map(0, numberOfEntriesNeeded);
-		m_instanceOffsetPerRenderObject.resize(sceneData.objectCount); //copy offsets
-
-		if (!emptyScene)
-		{
-			for (size_t i = 0; i < sceneData.objectCount; ++i)
-			{
-				MeshInternal* mesh = meshMngr.getMeshInternal(sceneData.meshes[i]);
-				size_t entryOffset = sceneData.instanceOffsetPerRenderObject[i];
-				m_instanceOffsetPerRenderObject[i] = entryOffset;
-
-				//glm keeps things in column major order, tranpose to get rows out easily
-				mat4 wMatT = glm::transpose(sceneData.objToWorldMatrices[i]);
-				mat4 wMatInvT = glm::transpose(sceneData.worldToObjMatrices[i]);
-
-				RenderObjectTransformDataGPU transformDataGPU;
-				transformDataGPU.objToWorldR0 = wMatT[0];
-				transformDataGPU.objToWorldR1 = wMatT[1];
-				transformDataGPU.objToWorldR2 = wMatT[2];
-				transformDataGPU.worldToObjectR0 = wMatInvT[0];
-				transformDataGPU.worldToObjectR1 = wMatInvT[1];
-				transformDataGPU.worldToObjectR2 = wMatInvT[2];
-
-				for (size_t k = 0; k < mesh->getSubmeshCount(); ++k)
-				{
-					size_t instanceIndex = entryOffset + k;
-					const MaterialPerSubmeshArray& mat = sceneData.materials[i];
-
-
-					size_t matId = mat.getMaterialIDForSubmeshIndex(k);
-					size_t meshId = mesh->getID();
-
-					size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(matId);
-					size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, k);
-
-					
-					uvec2p materialAndMeshIndices = uvec2p(matIndex, meshIndex);
-
-					
-
-					memcpy(matAndMeshData + (instanceIndex) * sizeof(uvec2p), &materialAndMeshIndices, sizeof(uvec2p));
-					memcpy(transformsData + (instanceIndex) * sizeof(RenderObjectTransformDataGPU), &transformDataGPU, sizeof(RenderObjectTransformDataGPU));
-
-				}
-
-			}
-		}
-		else
-		{
-			memset(matAndMeshData, 0, sizeof(uvec2p));
-			memset(transformsData, 0, sizeof(RenderObjectTransformDataGPU));
-		}
-
-		m_renderObjectMaterialAndMeshIndices.unmap();
-		m_renderObjectTransformData.unmap();
-
+		m_instanceData.update(sceneData);
 
 		//update miss
 		{
@@ -352,7 +286,7 @@ namespace YAPT
 				gpuEntry.meshIndex = (uint32_t)meshIndex;
 				gpuEntry.matIndex = (uint32_t)matIndex;
 				gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
-				gpuEntry.instanceIndex = uint32_t(subStage->m_instanceOffsetPerRenderObject[renderObjectDataIndex] + ref.submeshIndex); 
+				gpuEntry.instanceIndex = uint32_t(subStage->m_instanceData.getInstanceOffset(renderObjectDataIndex) + ref.submeshIndex); 
 
 				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
 			}

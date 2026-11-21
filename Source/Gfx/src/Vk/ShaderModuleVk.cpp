@@ -215,6 +215,8 @@ namespace YAPT
 			//handle input attributes
 			for (size_t i = 0; i < inputVariables.size(); ++i)
 			{
+				if ((inputVariables[i]->decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) != 0) continue;
+
 				SpvReflectFormat format = inputVariables[i]->format;
 				const char* nameStr = inputVariables[i]->name;
 				uint32_t location = inputVariables[i]->location;

@@ -1,0 +1,38 @@
+#include "realtimeCommon.hlsl"
+
+struct VertexInput
+{
+	uint instanceIndex : TEXCOORD0;
+	uint vertexId : SV_VertexID;
+};
+
+struct VertexOutput
+{
+	float4 position : SV_Position;
+	nointerpolation uint instanceIndex : TEXCOORD0;
+	nointerpolation uint primitiveIndex : TEXCOORD1;
+	float2 uv : TEXCOORD2;
+};
+
+VertexOutput main(VertexInput input)
+{
+	uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(input.instanceIndex);
+	MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+
+	uint primitiveIndex = input.vertexId / 3;
+	uint3 triangleIndices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+	uint vertexIndex = triangleIndices[input.vertexId % 3];
+
+	float3 positionOS = fetchMeshVertexPosition(meshEntry.positionBuffer, vertexIndex);
+	float2 uv = meshHasValidUVs(meshEntry.uvBuffer) ? fetchMeshVertexUV(meshEntry.uvBuffer, vertexIndex) : float2(0.f, 0.f);
+
+	RenderObjectTransformDataGPU transform = getTransformDataForInstance(input.instanceIndex);
+	float3 positionWS = mul(transform.getObjToWorld(), float4(positionOS, 1.f));
+
+	VertexOutput output;
+	output.position = mul(g_realtimeView.worldToClip, float4(positionWS, 1.f));
+	output.instanceIndex = input.instanceIndex;
+	output.primitiveIndex = primitiveIndex;
+	output.uv = uv;
+	return output;
+}

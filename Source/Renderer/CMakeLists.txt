@@ -43,6 +43,7 @@ set(HEADERS
 	inc/Renderer/Shared/BindlessBufferManager.h
 	inc/Renderer/Shared/BindlessMaterialManager.h
 	inc/Renderer/Shared/BindlessMeshManager.h
+	inc/Renderer/Shared/SceneInstanceData.h
 	inc/Renderer/Shared/LightManager.h
 	
 	inc/Renderer/Shared/RendererVarsList.h
@@ -88,6 +89,11 @@ set(HEADERS
 	inc/Renderer/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.h
 	inc/Renderer/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.h	
 	inc/Renderer/Shared/RenderPipeline/PathTracer/BidirectionalPathIntegratorSubStage.h	
+	
+	inc/Renderer/Shared/RenderPipeline/Realtime/RealtimePipeline.h
+	inc/Renderer/Shared/RenderPipeline/Realtime/RealtimeSceneResources.h
+	inc/Renderer/Shared/RenderPipeline/Realtime/DeferredMaterialsStage.h
+	inc/Renderer/Shared/RenderPipeline/Realtime/VisibilityDebugResolveStage.h
 )
 
 set(SOURCE
@@ -118,6 +124,7 @@ set(SOURCE
 	src/Shared/BindlessBufferManager.cpp
 	src/Shared/BindlessMaterialManager.cpp
 	src/Shared/BindlessMeshManager.cpp
+	src/Shared/SceneInstanceData.cpp
 
 	src/Shared/Utility/RenderUtility.cpp
 	src/Shared/Utility/PipelineStateDescriptionUtility.cpp
@@ -152,6 +159,11 @@ set(SOURCE
 	src/Shared/RenderPipeline/PathTracer/CombineSamplesSubStage.cpp
 	src/Shared/RenderPipeline/PathTracer/BackwardsPathIntegratorSubStage.cpp
 	src/Shared/RenderPipeline/PathTracer/BidirectionalPathIntegratorSubStage.cpp
+	
+	src/Shared/RenderPipeline/Realtime/RealtimePipeline.cpp
+	src/Shared/RenderPipeline/Realtime/RealtimeSceneResources.cpp
+	src/Shared/RenderPipeline/Realtime/DeferredMaterialsStage.cpp
+	src/Shared/RenderPipeline/Realtime/VisibilityDebugResolveStage.cpp
 
 )
 
