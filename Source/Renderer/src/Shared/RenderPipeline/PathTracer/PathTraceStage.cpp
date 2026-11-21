@@ -166,24 +166,7 @@ namespace YAPT
 			updateInstanceOffsets();
 
 			{
-				RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
-				const RenderObjectId* ids = roMngr.getAllIds();
-				MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
-				MeshIndex* meshes = roMngr.getAllMeshes();
-				size_t entryCount = roMngr.getNumberOfObjects();
-				mat4* worldMat = roMngr.getAllWorldMatrices();
-				mat4* worldInvMat = roMngr.getAllWorldInverseMatrices();
-
-				PathIntegratorSubStage::SceneData sceneData;
-				sceneData.ids = ids;
-				sceneData.materials = materials;
-				sceneData.meshes = meshes;
-				sceneData.instanceOffsetPerRenderObject = m_instanceOffsetPerRenderObject.data();
-				sceneData.objectCount = entryCount;
-				sceneData.instancesCount = m_totalInstanceCount;
-				sceneData.objToWorldMatrices = worldMat;
-				sceneData.worldToObjMatrices = worldInvMat;
-
+				PathIntegratorSubStage::SceneData sceneData = SceneInstanceData::gatherSceneData(getRenderer(), m_instanceOffsetPerRenderObject, m_totalInstanceCount);
 				m_rtStage->sceneChanged(sceneData);
 			}
 			
@@ -252,23 +235,7 @@ namespace YAPT
 	
 	void PathTraceStage::updateInstanceOffsets()
 	{
-		RenderObjectManager& roMngr = getRenderer()->getRenderObjectManager();
-		MeshManager& meshMngr = getRenderer()->getMeshManager();
-
-		const RenderObjectId* ids = roMngr.getAllIds();
-		MaterialPerSubmeshArray* materials = roMngr.getAllMaterials();
-		MeshIndex* meshes = roMngr.getAllMeshes();
-		size_t entryCount = roMngr.getNumberOfObjects();
-
-		m_instanceOffsetPerRenderObject.resize(entryCount);
-
-		size_t instanceCount = 0;
-		for (size_t i = 0; i < entryCount; ++i)
-		{
-			m_instanceOffsetPerRenderObject[i] = instanceCount;
-			instanceCount += meshMngr.getMeshInternal(meshes[i])->getSubmeshCount();
-		}
-		m_totalInstanceCount = instanceCount;
+		m_totalInstanceCount = SceneInstanceData::computeInstanceOffsets(getRenderer(), m_instanceOffsetPerRenderObject);
 	}
 
 	void PathTraceStage::prepareAccelerationStructure()

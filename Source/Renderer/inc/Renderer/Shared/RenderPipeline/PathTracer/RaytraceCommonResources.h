@@ -7,6 +7,7 @@
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/CRenderer.h>
+#include <Renderer/Shared/SceneInstanceData.h>
 #include <array>
 #include <vector>
 
@@ -81,16 +82,6 @@ namespace YAPT
 			uint32_t pad1;
 		};
 
-		struct RenderObjectTransformDataGPU
-		{
-			vec4p objToWorldR0;
-			vec4p objToWorldR1;
-			vec4p objToWorldR2;
-			vec4p worldToObjectR0;
-			vec4p worldToObjectR1;
-			vec4p worldToObjectR2;
-		};
-
 		struct PrepareParams
 		{
 			JobSystem* prepareTasksPool;
@@ -145,11 +136,9 @@ namespace YAPT
 		BindlessMeshManager* m_meshMngr;
 		FixedSizeGpuBufferHelper<RaytraceConstantData> m_rayTraceConstants;
 		FixedSizeGpuBufferHelper<RandomSamples> m_randomSamples;
-		DynamicSizeGpuBufferHelper<uvec2p> m_renderObjectMaterialAndMeshIndices;
-		DynamicSizeGpuBufferHelper<RenderObjectTransformDataGPU> m_renderObjectTransformData;
+		SceneInstanceData m_instanceData;
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
 		DynamicSizeGpuBufferHelper<float> m_instanceLightSelectionPDFs;
-		std::vector<size_t> m_instanceOffsetPerRenderObject;
 		size_t m_instanceCount = 0;
 
 		std::vector<float> m_lightSelectionPDFs;

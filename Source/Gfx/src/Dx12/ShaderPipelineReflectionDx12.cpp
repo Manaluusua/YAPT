@@ -60,7 +60,7 @@ namespace YAPT
 					binding.bindingIndex = bindingDx12.bindPoint;
 					binding.accessFlags = bindingDx12.accessFlags;
 					binding.type = bindingDx12.type;
-					binding.accessFlags |= shaderModuleTypeToShaderStagesFlag(mod->type);
+					binding.shaderStages |= shaderModuleTypeToShaderStagesFlag(mod->type);
 
 					tempNameMappings[ind].push_back(std::make_pair(bindingDx12.name.c_str(), mod->type));
 				}

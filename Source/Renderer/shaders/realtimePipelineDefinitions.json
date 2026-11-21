@@ -1,0 +1,31 @@
+{
+	"shaderPipelines": {
+		"realtimeDeferredMaterials": {
+			"stages": 
+			[
+				{
+					"type": "vertex",
+					"sourceFile": "realtime/deferredMaterials.vertex"
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "realtime/deferredMaterials.frag"
+				}
+			]
+		},
+		"realtimeVisibilityDebugResolve": {
+			"stages": 
+			[
+				{
+					"type": "vertex",
+					"sourceFile": "postprocess/vertexCommon.vertex",
+					"defines": ["USE_UV_COORDINATES"]
+				},
+				{
+					"type": "fragment",
+					"sourceFile": "realtime/visibilityDebugResolve.frag"
+				}
+			]
+		}
+	}
+}
