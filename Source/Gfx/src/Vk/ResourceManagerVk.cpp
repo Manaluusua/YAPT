@@ -634,14 +634,14 @@ namespace YAPT
 
 	void ResourceManagerVk::destroyBufferVk(VkBuffer buff, Allocation alloc)
 	{
-		vmaFreeMemory(m_allocator, alloc);
 		deferredDestroyVkResource(buff);
+		deferredFreeAlloc(alloc);
 	}
 
 	void ResourceManagerVk::destroyTextureVk(VkImage image, Allocation alloc)
 	{
-		vmaFreeMemory(m_allocator, alloc);
 		deferredDestroyVkResource(image);
+		deferredFreeAlloc(alloc);
 	}
 
 
