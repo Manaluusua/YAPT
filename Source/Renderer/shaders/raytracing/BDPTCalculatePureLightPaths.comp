@@ -167,8 +167,11 @@ void calculatePureLightPaths( uint3 groupId : SV_GroupID,
 				if(checkVisibility(nodeData.node.positionWS, lensPosWS))
 				{
 					bool prevNodeIsEnvLight = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
+					bool prevNodeIsPunctualLight = (i == 1) && ((originatingLightFlags & LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT) != 0);
 					//from a subsurface exit the backward pdf is already an area density
 					float pdfBackwardPrevNode = pdfBackward * ((prevNodeIsEnvLight || nodeIsSubsurfaceExit) ? 1 : solidAngleToAreaDensityMultiplier(prevPos - nodeData.node.positionWS, prevNormal));
+					//a camera path can never hit a delta light origin
+					pdfBackwardPrevNode = prevNodeIsPunctualLight ? 0 : pdfBackwardPrevNode;
 
 					//lens area pdf cancels with the lens area in camera importance, so this is the same as for a pinhole when measured from the lens point
 					float3 camToNode = nodeData.node.positionWS - lensPosWS;

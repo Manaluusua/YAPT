@@ -24,7 +24,7 @@ struct RaytraceConstantData
     uint lightCount;
     uint flags;
     uint regularizeAfterVertices;
-    uint pad0;
+    uint punctualLightCount;
     uint pad1;
     uint pad2;
     float4 lensParams; //x: aperture radius, y: focus distance, z: view space forward z sign, w: unused
@@ -36,6 +36,7 @@ ByteAddressBuffer g_randomSampleLocations : register(t2, space0);
 StructuredBuffer<RenderObjectTransformDataGPU> g_renderObjectTransforms : register(t3, space0);
 ByteAddressBuffer g_renderObjectMatAndMeshIndices : register(t4, space0);
 StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
+ByteAddressBuffer g_instanceLightSelectionPDFs : register(t26, space0);
 
 #define CONSTANTS_FLAG_DISABLE_TEXEL_JITTER  (1 << 1)
 
@@ -52,6 +53,7 @@ StructuredBuffer<LightEntryGPU> g_lights : register(t5, space0);
 #define g_targetTexDimensions g_rayGenConstants.targetTexDimensions
 #define g_targetOffsetScaleBias g_rayGenConstants.targetOffsetScaleBias
 #define g_lightCount g_rayGenConstants.lightCount
+#define g_punctualLightCount g_rayGenConstants.punctualLightCount
 #define g_worldBoundsMin g_rayGenConstants.worldBoundsMin.xyz
 #define g_worldBoundsMax g_rayGenConstants.worldBoundsMax.xyz
 #define g_envType g_rayGenConstants.envType

@@ -1,6 +1,7 @@
 #pragma once
 #include"CommonDefines.h"
 #include <Common/RCObject.h>
+#include <Renderer/Light.h>
 
 namespace YAPT
 {
@@ -9,6 +10,7 @@ namespace YAPT
 	class Camera;
 	class RenderableObject;
 	class SceneObject;
+	class LightObject;
 
 	SCENE_MODULE_INTERFACE Scene* createScene();
 	SCENE_MODULE_INTERFACE void destroyScene(Scene* scene);
@@ -34,6 +36,7 @@ namespace YAPT
 
 		virtual SceneObject* createSceneObject() = 0;
 		virtual RenderableObject* createRenderableObject() = 0;
+		virtual LightObject* createLightObject(LightType type) = 0;
 		
 
 		virtual void addSceneListener(SceneListener* l) = 0;

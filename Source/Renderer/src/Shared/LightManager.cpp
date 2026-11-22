@@ -1,18 +1,109 @@
 #include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <Renderer/Shared/MaterialManager.h>
+#include <Renderer/Shared/LightProxy.h>
 #include <Common/JobSystem.h>
 namespace YAPT
 {
 	LightManager::LightManager(CRenderer* renderer)
 		:m_renderer(renderer),
-		m_lightReferencesCacheValid(false)
+		m_lightReferencesCacheValid(false),
+		m_changedLights(64),
+		m_punctualLightsChanged(false)
 	{
 
 	}
 	LightManager::~LightManager()
 	{
 
+	}
+
+	LightProxy* LightManager::createLight(LightType type)
+	{
+		LightProxy* light = new LightProxy(this, type);
+		light->_lightState = LightProxy::LIGHTSTATE_CREATED;
+		*m_changedLights.add(1) = light;
+		return light;
+	}
+
+	void LightManager::lightReleased(LightProxy* light)
+	{
+		addToChangedListIfNotAdded(light);
+		light->_lightState |= LightProxy::LIGHTSTATE_DESTROYED;
+	}
+
+	void LightManager::lightChanged(LightProxy* light)
+	{
+		addToChangedListIfNotAdded(light);
+		light->_lightState |= LightProxy::LIGHTSTATE_MODIFIED;
+	}
+
+	void LightManager::addToChangedListIfNotAdded(LightProxy* light)
+	{
+		if (light->_lightState == LightProxy::LIGHTSTATE_NOCHANGES)
+		{
+			*m_changedLights.add(1) = light;
+		}
+	}
+
+	void LightManager::commitChanges()
+	{
+		m_punctualLightsChanged = m_changedLights.count() > 0;
+
+		LightProxy** proxies = m_changedLights.getAll();
+		for (size_t i = 0; i < m_changedLights.count(); ++i)
+		{
+			LightProxy* light = proxies[i];
+			size_t state = light->_lightState;
+			bool created = (state & LightProxy::LIGHTSTATE_CREATED) != 0;
+			bool destroyed = (state & LightProxy::LIGHTSTATE_DESTROYED) != 0;
+
+			if (created && destroyed)
+			{
+				delete light;
+				continue;
+			}
+
+			if (created)
+			{
+				light->_id = m_punctualLights.size();
+				m_punctualLights.push_back(light);
+			}
+
+			if (destroyed)
+			{
+				size_t index = light->_id;
+				m_punctualLights[index] = m_punctualLights.back();
+				m_punctualLights[index]->_id = index;
+				m_punctualLights.pop_back();
+				delete light;
+				continue;
+			}
+
+			light->_lightState = LightProxy::LIGHTSTATE_NOCHANGES;
+		}
+		m_changedLights.clear();
+
+		if (m_punctualLightsChanged)
+		{
+			m_punctualLightsPacked.resize(m_punctualLights.size());
+			for (size_t i = 0; i < m_punctualLights.size(); ++i)
+			{
+				fillParameters(m_punctualLights[i], m_punctualLightsPacked[i]);
+			}
+		}
+	}
+
+	void LightManager::fillParameters(const LightProxy* src, PunctualLightParameters& dst)
+	{
+		dst.type = src->m_type;
+		dst.positionWS = vec3p(src->m_transform[3]);
+		vec3 dir = mat3(src->m_transform) * s_worldForward;
+		float dirLen = glm::length(dir);
+		dst.directionWS = dirLen > 0.f ? dir / dirLen : s_worldForward;
+		dst.intensity = src->m_color * glm::max(0.f, src->m_intensity);
+		dst.cosInnerAngle = glm::cos(src->m_spotInnerAngle);
+		dst.cosOuterAngle = glm::cos(src->m_spotOuterAngle);
 	}
 
 	JobHandle LightManager::update(JobSystem& pool, JobHandle deps)

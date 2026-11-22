@@ -82,6 +82,7 @@ namespace YAPT
 		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices) final;
 		virtual Material* createMaterial() final;
 		virtual RenderObject* createRenderObject() final;
+		virtual Light* createLight(LightType type) final;
 
 		virtual RendererConfiguration* getRendererConfiguration() final;
 

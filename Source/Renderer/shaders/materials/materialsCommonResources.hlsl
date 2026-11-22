@@ -2,6 +2,7 @@
 #define MATERIALS_COMMON_RESOURCES_HLSL_INCL
 
 #include "../globalDefinitions.hlsl"
+#include "../sharedIncludes/lightTypes.h"
 #include "../common/commonMath.hlsl"
 #include "../common/random.hlsl"
 
@@ -55,7 +56,18 @@ struct LightEntryGPU
     uint meshIndex;
     uint matIndex;
     uint instanceIndex;
+    uint lightType;
+    float4 positionCosInner; //punctual lights only
+    float4 directionCosOuter;
+    float4 intensity;
+    float selectionPDF; //alias table over all lights
+    float aliasThreshold;
+    uint aliasIndex;
+    float punctualSelectionPDF; //alias table over the punctual lights, relative to the first punctual light
+    float punctualAliasThreshold;
+    uint punctualAliasIndex;
     uint pad0;
+    uint pad1;
 };
 
 struct RenderObjectTransformDataGPU

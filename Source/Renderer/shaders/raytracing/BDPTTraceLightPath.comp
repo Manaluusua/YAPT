@@ -30,12 +30,16 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 
 	float maxRadiance = 0;
 	bool previousWasDeltaDistr = false;
+	bool originIsPunctual = false;
+	bool originIsInfinite = false;
+	bool originIsEnv = false;
+	float originPosPDF = 0;
 
 	//sample light
 	{
 		float4 randomSamples0 = rand.getRandom4();
 		float4 randomSamples1 = rand.getRandom4();
-		LightOrEnvSample lightSample = sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy, g_sampleEnvLightProbabilityWeight);
+		LightOrEnvSample lightSample = sampleLightOrEnv(randomSamples1.w, randomSamples0, randomSamples1.xy);
 		radiance = lightSample.sample.radiance;
 		lightPos = lightSample.sample.positionWS;
 		lightDir = lightSample.sample.directionWS;
@@ -60,8 +64,19 @@ void traceLightRays( uint3 groupId : SV_GroupID,
 		nodes[0].nextIndex = INVALID_LIGHT_NODE_INDEX;
 		nodes[0].radiance = radiance.toFloat4();
 		nodes[0].positionWS = lightPos;
-		nodes[0].pdfForwardMIS = lightPosPDF * lightSamplePDF;
+		//for the environment the origin is the direction, its density is the directional one (the disk position goes to the next vertex)
+		nodes[0].pdfForwardMIS = sampledEnvironment ? lightDirPDF * lightSamplePDF : lightPosPDF * lightSamplePDF;
 		nodes[0].flags = sampledEnvironment ? LIGHT_PATH_NODE_FLAG_ENV_LIGHT : 0;
+		nodes[0].flags |= lightSample.sampledPunctual ? LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT : 0;
+		nodes[0].flags |= lightSample.sampledDirectional ? LIGHT_PATH_NODE_FLAG_DIRECTIONAL_LIGHT : 0;
+		originIsPunctual = lightSample.sampledPunctual;
+		originIsInfinite = lightSample.sampledDirectional || sampledEnvironment;
+		originIsEnv = sampledEnvironment;
+		if(sampledEnvironment)
+		{
+			nodes[0].barycentrics = encodeOctahedral(lightDir);
+		}
+		originPosPDF = lightPosPDF;
 		nodes[0].iorPrevious = IOR_DEFAULT;
 		nodes[0].iorCurrent = IOR_DEFAULT;
 		pdfForward = lightDirPDF;
@@ -184,8 +199,16 @@ bool triangleHitFrontFace = hit.frontFace;
 			else
 			{
 				//TODO: store some of the ray state (dispersion,volumes(?))
-	            float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - rayOrigin, normalWS);
-				currentNodePDFForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+				if(i == 1 && originIsInfinite)
+				{
+					//infinite light paths start from a disk: planar density projected onto the surface
+					currentNodePDFForwardMIS = originPosPDF * abs(dot(rayDir, normalWS));
+				}
+				else
+				{
+		            float toAreaDensityForward = solidAngleToAreaDensityMultiplier(posWS - rayOrigin, normalWS);
+					currentNodePDFForwardMIS = previousWasDeltaDistr ? -1.f : pdfForward * toAreaDensityForward;
+				}
 
 				SpectralSamples abs = rayState.getAbsorption();
 				if(!abs.allSamplesEqual(0))
@@ -249,6 +272,16 @@ bool triangleHitFrontFace = hit.frontFace;
 			}*/
 
             nodes[previousNodeIndex].pdfBackwardMIS = sampledDeltaDir ? -1.f : (pdfBackwardIsAreaDensity ? pdfBackward : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - posWS, nodes[previousNodeIndex].normalWS.xyz)); //TODO: special case for ENV light
+			if(i == 1 && originIsPunctual)
+			{
+				//a camera path can never hit a delta light origin
+				nodes[previousNodeIndex].pdfBackwardMIS = 0;
+			}
+			else if(i == 1 && originIsEnv && !sampledDeltaDir)
+			{
+				//a camera path finds the environment by sampling the direction, so the density stays per solid angle
+				nodes[previousNodeIndex].pdfBackwardMIS = pdfBackward;
+			}
 
 			//store previous vertex
 			{

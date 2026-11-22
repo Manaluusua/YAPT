@@ -3,6 +3,7 @@
 #include <Renderer/Shared/Utility/RenderResourcesPool.h>
 #include <Renderer/Shared/Utility/PipelineStateDescriptionUtility.h>
 #include <Renderer/Shared/CRenderer.h>
+#include <Renderer/Shared/LightManager.h>
 #include <Renderer/Shared/Utility/CoreRenderResourcesUtility.h>
 #include <Renderer/Shared/Utility/SpectralUtility.h>
 #include <Renderer/Shared/Utility/RenderAPIAbstractionUtility.h>
@@ -152,7 +153,9 @@ namespace YAPT
 		m_lastApertureRadius = apertureRadius;
 		m_lastFocusDistance = focusDistance;
 
-		if (m_accelerationStructureNeedsRebuild || hasCameraMoved() || envIntensityChanged || lensChanged)
+		bool punctualLightsChanged = getRenderer()->getLightManager()->hasPunctualLightChanges();
+
+		if (m_accelerationStructureNeedsRebuild || hasCameraMoved() || envIntensityChanged || lensChanged || punctualLightsChanged)
 		{
 			clearAccumulatedFrames();
 		}

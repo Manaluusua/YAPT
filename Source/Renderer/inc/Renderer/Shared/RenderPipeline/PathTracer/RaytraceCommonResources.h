@@ -3,10 +3,12 @@
 #include <Math/Math.h>
 #include <Gfx/GfxTypes.h>
 #include <spectralConstants.h>
+#include <lightTypes.h>
 #include <Renderer/Shared/RenderPipeline/PathTracer/PathIntegratorSubStage.h>
 #include <Renderer/Shared/Utility/PostProcessUtility.h>
 #include <Renderer/Shared/CRenderer.h>
 #include <array>
+#include <vector>
 
 namespace YAPT
 {
@@ -37,7 +39,7 @@ namespace YAPT
 		uint32_t lightCount;
 		uint32_t flags;
 		uint32_t regularizeAfterVertices;
-		uint32_t pad0;
+		uint32_t punctualLightCount;
 		uint32_t pad1;
 		uint32_t pad2;
 		vec4p lensParams; //x: aperture radius, y: focus distance, z: view space forward z sign, w: unused
@@ -51,6 +53,7 @@ namespace YAPT
 	class RenderGraph;
 	class BindlessMaterialManager;
 	class BindlessMeshManager;
+	struct PunctualLightParameters;
 
 	class RaytraceCommonResources
 	{
@@ -64,7 +67,18 @@ namespace YAPT
 			uint32_t meshIndex;
 			uint32_t matIndex;
 			uint32_t instanceIndex;
+			uint32_t lightType;
+			vec4p positionCosInner;
+			vec4p directionCosOuter;
+			vec4p intensity;
+			float selectionPDF;
+			float aliasThreshold;
+			uint32_t aliasIndex;
+			float punctualSelectionPDF;
+			float punctualAliasThreshold;
+			uint32_t punctualAliasIndex;
 			uint32_t pad0;
+			uint32_t pad1;
 		};
 
 		struct RenderObjectTransformDataGPU
@@ -120,6 +134,9 @@ namespace YAPT
 
 		void updateSamples(size_t sampleOffset);
 		JobHandle setupLightDataJob(JobSystem* threadPool);
+		void uploadLightData();
+		float estimateMeshLightPower(size_t meshLightIndex) const;
+		float estimatePunctualLightPower(const PunctualLightParameters& light) const;
 		JobHandle setupWorldBoundsJob(JobSystem* threadPool);
 
 
@@ -131,7 +148,16 @@ namespace YAPT
 		DynamicSizeGpuBufferHelper<uvec2p> m_renderObjectMaterialAndMeshIndices;
 		DynamicSizeGpuBufferHelper<RenderObjectTransformDataGPU> m_renderObjectTransformData;
 		DynamicSizeGpuBufferHelper<LightEntryGPU> m_lightDataGPU;
+		DynamicSizeGpuBufferHelper<float> m_instanceLightSelectionPDFs;
 		std::vector<size_t> m_instanceOffsetPerRenderObject;
+		size_t m_instanceCount = 0;
+
+		std::vector<float> m_lightSelectionPDFs;
+		std::vector<float> m_lightAliasThresholds;
+		std::vector<uint32_t> m_lightAliasIndices;
+		std::vector<float> m_punctualSelectionPDFs;
+		std::vector<float> m_punctualAliasThresholds;
+		std::vector<uint32_t> m_punctualAliasIndices;
 
 		std::array<CombineBoundsJobItem, COMBINE_BOUNDS_MAX_JOBS> m_combineBoundsJobs;
 		AABB m_worldBounds;

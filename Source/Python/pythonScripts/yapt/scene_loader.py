@@ -1,10 +1,20 @@
-from py_yapt import Material, vec4, vec3, vec2
+from py_yapt import Material, Light, vec4, vec3, vec2
 from yapt.utility import *
 from yapt.settings import resolve_asset_path
 from PySide6.QtGui import QQuaternion, QVector3D
 from pathlib import Path
 from pygltflib import GLTF2
 import math
+
+#KHR_lights_punctual intensities are photometric (candela for point/spot, lux for directional). Dividing by the luminous
+#efficacy of 555nm light gives radiant intensity / irradiance, which is what the renderer expects
+GLTF_LUMENS_PER_WATT = 683.0
+
+GLTF_LIGHT_TYPES = {
+    "point": Light.LightType.POINT,
+    "spot": Light.LightType.SPOT,
+    "directional": Light.LightType.DIRECTIONAL,
+}
 
 class SceneLoader:
     def __init__(self, resources, scene, renderer):
@@ -341,6 +351,44 @@ class SceneLoader:
         return obj
 
     def _create_object(self, node):
+        obj = self._create_object_for_node(node)
+        self._create_light_for_node(node, obj)
+        return obj
+
+    def _get_gltf_light_definitions(self):
+        extensions = getattr(self._gltf, "extensions", None) or {}
+        return extensions.get("KHR_lights_punctual", {}).get("lights", [])
+
+    #lights are created as children of the node so that a node with both a mesh and a light gets both
+    def _create_light_for_node(self, node, node_obj):
+        node_extensions = getattr(node, "extensions", None) or {}
+        light_ref = node_extensions.get("KHR_lights_punctual")
+        if light_ref is None or light_ref.get("light") is None:
+            return None
+
+        light_defs = self._get_gltf_light_definitions()
+        light_index = light_ref["light"]
+        if light_index >= len(light_defs):
+            print(f"node {node.name} references missing light {light_index}")
+            return None
+
+        light_def = light_defs[light_index]
+        light_type = GLTF_LIGHT_TYPES.get(light_def.get("type"))
+        if light_type is None:
+            print(f"unsupported light type {light_def.get('type')} on node {node.name}")
+            return None
+
+        name = light_def.get("name") or f"{node.name}_light"
+        light = self._scene.create_light(name, light_type)
+        light.setColor(vec3(light_def.get("color", [1.0, 1.0, 1.0])))
+        light.setIntensity(light_def.get("intensity", 1.0) / GLTF_LUMENS_PER_WATT)
+        if light_type == Light.LightType.SPOT:
+            spot = light_def.get("spot", {})
+            light.setSpotConeAngles(spot.get("innerConeAngle", 0.0), spot.get("outerConeAngle", math.pi / 4.0))
+        light.getTransform().setParent(node_obj.getTransform())
+        return light
+
+    def _create_object_for_node(self, node):
         obj = None
         if self._has_transform(node):
             #if node has mesh and its succesfully loaded, create renderobject

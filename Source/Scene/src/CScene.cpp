@@ -1,7 +1,9 @@
 #include <Scene/Impl/CScene.h>
 #include <Scene/Camera.h>
 #include <Scene/Impl/CRenderableObject.h>
+#include <Scene/Impl/CLightObject.h>
 #include <Renderer/Renderer.h>
+#include <algorithm>
 
 namespace YAPT
 {
@@ -46,6 +48,12 @@ namespace YAPT
 
 		m_dirtyRenderables.clear();
 
+		for (CLightObject* light : m_dirtyLights)
+		{
+			light->refresh();
+		}
+		m_dirtyLights.clear();
+
 		Camera* cam = getMainCamera();
 		RenderParameters renderParams;
 		renderParams.view = cam->getViewMatrix();
@@ -71,6 +79,10 @@ namespace YAPT
 	{
 		return new SceneObject();
 	}
+	LightObject* CScene::createLightObject(LightType type)
+	{
+		return new CLightObject(m_renderer, this, type);
+	}
 
 	void CScene::addSceneListener(SceneListener* l)
 	{
@@ -84,6 +96,16 @@ namespace YAPT
 	void CScene::needsRefresh(CRenderableObject* model)
 	{
 		m_dirtyRenderables.push_back(model);
+	}
+
+	void CScene::needsRefresh(CLightObject* light)
+	{
+		m_dirtyLights.push_back(light);
+	}
+
+	void CScene::cancelRefresh(CLightObject* light)
+	{
+		m_dirtyLights.erase(std::remove(m_dirtyLights.begin(), m_dirtyLights.end(), light), m_dirtyLights.end());
 	}
 
 }

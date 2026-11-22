@@ -17,6 +17,7 @@ set(HEADERS
 	inc/Renderer/Texture.h
 	inc/Renderer/Material.h
 	inc/Renderer/RenderObject.h
+	inc/Renderer/Light.h
 	inc/Renderer/MeshUtility.h
 	inc/Renderer/RendererConfiguration.h
 	inc/Renderer/RendererCacheProvider.h
@@ -44,6 +45,7 @@ set(HEADERS
 	inc/Renderer/Shared/BindlessMaterialManager.h
 	inc/Renderer/Shared/BindlessMeshManager.h
 	inc/Renderer/Shared/LightManager.h
+	inc/Renderer/Shared/LightProxy.h
 	
 	inc/Renderer/Shared/RendererVarsList.h
 	inc/Renderer/Shared/RenderView.h
@@ -108,6 +110,7 @@ set(SOURCE
 	src/Shared/MaterialInternal.cpp
 	
 	src/Shared/LightManager.cpp
+	src/Shared/LightProxy.cpp
 	
 	src/Shared/BufferImpl.cpp
 	src/Shared/TextureImpl.cpp

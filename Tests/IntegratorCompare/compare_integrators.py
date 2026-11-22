@@ -20,6 +20,7 @@ Environment:
     ACCUM_S         seconds of accumulation per integrator (default 25)
     OUT_DIR         output folder name (default results/compare_focus<n>[_twosided])
     YAPT_CONFIG     Debug or Release (default Debug)
+    SCENE           focused (default) or punctual (punctual_lights_scene.py, see its LIGHT_TYPE)
 """
 
 import os
@@ -32,8 +33,12 @@ from report import write_comparison
 FOCUS = float(os.environ.get("EMISSION_FOCUS", "8"))
 TWO_SIDED = os.environ.get("TWO_SIDED", "0") == "1"
 ACCUM_S = float(os.environ.get("ACCUM_S", "25"))
+SCENE = os.environ.get("SCENE", "focused")
 
-DEFAULT_OUT = f"compare_focus{FOCUS:g}" + ("_twosided" if TWO_SIDED else "")
+if SCENE == "punctual":
+    DEFAULT_OUT = f"compare_punctual_{os.environ.get('LIGHT_TYPE', 'mixed')}"
+else:
+    DEFAULT_OUT = f"compare_focus{FOCUS:g}" + ("_twosided" if TWO_SIDED else "")
 OUT_DIR = TEST_DIR / "results" / os.environ.get("OUT_DIR", DEFAULT_OUT)
 
 #(renderer variable option index, label)
@@ -47,12 +52,15 @@ def main():
     captures = {}
 
     def load():
-        harness.load_scene(
-            TEST_DIR / "focused_emission_scene.py",
-            {"EMISSION_FOCUS = 8.0": f"EMISSION_FOCUS = {FOCUS}"},
-        )
+        if SCENE == "punctual":
+            harness.load_scene(TEST_DIR / "punctual_lights_scene.py", {})
+        else:
+            harness.load_scene(
+                TEST_DIR / "focused_emission_scene.py",
+                {"EMISSION_FOCUS = 8.0": f"EMISSION_FOCUS = {FOCUS}"},
+            )
         harness.set_pipeline(INTEGRATORS[0][0])
-        print(f"  focus={FOCUS:g} two_sided={TWO_SIDED} accumulating {ACCUM_S:g}s per integrator",
+        print(f"  scene={SCENE} focus={FOCUS:g} two_sided={TWO_SIDED} accumulating {ACCUM_S:g}s per integrator",
               flush=True)
 
     def make_step(index):

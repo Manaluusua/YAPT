@@ -36,6 +36,11 @@ class SceneWrapper:
        self._objects.add(ro)
        return ro
 
+    def create_light(self, name, light_type):
+        light = self.get_scene().createLight(name, light_type)
+        self._objects.add(light)
+        return light
+
     def destroy_object(self, obj):
         self._objects.remove(obj)
 

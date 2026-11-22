@@ -92,6 +92,30 @@ void constructVectorBase(float3 v, out float3 v2Out, out float3 v3Out) {
 	v3Out = cross(v, v2Out);
 }
 
+//octahedral mapping of a unit vector to [-1, 1]^2
+float2 encodeOctahedral(float3 n)
+{
+    n /= (abs(n.x) + abs(n.y) + abs(n.z));
+    float2 p = n.xy;
+    if (n.z < 0.f)
+    {
+        float2 s = float2(p.x >= 0.f ? 1.f : -1.f, p.y >= 0.f ? 1.f : -1.f);
+        p = (1.f - abs(p.yx)) * s;
+    }
+    return p;
+}
+
+float3 decodeOctahedral(float2 p)
+{
+    float3 n = float3(p, 1.f - abs(p.x) - abs(p.y));
+    if (n.z < 0.f)
+    {
+        float2 s = float2(n.x >= 0.f ? 1.f : -1.f, n.y >= 0.f ? 1.f : -1.f);
+        n.xy = (1.f - abs(n.yx)) * s;
+    }
+    return normalize(n);
+}
+
 float3 makeOrthogonal(in float3 orthogonalTo, in float3 v)
 {
     return normalize(v - orthogonalTo * (dot(orthogonalTo, v)));

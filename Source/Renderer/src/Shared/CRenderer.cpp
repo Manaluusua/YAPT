@@ -11,6 +11,7 @@
 #include <Renderer/Shared/BindlessTextureManager.h>
 #include <Renderer/Shared/BindlessBufferManager.h>
 #include <Renderer/Shared/LightManager.h>
+#include <Renderer/Shared/LightProxy.h>
 #include <Renderer/Shared/RendererVarsList.h>
 #include <Renderer/Shared/ReadBackManager.h>
 
@@ -88,12 +89,13 @@ namespace YAPT
 
 		Gfx::renderBegin(m_gfxHandle);
 
-		JobHandle replicateChangesHandles[5];
+		JobHandle replicateChangesHandles[6];
 		replicateChangesHandles[0] = m_jobSystem.submit(commitChangesFunc<MeshManager>, m_meshMngr);
 		replicateChangesHandles[1] = m_jobSystem.submit(commitChangesFunc<MaterialManager>, m_materialMngr);
 		replicateChangesHandles[2] = m_jobSystem.submit(commitChangesFunc<RenderObjectManager>, m_renderObjectManager, replicateChangesHandles, 2); //depends on mesh and material manager changes
 		replicateChangesHandles[3] = m_jobSystem.submit(commitChangesFunc<ReadbackManager>, m_readbackManager);
 		replicateChangesHandles[4] = m_jobSystem.submit(commitChangesFunc<CRendererConfiguration>, &m_rendererConfig);
+		replicateChangesHandles[5] = m_jobSystem.submit(commitChangesFunc<LightManager>, m_lightManager);
 		
 		m_textureManager->flush();
 		m_bufferManager->flush();
@@ -206,6 +208,7 @@ namespace YAPT
 		m_meshMngr->commitChanges();
 		m_materialMngr->commitChanges();
 		m_readbackManager->commitChanges();
+		m_lightManager->commitChanges();
 
 		delete m_lightManager;
 		m_lightManager = nullptr;
@@ -311,6 +314,10 @@ namespace YAPT
 	RenderObject* CRenderer::createRenderObject()
 	{
 		return m_renderObjectManager->createRenderObject();
+	}
+	Light* CRenderer::createLight(LightType type)
+	{
+		return m_lightManager->createLight(type);
 	}
 
 	void CRenderer::textureToBeCreated(TextureDesc& d)

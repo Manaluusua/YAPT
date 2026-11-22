@@ -13,6 +13,7 @@ namespace YAPT
         :m_name(name)
 	{
 		m_material = rend->createMaterial();
+		m_material->Release();
 	}
 	PyMaterial::~PyMaterial()
 	{

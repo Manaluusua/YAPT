@@ -44,6 +44,7 @@ namespace YAPT
 		}
 
 		m_materials[materialIndex] = material;
+		setDirty(CRenderableObjectDirtyFlag_Material);
 	}
 
 

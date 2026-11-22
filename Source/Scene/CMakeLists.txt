@@ -16,14 +16,17 @@ set(HEADERS
 	inc/Scene/SceneObject.h
 	inc/Scene/SceneObject.inl
 	inc/Scene/RenderableObject.h
+	inc/Scene/LightObject.h
 	
 	inc/Scene/Impl/CRenderableObject.h
 	inc/Scene/Impl/CScene.h
+	inc/Scene/Impl/CLightObject.h
 )
 
 set(SOURCE
 	src/CScene.cpp
 	src/CRenderableObject.cpp
+	src/CLightObject.cpp
 )
 
 add_library(Scene SHARED)

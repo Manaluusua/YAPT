@@ -12,38 +12,71 @@ struct RayHitShaderTableConstantData
 };
 SHADERTABLE_EXTRADATA_DECLARE(RayHitShaderTableConstantData);
 
-#ifdef ENABLE_NEE
-
-float geometryTerm(float3 fromNormal, float3 toNormal, float3 fromToUnnormalized)
+struct ExplicitLightSample
 {
-    float invDistSqr = 1.f / dot(fromToUnnormalized, fromToUnnormalized);
-    float3 fromToNormalized = fromToUnnormalized * sqrt(invDistSqr);
-    float absDot = abs(dot(toNormal, fromToNormalized) * dot(fromNormal, fromToNormalized));
-    return absDot * invDistSqr;
+    SpectralSamples emission; //radiance (with emission profile) for mesh lights, incident intensity for punctual lights
+    float3 toLightWS;
+    float distance; //DEFAULT_RAY_MAX_T for directional lights
+    float pdf; //solid angle pdf including the light pick for mesh lights, only the pick probability for punctual lights
+    uint instanceIndex;
+    uint primitiveIndex;
+    bool isPunctual;
+};
+
+//NEE picks from all lights, without NEE only the punctual lights are sampled explicitly (BSDF sampling can never hit them)
+bool hasExplicitlySampledLights()
+{
+#ifdef ENABLE_NEE
+    return g_lightCount > 0;
+#else
+    return g_punctualLightCount > 0;
+#endif
 }
 
-void sampleExplicitLight(in float3 currentPosWS, in float3 normalWS, in float4 lightSampleRand, out float3 lightSamplePositionOut, out SpectralSamples emissionOut, out float pdfOut, out uint instanceIndexOut, out uint primitiveIndexOut)
+void sampleExplicitLight(in float3 currentPosWS, in float4 lightSampleRand, out ExplicitLightSample sampleOut)
 {
+#ifdef ENABLE_NEE
+    uint lightIndex = sampleLightIndex(lightSampleRand.w);
+    float pickPDF = lightSelectionPDF(lightIndex);
+#else
+    uint lightIndex = samplePunctualLightIndex(lightSampleRand.w);
+    float pickPDF = punctualLightSelectionPDF(lightIndex);
+#endif
+
+    LightEntryGPU lightEntry = g_lights[lightIndex];
+    if (isPunctualLight(lightEntry))
+    {
+        PunctualLightIncidence incidence = evaluatePunctualLightIncidence(lightEntry, currentPosWS);
+        sampleOut.emission.setFromRGBUnbounded(incidence.intensity);
+        sampleOut.toLightWS = incidence.toLightWS;
+        sampleOut.distance = incidence.distance;
+        sampleOut.pdf = pickPDF;
+        sampleOut.instanceIndex = -1;
+        sampleOut.primitiveIndex = -1;
+        sampleOut.isPunctual = true;
+        return;
+    }
 
     LightSampleOutput lightSampleOutput;
-    float lightSelectionPDF;
-    sampleRandomLightPosition(lightSampleRand, lightSampleOutput, lightSelectionPDF);
+    sampleLight(lightIndex, lightSampleRand.xyz, float2(0, 0), lightSampleOutput);
 
     float3 toLight = lightSampleOutput.positionWS - currentPosWS;
+    float toLightLen = length(toLight);
 
-    float cosEmit = -dot(lightSampleOutput.normalWS, normalize(toLight));
-    emissionOut = lightSampleOutput.radiance * evaluateEmissionProfile(cosEmit, lightSampleOutput.emissionFocus);
-    pdfOut = lightSelectionPDF * lightSampleOutput.pdfPos * areaDensityToSolidAngleMultiplier(toLight, lightSampleOutput.normalWS);
-    
-    lightSamplePositionOut = lightSampleOutput.positionWS;
-    primitiveIndexOut = lightSampleOutput.primitiveIndex;
-    instanceIndexOut = lightSampleOutput.instanceIndex;
+    float cosEmit = -dot(lightSampleOutput.normalWS, toLight / toLightLen);
+    sampleOut.emission = lightSampleOutput.radiance * evaluateEmissionProfile(cosEmit, lightSampleOutput.emissionFocus);
+    sampleOut.pdf = pickPDF * lightSampleOutput.pdfPos * areaDensityToSolidAngleMultiplier(toLight, lightSampleOutput.normalWS);
+    sampleOut.toLightWS = toLight / toLightLen;
+    sampleOut.distance = toLightLen;
+    sampleOut.instanceIndex = lightSampleOutput.instanceIndex;
+    sampleOut.primitiveIndex = lightSampleOutput.primitiveIndex;
+    sampleOut.isPunctual = false;
 
     //if light is not two sided, ignore if we are not facing the light (direction pdf would be wrong but we don't care about it here anyway)
-    if(!lightSampleOutput.sampledAsTwoSided && dot(toLight, lightSampleOutput.normalWS) >= 0) 
+    if(!lightSampleOutput.sampledAsTwoSided && dot(toLight, lightSampleOutput.normalWS) >= 0)
     {
-        emissionOut.set(0);
-        pdfOut = 0;
+        sampleOut.emission.set(0);
+        sampleOut.pdf = 0;
     }
 }
 
@@ -77,10 +110,33 @@ bool checkLightVisibility(in float3 rayPos, in float3 rayDir, float rayLen, uint
     return false;
 }
 
+//punctual lights have no geometry, the light is visible if nothing is hit before reaching it
+bool checkUnoccluded(in float3 rayPos, in float3 rayDir, float rayLen)
+{
+    RayQuery < RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH > q;
+
+    RayDesc ray;
+    ray.Origin = rayPos;
+    ray.Direction = rayDir;
+    ray.TMin = DEFAULT_RAY_MIN_T;
+    ray.TMax = rayLen;
+
+    q.TraceRayInline(
+		    g_accelerationStructure,
+		    RAY_FLAG_NONE,
+		    ~0,
+		    ray);
+
+    PROCEED_ALPHA_TESTED(q)
+
+    return q.CommittedStatus() != COMMITTED_TRIANGLE_HIT;
+}
+
+#ifdef ENABLE_NEE
+
 float calculateExplicitLightConnectionPDF(float3 fromPointToLightUnnormalized, in uint instanceIndex, in uint primitiveIndex, float2 bary)
 {
-    float lightProb = g_lightCount;
-    float lightPickPDF = 1.f / lightProb;
+    float lightPickPDF = meshLightSelectionPDFForInstance(instanceIndex);
     
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
     RenderObjectTransformDataGPU transformData = getTransformDataForInstance(instanceIndex);
@@ -144,25 +200,16 @@ struct LightConnectionVertex
     bool atSubsurfaceExit;
 };
 
-#ifdef ENABLE_NEE
 //explicit light connection from the vertex. At a subsurface exit point only the exit lobe is evaluated
 void connectToExplicitLight(in SurfaceSamplingContext surface, in LightConnectionVertex vertex, inout Payload rayState, inout RandomSampler rand)
 {
     float4 randomSamplesLight = rand.getRandom4();
-    SpectralSamples emission;
-    float lightSamplePdf;
-    float3 lightSamplePosWS;
-    uint lightInstanceIndex;
-    uint lightPrimIndex;
+    ExplicitLightSample lightSample;
+    sampleExplicitLight(vertex.positionWS, randomSamplesLight, lightSample);
 
-    sampleExplicitLight(vertex.positionWS, vertex.normalWS, randomSamplesLight, lightSamplePosWS, emission, lightSamplePdf, lightInstanceIndex, lightPrimIndex);
-
-    if(!emission.allSamplesEqual(0) && lightSamplePdf > 0)
+    if(!lightSample.emission.allSamplesEqual(0) && lightSample.pdf > 0)
     {
-        float3 toLightWS = lightSamplePosWS - vertex.positionWS;
-        float toLightWSLen = length(toLightWS);
-        toLightWS /= toLightWSLen;
-
+        float3 toLightWS = lightSample.toLightWS;
         float3 toLightDirOS = normalize(mul(vertex.worldToObj, toLightWS));
 
         SpectralSamples weightSumLight = (SpectralSamples) 0.f;
@@ -186,15 +233,28 @@ void connectToExplicitLight(in SurfaceSamplingContext surface, in LightConnectio
         if (!weightSumLight.allSamplesEqual(0))
         {
 		    float3 rayStart = spawnRayOrigin(vertex.positionWS, vertex.normalWS, toLightWS);
-            if (checkLightVisibility(rayStart, toLightWS, toLightWSLen + DEFAULT_RAY_MIN_T, lightInstanceIndex, lightPrimIndex))
+            bool visible;
+            float wMIS;
+            if (lightSample.isPunctual)
             {
-                weightSumLight = (weightSumLight / lightSamplePdf) * weightMIS(lightSamplePdf, brdfPdf);
-                rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * emission;
+                //delta lights can only be reached by explicit sampling, so there is nothing to weight against
+                visible = checkUnoccluded(rayStart, toLightWS, lightSample.distance - DEFAULT_RAY_MIN_T);
+                wMIS = 1.f;
+            }
+            else
+            {
+                visible = checkLightVisibility(rayStart, toLightWS, lightSample.distance + DEFAULT_RAY_MIN_T, lightSample.instanceIndex, lightSample.primitiveIndex);
+                wMIS = weightMIS(lightSample.pdf, brdfPdf);
+            }
+
+            if (visible)
+            {
+                weightSumLight = (weightSumLight / lightSample.pdf) * wMIS;
+                rayState.totalLight = rayState.totalLight + rayState.throughput * weightSumLight * lightSample.emission;
             }
         }
     }
 }
-#endif
 
 //continues the path from a subsurface exit point: light connection (NEE) from the exit and the next direction from the exit lobe.
 //rayState.throughput must already contain the subsurface entry weight
@@ -217,8 +277,7 @@ NextRay continueFromSubsurfaceExit(in SubsurfaceExitSample exit, inout Payload r
     }
     SurfaceSamplingContext exitSurface = makeSurfaceSamplingContext(convertSurfaceDefinitionFromRGB(exitSurfaceRGB), rayState.getCurrentIOR(), rayState.getPreviousIOR(), woOS, exitPoint.frontFace);
 
-#ifdef ENABLE_NEE
-    if (g_lightCount > 0)
+    if (hasExplicitlySampledLights())
     {
         LightConnectionVertex vertex;
         vertex.worldToObj = exitWorldToObj;
@@ -228,7 +287,6 @@ NextRay continueFromSubsurfaceExit(in SubsurfaceExitSample exit, inout Payload r
         vertex.atSubsurfaceExit = true;
         connectToExplicitLight(exitSurface, vertex, rayState, rand);
     }
-#endif
 
     NextRay next;
     next.weight.set(0);
@@ -267,8 +325,7 @@ NextRay evaluateSurfaceAndGenerateNextSampleDirection(in ClosestHitSurface hit, 
     float3 normalWS = normalize(mul(transpose(worldToObj), hit.surfaceDef.geometryNormal));
 
 	//Next Event Estimation (explicit light connections)
-#ifdef ENABLE_NEE
-    if (g_lightCount > 0 && !isDeltaDistribution(surface.precalculatedSurfaceData.a2, hit.surfaceDef))
+    if (hasExplicitlySampledLights() && !isDeltaDistribution(surface.precalculatedSurfaceData.a2, hit.surfaceDef))
     {
         LightConnectionVertex vertex;
         vertex.worldToObj = worldToObj;
@@ -278,7 +335,6 @@ NextRay evaluateSurfaceAndGenerateNextSampleDirection(in ClosestHitSurface hit, 
         vertex.atSubsurfaceExit = false;
         connectToExplicitLight(surface, vertex, rayState, rand);
     }
-#endif
 
     SurfacePoint vertexPoint;
     vertexPoint.positionWS = currentPosWS;

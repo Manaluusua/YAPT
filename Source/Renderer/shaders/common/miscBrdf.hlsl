@@ -77,6 +77,22 @@ float3 sampleSphere(in float2 rand)
     return float3(r * c, y,  r * s);
 }
 
+//uniform direction inside a cone around +y, cosMax is the cosine of the cone half angle
+float3 sampleUniformCone(in float2 rand, in float cosMax)
+{
+    float y = 1.f - rand.x * (1.f - cosMax);
+    float r = sqrt(max(0.f, 1.f - sqr(y)));
+    float phi = 2.f * PI * rand.y;
+    float s, c;
+    sincos(phi, s, c);
+    return float3(r * c, y, r * s);
+}
+
+float pdfUniformCone(in float cosMax)
+{
+    return safeDiv(1.f, 2.f * PI * (1.f - cosMax));
+}
+
 float pdfCosineWeightedHemisphere(in float dotIN)
 {
     return saturate(dotIN) * INVPI;

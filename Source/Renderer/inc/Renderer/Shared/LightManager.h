@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Renderer/Shared/RenderObjectManager.h>
+#include <Renderer/Light.h>
+#include <Common/GrowingMultiProducerPendingList.h>
 #include <vector>
 #include <array>
 
@@ -8,8 +10,25 @@ namespace YAPT
 {
 	class CRenderer;
 	class ThreadPool;
+	class LightProxy;
+
+	struct PunctualLightParameters
+	{
+		LightType type;
+		vec3p positionWS;
+		vec3p directionWS; //emission direction, normalized
+		vec3p intensity; //color * intensity
+		float cosInnerAngle;
+		float cosOuterAngle;
+	};
+
+	/**
+		Keeps track of everything that emits light: emissive mesh submeshes (gathered from render objects each time objects or materials change)
+		and explicitly created punctual lights.
+	*/
 	class LightManager
 	{
+		friend class LightProxy;
 	public:
 
 		struct LightReference
@@ -28,10 +47,20 @@ namespace YAPT
 		LightManager(CRenderer* renderer);
 		~LightManager();
 
+		LightProxy* createLight(LightType type);
+		void lightReleased(LightProxy* light);
+
+		void commitChanges();
+
 		JobHandle update(JobSystem& pool, JobHandle deps);
 
 		const LightReference* getAllLightReferences() const { checkLightCacheValid();  return m_lightReferencesCache.data(); }
 		size_t getLightReferenceCount() const { checkLightCacheValid(); return m_lightReferencesCache.size(); }
+
+		const PunctualLightParameters* getAllPunctualLights() const { return m_punctualLightsPacked.data(); }
+		size_t getPunctualLightCount() const { return m_punctualLightsPacked.size(); }
+
+		bool hasPunctualLightChanges() const { return m_punctualLightsChanged; }
 
 	private:
 
@@ -48,6 +77,10 @@ namespace YAPT
 			std::vector<LightReference> referencesFound;
 		};
 
+		void lightChanged(LightProxy* light);
+		void addToChangedListIfNotAdded(LightProxy* light);
+		static void fillParameters(const LightProxy* src, PunctualLightParameters& dst);
+
 		void checkLightCacheValid() const;
 
 		CRenderer* m_renderer;
@@ -55,6 +88,11 @@ namespace YAPT
 
 		mutable std::vector<LightReference> m_lightReferencesCache;
 		mutable bool m_lightReferencesCacheValid;
+
+		std::vector<LightProxy*> m_punctualLights; //proxy _id is the index in this array
+		std::vector<PunctualLightParameters> m_punctualLightsPacked;
+		GrowingMultiProducerPendingList<LightProxy*> m_changedLights;
+		bool m_punctualLightsChanged;
 	};
 }
 

@@ -35,7 +35,15 @@ python compare_integrators.py                      # focus 8, one sided
 EMISSION_FOCUS=0 python compare_integrators.py     # the control
 EMISSION_FOCUS=32 TWO_SIDED=1 python compare_integrators.py
 python focus_sweep.py                              # focus 0, 2, 8, 32
+SCENE=punctual LIGHT_TYPE=mixed python compare_integrators.py
 ```
+
+`SCENE=punctual` loads `punctual_lights_scene.py` instead: an open floor lit by punctual lights.
+`LIGHT_TYPE` picks `point`, `spot`, `directional`, `mixed` (all three plus an emissive sphere),
+`mesh_control` (a small emissive sphere where the point light would be) or `env` (no lights,
+the environment only). In `env` BPT and BPT_WITH_NEE render identical frames, since there is
+nothing for NEE to sample, so the run stops with the stale capture error after printing the
+means.
 
 Results land in `results/<run>/`: the individual captures, per pair difference images, and
 a `comparison.png` / `sweep.png` montage. The pairwise table is printed to stdout.
@@ -72,15 +80,18 @@ localised patch means a transport difference in that part of the scene.
 
 ## Known result at the time of writing
 
-BDPT sits about 3-4% brighter than both unidirectional integrators, and it does so at
-`EMISSION_FOCUS=0` too - on the Lambertian path that predates the focus feature. Row 3 of
-`results/compare_focus0/comparison.png` shows it as a flat, uniform field rather than a
-localised patch. It is a pre-existing BDPT discrepancy, unrelated to the emission profile,
-but it is real. Treat ~4% as this scene's BDPT baseline until it is chased down.
+BDPT used to sit 3-4% above both unidirectional integrators on this scene. Most of that was the
+camera side of its MIS weights dropping one vertex ratio (and the first hit vertex's ratios
+entirely), so camera strategies did not account for the light tracing strategy. With that fixed
+BDPT is about 0.9% brighter than BPT_WITH_NEE at `EMISSION_FOCUS=0`, still as a flat, uniform
+field in row 3. Treat ~1% as this scene's BDPT baseline until the rest is chased down.
 
 BPT vs BPT_WITH_NEE agree to well under 1%, and the spread grows only mildly with focus
 (0.35% at n=0, 0.68% at n=8, ~1.7% at n=32) - the expected variance cost of BSDF sampling a
 narrowing lobe.
+
+The punctual light scenes agree to within 0.1-0.8% in all pairs (`rel|d| 16x`), the spot one
+being the noisiest since most of that frame is dark.
 
 ## What focus_sweep checks
 
@@ -131,6 +142,7 @@ captures` instead of reporting the results.
 | `yapt_harness.py` | boots the app, drives it from a timer, captures frames via readback |
 | `report.py` | difference images, montages, the printed table |
 | `focused_emission_scene.py` | closed diffuse box with one focused emitter |
+| `punctual_lights_scene.py` | open floor lit by point / spot / directional lights, or the environment |
 | `compare_integrators.py` | renders under each integrator, reports disagreement |
 | `focus_sweep.py` | sweeps `EmissionFocus` on one integrator |
 | `dbgview.py` | standalone `OutputDebugString` listener, see below |

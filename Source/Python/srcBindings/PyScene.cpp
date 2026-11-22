@@ -4,6 +4,7 @@
 #include <PyRenderer.h>
 #include <PyCamera.h>
 #include <PyRenderObject.h>
+#include <PyLight.h>
 
 namespace YAPT
 {
@@ -64,6 +65,14 @@ namespace YAPT
 		return pyObj;
 	}
 
+	PyLight* PyScene::createLight(const char* name, LightType type)
+	{
+		LightObject* obj = m_scene->createLightObject(type);
+		PyLight* pyObj = new PyLight(name, obj);
+		obj->Release();
+		return pyObj;
+	}
+
 	PyCamera* PyScene::getMainCamera()
 	{
 		return new PyCamera(m_scene->getMainCamera());
@@ -78,6 +87,7 @@ namespace YAPT
 			.def("update", &PyScene::update)
 			.def("createRenderObject", &PyScene::createRenderObject)
 			.def("createSceneObject", &PyScene::createSceneObject)
+			.def("createLight", &PyScene::createLight)
 			.def("getMainCamera", &PyScene::getMainCamera);
 	}
 }

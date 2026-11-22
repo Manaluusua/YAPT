@@ -1,4 +1,6 @@
-from PySide6.QtWidgets import QDialog, QListWidget, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QGroupBox, QPushButton
+from PySide6.QtWidgets import QDialog, QListWidget, QLabel, QHBoxLayout, QVBoxLayout, QWidget, QSizePolicy, QGroupBox, QPushButton, QMenu
+from PySide6.QtGui import QCursor
+from py_yapt import Light
 from yapt.inspector_view import InspectorView
 from yapt.objects_view import ObjectsView
 from yapt.ui_utility import VerticalScrollArea
@@ -54,7 +56,18 @@ class ObjectsDialog(QDialog):
         self._currently_selected_objects = None
 
     def add_object(self):
-        print("TODO: Add Object")
+        menu = QMenu(self)
+        for label, light_type in (("Point light", Light.LightType.POINT), ("Spot light", Light.LightType.SPOT), ("Directional light", Light.LightType.DIRECTIONAL)):
+            menu.addAction(label, lambda t = light_type, l = label: self.add_light(l, t))
+        menu.exec(QCursor.pos())
+
+    def add_light(self, label, light_type):
+        name = f"{label} {len(self._scene.get_all_objects_list())}"
+        light = self._scene.create_light(name, light_type)
+        cam_transform = self._scene.get_main_camera().getTransform()
+        light.getTransform().setTranslation(cam_transform.getTranslation())
+        light.getTransform().setOrientation(cam_transform.getOrientation())
+        self.refresh()
 
     def delete_selected_objects(self):
         if self._currently_selected_objects != None:

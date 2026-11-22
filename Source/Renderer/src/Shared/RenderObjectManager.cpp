@@ -357,9 +357,9 @@ namespace YAPT
 			item.meshes = meshes;
 			item.transforms = wMat;
 			item.transformsInv = wMatInverse;
+			item.entryOffset = offset;
 			item.entryCount = min(operationsPerJob, count - offset);
 			offset += item.entryCount;
-
 		}
 
 

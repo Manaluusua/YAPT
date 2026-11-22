@@ -5,6 +5,7 @@
 #include <Renderer/Shared/BindlessMaterialManager.h>
 #include <Renderer/Shared/BindlessMeshManager.h>
 #include <Renderer/Shared/LightManager.h>
+#include <Renderer/Shared/MaterialManager.h>
 #include <Math/MathUtility.h>
 #include <Math/RandUtility.h>
 #include <Renderer/Shared/Utility/SpectralUtility.h>
@@ -19,6 +20,7 @@ namespace YAPT
 		:m_renderObjectMaterialAndMeshIndices(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true),
 		m_renderObjectTransformData(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
 		m_lightDataGPU(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER),
+		m_instanceLightSelectionPDFs(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true, false),
 		m_randomSamples(RESOURCE_USAGE_COPY_DESTINATION | RESOURCE_USAGE_STORAGE_BUFFER, true)
 	{
 
@@ -41,6 +43,7 @@ namespace YAPT
 		m_renderObjectMaterialAndMeshIndices.init(m_renderer->getGfxHandle());
 		m_renderObjectTransformData.init(m_renderer->getGfxHandle());
 		m_lightDataGPU.init(m_renderer->getGfxHandle());
+		m_instanceLightSelectionPDFs.init(m_renderer->getGfxHandle());
 
 	}
 	void RaytraceCommonResources::shutdown()
@@ -48,6 +51,7 @@ namespace YAPT
 		m_renderObjectMaterialAndMeshIndices.free();
 		m_renderObjectTransformData.free();
 		m_lightDataGPU.free();
+		m_instanceLightSelectionPDFs.free();
 	}
 
 	JobHandle RaytraceCommonResources::prepare(const RaytraceCommonResources::PrepareParams& params)
@@ -107,7 +111,11 @@ namespace YAPT
 			rtConstants->lensParams = vec4p(apertureRadius, focusDistance, forwardZSign, 0.f);
 		}
 
-		rtConstants->lightCount = (uint32_t)m_renderer->getLightManager()->getLightReferenceCount();
+		{
+			LightManager* lightManager = m_renderer->getLightManager();
+			rtConstants->punctualLightCount = (uint32_t)lightManager->getPunctualLightCount();
+			rtConstants->lightCount = (uint32_t)lightManager->getLightReferenceCount() + rtConstants->punctualLightCount;
+		}
 
 		rtConstants->envIntensityScale = m_renderer->getConcreteRendererConfiguration().getRendererVarValueInternal<float>(RVARNAME_ENV_INTENSITY_SCALE);
 
@@ -151,6 +159,7 @@ namespace YAPT
 		BufferViewHandle renderObjectsMatMeshBufferHandle = m_renderObjectMaterialAndMeshIndices.getBufferViewHandle();
 		BufferViewHandle renderObjectsTransformBufferHandle = m_renderObjectTransformData.getBufferViewHandle();
 		BufferViewHandle lightsBufferHandle = m_lightDataGPU.getBufferViewHandle();
+		BufferViewHandle instanceLightPDFsHandle = m_instanceLightSelectionPDFs.getBufferViewHandle();
 
 		TextureViewHandle noiseTex = m_renderer->getCoreResources()->getDefaultTextureView(DefaultTextureType::NOISE);
 
@@ -198,6 +207,7 @@ namespace YAPT
 			{23, 0, 1, DescriptorPtr(&d65LUT)},
 			{24, 0, 1, DescriptorPtr(&toREC2020LUT)},
 			{25, 0, 1, DescriptorPtr(&toSRGBLUT)},
+			{26, 0, 1, DescriptorPtr(&instanceLightPDFsHandle)},
 		};
 
 		Gfx::updateDescriptorSet(m_renderer->getGfxHandle(), handle, updates, countOf(updates));
@@ -214,6 +224,7 @@ namespace YAPT
 		char* matAndMeshData = m_renderObjectMaterialAndMeshIndices.map(0, numberOfEntriesNeeded);
 		char* transformsData = m_renderObjectTransformData.map(0, numberOfEntriesNeeded);
 		m_instanceOffsetPerRenderObject.resize(sceneData.objectCount); //copy offsets
+		m_instanceCount = sceneData.instancesCount;
 
 		if (!emptyScene)
 		{
@@ -304,63 +315,243 @@ namespace YAPT
 
 	}
 
+	namespace
+	{
+		float luminance(const vec3& c)
+		{
+			return 0.2126f * c.r + 0.7152f * c.g + 0.0722f * c.b;
+		}
+
+		//turns light power estimates into selection probabilities. A share is spread uniformly so that lights with a poor estimate are still found
+		void calculateSelectionPDFs(std::vector<float>& weightsToPDFs)
+		{
+			constexpr float UNIFORM_SHARE = 0.1f;
+			size_t count = weightsToPDFs.size();
+			double total = 0;
+			for (float w : weightsToPDFs)
+			{
+				total += w;
+			}
+
+			float uniformShare = total > 0 ? UNIFORM_SHARE : 1.f;
+			for (float& w : weightsToPDFs)
+			{
+				float powerShare = total > 0 ? float(w / total) : 0.f;
+				w = (1.f - uniformShare) * powerShare + uniformShare / count;
+			}
+		}
+
+		//Vose's alias method: entry i is picked with probability threshold, otherwise its alias
+		void buildAliasTable(const std::vector<float>& pdfs, std::vector<float>& thresholds, std::vector<uint32_t>& aliases)
+		{
+			size_t count = pdfs.size();
+			thresholds.resize(count);
+			aliases.resize(count);
+
+			std::vector<float> scaled(count);
+			std::vector<uint32_t> small;
+			std::vector<uint32_t> large;
+			for (size_t i = 0; i < count; ++i)
+			{
+				scaled[i] = pdfs[i] * count;
+				(scaled[i] < 1.f ? small : large).push_back(uint32_t(i));
+			}
+
+			while (!small.empty() && !large.empty())
+			{
+				uint32_t s = small.back();
+				small.pop_back();
+				uint32_t l = large.back();
+				large.pop_back();
+
+				thresholds[s] = scaled[s];
+				aliases[s] = l;
+				scaled[l] = (scaled[l] + scaled[s]) - 1.f;
+				(scaled[l] < 1.f ? small : large).push_back(l);
+			}
+
+			for (uint32_t i : large)
+			{
+				thresholds[i] = 1.f;
+				aliases[i] = i;
+			}
+			for (uint32_t i : small)
+			{
+				thresholds[i] = 1.f;
+				aliases[i] = i;
+			}
+		}
+	}
+
+	float RaytraceCommonResources::estimateMeshLightPower(size_t meshLightIndex) const
+	{
+		const LightManager::LightReference& ref = m_renderer->getLightManager()->getAllLightReferences()[meshLightIndex];
+		RenderObjectManager& roMngr = m_renderer->getRenderObjectManager();
+		MaterialIndex matId = roMngr.getMaterialForId(ref.objectId).getMaterialIDForSubmeshIndex(ref.submeshIndex);
+		const MaterialParameters& matParams = m_renderer->getMaterialManager().getMaterialInternal(matId)->getMaterialParams();
+
+		//the emitting area is approximated from the object bounds (half the box surface is the area of a flat emitter filling it)
+		AABB bounds = roMngr.getBoundsForId(ref.objectId);
+		vec3 extent = bounds.max - bounds.min;
+		float area = extent.x * extent.y + extent.y * extent.z + extent.z * extent.x;
+
+		float emission = luminance(matParams.emissive);
+		if (emission <= 0.f)
+		{
+			emission = 1.f; //emission only from a texture, its average is unknown here
+		}
+		float sides = (matParams.materialMask & MaterialMask_TwoSided) != 0 ? 2.f : 1.f;
+		return glm::pi<float>() * emission * area * sides;
+	}
+
+	float RaytraceCommonResources::estimatePunctualLightPower(const PunctualLightParameters& light) const
+	{
+		float intensity = luminance(light.intensity);
+		switch (light.type)
+		{
+		case LightType::POINT:
+			return 4.f * glm::pi<float>() * intensity;
+		case LightType::SPOT:
+			return 2.f * glm::pi<float>() * (1.f - 0.5f * (light.cosInnerAngle + light.cosOuterAngle)) * intensity;
+		case LightType::DIRECTIONAL:
+		{
+			vec3 extent = (m_worldBounds.max - m_worldBounds.min) * 0.5f;
+			return glm::pi<float>() * glm::dot(extent, extent) * intensity;
+		}
+		}
+		return intensity;
+	}
+
+	void RaytraceCommonResources::uploadLightData()
+	{
+		LightManager* lightManager = m_renderer->getLightManager();
+		RenderObjectManager& roMngr = m_renderer->getRenderObjectManager();
+
+		size_t meshLightCount = lightManager->getLightReferenceCount();
+		size_t punctualLightCount = lightManager->getPunctualLightCount();
+		size_t lightCount = meshLightCount + punctualLightCount;
+
+		size_t instanceEntries = max((size_t)1, m_instanceCount);
+		if (instanceEntries > m_instanceLightSelectionPDFs.getAllocatedEntryCount())
+		{
+			m_instanceLightSelectionPDFs.allocate(instanceEntries, "InstanceLightSelectionPDFs");
+		}
+
+		if (lightCount == 0)
+		{
+			if (m_lightDataGPU.getAllocatedEntryCount() == 0)
+			{
+				m_lightDataGPU.allocate(1, "EmissiveObjectsReferences");
+			}
+			char* instancePDFs = m_instanceLightSelectionPDFs.map(0, instanceEntries);
+			memset(instancePDFs, 0, instanceEntries * sizeof(float));
+			m_instanceLightSelectionPDFs.unmap();
+			return;
+		}
+
+		const PunctualLightParameters* punctualLights = lightManager->getAllPunctualLights();
+
+		m_lightSelectionPDFs.resize(lightCount);
+		for (size_t i = 0; i < meshLightCount; ++i)
+		{
+			m_lightSelectionPDFs[i] = estimateMeshLightPower(i);
+		}
+		m_punctualSelectionPDFs.resize(punctualLightCount);
+		for (size_t i = 0; i < punctualLightCount; ++i)
+		{
+			float power = estimatePunctualLightPower(punctualLights[i]);
+			m_lightSelectionPDFs[meshLightCount + i] = power;
+			m_punctualSelectionPDFs[i] = power;
+		}
+		calculateSelectionPDFs(m_lightSelectionPDFs);
+		buildAliasTable(m_lightSelectionPDFs, m_lightAliasThresholds, m_lightAliasIndices);
+		if (punctualLightCount > 0)
+		{
+			calculateSelectionPDFs(m_punctualSelectionPDFs);
+			buildAliasTable(m_punctualSelectionPDFs, m_punctualAliasThresholds, m_punctualAliasIndices);
+		}
+
+		if (lightCount > m_lightDataGPU.getAllocatedEntryCount())
+		{
+			m_lightDataGPU.allocate(lightCount, "EmissiveObjectsReferences");
+		}
+
+		char* instancePDFs = m_instanceLightSelectionPDFs.map(0, instanceEntries);
+		memset(instancePDFs, 0, instanceEntries * sizeof(float));
+
+		char* dstPtr = m_lightDataGPU.map(0, lightCount);
+		const LightManager::LightReference* refs = lightManager->getAllLightReferences();
+		for (size_t i = 0; i < meshLightCount; ++i)
+		{
+			const LightManager::LightReference& ref = refs[i];
+			MeshIndex meshId = roMngr.getMeshForId(ref.objectId);
+			const mat4& t = roMngr.getWorldMatrixForId(ref.objectId);
+			mat4p invTransp = glm::transpose(glm::inverse(t));
+			size_t meshIndex = m_meshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, ref.submeshIndex);
+			size_t matIndex = m_materialMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialIDForSubmeshIndex(ref.submeshIndex));
+			AABB bounds = roMngr.getBoundsForId(ref.objectId);
+			vec3p c = bounds.center();
+			float radius = bounds.radius();
+			size_t renderObjectDataIndex = roMngr.getDataIndexForRenderObjectId(ref.objectId);
+
+			LightEntryGPU gpuEntry;
+			memset(&gpuEntry, 0, sizeof(LightEntryGPU));
+			gpuEntry.transform = t;
+			gpuEntry.transformInvTransp = invTransp;
+			gpuEntry.meshIndex = (uint32_t)meshIndex;
+			gpuEntry.matIndex = (uint32_t)matIndex;
+			gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
+			gpuEntry.instanceIndex = uint32_t(m_instanceOffsetPerRenderObject[renderObjectDataIndex] + ref.submeshIndex);
+			gpuEntry.lightType = LIGHT_TYPE_MESH;
+			gpuEntry.selectionPDF = m_lightSelectionPDFs[i];
+			gpuEntry.aliasThreshold = m_lightAliasThresholds[i];
+			gpuEntry.aliasIndex = m_lightAliasIndices[i];
+
+			memcpy(dstPtr + i * m_lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
+
+			if (gpuEntry.instanceIndex < instanceEntries)
+			{
+				memcpy(instancePDFs + gpuEntry.instanceIndex * sizeof(float), &gpuEntry.selectionPDF, sizeof(float));
+			}
+		}
+
+		for (size_t i = 0; i < punctualLightCount; ++i)
+		{
+			const PunctualLightParameters& light = punctualLights[i];
+			size_t lightIndex = meshLightCount + i;
+
+			LightEntryGPU gpuEntry;
+			memset(&gpuEntry, 0, sizeof(LightEntryGPU));
+			switch (light.type)
+			{
+			case LightType::POINT: gpuEntry.lightType = LIGHT_TYPE_POINT; break;
+			case LightType::SPOT: gpuEntry.lightType = LIGHT_TYPE_SPOT; break;
+			case LightType::DIRECTIONAL: gpuEntry.lightType = LIGHT_TYPE_DIRECTIONAL; break;
+			}
+			gpuEntry.instanceIndex = uint32_t(-1);
+			gpuEntry.positionCosInner = vec4p(light.positionWS, light.cosInnerAngle);
+			gpuEntry.directionCosOuter = vec4p(light.directionWS, light.cosOuterAngle);
+			gpuEntry.intensity = vec4p(light.intensity, 0.f);
+			gpuEntry.selectionPDF = m_lightSelectionPDFs[lightIndex];
+			gpuEntry.aliasThreshold = m_lightAliasThresholds[lightIndex];
+			gpuEntry.aliasIndex = m_lightAliasIndices[lightIndex];
+			gpuEntry.punctualSelectionPDF = m_punctualSelectionPDFs[i];
+			gpuEntry.punctualAliasThreshold = m_punctualAliasThresholds[i];
+			gpuEntry.punctualAliasIndex = m_punctualAliasIndices[i];
+
+			memcpy(dstPtr + lightIndex * m_lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
+		}
+
+		m_lightDataGPU.unmap();
+		m_instanceLightSelectionPDFs.unmap();
+	}
+
 	JobHandle RaytraceCommonResources::setupLightDataJob(JobSystem* threadPool)
 	{
-
 		auto uploadLightDataJob = [](void* usrData)
 		{
-			RaytraceCommonResources* subStage = static_cast<RaytraceCommonResources*>(usrData);
-			LightManager* lightManager = subStage->m_renderer->getLightManager();
-			DynamicSizeGpuBufferHelper<LightEntryGPU>& lightDataGPU = subStage->m_lightDataGPU;
-			RenderObjectManager& roMngr = subStage->m_renderer->getRenderObjectManager();
-			BindlessMeshManager* bindlessMeshMngr = subStage->m_meshMngr;
-			BindlessMaterialManager* matMngr = subStage->m_materialMngr;
-
-			size_t lightCount = lightManager->getLightReferenceCount();
-			if (lightCount == 0)
-			{
-				if (lightDataGPU.getAllocatedEntryCount() == 0)
-				{
-					lightDataGPU.allocate(1, "EmissiveObjectsReferences");
-				}
-				return;
-			}
-
-			if (lightCount > lightDataGPU.getAllocatedEntryCount())
-			{
-				lightDataGPU.allocate(lightCount, "EmissiveObjectsReferences");
-			}
-
-			char* dstPtr = lightDataGPU.map(0, lightCount);
-			const LightManager::LightReference* refs = lightManager->getAllLightReferences();
-			for (size_t i = 0; i < lightCount; ++i)
-			{
-				const LightManager::LightReference& ref = refs[i];
-				MeshIndex meshId = roMngr.getMeshForId(ref.objectId);
-				const mat4& t = roMngr.getWorldMatrixForId(ref.objectId);
-				mat4p invTransp = glm::transpose(glm::inverse(t));
-				size_t meshIndex = bindlessMeshMngr->getEntryIndexForMeshIdAndSubmesh(meshId, ref.submeshIndex);
-				size_t matIndex = matMngr->getEntryIndexForMaterialId(roMngr.getMaterialForId(ref.objectId).getMaterialIDForSubmeshIndex(ref.submeshIndex));
-				AABB bounds = roMngr.getBoundsForId(ref.objectId);
-				vec3p c = bounds.center();
-				float radius = bounds.radius();
-				size_t renderObjectDataIndex = roMngr.getDataIndexForRenderObjectId(ref.objectId);
-
-				LightEntryGPU gpuEntry;
-				gpuEntry.transform = t;
-				gpuEntry.transformInvTransp = invTransp;
-				gpuEntry.meshIndex = (uint32_t)meshIndex;
-				gpuEntry.matIndex = (uint32_t)matIndex;
-				gpuEntry.centerRadius = vec4p(c.x, c.y, c.z, radius);
-				gpuEntry.instanceIndex = uint32_t(subStage->m_instanceOffsetPerRenderObject[renderObjectDataIndex] + ref.submeshIndex); 
-
-				memcpy(dstPtr + i * lightDataGPU.getAlignedEntrySize(), &gpuEntry, sizeof(LightEntryGPU));
-			}
-
-
-			lightDataGPU.unmap();
+			static_cast<RaytraceCommonResources*>(usrData)->uploadLightData();
 		};
-
 
 		return threadPool->submit(uploadLightDataJob, this);
 	}

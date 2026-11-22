@@ -5,6 +5,7 @@
 #include <Renderer/Mesh.h>
 #include <Math/Math.h>
 #include <Renderer/RenderObject.h>
+#include <Renderer/Light.h>
 #include <Renderer/RendererConfiguration.h>
 #include <Renderer/RendererCacheProvider.h>
 #include <Renderer/ReadbackHandle.h>
@@ -59,6 +60,7 @@ namespace YAPT
 		virtual Mesh* createMesh(const VertexBufferLayout* layouts, size_t numberOfVertexBufferLayouts, size_t vertexCount, size_t submeshCount, bool use16BitIndices) = 0;
 		virtual Material* createMaterial() = 0;
 		virtual RenderObject* createRenderObject() = 0;
+		virtual Light* createLight(LightType type) = 0;
 
 		virtual RendererConfiguration* getRendererConfiguration() = 0;
 

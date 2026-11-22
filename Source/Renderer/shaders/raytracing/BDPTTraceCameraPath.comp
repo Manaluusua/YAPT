@@ -251,10 +251,11 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 					//TODO: no point trying to connect if light is delta
                     if(!lightNodeIsDelta)
 					{
-						float3x4 toLocalFrame = hit.worldToObject;
-						float3 lightPosOS = mul(toLocalFrame, float4(lightNode.positionWS.xyz, 1)).xyz;
-						float3 posOS = mul(toLocalFrame, float4(camVertexContext.posWS, 1)).xyz;
-						camVertexContext.wiOS = normalize(lightPosOS - posOS);
+						float3 toLightDirWS;
+						float toLightDist;
+						bool lightAtInfinity;
+						getLightNodeConnection(lightNode, lightVertexIndex, camVertexContext.posWS, toLightDirWS, toLightDist, lightAtInfinity);
+						camVertexContext.wiOS = normalize(mul((float3x3) hit.worldToObject, toLightDirWS));
 
 						SpectralSamples lightConnectionRadiance = calculateLightPathRadiance(camVertexIndex, camVertexContext, nodeData, lightVertexIndex, lightVertexContext, rayState);
 
@@ -338,9 +339,9 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
             {
                 float pdfBackwardPrevNode = sampledDeltaDir ? -1.f : (pdfBackwardIsAreaDensity ? pdfBackward : pdfBackward * solidAngleToAreaDensityMultiplier(rayOrigin - camVertexContext.posWS, camVertexContext.prevNodeNormalWS));
 
-				camVertexContext.pdfRatioSum = deferredRISumCamera;
-
+				//ratios of all vertices before this one, the connections from the next vertex add this one and the next
 				deferredRISumCamera = accumulateRISum(deferredRISumCamera, pdfBackwardPrevNode, camVertexContext.previousPDFForwardMIS, !camVertexContext.prevIsSubsurfaceExit);
+				camVertexContext.pdfRatioSum = deferredRISumCamera;
             }
 
             camVertexContext.prevNodeNormalWS = camVertexContext.normalWS;
@@ -372,7 +373,7 @@ void traceCameraRays( uint3 groupId : SV_GroupID,
 			}
 
 			camVertexContext.currentNodeForwardPDFMIS = pdfForwardCamera;
-            float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayOrigin, rayDir);
+            float misWeight = calculateMISWeightOnCameraPathMissing(camVertexIndex, camVertexContext, rayDir);
 
 			float4 skyColor = getSkyBoxColor(rayDir, g_envType, g_envTexIndex) * g_envIntensityScale;
 			if(shouldPathContribute(camVertexIndex + 1, 0))

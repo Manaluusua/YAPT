@@ -19,6 +19,9 @@ static float g_spectralMainSampleWavelength;
 #define LIGHT_PATH_NODE_FLAG_REGULARIZED (1 << 4)
 //the node is a subsurface exit point: the path arrived through the subsurface from the previous node (no ray between them), so only the exit lobe applies here
 #define LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT (1 << 5)
+//the node is the origin of a punctual light, primitiveIndex holds the index to the light list
+#define LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT (1 << 6)
+#define LIGHT_PATH_NODE_FLAG_DIRECTIONAL_LIGHT (1 << 7)
 
 struct BidirectionalPathTraceConstants
 {
@@ -227,7 +230,6 @@ ByteAddressBuffer g_counters : register(t4, space3);
 #define g_cameraRayWorkGroupCount (g_bdptConstants.cameraRayWorkGroupCount)
 #define g_cameraWorkGroupOffset (g_bdptConstants.cameraWorkGroupSwizzleOffset)
 
-#define g_sampleEnvLightProbabilityWeight 0.0f
 #define g_effectiveCameraPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.zw)
 #define g_effectiveLightPathNodesRange (g_bdptConstants.lightAndCameraPathConstraints.xy)
 
@@ -574,13 +576,64 @@ float accumulateRISum(float riSum, float nom, float denom)
     return accumulateRISum(riSum, nom, denom, true);
 }
 
+bool isPunctualLightNode(LightPathNode node)
+{
+    return (node.flags & LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT) != 0;
+}
+
+bool isDirectionalLightNode(LightPathNode node)
+{
+    return (node.flags & LIGHT_PATH_NODE_FLAG_DIRECTIONAL_LIGHT) != 0;
+}
+
+bool isEnvLightNode(LightPathNode node)
+{
+    return (node.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
+}
+
+//light origins at infinity: the node position is a point on the emitting disk, connections go along the emitted direction
+bool isInfiniteLightNode(LightPathNode node)
+{
+    return (node.flags & (LIGHT_PATH_NODE_FLAG_DIRECTIONAL_LIGHT | LIGHT_PATH_NODE_FLAG_ENV_LIGHT)) != 0;
+}
+
+//direction the light travels from an infinite light origin node. Environment nodes keep it octahedral encoded in the barycentrics
+float3 getInfiniteLightNodeDirection(LightPathNode node)
+{
+    if (isDirectionalLightNode(node))
+    {
+        return g_lights[node.primitiveIndex].directionCosOuter.xyz;
+    }
+    return decodeOctahedral(node.barycentrics);
+}
+
 ExtractedLightPathNodeData getExtractedLightPathNodeData(LightPathNode node)
 {
-    ExtractedLightPathNodeData data;
+    ExtractedLightPathNodeData data = (ExtractedLightPathNodeData) 0;
     data.node = node;
-    fillSurfaceDefRGB(node.instanceIndex, node.primitiveIndex, node.barycentrics, data.surfaceDefRGB);
-    data.worldToObjSpace = getTransformDataForInstance(node.instanceIndex).getWorldToObj();
+    //punctual and environment light origins have no surface
+    if ((node.flags & (LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT | LIGHT_PATH_NODE_FLAG_ENV_LIGHT)) == 0)
+    {
+        fillSurfaceDefRGB(node.instanceIndex, node.primitiveIndex, node.barycentrics, data.surfaceDefRGB);
+        data.worldToObjSpace = getTransformDataForInstance(node.instanceIndex).getWorldToObj();
+    }
     return data;
+}
+
+//direction and distance from posWS towards a light path node. Directional lights are connected along the light direction instead of towards the sampled node position
+void getLightNodeConnection(LightPathNode node, uint lightVertexIndex, float3 posWS, out float3 dirWS, out float distance, out bool atInfinity)
+{
+    if (lightVertexIndex == 0 && isInfiniteLightNode(node))
+    {
+        dirWS = -getInfiniteLightNodeDirection(node);
+        distance = DEFAULT_RAY_MAX_T;
+        atInfinity = true;
+        return;
+    }
+    float3 toNode = node.positionWS.xyz - posWS;
+    distance = length(toNode);
+    dirWS = toNode / distance;
+    atInfinity = false;
 }
 
 SurfaceSamplingContext calculateCommonSurfaceParams(inout BDPTRayState rayState, in uint materialIndex, SurfaceDefinitionRGB surfaceDefRGB, in float3 woOS, bool triangleHitFrontFace)
@@ -611,9 +664,9 @@ SurfaceSamplingContext calculateCommonSurfaceParams(inout BDPTRayState rayState,
 }
 
 
-void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, float envSampleRelativeProbability, out float lightPickPDF, out float posPDF, out float dirPDF)
+void pdfForSamplingLightNode(LightPathNode lightNode, float3 towardsDir, out float lightPickPDF, out float posPDF, out float dirPDF)
 {
-    pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, envSampleRelativeProbability, lightPickPDF, posPDF, dirPDF);
+    pdfForSamplingLight(lightNode.instanceIndex, lightNode.primitiveIndex, lightNode.barycentrics, lightNode.normalWS, towardsDir, lightPickPDF, posPDF, dirPDF);
 }
 
 struct LightOrEnvSample
@@ -621,39 +674,48 @@ struct LightOrEnvSample
     LightSampleOutput sample;
     float pdfLightSelection;
     bool sampledEnvironment;
+    bool sampledPunctual;
+    bool sampledDirectional;
 };
 
 LightOrEnvSample sampleEnvironmentAsLight(float4 lightSampleRand0, float pdfLightSelection)
 {
     LightOrEnvSample result = (LightOrEnvSample)0;
     sampleEnvironmentLighting(lightSampleRand0, result.sample.radiance, result.sample.positionWS, result.sample.directionWS, result.sample.pdfPos, result.sample.pdfDir);
-    result.sample.normalWS = 0;
+    //the disk faces the emitted direction, so the cosine at the light is 1
+    result.sample.normalWS = result.sample.directionWS;
     result.sample.instanceIndex = -1;
     result.sample.primitiveIndex = -1;
     result.sample.emissionProfileWeight = 1.f;
     result.pdfLightSelection = pdfLightSelection;
     result.sampledEnvironment = true;
+    result.sampledPunctual = false;
+    result.sampledDirectional = false;
     return result;
 }
 
-LightOrEnvSample sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1, float envSampleRelativeProbability)
+LightOrEnvSample sampleLightOrEnv(float lightPickRand, float4 lightSampleRand0, float2 lightSampleRand1)
 {
-    if (g_lightCount == 0)
+    float envPDF = environmentSelectionPDF();
+    if (lightPickRand < envPDF)
     {
-        return sampleEnvironmentAsLight(lightSampleRand0, 1.f);
+        return sampleEnvironmentAsLight(lightSampleRand0, envPDF);
     }
 
-    float lightProb = g_lightCount + envSampleRelativeProbability;
-    float s = lightPickRand * lightProb;
-    if (s > g_lightCount)
-    {
-        return sampleEnvironmentAsLight(lightSampleRand0, envSampleRelativeProbability / lightProb);
-    }
-
-    uint lightIndex = min((uint) floor(lightPickRand * g_lightCount), g_lightCount - 1);
+    uint lightIndex = sampleLightIndex((lightPickRand - envPDF) / (1.f - envPDF));
     LightOrEnvSample result;
-    sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, result.sample);
-    result.pdfLightSelection = 1 / lightProb;
+    LightEntryGPU lightEntry = g_lights[lightIndex];
+    result.sampledPunctual = isPunctualLight(lightEntry);
+    result.sampledDirectional = lightEntry.lightType == LIGHT_TYPE_DIRECTIONAL;
+    if (result.sampledPunctual)
+    {
+        samplePunctualLightEmission(lightIndex, float4(lightSampleRand1, lightSampleRand0.xy), result.sample);
+    }
+    else
+    {
+        sampleLight(lightIndex, lightSampleRand0.xyz, lightSampleRand1, result.sample);
+    }
+    result.pdfLightSelection = (1.f - envPDF) * lightSelectionPDF(lightIndex);
     result.sampledEnvironment = false;
     return result;
 }
@@ -669,7 +731,51 @@ bool calculateConnectingLightNodeWeightsAndPDFs(ExtractedLightPathNodeData light
     LightPathNode lightNode = lightNodeData.node;
     uint lightNodeFlags = asuint(lightNode.flags);
     bool triangleHitFrontFace = (lightNodeFlags & LIGHT_PATH_NODE_FLAG_HIT_FRONT_FACE) != 0;
-    if (lightNodeIndex == 0)
+    if (lightNodeIndex == 0 && isPunctualLightNode(lightNode))
+    {
+        //punctual lights: node radiance is intensity (point/spot) or irradiance (directional), there is no area density to convert
+        LightEntryGPU light = g_lights[lightNode.primitiveIndex];
+        float lightPickPDF = (1.f - environmentSelectionPDF()) * lightSelectionPDF(lightNode.primitiveIndex);
+        if (light.lightType == LIGHT_TYPE_DIRECTIONAL)
+        {
+            evalOut.pdfForward = lightPickPDF;
+            evalOut.weight.set(1.f / lightPickPDF);
+            //planar density of the light path reaching the next vertex, the cosine there is applied by the caller
+            pdfForwardMISOut = pdfDirectionalLightPosition();
+        }
+        else
+        {
+            float3 fromLightWS = nextVertexPos - lightNode.positionWS;
+            float distSqr = max(dot(fromLightWS, fromLightWS), 1e-10f);
+            float3 fromLightDir = fromLightWS * rsqrt(distSqr);
+            float falloff = punctualLightAngularFalloff(light, fromLightDir);
+            if (falloff <= 0.f)
+            {
+                pdfForwardMISOut = 0;
+                return false;
+            }
+            evalOut.pdfForward = lightPickPDF * distSqr;
+            evalOut.weight.set(falloff / evalOut.pdfForward);
+            pdfForwardMISOut = pdfPunctualLightEmissionDirection(light, fromLightDir);
+        }
+        evalOut.pdfBackward = 0;
+    }
+    else if (lightNodeIndex == 0 && isEnvLightNode(lightNode))
+    {
+        //environment: the light subpath picked a direction, connecting along it is like sampling that direction from the vertex
+        float pdfDir = environmentSelectionPDF() * pdfEnvironmentDirection(getInfiniteLightNodeDirection(lightNode));
+        if (pdfDir <= 0.f)
+        {
+            pdfForwardMISOut = 0;
+            return false;
+        }
+        evalOut.pdfForward = pdfDir;
+        evalOut.weight.set(1.f / pdfDir);
+        evalOut.pdfBackward = 0;
+        //planar density of the light path reaching the next vertex, the cosine there is applied by the caller
+        pdfForwardMISOut = pdfEnvironmentPosition();
+    }
+    else if (lightNodeIndex == 0)
     {
         bool twoSided = isSurfaceTwoSided(surfaceDefRGB.flags);
         float3 fromLightWS = nextVertexPos - lightNode.positionWS;
@@ -815,15 +921,24 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode light
 
     float riSumCam = camVertex.pdfRatioSum;
 	//TODO: the actual first node would be the origina of the ray from camera but its not considered (and can never be hit by path from light). Revisit if its correct to just ignore it here
-    if (cameraVertexIndex > 1)
+    if (cameraVertexIndex > 0)
     {
         //from a subsurface exit the backward pdf is already an area density
         float pdfBackwardPrevNodeCam = camVertex.isSubsurfaceExit ? pdfs.pdfBackwardLastCameraNode : pdfs.pdfBackwardLastCameraNode * solidAngleToAreaDensityMultiplier(camVertex.prevNodePosWS - camVertex.posWS, camVertex.prevNodeNormalWS);
         riSumCam = accumulateRISum(riSumCam, pdfBackwardPrevNodeCam, camVertex.previousPDFForwardMIS, !camVertex.prevIsSubsurfaceExit);
     }
-    if (cameraVertexIndex > 0)
     {
-        riSumCam = accumulateRISum(riSumCam, pdfs.pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS), camVertex.currentNodeForwardPDFMIS, !camVertex.isSubsurfaceExit);
+        float pdfLightToCamNodeArea;
+        if (lightVertexIndex == 0 && isInfiniteLightNode(lightNode))
+        {
+            //infinite light paths start from a disk, the density reaching the camera node is planar density * cosine
+            pdfLightToCamNodeArea = pdfs.pdfForwardLastLightNode * abs(dot(camVertex.normalWS, getInfiniteLightNodeDirection(lightNode)));
+        }
+        else
+        {
+            pdfLightToCamNodeArea = pdfs.pdfForwardLastLightNode * solidAngleToAreaDensityMultiplier(camVertex.posWS - lightNode.positionWS.xyz, camVertex.normalWS);
+        }
+        riSumCam = accumulateRISum(riSumCam, pdfLightToCamNodeArea, camVertex.currentNodeForwardPDFMIS, !camVertex.isSubsurfaceExit);
     }
 
 	
@@ -840,14 +955,23 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode light
         float3 lightToCam = -camToLight / camToLightLength;
 		
         float misWeightToLight;
-        if (isEnvLight)
+        if (isPunctualLightNode(lightNode))
         {
-            pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
+            //a camera path can never hit a delta light
+            lightPickPDF = 1;
+            lightPosPDF = 1;
+            misWeightToLight = 0;
+        }
+        else if (isEnvLight)
+        {
+            //the camera path would find the environment by sampling the same direction: both densities are per solid angle
+            pdfForSamplingEnv(getInfiniteLightNodeDirection(lightNode), lightPickPDF, lightPosPDF, lightDirPDF);
+            lightPosPDF = lightDirPDF;
             misWeightToLight = pdfs.pdfForwardLastCameraNode;
         }
         else
         {
-            pdfForSamplingLightNode(lightNode, lightToCam, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
+            pdfForSamplingLightNode(lightNode, lightToCam, lightPickPDF, lightPosPDF, lightDirPDF);
             misWeightToLight = pdfs.pdfForwardLastCameraNode * solidAngleToAreaDensityMultiplier(camToLight, lightNode.normalWS);
         }
 		
@@ -861,7 +985,13 @@ uint lightVertexIndex, in LightVertexContext lightVertex, in LightPathNode light
         bool lightNodeIsSubsurfaceExit = (lightNode.flags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0;
         bool prevNodeIsSubsurfaceExit = (lightVertex.prevNodeFlags & LIGHT_PATH_NODE_FLAG_SUBSURFACE_EXIT) != 0;
         bool prevNodeIsEnvLight = (lightVertexIndex == 1) && ((lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0);
-        if (!prevNodeIsEnvLight && !lightNodeIsSubsurfaceExit)
+        bool prevNodeIsPunctualLight = (lightVertexIndex == 1) && ((lightVertex.originatingNodeFlags & LIGHT_PATH_NODE_FLAG_PUNCTUAL_LIGHT) != 0);
+        if (prevNodeIsPunctualLight)
+        {
+            //strategy where the camera path hits the delta light origin has zero probability
+            pdfBackwardPrevNodeLight = 0;
+        }
+        else if (!prevNodeIsEnvLight && !lightNodeIsSubsurfaceExit)
         {
             pdfBackwardPrevNodeLight *= solidAngleToAreaDensityMultiplier(lightVertex.prevNodePosWS - lightNode.positionWS, lightVertex.prevNodeNormalWS);
         }
@@ -889,11 +1019,11 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
 	
     float3 towardsPreviousCameraNode = camVertexContext.prevNodePosWS - camVertexContext.posWS;
     float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
-    pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, g_sampleEnvLightProbabilityWeight, lightPickPDF, lightPosPDF, lightDirPDF);
+    pdfForSamplingLight(instanceIndex, primitiveIndex, bary, camVertexContext.normalWS, towardsPreviousCameraNodeDir, lightPickPDF, lightPosPDF, lightDirPDF);
 	
     float riSumCam = camVertexContext.pdfRatioSum;
    
-    if (cameraVertexIndex > 1)
+    if (cameraVertexIndex > 0)
     {
         riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, camVertexContext.prevNodeNormalWS), camVertexContext.previousPDFForwardMIS, !camVertexContext.prevIsSubsurfaceExit);
     }
@@ -904,7 +1034,9 @@ float calculateMISWeightOnCameraPathHittingLight(uint cameraVertexIndex, uint in
     return misWeight;
 }
 
-float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertexContext context, float3 rayOrigin, float3 rayDir)
+//camera path escaped to the environment after its last hit vertex (context.prevNode*). context.currentNodeForwardPDFMIS is the
+//solid angle pdf of the escaping direction
+float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertexContext context, float3 rayDir)
 {
 	//if we hit directly to light from camera, this path can only be done this way and MIS is 1
     if (cameraVertexIndex == 0)
@@ -912,23 +1044,14 @@ float calculateMISWeightOnCameraPathMissing(uint cameraVertexIndex, CameraVertex
         return 1.f;
     }
 
-    float lightPickPDF;
-    float lightPosPDF;
-    float lightDirPDF;
-
-    pdfForSamplingEnv(g_sampleEnvLightProbabilityWeight, -rayDir, lightPickPDF, lightPosPDF, lightDirPDF);
-
-    float3 towardsPreviousCameraNode = context.prevNodePosWS - context.posWS;
-    float3 towardsPreviousCameraNodeDir = normalize(towardsPreviousCameraNode);
-
     float riSumCam = context.pdfRatioSum;
-   
-    if (cameraVertexIndex > 1)
-    {
-        riSumCam = accumulateRISum(riSumCam, lightDirPDF * solidAngleToAreaDensityMultiplier(towardsPreviousCameraNode, context.prevNodeNormalWS), context.previousPDFForwardMIS, !context.prevIsSubsurfaceExit);
-    }
 
-    riSumCam = accumulateRISum(riSumCam, lightPickPDF * lightPosPDF, context.currentNodeForwardPDFMIS);
+    //environment light subpaths reach the last vertex with planar density * cosine
+    float pdfEnvToLastVertex = pdfEnvironmentPosition() * abs(dot(context.prevNodeNormalWS, rayDir));
+    riSumCam = accumulateRISum(riSumCam, pdfEnvToLastVertex, context.previousPDFForwardMIS, !context.prevIsSubsurfaceExit);
+
+    float pdfEnvDirection = environmentSelectionPDF() * pdfEnvironmentDirection(-rayDir);
+    riSumCam = accumulateRISum(riSumCam, pdfEnvDirection, context.currentNodeForwardPDFMIS);
 
     float misWeight = 1.f / (1 + riSumCam);
     return misWeight;
@@ -997,10 +1120,13 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         connectionPDFs.pdfBackwardLastLightNode = eval.pdfBackward;
     }
     
-    float3 toLightWS = lightNode.positionWS.xyz - camVertex.posWS;
-    float toLightLenSqr = dot(toLightWS, toLightWS);
-    float toLightLen = sqrt(toLightLenSqr);
-    float3 toLightDir = toLightWS / toLightLen;
+    float3 toLightDir;
+    float toLightLen;
+    bool lightAtInfinity;
+    getLightNodeConnection(lightNode, lightVertexIndex, camVertex.posWS, toLightDir, toLightLen, lightAtInfinity);
+    float toLightLenSqr = toLightLen * toLightLen;
+    //light origins without geometry: visible when nothing is hit on the way
+    bool connectingToLightWithoutGeometry = lightVertexIndex == 0 && (isPunctualLightNode(lightNode) || isEnvLightNode(lightNode));
 	//trace visibility ray to check visibility with node
 	{
         const float VISIBILITY_RAY_EPSILON = 0.001f;
@@ -1012,7 +1138,14 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         ray.Origin = spawnRayOrigin(camVertex.posWS, camVertex.normalWS, toLightDir);
         ray.Direction = toLightDir;
         ray.TMin = DEFAULT_RAY_MIN_T;
-        ray.TMax = DEFAULT_RAY_MIN_T + toLightLen + VISIBILITY_RAY_EPSILON;
+        if (connectingToLightWithoutGeometry)
+        {
+            ray.TMax = lightAtInfinity ? DEFAULT_RAY_MAX_T : toLightLen - DEFAULT_RAY_MIN_T;
+        }
+        else
+        {
+            ray.TMax = DEFAULT_RAY_MIN_T + toLightLen + VISIBILITY_RAY_EPSILON;
+        }
 
         RayQuery < RAY_FLAG_NONE > q;
         q.TraceRayInline(
@@ -1024,7 +1157,6 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         PROCEED_ALPHA_TESTED(q)
 						
         bool lightNodeVisible = false;
-        bool isEnvLight = (lightNode.flags & LIGHT_PATH_NODE_FLAG_ENV_LIGHT) != 0;
 						
         if (q.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
         {
@@ -1032,13 +1164,13 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
             uint visPrimIndex = q.CommittedPrimitiveIndex();
 							
 			//if we hit the light node instance and primitive, good enough for now (could check barycentrics to make sure but should be neglible)
-            if (visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
+            if (!connectingToLightWithoutGeometry && visInstId == lightNode.instanceIndex && visPrimIndex == lightNode.primitiveIndex)
             {
                 lightNodeVisible = true;
             }
 
         }
-        else if (isEnvLight)
+        else if (connectingToLightWithoutGeometry)
         {
             lightNodeVisible = true;
         }
@@ -1064,7 +1196,7 @@ ExtractedLightPathNodeData lightNodeData, uint lightVertexIndex, in LightVertexC
         }
 
         SpectralSamples absorptionOnConnection = rayState.getAbsorption();
-        if (!absorptionOnConnection.allSamplesEqual(0))
+        if (!lightAtInfinity && !absorptionOnConnection.allSamplesEqual(0))
         {
             weightLastCameraNode = weightLastCameraNode * calculateTransmittance(toLightLen, absorptionOnConnection);
         }

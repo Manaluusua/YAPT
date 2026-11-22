@@ -1,5 +1,6 @@
 #pragma once
 #include <PyBindingsCommon.h>
+#include <Renderer/Light.h>
 
 namespace YAPT
 {
@@ -8,6 +9,7 @@ namespace YAPT
 	class Scene;
 	class PyRenderObject;
 	class PySceneObject;
+	class PyLight;
 	class PyScene
 	{
 	public:
@@ -21,6 +23,7 @@ namespace YAPT
 
 		PyRenderObject* createRenderObject(const char* name);
 		PySceneObject* createSceneObject(const char* name);
+		PyLight* createLight(const char* name, LightType type);
 		
 		PyCamera* getMainCamera();
 
