@@ -490,7 +490,7 @@ PathHit makePathHit(float3 rayOriginWS, float3 rayDirWS, float rayT, uint instan
 {
     PathHit hit;
     hit.worldToObject = worldToObject;
-    hit.posWS = rayOriginWS + rayDirWS * rayT;
+    hit.posWS = calculateHitPositionWS(instanceIndex, primitiveIndex, barycentrics);
     hit.instanceIndex = instanceIndex;
     hit.woOS = normalize(-objectRayDir);
     hit.primitiveIndex = primitiveIndex;

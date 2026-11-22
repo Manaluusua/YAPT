@@ -159,6 +159,16 @@ float3 spawnRayOrigin(float3 position, float3 geometryNormal, float3 rayDir)
                   abs(position.z) < originThreshold ? position.z + floatScale * n.z : offsetPosition.z);
 }
 
+//spawnRayOrigin assumes this precision, origin + dir * t loses too much on long rays
+float3 calculateHitPositionWS(uint instanceIndex, uint primitiveIndex, float2 barycentrics)
+{
+    uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);
+    MeshEntryGPU meshEntry = getMeshEntry(matMeshIndices.y);
+    uint3 indices = fetchIndices(meshEntry.indexBuffer, primitiveIndex);
+    float3 posOS = fetchMeshPosition(meshEntry.positionBuffer, indices, float3(1.f - barycentrics.x - barycentrics.y, barycentrics.x, barycentrics.y));
+    return mul(getTransformDataForInstance(instanceIndex).getObjToWorld(), float4(posOS, 1.f));
+}
+
 bool alphaTestPasses(uint instanceIndex, uint primitiveIndex, float2 barycentrics2)
 {
     uint2 matMeshIndices = getMaterialAndMeshIndicesForInstance(instanceIndex);

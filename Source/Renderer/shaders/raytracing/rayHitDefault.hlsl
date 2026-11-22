@@ -320,7 +320,7 @@ NextRay evaluateSurfaceAndGenerateNextSampleDirection(in ClosestHitSurface hit, 
     float3 woObjSpace = -hit.rayDirObjSpace;
     SurfaceSamplingContext surface = makeSurfaceSamplingContext(hit.surfaceDef, rayState.getCurrentIOR(), rayState.getPreviousIOR(), woObjSpace, hit.frontFace);
 
-    float3 currentPosWS = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+    float3 currentPosWS = calculateHitPositionWS(InstanceID(), PrimitiveIndex(), hit.barycentrics);
     float3x3 worldToObj = (float3x3)WorldToObject3x4();
     float3 normalWS = normalize(mul(transpose(worldToObj), hit.surfaceDef.geometryNormal));
 
